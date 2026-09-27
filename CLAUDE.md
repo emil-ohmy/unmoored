@@ -1,5 +1,8 @@
 # MyGame
 
+**The Ferryman's Apprentice.** Design brief: `docs/brief.md`. Glossary (use these terms): `CONTEXT.md`.
+Decision history: `.scratch/game-brief/` (wayfinder map + tickets).
+
 3D game: Unity 6.6 (6000.6.3f1, URP) + Blender 5.2 for models. Driven mostly from the CLI.
 
 ## Layout

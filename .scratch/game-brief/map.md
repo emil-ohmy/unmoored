@@ -8,6 +8,8 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Notes
 
+- **Destination reached 2026-09-27**: all tickets resolved; the brief is [`docs/brief.md`](../../docs/brief.md).
+
 - Domain: game design for a top-down (fixed angled camera) 3D soulslike/metroidvania in Unity 6.6 URP.
 - Hobby/learning project. Team: the user (design, playtesting) + Claude (all code AND all Blender art,
   via Python scripting). A few hours/week, so scope must stay small.
@@ -29,6 +31,7 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Decisions so far
 
+- [Soured families](issues/11-soured-families.md): Laden, Clinger, Keener, Moths, Drowned; weaknesses are advantages, not requirements; one new family per Area; being dragged under water hurts but isn't death.
 - [Art style test: what Claude can build in Blender](issues/06-blender-art-test-prototype.md): style locked (faceted low-poly toon, lilac shadows, outlines, cold teal world with warm accents); animation-only telegraphs read fine; Claude scripts all art.
 - [Oar attachments and Charms](issues/10-oar-attachments-and-charms.md): Plain blade + Iron / Light (3rd swing) / Long / Barbed, one at a time; ~8 Charms, 1→3 slots; attachments found (one per Area) + one sold.
 - [World structure: hub, areas, bosses, shortcuts](issues/08-world-structure.md): the Ferryman's jetty as hub; Drowned Village (Hoarder) → Orchard of Last Autumn (Gardener) → Stopped Clocktower (One Who Waits); linked spokes, no fast travel; finale beneath the hub.
@@ -42,6 +45,7 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Not yet specified
 
+_Nothing left: the fog has cleared._
 
 ## Out of scope
 

@@ -27,6 +27,10 @@ _Avoid_: NPC, lost soul, quest giver
 A soul the Ferryman kept too long, turned hostile; the game's enemies. Defeat scatters them, it doesn't free them.
 _Avoid_: Enemy, monster, hollow
 
+**Soured family**:
+A kind of Soured defined by what it couldn't let go of: the Laden, the Clinger, the Keener, the Moths, the Drowned.
+_Avoid_: Enemy type, species, class
+
 **Crossing**:
 Rowing a Lingerer from the hub jetty to the far shore, releasing them.
 _Avoid_: Release, passing, ascension
