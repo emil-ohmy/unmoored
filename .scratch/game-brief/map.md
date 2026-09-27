@@ -29,6 +29,7 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Decisions so far
 
+- [Art style test: what Claude can build in Blender](issues/06-blender-art-test-prototype.md): style locked (faceted low-poly toon, lilac shadows, outlines, cold teal world with warm accents); animation-only telegraphs read fine; Claude scripts all art.
 - [Oar attachments and Charms](issues/10-oar-attachments-and-charms.md): Plain blade + Iron / Light (3rd swing) / Long / Barbed, one at a time; ~8 Charms, 1→3 slots; attachments found (one per Area) + one sold.
 - [World structure: hub, areas, bosses, shortcuts](issues/08-world-structure.md): the Ferryman's jetty as hub; Drowned Village (Hoarder) → Orchard of Last Autumn (Gardener) → Stopped Clocktower (One Who Waits); linked spokes, no fast travel; finale beneath the hub.
 - [Abilities and the gates they open](issues/07-abilities-and-gates.md): Hook (Boss 1), Stroke (Boss 2), Vault (secret in Area 1, required in Area 3); the bow lantern is optional, grows with lit Mooring posts and unlocks a secret ending.
@@ -41,14 +42,12 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Not yet specified
 
-- **Soured families**: enemies are the Soured (souls kept too long). Which 3–5 archetypes the brief commits to
-  (brief-level only, e.g. "a shield-bearer that punishes button mashing"), how their shapes echo who they
-  were, and how their stagger meters differ. Combat verbs are known now; waits on what the art test shows is animatable.
 
 ## Out of scope
 
 - Detailed content design (per-enemy stats, boss movesets, room layouts, item lists): this comes after the
   brief, when building each area.
-- Tech decisions (save system, UI framework, audio pipeline): not needed to lock the brief.
+- Tech decisions (save system, UI framework, audio pipeline, FBX export settings): not needed to lock the brief. The art
+  test's pipeline findings are recorded on [its ticket](issues/06-blender-art-test-prototype.md) for when production starts.
 - What the secret ending shows: story content for after the brief. The brief records only that it exists and that a fully
   powered bow lantern unlocks it (see [Abilities and the gates they open](issues/07-abilities-and-gates.md)).
