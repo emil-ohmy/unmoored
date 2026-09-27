@@ -29,6 +29,7 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Decisions so far
 
+- [Souls with unfinished business](issues/09-souls-with-unfinished-business.md): 5–7 Lingerers with varied business; Crossing = business done + fare paid (optional), rowed from the hub jetty for a gift + a Ferryman memory; enemies are the Soured, scattered not released until the Ferryman falls.
 - [Death, checkpoints and healing](issues/04-death-checkpoints-and-healing.md): rest at Mooring posts (heal, refill 3 Healing charges, save; enemies respawn except Bosses); dying drops all Obols with a retrievable Shade.
 - [What currency is for](issues/03-currency-and-what-it-buys.md): Obols (fares of the dead) buy oar attachments, charms/slots, consumables and passage for souls; stat upgrades are found, never bought.
 - [Hook, protagonist and pillars](issues/01-hook-and-pillars.md): The Ferryman's Apprentice, an oar-first soulslike in a flooded underworld; theme "letting go"; pillars one oar / deliberate combat / world that folds back; the oar is the only weapon.
@@ -38,8 +39,9 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 - **Equipment's shape**: equipment is oar attachments + charms (decided in the hook ticket), but how many,
   what they change, and how they're found depends on the combat verbs and the currency decision.
-- **Enemy families**: which 3–5 enemy archetypes the brief commits to (brief-level only, e.g. "a shield-bearer
-  that punishes button mashing"). Depends on the combat verbs and the setting.
+- **Soured families**: enemies are the Soured (souls kept too long). Which 3–5 archetypes the brief commits to
+  (brief-level only, e.g. "a shield-bearer that punishes button mashing"), and how their shapes echo who they
+  were. Depends on the combat verbs.
 
 ## Out of scope
 

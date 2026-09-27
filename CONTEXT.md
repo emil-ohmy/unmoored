@@ -15,6 +15,22 @@ _Avoid_: Hero, player (when meaning the character)
 The Apprentice's vanished master, who stopped letting the dead cross and began hoarding them.
 _Avoid_: Master, boatman
 
+**Soul**:
+Any of the dead; the umbrella term for Lingerers and the Soured.
+_Avoid_: Spirit, ghost
+
+**Lingerer**:
+A soul held back by unfinished business, who can cross once it's resolved and their fare is paid.
+_Avoid_: NPC, lost soul, quest giver
+
+**Soured**:
+A soul the Ferryman kept too long, turned hostile; the game's enemies. Defeat scatters them, it doesn't free them.
+_Avoid_: Enemy, monster, hollow
+
+**Crossing**:
+Rowing a Lingerer from the hub jetty to the far shore, releasing them.
+_Avoid_: Release, passing, ascension
+
 ### Progression
 
 **Oar**:
