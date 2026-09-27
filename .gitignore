@@ -1,0 +1,39 @@
+# Unity generated
+game/[Ll]ibrary/
+game/[Tt]emp/
+game/[Oo]bj/
+game/[Ll]ogs/
+game/[Uu]ser[Ss]ettings/
+game/[Mm]emoryCaptures/
+game/[Rr]ecordings/
+game/Assets/Plugins/Editor/JetBrains*
+game/.vs/
+game/.idea/
+game/*.csproj
+game/*.sln
+game/*.slnx
+game/*.pidb
+game/*.suo
+game/*.user
+game/*.userprefs
+game/*.booproj
+game/*.unityproj
+game/*.pdb
+game/*.mdb
+game/*.opendb
+game/*.VC.db
+game/sysinfo.txt
+game/crashlytics-build.properties
+game/Assets/StreamingAssets/aa.meta
+game/Assets/StreamingAssets/aa/*
+
+# Build output and CLI logs
+builds/
+
+# Blender autosave/backup files
+*.blend1
+*.blend2
+*.blend@
+
+# OS
+.DS_Store

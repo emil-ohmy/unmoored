@@ -1,0 +1,8 @@
+{
+    "name": "MyGame.Runtime",
+    "rootNamespace": "MyGame",
+    "references": [
+        "Unity.InputSystem"
+    ],
+    "autoReferenced": true
+}
