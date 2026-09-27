@@ -41,6 +41,10 @@ _Avoid_: Oar head, mod, upgrade
 A piece of passive Equipment that modifies the Apprentice without changing the Oar.
 _Avoid_: Card, trinket, relic
 
+**Obol**:
+The currency: the fare the dead carry to pay for crossing.
+_Avoid_: Coin, money, gold, souls (as currency)
+
 ### Combat
 
 **Healing charge**:
