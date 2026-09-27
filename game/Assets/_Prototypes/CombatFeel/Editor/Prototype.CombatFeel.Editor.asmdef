@@ -1,0 +1,10 @@
+{
+    "name": "Prototype.CombatFeel.Editor",
+    "references": [
+        "Prototype.CombatFeel"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "autoReferenced": false
+}

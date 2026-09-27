@@ -1,0 +1,8 @@
+{
+    "name": "Prototype.CombatFeel",
+    "rootNamespace": "MyGame.Prototypes.CombatFeel",
+    "references": [
+        "Unity.InputSystem"
+    ],
+    "autoReferenced": false
+}
