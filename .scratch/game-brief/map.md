@@ -29,6 +29,8 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Decisions so far
 
+- [How Death's Door and Tunic handle death, currency, healing and checkpoints](issues/02-reference-death-and-economy-research.md): both sell capped stat upgrades and both respawn enemies at rest points; Death's Door costs only time on death, Tunic drops coins as a retrievable ghost.
+
 ## Not yet specified
 
 - **Equipment's role**: how many weapons/items, whether they change the moveset or just stats, and how you
