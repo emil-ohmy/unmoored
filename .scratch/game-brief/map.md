@@ -1,0 +1,44 @@
+# Map: Game brief
+Label: wayfinder:map
+
+## Destination
+
+`docs/brief.md`: a one-page brief with pillars, hook, core loop, soulslike rules, metroidvania rules,
+art direction and scope locked, concrete enough to start building the combat grey box without guessing.
+
+## Notes
+
+- Domain: game design for a top-down (fixed angled camera) 3D soulslike/metroidvania in Unity 6.6 URP.
+- Hobby/learning project. Team: the user (design, playtesting) + Claude (all code AND all Blender art,
+  via Python scripting). A few hours/week, so scope must stay small.
+- Every grilling ticket: load the `grilling` and `domain-modeling` skills; keep `CONTEXT.md` current.
+- When no open tickets remain, the way is clear: write `docs/brief.md` from Decisions so far (no new decisions).
+- User prefers quiz format (multiple choice via AskUserQuestion, recommendation first).
+- Starting leanings from charting (2026-09-27), to confirm in the relevant tickets, not yet decisions:
+  - References: Death's Door, Tunic.
+  - Tone: melancholic-whimsical (Death's Door-like).
+  - Camera: fixed angled, never rotates. Input: gamepad-first, attacks go where you face.
+  - Art: low-poly, toon-shaded.
+  - Story: environmental + a few NPCs with short lines.
+  - Scope: 1–2 h game: hub + 2–3 areas, 2–3 bosses, 2–3 abilities.
+  - Souls: deliberate stamina combat, a death penalty, bosses as area climaxes.
+    Not picked: checkpoints with enemy respawn.
+  - Metroidvania: ability gates, interconnected world with shortcuts, secrets. Not picked: in-game map.
+  - Progression: abilities + equipment. Not picked: stat upgrades.
+  - Healing: limited charges.
+
+## Decisions so far
+
+## Not yet specified
+
+- **Equipment's role**: how many weapons/items, whether they change the moveset or just stats, and how you
+  find them. Depends on the combat verbs the combat prototype settles and on the currency decision.
+- **Enemy families**: which 3–5 enemy archetypes the brief commits to (brief-level only, e.g. "a shield-bearer
+  that punishes button mashing"). Depends on the combat verbs and the setting.
+- **NPCs and what the world is saying**: how many NPCs, what the environmental story is about. Waits for the hook.
+
+## Out of scope
+
+- Detailed content design (per-enemy stats, boss movesets, room layouts, item lists): this comes after the
+  brief, when building each area.
+- Tech decisions (save system, UI framework, audio pipeline): not needed to lock the brief.
