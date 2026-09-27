@@ -67,6 +67,14 @@ _Avoid_: Coin, money, gold, souls (as currency)
 One use of the Apprentice's limited self-heal; the carried charges refill only by Resting.
 _Avoid_: Potion, flask, estus
 
+**Stagger meter**:
+A hidden per-enemy gauge that hits fill (light a little, heavy a lot) and that drains over time; when full, the enemy is staggered.
+_Avoid_: Poise bar, stun meter
+
+**Telegraph**:
+The readable wind-up of an attack, shown through the attacker's animation, never through ground markers.
+_Avoid_: Tell, warning, indicator
+
 **Shade**:
 The ghost of the Apprentice left where they died, holding the Obols they carried.
 _Avoid_: Corpse, ghost, bloodstain, echo

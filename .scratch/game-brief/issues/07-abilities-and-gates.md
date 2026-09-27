@@ -6,5 +6,6 @@ Blocked by: 01, 05
 ## Question
 
 Which 2–3 oar techniques (Abilities) does the game have? Each must have both a combat use and a traversal use
-(to open an Ability gate, on land or on water), and must build on the combat verbs. In what order are they
+(to open an Ability gate, on land or on water), and must build on the combat verbs (move, i-frame roll, 2-swing light, heavy, stamina, stagger meter; see
+the combat ticket). In what order are they
 found, and how (bosses, souls, the Ferryman's traces)?

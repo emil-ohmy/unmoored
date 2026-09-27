@@ -29,6 +29,7 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Decisions so far
 
+- [Combat feel: core verbs and pace](issues/05-combat-feel-prototype.md): Middle pace; move, i-frame roll (cancels recovery), 2-swing light (3rd unlockable) + heavy, stamina, hidden stagger meter; telegraphs via animation, no ground markers.
 - [Souls with unfinished business](issues/09-souls-with-unfinished-business.md): 5–7 Lingerers with varied business; Crossing = business done + fare paid (optional), rowed from the hub jetty for a gift + a Ferryman memory; enemies are the Soured, scattered not released until the Ferryman falls.
 - [Death, checkpoints and healing](issues/04-death-checkpoints-and-healing.md): rest at Mooring posts (heal, refill 3 Healing charges, save; enemies respawn except Bosses); dying drops all Obols with a retrievable Shade.
 - [What currency is for](issues/03-currency-and-what-it-buys.md): Obols (fares of the dead) buy oar attachments, charms/slots, consumables and passage for souls; stat upgrades are found, never bought.
@@ -37,11 +38,12 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Not yet specified
 
-- **Equipment's shape**: equipment is oar attachments + charms (decided in the hook ticket), but how many,
-  what they change, and how they're found depends on the combat verbs and the currency decision.
+- **Equipment's shape**: equipment is oar attachments + charms (hook ticket), bought with Obols or found (currency
+  ticket). The combat verbs are now known; a third light swing is a candidate unlock. Still open: how many, what each
+  changes, which are found vs sold. Likely graduates once abilities are settled (to avoid overlap).
 - **Soured families**: enemies are the Soured (souls kept too long). Which 3–5 archetypes the brief commits to
-  (brief-level only, e.g. "a shield-bearer that punishes button mashing"), and how their shapes echo who they
-  were. Depends on the combat verbs.
+  (brief-level only, e.g. "a shield-bearer that punishes button mashing"), how their shapes echo who they
+  were, and how their stagger meters differ. Combat verbs are known now; waits on what the art test shows is animatable.
 
 ## Out of scope
 
