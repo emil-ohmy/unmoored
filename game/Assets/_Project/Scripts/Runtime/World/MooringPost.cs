@@ -1,0 +1,70 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace MyGame
+{
+    // A Mooring post: the checkpoint. Resting lights its lantern, heals fully, refills Healing charges, makes it
+    // the respawn point and re-forms every Soured except defeated Bosses.
+    public sealed class MooringPost : MonoBehaviour
+    {
+        static readonly List<MooringPost> all = new List<MooringPost>();
+
+        public Transform respawnPoint;
+        public Light lanternLight;
+        public float interactRadius = 2.2f;
+        public bool litAtStart;
+
+        public bool IsLit { get; private set; }
+        public Vector3 RespawnPoint => respawnPoint != null ? respawnPoint.position : transform.position;
+
+        Material lantern;
+        Color lanternEmission;
+
+        void Awake()
+        {
+            foreach (var r in GetComponentsInChildren<Renderer>())
+                foreach (var m in r.materials)
+                    if (m.name.StartsWith("Lantern_Glow"))
+                    {
+                        lantern = m;
+                        lanternEmission = m.GetColor("_EmissionColor");
+                    }
+            SetLit(litAtStart);
+        }
+
+        void OnEnable() => all.Add(this);
+        void OnDisable() => all.Remove(this);
+
+        public static MooringPost Nearest(Vector3 position)
+        {
+            MooringPost best = null;
+            float bestDistance = float.MaxValue;
+            foreach (var post in all)
+            {
+                float d = Vector3.Distance(position, post.transform.position);
+                if (d <= post.interactRadius && d < bestDistance)
+                {
+                    best = post;
+                    bestDistance = d;
+                }
+            }
+            return best;
+        }
+
+        public void Rest(Apprentice apprentice)
+        {
+            SetLit(true);
+            apprentice.RestoreFully();
+            WorldState.Instance?.OnRest(this);
+        }
+
+        void SetLit(bool lit)
+        {
+            IsLit = lit;
+            if (lantern != null)
+                lantern.SetColor("_EmissionColor", lit ? lanternEmission : lanternEmission * 0.04f);
+            if (lanternLight != null)
+                lanternLight.enabled = lit;
+        }
+    }
+}
