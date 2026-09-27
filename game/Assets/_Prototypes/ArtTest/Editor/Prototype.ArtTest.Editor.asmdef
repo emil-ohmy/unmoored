@@ -1,0 +1,12 @@
+{
+    "name": "Prototype.ArtTest.Editor",
+    "references": [
+        "Prototype.ArtTest",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "autoReferenced": false
+}
