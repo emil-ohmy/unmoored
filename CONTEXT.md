@@ -48,8 +48,12 @@ _Avoid_: Coin, money, gold, souls (as currency)
 ### Combat
 
 **Healing charge**:
-One use of the Apprentice's limited self-heal; a fixed number are carried and refill only under specific rules.
+One use of the Apprentice's limited self-heal; the carried charges refill only by Resting.
 _Avoid_: Potion, flask, estus
+
+**Shade**:
+The ghost of the Apprentice left where they died, holding the Obols they carried.
+_Avoid_: Corpse, ghost, bloodstain, echo
 
 **Boss**:
 The unique, tough enemy at the climax of an Area.
@@ -59,3 +63,11 @@ The unique, tough enemy at the climax of an Area.
 **Area**:
 A themed region of the underworld with its own Boss.
 _Avoid_: Level, zone, biome
+
+**Mooring post**:
+A post on a jetty where the Apprentice moors the boat and Rests; the game's checkpoint.
+_Avoid_: Checkpoint, bonfire, save point, shrine
+
+**Rest**:
+Stopping at a Mooring post: heals fully, refills Healing charges, saves, and respawns all enemies except defeated Bosses.
+_Avoid_: Sit, save
