@@ -24,20 +24,20 @@ art direction and scope locked, concrete enough to start building the combat gre
   - Souls: deliberate stamina combat, a death penalty, bosses as area climaxes.
     Not picked: checkpoints with enemy respawn.
   - Metroidvania: ability gates, interconnected world with shortcuts, secrets. Not picked: in-game map.
-  - Progression: abilities + equipment. Not picked: stat upgrades.
+  - Progression: abilities + equipment (equipment narrowed to oar attachments + charms in the hook ticket). Not picked: stat upgrades.
   - Healing: limited charges.
 
 ## Decisions so far
 
+- [Hook, protagonist and pillars](issues/01-hook-and-pillars.md): The Ferryman's Apprentice, an oar-first soulslike in a flooded underworld; theme "letting go"; pillars one oar / deliberate combat / world that folds back; the oar is the only weapon.
 - [How Death's Door and Tunic handle death, currency, healing and checkpoints](issues/02-reference-death-and-economy-research.md): both sell capped stat upgrades and both respawn enemies at rest points; Death's Door costs only time on death, Tunic drops coins as a retrievable ghost.
 
 ## Not yet specified
 
-- **Equipment's role**: how many weapons/items, whether they change the moveset or just stats, and how you
-  find them. Depends on the combat verbs the combat prototype settles and on the currency decision.
+- **Equipment's shape**: equipment is oar attachments + charms (decided in the hook ticket), but how many,
+  what they change, and how they're found depends on the combat verbs and the currency decision.
 - **Enemy families**: which 3–5 enemy archetypes the brief commits to (brief-level only, e.g. "a shield-bearer
   that punishes button mashing"). Depends on the combat verbs and the setting.
-- **NPCs and what the world is saying**: how many NPCs, what the environmental story is about. Waits for the hook.
 
 ## Out of scope
 

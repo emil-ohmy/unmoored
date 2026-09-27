@@ -5,5 +5,6 @@ Blocked by: 01, 04, 07
 
 ## Question
 
-How is the world laid out at brief level: is there a hub, what are the 2–3 areas (theme + boss each),
-how do they interconnect, where do ability gates and shortcuts go, and where do secrets fit?
+How is the flooded underworld laid out at brief level: is there a hub (the Ferryman's jetty?), what are the
+2–3 Areas (islands? theme + Boss each), how does rowing connect them, where do land and water Ability gates and
+shortcuts go, where do secrets fit, and where is the Ferryman's final confrontation?
