@@ -29,6 +29,7 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Decisions so far
 
+- [World structure: hub, areas, bosses, shortcuts](issues/08-world-structure.md): the Ferryman's jetty as hub; Drowned Village (Hoarder) → Orchard of Last Autumn (Gardener) → Stopped Clocktower (One Who Waits); linked spokes, no fast travel; finale beneath the hub.
 - [Abilities and the gates they open](issues/07-abilities-and-gates.md): Hook (Boss 1), Stroke (Boss 2), Vault (secret in Area 1, required in Area 3); the bow lantern is optional, grows with lit Mooring posts and unlocks a secret ending.
 - [Combat feel: core verbs and pace](issues/05-combat-feel-prototype.md): Middle pace; move, i-frame roll (cancels recovery), 2-swing light (3rd unlockable) + heavy, stamina, hidden stagger meter; telegraphs via animation, no ground markers.
 - [Souls with unfinished business](issues/09-souls-with-unfinished-business.md): 5–7 Lingerers with varied business; Crossing = business done + fare paid (optional), rowed from the hub jetty for a gift + a Ferryman memory; enemies are the Soured, scattered not released until the Ferryman falls.

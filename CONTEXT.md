@@ -92,8 +92,16 @@ The unique, tough enemy at the climax of an Area.
 ### World
 
 **Area**:
-A themed region of the underworld with its own Boss.
+A themed region of the underworld with its own Boss: the Drowned Village, the Orchard of Last Autumn, the Stopped Clocktower.
 _Avoid_: Level, zone, biome
+
+**Hub**:
+The Ferryman's jetty at the centre of the underworld, where Crossings leave from and the Ferryman's hoard lies beneath.
+_Avoid_: Home, base, town
+
+**Far shore**:
+Where souls go when they cross; reached only by Crossings.
+_Avoid_: Afterlife, other side
 
 **Mooring post**:
 A post on a jetty where the Apprentice moors the boat and Rests; the game's checkpoint.
