@@ -41,6 +41,9 @@ _Avoid_: Weapon, paddle, staff
 A permanent new oar technique that has both a combat use and a traversal use.
 _Avoid_: Skill, power, upgrade
 
+**Hook**, **Stroke**, **Vault**:
+The three Abilities: pull yourself/others with a boathook; a rowing stroke that sends a wave; plant the oar and leap.
+
 **Ability gate**:
 An obstacle, on land or on water, that can only be passed once the Apprentice has a specific Ability.
 _Avoid_: Lock, barrier
@@ -56,6 +59,10 @@ _Avoid_: Oar head, mod, upgrade
 **Charm**:
 A piece of passive Equipment that modifies the Apprentice without changing the Oar.
 _Avoid_: Card, trinket, relic
+
+**Bow lantern**:
+The lantern on the Apprentice's boat; grows stronger with each lit Mooring post and burns through fog on the water. Never an Ability.
+_Avoid_: Lamp, light
 
 **Obol**:
 The currency: the fare the dead carry to pay for crossing.
