@@ -29,6 +29,7 @@ art direction and scope locked, concrete enough to start building the combat gre
 
 ## Decisions so far
 
+- [Oar attachments and Charms](issues/10-oar-attachments-and-charms.md): Plain blade + Iron / Light (3rd swing) / Long / Barbed, one at a time; ~8 Charms, 1→3 slots; attachments found (one per Area) + one sold.
 - [World structure: hub, areas, bosses, shortcuts](issues/08-world-structure.md): the Ferryman's jetty as hub; Drowned Village (Hoarder) → Orchard of Last Autumn (Gardener) → Stopped Clocktower (One Who Waits); linked spokes, no fast travel; finale beneath the hub.
 - [Abilities and the gates they open](issues/07-abilities-and-gates.md): Hook (Boss 1), Stroke (Boss 2), Vault (secret in Area 1, required in Area 3); the bow lantern is optional, grows with lit Mooring posts and unlocks a secret ending.
 - [Combat feel: core verbs and pace](issues/05-combat-feel-prototype.md): Middle pace; move, i-frame roll (cancels recovery), 2-swing light (3rd unlockable) + heavy, stamina, hidden stagger meter; telegraphs via animation, no ground markers.

@@ -30,3 +30,8 @@ Resolved 2026-09-27 with the user (quiz format).
 - **Soured and respawn**: defeating a Soured only scatters it (it drops its fare as Obols); the Ferryman's hoard
   pulls it back, which is why enemies re-form on Rest/death. When the Ferryman falls, all are released at once.
 - **Implication for world structure**: there is a hub with a jetty that Crossings leave from.
+
+## Comments
+
+- 2026-09-27: [Oar attachments and Charms](10-oar-attachments-and-charms.md) narrows the parting gift to a Charm or upgrade
+  piece; Oar attachments are never Lingerer gifts.
