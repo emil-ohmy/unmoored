@@ -38,6 +38,33 @@ namespace MyGame.Tests
             Assert.IsFalse(post.IsLit, "the Mooring post should start dark");
         }
 
+        // The code's front (transform.forward) must be the model's visual front: the Apprentice's mask and the
+        // Laden's heap. (The heap is what blocks, so a mismatch would make the block rule look backwards.)
+        [Test]
+        public void Models_FaceTheirTransformForward()
+        {
+            Assert.Greater(FrontDot(apprentice.gameObject, "Mask"), 0.5f, "the Apprentice's mask isn't on its forward side");
+            foreach (var l in laden)
+                Assert.Greater(FrontDot(l.gameObject, "HeapWood"), 0.5f, "the Laden's heap isn't on its forward side");
+        }
+
+        static float FrontDot(GameObject character, string material)
+        {
+            var skinned = character.GetComponentInChildren<SkinnedMeshRenderer>();
+            var materials = skinned.sharedMaterials;
+            int index = System.Array.FindIndex(materials, m => m.name.StartsWith(material));
+            Assert.GreaterOrEqual(index, 0, $"no {material} material on {character.name}");
+            // Bake the posed mesh: a skinned mesh's raw vertices are in bind-pose space, not the renderer's.
+            var posed = new Mesh();
+            skinned.BakeMesh(posed, true);
+            var vertices = posed.vertices;
+            var triangles = posed.GetTriangles(index);
+            var centre = triangles.Aggregate(Vector3.zero, (sum, i) => sum + vertices[i]) / triangles.Length;
+            Vector3 toPart = skinned.transform.position + skinned.transform.rotation * centre - character.transform.position;
+            toPart.y = 0f;
+            return Vector3.Dot(toPart.normalized, character.transform.forward);
+        }
+
         [UnityTest]
         public IEnumerator Apprentice_StandsOnTheQuay()
         {

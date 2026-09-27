@@ -30,7 +30,8 @@ game/Assets/_Project/
 ## Workflow
 
 - Models are code: edit `art/models/**/<name>.py`, run `tools/build-models.sh <name>`. Never hand-edit the FBX
-  in `game/`. Front is -Y in Blender (it faces the camera in Unity at yaw 0), 1 unit = 1 m, origin at the base.
+  in `game/`. Front is -Y in Blender; the export makes it Unity's forward (+Z), so
+  `transform.forward` is where a character looks. 1 unit = 1 m, origin at the base.
 - Rig poses: `kit.animate` takes rotations in degrees about world axes around the bone head (+X leans an upright
   bone forward). From the game camera a forward-tipped prop foreshortens and reads as "down": check poses with
   `tools/preview-poses.sh` before importing.

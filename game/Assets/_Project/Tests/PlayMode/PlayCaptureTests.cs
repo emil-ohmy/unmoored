@@ -39,7 +39,7 @@ namespace MyGame.Tests
             {
                 Vector3 to = target.transform.position - apprentice.transform.position;
                 input.Move = new Vector2(to.x, to.z).normalized;
-                if (!capturedRun && t > 0.3f)
+                if (!capturedRun && t > 0.12f)
                 {
                     Capture(outDir, "play-2-running");
                     capturedRun = true;

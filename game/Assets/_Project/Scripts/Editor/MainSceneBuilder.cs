@@ -50,35 +50,35 @@ public static class MainSceneBuilder
         water.GetComponent<MeshRenderer>().sharedMaterial = WaterMaterial();
 
         // The quay and what stands on it.
-        Place("Environment/quay", new Vector3(0f, 0f, 0f), 0f);
-        Place("Environment/ruined_wall_long", new Vector3(-3.2f, QuayTop, 1.8f), 14f);
-        Place("Environment/ruined_wall_short", new Vector3(3.4f, QuayTop, 2.6f), -32f);
-        Place("Environment/ruined_wall_short", new Vector3(-6.2f, QuayTop, -2.2f), 75f);
-        Place("Environment/barrel", new Vector3(-4.9f, QuayTop, 2.6f), 0f);
-        Place("Environment/barrel", new Vector3(-4.2f, QuayTop, 3.0f), 40f);
-        Place("Environment/crate", new Vector3(-5.6f, QuayTop, 3.4f), 12f);
-        Place("Environment/crate", new Vector3(5.9f, QuayTop, -3.9f), -20f);
-        Place("Environment/barrel", new Vector3(6.6f, QuayTop, -3.2f), 0f);
+        Place("Environment/quay", new Vector3(0f, 0f, 0f), 180f);
+        Place("Environment/ruined_wall_long", new Vector3(-3.2f, QuayTop, 1.8f), 194f);
+        Place("Environment/ruined_wall_short", new Vector3(3.4f, QuayTop, 2.6f), 148f);
+        Place("Environment/ruined_wall_short", new Vector3(-6.2f, QuayTop, -2.2f), 255f);
+        Place("Environment/barrel", new Vector3(-4.9f, QuayTop, 2.6f), 180f);
+        Place("Environment/barrel", new Vector3(-4.2f, QuayTop, 3.0f), 220f);
+        Place("Environment/crate", new Vector3(-5.6f, QuayTop, 3.4f), 192f);
+        Place("Environment/crate", new Vector3(5.9f, QuayTop, -3.9f), 160f);
+        Place("Environment/barrel", new Vector3(6.6f, QuayTop, -3.2f), 180f);
         StreetLantern(new Vector3(-6.4f, QuayTop, -3.9f), 90f);
         StreetLantern(new Vector3(6.2f, QuayTop, 4.0f), -90f);
 
         // The jetty reaches out from the quay's front edge towards the camera, with the Mooring post at its end.
-        Place("Environment/jetty", new Vector3(2.4f, QuayTop - 0.03f, -5.0f), 180f);
-        MooringPostAt(new Vector3(3.25f, QuayTop, -9.3f), 0f);
-        Place("Environment/boat", new Vector3(3.95f, -0.12f, -8.4f), 6f);
+        Place("Environment/jetty", new Vector3(2.4f, QuayTop - 0.03f, -5.0f), 0f);
+        MooringPostAt(new Vector3(3.25f, QuayTop, -9.3f), 180f);
+        Place("Environment/boat", new Vector3(3.95f, -0.12f, -8.4f), 186f);
 
         // Half-sunken houses around the quay, rocks and islets in the water.
-        Place("Environment/house_a", new Vector3(-10.4f, 0f, 3.0f), 100f);
-        Place("Environment/house_b", new Vector3(-3.6f, 0f, 8.2f), 188f);
-        Place("Environment/house_a", new Vector3(6.4f, 0f, 8.6f), 172f);
-        Place("Environment/house_b", new Vector3(11.0f, 0f, 1.4f), -84f);
-        Place("Environment/rock_a", new Vector3(-2.6f, -0.12f, -7.4f), 10f);
-        Place("Environment/rock_c", new Vector3(-8.8f, -0.15f, -5.6f), -30f);
-        Place("Environment/rock_b", new Vector3(8.8f, -0.1f, -5.8f), 70f);
-        Place("Environment/rock_b", new Vector3(0.6f, -0.1f, 7.4f), 150f);
-        Place("Environment/islet_small", new Vector3(-12.5f, -0.6f, -3.5f), 30f);
-        Place("Environment/islet_big", new Vector3(13.5f, -0.8f, 9.5f), -15f);
-        Place("Environment/rock_c", new Vector3(12.8f, -0.15f, -3.2f), 200f);
+        Place("Environment/house_a", new Vector3(-10.4f, 0f, 3.0f), 280f);
+        Place("Environment/house_b", new Vector3(-3.6f, 0f, 8.2f), 8f);
+        Place("Environment/house_a", new Vector3(6.4f, 0f, 8.6f), 352f);
+        Place("Environment/house_b", new Vector3(11.0f, 0f, 1.4f), 96f);
+        Place("Environment/rock_a", new Vector3(-2.6f, -0.12f, -7.4f), 190f);
+        Place("Environment/rock_c", new Vector3(-8.8f, -0.15f, -5.6f), 150f);
+        Place("Environment/rock_b", new Vector3(8.8f, -0.1f, -5.8f), 250f);
+        Place("Environment/rock_b", new Vector3(0.6f, -0.1f, 7.4f), 330f);
+        Place("Environment/islet_small", new Vector3(-12.5f, -0.6f, -3.5f), 210f);
+        Place("Environment/islet_big", new Vector3(13.5f, -0.8f, 9.5f), 165f);
+        Place("Environment/rock_c", new Vector3(12.8f, -0.15f, -3.2f), 20f);
 
         // Characters.
         var start = new GameObject("Start Point").transform;
@@ -175,7 +175,7 @@ public static class MainSceneBuilder
         var post = go.AddComponent<MooringPost>();
         var respawn = new GameObject("Respawn Point").transform;
         respawn.SetParent(go.transform, false);
-        respawn.position = position + new Vector3(-0.9f, 0f, 0.9f);
+        respawn.position = position + new Vector3(-0.9f, 0f, 0.9f); // on the jetty, beside the post
         post.respawnPoint = respawn;
         post.lanternLight = PointLight(go.transform, GlowCentre(go), 5.5f, 3.5f);
         post.lanternLight.enabled = false; // dark until the Apprentice first Rests here
@@ -184,7 +184,7 @@ public static class MainSceneBuilder
 
     static void StreetLantern(Vector3 position, float yaw)
     {
-        var go = Place("Environment/street_lantern", position, yaw);
+        var go = Place("Environment/street_lantern", position, yaw + 180f);
         PointLight(go.transform, GlowCentre(go), 7f, 4f);
     }
 

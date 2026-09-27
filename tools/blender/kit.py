@@ -1,7 +1,8 @@
 """Helpers for building models from code in Blender (used by art/models/**/*.py via build_model.py).
 
 Conventions:
-- Front is -Y, up is +Z, 1 unit = 1 metre, origin at the model's base.
+- Front is -Y, up is +Z, 1 unit = 1 metre, origin at the model's base. export_fbx turns the front into Unity's
+  forward (+Z), so transform.forward is where a character looks.
 - Colours are sRGB hex strings (stored linear, like Blender's colour pickers). A material whose name ends in
   "_Glow" is imported by Unity as emissive.
 - Rig poses are written in armature space: rotations are degrees about the world X/Y/Z axes (applied X, then Y,
@@ -234,6 +235,13 @@ def export_fbx(path, objects):
     """Export `objects` to FBX. Rigged exports skip bake_space_transform (Blender flags it as broken with
     armatures); Unity's bakeAxisConversion handles those. Static exports bake it so their root has no rotation."""
     animated = any(o.type == "ARMATURE" for o in objects)
+    # Turn the export 180° about Z so Blender's front (-Y) arrives as Unity's forward (+Z). FBX axis settings
+    # can't do this: Unity converts from whatever axis system the file declares. Turning the top-level objects
+    # (not their data) leaves rigs and animations untouched; the .blend is saved before this, unturned.
+    turn = Matrix.Rotation(math.pi, 4, "Z")
+    for o in objects:
+        if o.parent is None:
+            o.matrix_world = turn @ o.matrix_world
     for o in bpy.context.scene.objects:
         o.select_set(o in objects)
     os.makedirs(os.path.dirname(path), exist_ok=True)
