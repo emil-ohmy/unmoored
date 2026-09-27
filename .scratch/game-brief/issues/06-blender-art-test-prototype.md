@@ -1,6 +1,6 @@
 # Art style test: what Claude can build in Blender
 Type: prototype
-Status: open
+Status: claimed
 Blocked by:
 
 ## Question
