@@ -4,13 +4,13 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 
 // PROTOTYPE (wayfinder ticket "Combat feel: core verbs and pace"). Throwaway code, not production.
-// Builds the CombatFeel scene: MyGame > Prototypes > Build Combat Feel Scene (Cmd+K, "combat feel").
+// Builds the CombatFeel scene: right-click in the Project window > MyGame > Build Combat Feel Scene.
 public static class CombatFeelSceneBuilder
 {
     const string Dir = "Assets/_Prototypes/CombatFeel";
     const string ScenePath = Dir + "/CombatFeel.unity";
 
-    [MenuItem("MyGame/Prototypes/Build Combat Feel Scene")]
+    [MenuItem("Assets/MyGame/Build Combat Feel Scene")]
     static void BuildFromMenu()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())

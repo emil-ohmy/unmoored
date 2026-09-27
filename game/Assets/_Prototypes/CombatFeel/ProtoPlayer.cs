@@ -66,9 +66,9 @@ namespace MyGame.Prototypes.CombatFeel
             heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth", "<Gamepad>/rightTrigger");
             prevPreset = Button("PrevPreset", "<Gamepad>/dpad/left");
             nextPreset = Button("NextPreset", "<Gamepad>/dpad/right");
-            preset1 = Button("Preset1", "<Keyboard>/1");
-            preset2 = Button("Preset2", "<Keyboard>/2");
-            preset3 = Button("Preset3", "<Keyboard>/3");
+            preset1 = Button("Preset1", "<Keyboard>/1", "<Keyboard>/numpad1");
+            preset2 = Button("Preset2", "<Keyboard>/2", "<Keyboard>/numpad2");
+            preset3 = Button("Preset3", "<Keyboard>/3", "<Keyboard>/numpad3");
             reset = Button("Reset", "<Keyboard>/r", "<Gamepad>/select");
         }
 

@@ -26,9 +26,14 @@ namespace MyGame.Prototypes.CombatFeel
             small ??= new GUIStyle(GUI.skin.label) { fontSize = 13, richText = true };
             var p = tuning.P;
 
-            GUILayout.BeginArea(new Rect(16, 12, 480, 400));
+            GUILayout.BeginArea(new Rect(16, 12, 640, 420));
             GUILayout.Label("<b>PROTOTYPE: combat feel</b>", label);
             GUILayout.Label($"Pace: <b><color=#ffcc55>[{tuning.current + 1}] {p.name}</color></b>   (keys 1/2/3 or D-pad left/right)", label);
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < tuning.presets.Count; i++)
+                if (GUILayout.Button(i == tuning.current ? $"[{i + 1}] {tuning.presets[i].name}" : $"{i + 1}. {tuning.presets[i].name}", GUILayout.Height(26)))
+                    tuning.Select(i);
+            GUILayout.EndHorizontal();
             Bar("HP", player.Health / player.maxHealth, new Color(0.85f, 0.25f, 0.25f));
             Bar("Stamina", player.Stamina / p.maxStamina, new Color(0.3f, 0.8f, 0.35f));
             string iframes = player.Invulnerable ? "  <color=#66ccff><b>INVULNERABLE</b></color>" : "";
