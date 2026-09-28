@@ -40,7 +40,7 @@ static class StaleSceneGuard
     {
         DateTime scene = File.GetLastWriteTimeUtc(ScenePath);
         var sources = Directory.GetFiles("Assets/_Project/Art/Models", "*.fbx", SearchOption.AllDirectories)
-            .Concat(Directory.GetFiles("Assets/_Project/Audio", "*.wav"))
+            .Concat(Directory.GetFiles("Assets/_Project/Audio", "*.wav", SearchOption.AllDirectories))
             .Append("Assets/_Project/Scripts/Editor/MainSceneBuilder.cs");
         newest = sources.OrderByDescending(File.GetLastWriteTimeUtc).First();
         return File.GetLastWriteTimeUtc(newest) > scene;

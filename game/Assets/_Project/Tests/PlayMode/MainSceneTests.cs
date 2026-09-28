@@ -199,6 +199,9 @@ namespace MyGame.Tests
             var torches = Object.FindObjectsByType<TorchFlame>(FindObjectsSortMode.None);
             Assert.IsTrue(torches.Length > 0 && torches.All(t => t.GetComponent<AudioSource>().clip != null), "every torch should have its crackle");
             Assert.AreEqual(1, Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length, "exactly one listener");
+            var music = Object.FindAnyObjectByType<MusicPlayer>().GetComponent<AudioSource>();
+            Assert.IsNotNull(music.clip, "the music should be wired up");
+            Assert.IsTrue(music.loop && music.spatialBlend == 0f, "music should loop and not be positional");
         }
 
         [UnityTest]

@@ -122,6 +122,9 @@ public static class MainSceneBuilder
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
         sfx.dash = Clips("dash");
         sfx.blockClang = Clips("block_clang");
+        var music = new GameObject("Music", typeof(AudioSource));
+        music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
+        music.AddComponent<MusicPlayer>();
 
         var cam = new GameObject("Main Camera", typeof(Camera)).GetComponent<Camera>(); // CameraRig adds the listener
         cam.tag = "MainCamera";
