@@ -123,7 +123,7 @@ def wails(total, rng):
 
 def render(v, rng):
     total = LENGTH + FADE
-    dry = synth.stereo(level(wind(total, rng), -21), level(wind(total, rng), -21))
+    dry = synth.stereo(level(wind(total, rng), -27), level(wind(total, rng), -27))  # user: "too much wind" at -21
     dry += synth.pan(level(drone(total, rng), -29), 0.0)
     wet = level(choir(total, rng), -24) + level(wails(total, rng), -33)
     glass = glass_notes(total, rng)
