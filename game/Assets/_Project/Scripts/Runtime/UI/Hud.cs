@@ -47,7 +47,8 @@ namespace MyGame
             eventText = Label(root, "Event", new Vector2(0.5f, 1f), new Vector2(0, -60), 24);
         }
 
-        void Update()
+        // LateUpdate: after all gameplay has run this frame, so the HUD never shows last frame's state.
+        void LateUpdate()
         {
             if (apprentice == null)
                 return;

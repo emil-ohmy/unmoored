@@ -132,6 +132,7 @@ namespace MyGame.Tests
 
             input.PressLock();
             yield return null;
+            yield return null; // the HUD updates in LateUpdate, after this coroutine resumes: give it that frame
             Assert.IsNull(apprentice.LockTarget, "pressing again should release");
             Assert.IsFalse(Object.FindAnyObjectByType<Hud>().LockBarVisible);
         }
@@ -172,6 +173,32 @@ namespace MyGame.Tests
             }
             Assert.IsNotNull(apprentice.LockTarget);
             Assert.AreNotEqual(first, apprentice.LockTarget, "switching should move the lock to the other Laden");
+        }
+
+        [UnityTest]
+        public IEnumerator Sounds_PlayForSwingDashAndBlock_AndTorchesCrackle()
+        {
+            var sfx = Object.FindAnyObjectByType<Sfx>();
+            Assert.IsTrue(sfx.oarSwing.Length > 0 && sfx.dash.Length > 0 && sfx.blockClang.Length > 0, "sounds should be wired up");
+            input.PressLight();
+            yield return new WaitForSeconds(0.2f);
+            Assert.AreEqual("oar_swing", sfx.LastPlayed);
+            yield return new WaitForSeconds(0.5f);
+            input.PressDash();
+            yield return new WaitForSeconds(0.05f);
+            Assert.AreEqual("dash", sfx.LastPlayed);
+            yield return new WaitForSeconds(apprentice.dashDuration + apprentice.dashRecovery); // let the dash finish
+
+            var target = Isolate(laden[0], frozen: true);
+            PlaceApprentice(target.transform.position + target.transform.forward * 1.6f, target.transform.position);
+            yield return new WaitForSeconds(0.6f);
+            input.PressLight();
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual("block_clang", sfx.LastPlayed, "a blocked hit should clang");
+
+            var torches = Object.FindObjectsByType<TorchFlame>(FindObjectsSortMode.None);
+            Assert.IsTrue(torches.Length > 0 && torches.All(t => t.GetComponent<AudioSource>().clip != null), "every torch should have its crackle");
+            Assert.AreEqual(1, Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length, "exactly one listener");
         }
 
         [UnityTest]

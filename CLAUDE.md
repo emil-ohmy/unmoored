@@ -16,6 +16,8 @@ tools/
   build-models.sh [names]         .py -> .blend + FBX into game/Assets/_Project/Art/Models/<Category>/
   preview-poses.sh <name>         contact sheet of a rig's animations (builds/poses-<name>.png)
   blender/kit.py                  modelling, rigging (poses in armature space), FBX export helpers
+  build-audio.sh [names]          art/audio/<name>.py -> WAV into game/Assets/_Project/Audio/ (Blender's Python)
+  audio/synth.py                  sound synthesis kit (noise, sweeps, filters, envelopes, loops)
   unity.sh                        open | import | build-mac | build-webgl | test
 game/Assets/_Project/
   Art/Models/                     generated FBX (never edit; rebuild from art/models)
@@ -39,12 +41,20 @@ game/Assets/_Project/
   `_Glow` become emissive; smoothed normals are baked into tangents for the outline. Rigged FBX skip Blender's
   bake_space_transform (broken with armatures) and use Unity's bakeAxisConversion, so their roots keep a
   rotation: compose yaw with the prefab's root rotation when placing.
+- Sounds are code too: `art/audio/<name>.py` defines render(variant, rng) (+ VARIANTS, LOOP). The list of every
+  sound and its source (synth / AI / library) is `art/audio/sounds.md`. Claude can't listen: check shape with a
+  spectrogram (`ffmpeg ... showspectrumpic`) and look for clicks (layers cut before they decay), then the user
+  judges by ear. `Sfx` plays one-shots with variant/pitch/volume variation; the AudioListener follows the
+  Apprentice (not the camera).
 - The Main scene is generated: change the layout in `MainSceneBuilder`, not in the editor.
 - Tests: `tools/unity.sh test` (EditMode + PlayMode). MainSceneTests drive the Apprentice through
   `ScriptedInput`. For screenshots of play: `SHOTS=<dir>` + `-testFilter PlayCaptureTests`.
 - Headless Unity commands fail if the editor has the project open. Then work in a copy
-  (rsync without Library/), rebuild the scene there, and let the user run the menu item in the real project;
-  never copy generated scenes/assets back (their GUIDs differ).
+  (rsync without Library/), ALWAYS rebuild the scene there after every sync (synced .meta files can change script
+  GUIDs, leaving the copy's old scene with missing scripts), and let the user run the menu item in the real
+  project; never copy generated scenes/assets back (their GUIDs differ).
+- UI reads gameplay state in LateUpdate. In PlayMode tests a coroutine resumes after Update but before
+  LateUpdate, so wait one extra frame before asserting on the HUD (WaitForEndOfFrame doesn't run in batch mode).
 - Unity logs from the CLI end up in `builds/unity-<command>.log`.
 - Tuning lives on the components (Apprentice, Laden) with the brief's "Middle" values as defaults.
 - Version control: git + LFS. Binaries (.blend, .fbx, images, audio, fonts) go through LFS via

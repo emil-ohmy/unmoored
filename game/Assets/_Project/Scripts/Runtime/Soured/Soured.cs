@@ -184,7 +184,9 @@ namespace MyGame
                 PlayShort("Block", 0.3f);
                 knockback = -hit.Knockback.normalized * 0.8f; // the heap gives a little
                 Vector3 towardsAttacker = Flat(hit.From - transform.position).normalized;
-                Effects.Instance?.BlockSpark(transform.position + towardsAttacker * (radius + 0.25f) + Vector3.up * 1.1f, towardsAttacker);
+                Vector3 contact = transform.position + towardsAttacker * (radius + 0.25f) + Vector3.up * 1.1f;
+                Effects.Instance?.BlockSpark(contact, towardsAttacker);
+                Sfx.Instance?.BlockClang(contact);
                 return HitResult.Blocked;
             }
 

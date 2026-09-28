@@ -111,6 +111,7 @@ namespace MyGame
         bool isHeavy;
         int comboStep;
         bool hitLanded;
+        bool swingSounded;
         Vector3 lastSafeGround;
         float safeGroundTimer;
 
@@ -226,6 +227,11 @@ namespace MyGame
 
             if (stateTime >= windup && stateTime < windup + active)
             {
+                if (!swingSounded)
+                {
+                    swingSounded = true; // the whoosh starts as the oar starts to move
+                    Sfx.Instance?.OarSwing(transform.position + Vector3.up, isHeavy);
+                }
                 CheckHit();
                 return transform.forward * ((isHeavy ? heavyLunge : lightLunge) / active);
             }
@@ -303,6 +309,7 @@ namespace MyGame
             isHeavy = heavy;
             comboStep = step;
             hitLanded = false;
+            swingSounded = false;
             Enter(State.Attacking);
             float total = heavy ? heavyWindup + heavyActive + heavyRecovery : lightWindup + lightActive + lightRecovery;
             clips.PlayOnce(heavy ? "Heavy" : (step % 2 == 0 ? "Light1" : "Light2"), total);
@@ -432,6 +439,7 @@ namespace MyGame
                         dashDirection = LockTarget != null ? -ToLockTarget().normalized : transform.forward; // locked: backstep
                     transform.rotation = Quaternion.LookRotation(dashDirection);
                     Enter(State.Dashing);
+                    Sfx.Instance?.Dash(transform.position);
                     clips.PlayOnce("Dash", dashDuration);
                     break;
                 case Act.Light:

@@ -14,12 +14,19 @@ namespace MyGame
         [Range(0f, 0.5f)] public float secondaryWeight = 0.3f; // how far to lean towards a locked-on target
 
         Transform secondary;
+        Transform listener;
 
         Vector3 velocity;
         Vector3 follow;
         float shake;
 
-        void Awake() => Instance = this;
+        void Awake()
+        {
+            Instance = this;
+            // Hear from where the Apprentice stands, not from the camera high above: torches get louder as you pass,
+            // and left/right on screen stays left/right in the ears (the camera never rotates).
+            listener = new GameObject("Audio Listener", typeof(AudioListener)).transform;
+        }
 
         void Start()
         {
@@ -52,6 +59,7 @@ namespace MyGame
             follow = Vector3.SmoothDamp(follow, Desired(), ref velocity, smoothTime, Mathf.Infinity, dt);
             shake = Mathf.MoveTowards(shake, 0f, dt * 1.5f);
             transform.SetPositionAndRotation(follow + Random.insideUnitSphere * shake, Quaternion.Euler(pitch, 0f, 0f));
+            listener.SetPositionAndRotation(target.position + Vector3.up * 1.2f, Quaternion.identity);
         }
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // Embers drifting up from a torch flame (the light's flicker is LightFlicker's job).
+    // Embers drifting up from a torch flame, and its crackle loop (the light's flicker is LightFlicker's job).
     public sealed class TorchFlame : MonoBehaviour
     {
         public Material emberMaterial;
@@ -40,6 +40,12 @@ namespace MyGame
             renderer.sharedMaterial = emberMaterial;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             ps.Play();
+
+            if (TryGetComponent(out AudioSource crackle) && crackle.clip != null)
+            {
+                crackle.time = Random.Range(0f, crackle.clip.length); // so neighbouring torches don't crackle in unison
+                crackle.Play();
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ public static class MainSceneBuilder
     const string ScenePath = "Assets/_Project/Scenes/Main.unity";
     const string Models = "Assets/_Project/Art/Models/";
     const string Generated = "Assets/_Project/Art/Generated";
+    const string Audio = "Assets/_Project/Audio/";
     const float QuayTop = 0.5f;
     // Night: the world is lit by its fires. Light colour carries meaning (docs/brief.md):
     // warm = the world and safety, sickly green = a Soured, cold pale = the Apprentice's bow lantern.
@@ -47,6 +48,7 @@ public static class MainSceneBuilder
     static void Build()
     {
         AssetDatabase.ImportAsset(Models.TrimEnd('/'), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
+        AssetDatabase.ImportAsset(Audio.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
         Directory.CreateDirectory(Generated);
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         sparkMaterial = ParticleMaterial("M_Spark", RadialTexture("T_SoftDot", ring: false));
@@ -115,8 +117,13 @@ public static class MainSceneBuilder
         effects.sparkMaterial = sparkMaterial;
         effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
         systems.AddComponent<Hud>().apprentice = apprentice;
+        var sfx = systems.AddComponent<Sfx>();
+        sfx.oarSwing = Clips("oar_swing");
+        sfx.oarSwingHeavy = Clips("oar_swing_heavy");
+        sfx.dash = Clips("dash");
+        sfx.blockClang = Clips("block_clang");
 
-        var cam = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener)).GetComponent<Camera>();
+        var cam = new GameObject("Main Camera", typeof(Camera)).GetComponent<Camera>(); // CameraRig adds the listener
         cam.tag = "MainCamera";
         cam.fieldOfView = 30f;
         cam.farClipPlane = 200f;
@@ -230,6 +237,16 @@ public static class MainSceneBuilder
         var embers = new GameObject("Embers");
         embers.transform.SetParent(go.transform, false);
         embers.transform.position = GlowCentre(go, "Torch_Glow") + Vector3.up * 0.2f;
+        var crackle = embers.AddComponent<AudioSource>();
+        crackle.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "torch_loop.wav");
+        crackle.loop = true;
+        crackle.playOnAwake = false; // TorchFlame starts it at a random point in the loop
+        crackle.spatialBlend = 1f;
+        crackle.rolloffMode = AudioRolloffMode.Linear;
+        crackle.minDistance = 1f;
+        crackle.maxDistance = 7f;
+        crackle.volume = 0.5f;
+        crackle.dopplerLevel = 0f;
         embers.AddComponent<TorchFlame>().emberMaterial = sparkMaterial;
     }
 
@@ -386,6 +403,20 @@ public static class MainSceneBuilder
         tex.Apply();
         AssetDatabase.CreateAsset(tex, path);
         return tex;
+    }
+
+    // All variants of a sound: name.wav, or name_1.wav, name_2.wav ...
+    static AudioClip[] Clips(string name)
+    {
+        var single = AssetDatabase.LoadAssetAtPath<AudioClip>($"{Audio}{name}.wav");
+        if (single != null)
+            return new[] { single };
+        var clips = new System.Collections.Generic.List<AudioClip>();
+        for (int i = 1; AssetDatabase.LoadAssetAtPath<AudioClip>($"{Audio}{name}_{i}.wav") is AudioClip clip; i++)
+            clips.Add(clip);
+        if (clips.Count == 0)
+            Debug.LogWarning($"[MainSceneBuilder] no sound {name}; run tools/build-audio.sh");
+        return clips.ToArray();
     }
 
     static Material GeneratedMaterial(string name, string shader)
