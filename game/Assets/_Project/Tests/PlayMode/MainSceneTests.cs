@@ -9,6 +9,9 @@ namespace MyGame.Tests
 {
     // Plays the Main scene headless with scripted input and checks the rules from docs/brief.md.
     // Any Debug.LogError or exception during a test fails it.
+    // Time is stepped at a fixed 1/60 s per frame (Time.captureDeltaTime): deterministic, and headless Unity renders
+    // those frames faster than real time, so the suite runs several times faster than the seconds it simulates.
+    // Long measurements are [Category("Slow")]: tools/unity.sh test skips them, test-all runs everything.
     public class MainSceneTests
     {
         Apprentice apprentice;
@@ -19,7 +22,8 @@ namespace MyGame.Tests
         [UnitySetUp]
         public IEnumerator LoadMain()
         {
-            Application.targetFrameRate = 60;
+            Application.targetFrameRate = -1; // as fast as it can render
+            Time.captureDeltaTime = 1f / 60f;
             yield return SceneManager.LoadSceneAsync("Main");
             yield return null;
             apprentice = Object.FindAnyObjectByType<Apprentice>();
@@ -27,6 +31,13 @@ namespace MyGame.Tests
             post = Object.FindAnyObjectByType<MooringPost>();
             apprentice.Input = input = new ScriptedInput();
             yield return new WaitForSeconds(0.5f); // settle onto the ground
+        }
+
+        [TearDown]
+        public void ResetTime()
+        {
+            Time.captureDeltaTime = 0f;
+            Time.timeScale = 1f;
         }
 
         [Test]
@@ -324,6 +335,7 @@ namespace MyGame.Tests
         // The play-test: for each attack and defence, try every press time around the blow (1/30 s steps) and log
         // which work. The minimums are there so tuning can't quietly make a defence (near) impossible.
         [UnityTest]
+        [Category("Slow")]
         [Timeout(900000)]
         public IEnumerator Measure_DodgeAndBlockWindows()
         {
@@ -468,7 +480,7 @@ namespace MyGame.Tests
             before = target.Health;
             input.PressLight();
             bool sparked = false;
-            for (float t = 0; t < 0.6f; t += Time.unscaledDeltaTime) // includes the hit-stop
+            for (float t = 0; t < 0.6f; t += Time.captureDeltaTime) // steps, not game time: includes the hit-stop
             {
                 sparked |= Effects.Instance.LiveBlockSparks > 0;
                 yield return null;

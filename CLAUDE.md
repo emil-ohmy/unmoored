@@ -52,8 +52,11 @@ game/Assets/_Project/
   judges by ear. `Sfx` plays one-shots with variant/pitch/volume variation; the AudioListener follows the
   Apprentice (not the camera).
 - The Main scene is generated: change the layout in `MainSceneBuilder`, not in the editor.
-- Tests: `tools/unity.sh test` (EditMode + PlayMode). MainSceneTests drive the Apprentice through
-  `ScriptedInput`. For screenshots of play: `SHOTS=<dir>` + `-testFilter PlayCaptureTests`.
+- Tests: `tools/unity.sh test` (EditMode + PlayMode, a few seconds; skips `[Category("Slow")]` measurements) and
+  `tools/unity.sh test-all` (everything, before a merge). MainSceneTests drive the Apprentice through `ScriptedInput`
+  and step time at a fixed 1/60 s (`Time.captureDeltaTime`), so they're deterministic and run far faster than the
+  game time they cover: wait in game time (`WaitForSeconds`, `Time.deltaTime`), never real time. For screenshots
+  of play: `SHOTS=<dir>` + `-testFilter PlayCaptureTests`. A test that needs a long measurement gets `[Category("Slow")]`.
 - Headless Unity commands fail if the editor has the project open. Then work in a copy
   (rsync without Library/), ALWAYS rebuild the scene there after every sync (synced .meta files can change script
   GUIDs, leaving the copy's old scene with missing scripts), and let the user run the menu item in the real
