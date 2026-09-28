@@ -86,6 +86,7 @@ namespace MyGame
         float flashUntil;
         float oneShotUntil; // a short clip (e.g. Block) is playing; don't override it with Idle/Walk
         bool struck, committed;
+        int loosed; // projectiles loosed so far in this ranged strike
         AudioSource tell;  // the wind-up sound playing now, cut if the attack is interrupted
         AudioClip tellClip;
         float dissolve;
@@ -169,6 +170,7 @@ namespace MyGame
                         // Lunge far enough to reach a target that backed off, within limits.
                         lungeThisStrike = Mathf.Clamp(toTarget.magnitude - current.reach * 0.5f, current.lunge, current.maxLunge);
                         Enter(State.Strike);
+                        loosed = 0;
                         clips.PlayOnce(current.strikeClip, current.strike);
                         Sfx.Instance?.Attack(current.swingSound, transform.position + Vector3.up, 0.9f, Label("swing"), current.swingPitch);
                     }
@@ -179,7 +181,9 @@ namespace MyGame
                     float lungeTime = Mathf.Max(0.01f, current.strike * current.impactAt);
                     if (stateTime < lungeTime)
                         planar = transform.forward * (lungeThisStrike / lungeTime);
-                    if (!struck && stateTime >= current.impactAt * current.strike)
+                    if (current.ranged)
+                        Loose(toTarget, targetAlive);
+                    else if (!struck && stateTime >= current.impactAt * current.strike)
                     {
                         struck = true;
                         Impact();
@@ -269,17 +273,33 @@ namespace MyGame
         protected virtual void OnCommitted(SouredAttack attack) { }
 
         // A ranged attack's release, along its locked aim.
-        protected virtual void Shoot(SouredAttack attack, Vector3 direction) { }
+        protected virtual void Shoot(SouredAttack attack, Vector3 direction, int index) { }
 
         protected Vector3 LockedDirection => lockedDirection;
 
+        // A ranged strike: its projectiles, one after another from the impact moment. Each after the first turns a
+        // little towards the target (standing still is punished; moving sideways still escapes).
+        void Loose(Vector3 toTarget, bool targetAlive)
+        {
+            int count = Mathf.Max(1, current.volley);
+            while (loosed < count && stateTime >= current.impactAt * current.strike + loosed * current.volleyInterval)
+            {
+                if (loosed > 0 && toTarget.sqrMagnitude > 0.01f)
+                {
+                    lockedDirection = Vector3.RotateTowards(lockedDirection, toTarget.normalized, current.volleyTrack * Mathf.Deg2Rad, 0f);
+                    transform.rotation = Quaternion.LookRotation(lockedDirection);
+                }
+                if (targetAlive)
+                {
+                    Sfx.Instance?.Attack(current.releaseSound, transform.position + Vector3.up, 0.9f, Label("release"));
+                    Shoot(current, lockedDirection, loosed);
+                }
+                loosed++;
+            }
+        }
+
         void StrikeTarget(Vector3 toTarget)
         {
-            if (current.ranged)
-            {
-                Shoot(current, lockedDirection);
-                return;
-            }
             if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
                 return;
             if (target.TakeHit(current.damage, toTarget.normalized * current.knockback, this) == Defence.Parried)

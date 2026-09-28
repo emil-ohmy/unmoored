@@ -245,6 +245,7 @@ namespace MyGame.Tests
             UnityEngine.Object.FindAnyObjectByType<Laden>().gameObject.SetActive(false);
             var archer = UnityEngine.Object.FindAnyObjectByType<LadenArcher>();
             archer.retreatSpeed = 0f;
+            archer.volleyChance = 1f; // the first attack a volley, then single shots for the deflection
             Vector3 front = archer.transform.forward;
             front.y = 0f;
             Vector3 spot = archer.transform.position + front.normalized * 6.5f;
@@ -256,12 +257,14 @@ namespace MyGame.Tests
             Vector3 mid = (archer.transform.position + apprentice.transform.position) / 2f;
             cam.transform.SetPositionAndRotation(mid + pitch * new Vector3(0f, 0f, -11f), pitch);
             Capture(outDir, "archer-warmup");
-            for (int i = 0; i < 75; i++)
+            for (int i = 0; i < 96; i++)
             {
                 yield return null;
                 if (i % 3 == 0)
                     Capture(outDir, $"archer-{i:D2}");
             }
+            archer.volleyChance = 0f;
+            apprentice.RestoreFully();
             // A perfect block: raise it as the next arrow arrives.
             for (int i = 0; i < 150; i++)
             {
@@ -271,10 +274,11 @@ namespace MyGame.Tests
                 if (close)
                 {
                     input.BlockHeld = true;
-                    for (int f = 0; f < 6; f++)
+                    for (int f = 0; f < 16; f++)
                     {
                         yield return null;
-                        Capture(outDir, $"archer-parry-{f}");
+                        if (f % 2 == 0)
+                            Capture(outDir, $"archer-parry-{f:D2}");
                     }
                     input.BlockHeld = false;
                     break;

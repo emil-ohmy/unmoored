@@ -21,6 +21,10 @@ namespace MyGame
         public float knockback = 7f;
         public bool ranged;                 // a shot: at the impact moment it looses a projectile instead of striking
         public float projectileSpeed = 12f;
+        public int volley = 1;              // projectiles per ranged attack, loosed one after another
+        public float volleyInterval = 0.2f;
+        public float volleyTrack = 6f;      // degrees each later projectile may turn towards the target
+        public AudioClip[] releaseSound;    // per projectile loosed
 
         [Header("Sounds: the tell (the wind-up), the swing (every strike) and the impact (when it lands, hit or miss)")]
         public AudioClip[] windupSound;

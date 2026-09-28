@@ -272,7 +272,9 @@ public static class MainSceneBuilder
         archer.primary.swingSound = Clips("laden_swing");
         archer.primary.swingPitch = 1.35f;
         archer.shot.windupSound = Clips("archer_draw");
-        archer.shot.swingSound = Clips("arrow_release");
+        archer.shot.releaseSound = Clips("arrow_release"); // one per arrow
+        archer.volley.windupSound = Clips("archer_volley_draw");
+        archer.volley.releaseSound = Clips("arrow_release");
         archer.trailMaterial = sparkMaterial;
         BeltLantern(go, archer);
     }

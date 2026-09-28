@@ -976,6 +976,7 @@ namespace MyGame.Tests
         {
             var target = Isolate(archer);
             target.retreatSpeed = 0f;
+            target.volleyChance = 0f;
             PlaceApprentice(target.transform.position + Flat(target.transform.forward) * 7f, target.transform.position);
             for (float t = 0; t < 5f && apprentice.Health >= apprentice.maxHealth; t += Time.deltaTime)
                 yield return null;
@@ -983,13 +984,14 @@ namespace MyGame.Tests
             Assert.Less(apprentice.Health, apprentice.maxHealth, "standing still, the arrow should hit");
         }
 
-        // A perfect block nullifies an arrow (no chip, no stamina); a normal block stops it at the usual cost; a
-        // dash's i-frames let it pass.
+        // A perfect block deflects an arrow back (no chip, no stamina), and it stuns its archer; a normal block stops
+        // it at the usual cost; a dash's i-frames let it pass.
         [UnityTest]
-        public IEnumerator Archer_Arrows_PerfectBlockNullifies_BlockCosts_DashPasses()
+        public IEnumerator Archer_Arrows_PerfectBlockDeflects_BlockCosts_DashPasses()
         {
             var target = Isolate(archer);
             target.retreatSpeed = 0f;
+            target.volleyChance = 0f;
             Vector3 spot = target.transform.position + Flat(target.transform.forward) * 7f;
             var outcomes = new System.Collections.Generic.List<Defence>();
             void OnResolved(Arrow arrow, Defence defence) => outcomes.Add(defence);
@@ -1007,8 +1009,11 @@ namespace MyGame.Tests
                 Assert.AreEqual(Defence.Parried, outcomes.LastOrDefault(), "a block raised as it arrives should be perfect");
                 Assert.AreEqual(health, apprentice.Health, "a perfect block takes nothing");
                 Assert.AreEqual(stamina, apprentice.Stamina, 0.01f, "and costs nothing");
-                yield return new WaitForSeconds(0.3f);
-                Assert.AreEqual(0, Object.FindObjectsByType<Arrow>(FindObjectsSortMode.None).Length, "the arrow is gone");
+                for (float t = 0; t < 1.5f && target.CurrentState != Soured.State.Stunned; t += Time.deltaTime)
+                    yield return null;
+                Assert.AreEqual(Soured.State.Stunned, target.CurrentState, "the deflected arrow should fly back and stun its archer");
+                Assert.Less(target.Health, target.maxHealth, "and hurt it");
+                yield return new WaitForSeconds(target.stunDuration);
 
                 // 2. Normal block: held up well before the arrow comes.
                 yield return new WaitForSeconds(0.5f);
@@ -1041,6 +1046,25 @@ namespace MyGame.Tests
                 Arrow.Resolved -= OnResolved;
                 input.BlockHeld = false;
             }
+        }
+
+        // The volley: a longer draw with three arrows fanned on the bow (the tell), then three loosed in one strike.
+        [UnityTest]
+        public IEnumerator Archer_Volley_ShowsThreeArrows_ThenLoosesThem()
+        {
+            var target = Isolate(archer);
+            target.retreatSpeed = 0f;
+            target.volleyChance = 1f;
+            PlaceApprentice(target.transform.position + Flat(target.transform.forward) * 7f, target.transform.position);
+            for (float t = 0; t < 4f && target.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual("Volley", target.CurrentAttack.name);
+            yield return new WaitForSeconds(0.6f);
+            Assert.AreEqual(3, target.NockedCount, "three arrows on the bow: a volley is coming");
+            for (float t = 0; t < 2f && target.CurrentState != Soured.State.Recover; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(3, target.ShotsFired, "three arrows in quick succession");
+            Assert.Less(apprentice.Health, apprentice.maxHealth, "standing still, the volley should find you");
         }
 
         [UnityTest]

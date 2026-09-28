@@ -29,6 +29,7 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Charm fitted (`charm_fit`) | in game | Synth | cloth rustle, a clasp click, a low warm chime |
 | Splash (`splash`, 2) | in game | Synth | surface slap, deep bloop, water rushing over, bubbles; a Soured drowning or the Apprentice falling in |
 | Laden archer draw (`archer_draw`) | in game | Synth | 0.9 s tell: a taut bow creak tightening and a rising string hum, swelling to the release; higher and thinner than the Laden's heave |
+| Laden archer volley (`archer_volley_draw`) | in game | Synth | 1.3 s tell: three nocking clicks and a quiver rattle, then a slower, deeper draw than a single shot |
 | Arrow release (`arrow_release`, 2) | in game | Synth | string twang with a buzz, and the whoosh of the shaft |
 | Arrow thunk (`arrow_thunk`, 2) | in game | Synth | an arrow striking wood or stone and quivering |
 | Menu tick (`ui_tick`) | in game | Synth | a tiny soft wooden tick, moving through a menu |
