@@ -36,6 +36,8 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.5f);
             Capture(outDir, "play-1-start");
             target.aggroRadius = aggro;
+            yield return new WaitForSeconds(0.8f);
+            Capture(outDir, "play-1b-approach-open");
 
             // Walk towards the Laden; it notices and lifts its guard. Swing into the guard: sparks and a shove.
             bool capturedGuard = false, swung = false;

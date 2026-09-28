@@ -156,6 +156,27 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator Laden_WalksOpenFromAfar_AndGuardsUpClose()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            PlaceApprentice(target.transform.position + target.transform.forward * 5f, target.transform.position);
+            yield return new WaitForSeconds(0.6f);
+            Assert.AreEqual(Soured.State.Chase, target.CurrentState, "it should have noticed the Apprentice");
+            Assert.IsFalse(target.Guarding, "approaching from afar, the heap should be low (open)");
+
+            PlaceApprentice(target.transform.position + target.transform.forward * 2.6f, target.transform.position);
+            yield return null;
+            Assert.IsFalse(target.Guarding, "the guard takes a moment to come up");
+            yield return new WaitForSeconds(target.guardRaiseTime + 0.1f);
+            Assert.IsTrue(target.Guarding, "up close it should raise its guard");
+
+            PlaceApprentice(target.transform.position + target.transform.forward * 5f, target.transform.position);
+            yield return null;
+            yield return null;
+            Assert.IsFalse(target.Guarding, "backing off should drop the guard");
+        }
+
+        [UnityTest]
         public IEnumerator Laden_StaggersWhenItsMeterFills()
         {
             var target = Isolate(laden[0], frozen: true);
@@ -236,6 +257,7 @@ namespace MyGame.Tests
             if (frozen)
             {
                 keep.chaseSpeed = 0f;
+                keep.guardSpeed = 0f;
                 keep.turnSpeed = 0f;
                 keep.attackRange = 0f;
             }

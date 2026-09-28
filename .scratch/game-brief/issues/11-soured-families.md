@@ -37,3 +37,6 @@ Resolved 2026-09-27 with the user (quiz format).
 - 2026-09-28: after playing the first slice the user asked for a readable guard. The Laden now carries its heap low
   while unaware (face showing, no block) and lifts it in front of its face once alert (GuardUp, 0.3 s before the block
   counts). A blocked hit throws sparks and a flash on the heap and shoves the Apprentice back about 1.4 m.
+- 2026-09-28 (later): walking towards the Apprentice and blocking looked the same, so they're now separate: the
+  Laden approaches open (heap low on the hip) and only raises its guard within ~3.4 m, shuffling in behind it; a glint
+  marks the moment the guard is up.

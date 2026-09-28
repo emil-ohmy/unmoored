@@ -46,7 +46,11 @@ namespace MyGame
 
         protected ClipPlayer clips;
         protected virtual string IdleClip => "Idle";
-        protected virtual string ChaseClip => "Walk";
+
+        // Chase behaviour by distance to the Apprentice; subclasses change gait and speed (the Laden guards up close).
+        protected virtual string ChaseClip(float distance) => "Walk";
+        protected virtual float ChaseSpeed(float distance) => chaseSpeed;
+        protected virtual void OnChaseDistance(float distance) { }
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
@@ -103,16 +107,18 @@ namespace MyGame
                         Enter(State.Idle);
                         break;
                     }
-                    LoopUnlessBusy(ChaseClip);
+                    float distance = toTarget.magnitude;
+                    OnChaseDistance(distance);
+                    LoopUnlessBusy(ChaseClip(distance));
                     Face(toTarget, turnSpeed * dt);
-                    if (toTarget.magnitude <= attackRange)
+                    if (distance <= attackRange)
                     {
                         lockedDirection = toTarget.normalized; // locked now: sidestepping is always an answer
                         Enter(State.Telegraph);
                         clips.PlayOnce("Windup", telegraphDuration);
                     }
                     else
-                        planar = toTarget.normalized * chaseSpeed;
+                        planar = toTarget.normalized * ChaseSpeed(distance);
                     break;
 
                 case State.Telegraph:

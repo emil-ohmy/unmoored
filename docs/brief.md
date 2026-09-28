@@ -102,7 +102,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 
 | Family | Couldn't let go of | Role | Weak to |
 |---|---|---|---|
-| Laden | things | Tank; once alert it lifts its heap of belongings as a shield that blocks frontal hits (unaware, it carries it low and is open); huge stagger meter | Hook |
+| Laden | things | Tank; approaches with its heap of belongings low (open), then up close lifts it as a shield that blocks frontal hits; huge stagger meter | Hook |
 | Clinger | a person | Fast pairs that latch on and drain stamina; dash to throw off | Stroke |
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
 | Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |

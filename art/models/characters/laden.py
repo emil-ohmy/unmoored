@@ -1,7 +1,8 @@
 """The Laden: a Soured who couldn't let go of things. Clutches a towering heap of belongings in front of it,
 which is its shield (blocks frontal hits) and its weapon (lifts it overhead, slams it down).
 
-Clips: Idle (open: heap low, face showing), GuardUp (0.35 s: heap lifted in front of the face), GuardWalk,
+Clips: Idle and Walk (open: heap low on the hip, face showing), GuardUp (0.35 s: heap lifted in front of the
+face), GuardWalk (braced shuffle),
 Block (0.3 s recoil when a frontal hit is blocked), Windup (0.9 s telegraph: heap raised high), Strike (0.3 s slam),
 Recover (1.2 s, heap on the ground: the punish window), Stagger.
 """
@@ -19,8 +20,9 @@ BONES = {
 # Guard states, readable from the game camera:
 # OPEN  (unaware): heap lowered and tipped away, face and eyes showing above it. Does not block.
 # GUARD (alert):   heap lifted in front of the face. Blocks frontal hits.
-OPEN = {"Spine": (8, 0, 0), "Head": (-4, 0, 0), "Heap": ((18, 0, 0), (0, 0.08, -0.45))}
-GUARD = {"Spine": (-4, 0, 0), "Head": (12, 0, 0), "Heap": ((-6, 0, 0), (0, 0.02, 0.2))}
+# OPEN is carried low on one hip (asymmetric, relaxed); GUARD is planted and braced, heap high over the face.
+OPEN = {"Spine": (8, 0, -6), "Head": (-6, 0, 0), "Heap": ((20, 0, -14), (0.14, 0.1, -0.5))}
+GUARD = {"Spine": (-6, 0, 0), "Head": (14, 0, 0), "Heap": ((-8, 0, 0), (0, -0.06, 0.36)), "Root": ((0, 0, 0), (0, 0, -0.05))}
 HEAP_UP = ((-20, 0, 0), (0, 0.1, 0.6))
 HEAP_DOWN = ((35, 0, 0), (0, -0.3, -0.55))
 LIFTED = {"Spine": (-20, 0, 0), "Head": (-16, 0, 0), "Heap": ((-22, 0, 0), (0, 0.12, 0.62)), "Root": ((0, 0, 0), (0, 0.09, 0.06))}
@@ -39,17 +41,24 @@ ACTIONS = {
         (24, with_(OPEN, Spine=(11, 0, 0), Heap=((20, 0, 0), (0, 0.08, -0.48)), Root=((0, 0, 0), (0, 0, -0.02)))),
         (48, OPEN),
     ]),
+    "Walk": ("BEZIER", [  # approaching, open: a lumbering walk with the heap low on the hip
+        (1, with_(OPEN, Spine=(8, 6, -6))),
+        (9, with_(OPEN, Root=((0, 0, 0), (0, 0, 0.04)))),
+        (17, with_(OPEN, Spine=(8, -6, -6))),
+        (25, with_(OPEN, Root=((0, 0, 0), (0, 0, 0.04)))),
+        (33, with_(OPEN, Spine=(8, 6, -6))),
+    ]),
     "GuardUp": ("BEZIER", [  # 0.35 s: the heap comes up in front of the face
         (1, OPEN),
         (8, with_(GUARD, Heap=((-10, 0, 0), (0, 0.0, 0.26)))),
         (11, GUARD),
     ]),
-    "GuardWalk": ("BEZIER", [
-        (1, with_(GUARD, Spine=(-4, 6, 0))),
-        (9, with_(GUARD, Root=((0, 0, 0), (0, 0, 0.04)))),
-        (17, with_(GUARD, Spine=(-4, -6, 0))),
-        (25, with_(GUARD, Root=((0, 0, 0), (0, 0, 0.04)))),
-        (33, with_(GUARD, Spine=(-4, 6, 0))),
+    "GuardWalk": ("BEZIER", [  # braced shuffle behind the raised heap
+        (1, with_(GUARD, Spine=(-6, 3, 0))),
+        (17, with_(GUARD, Root=((0, 0, 0), (0, 0, -0.03)))),
+        (33, with_(GUARD, Spine=(-6, -3, 0))),
+        (49, with_(GUARD, Root=((0, 0, 0), (0, 0, -0.03)))),
+        (65, with_(GUARD, Spine=(-6, 3, 0))),
     ]),
     "Block": ("BEZIER", [  # a blocked hit shoves the heap back into its face
         (1, GUARD),

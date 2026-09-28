@@ -27,6 +27,14 @@ namespace MyGame
                 Instance = null;
         }
 
+        // The moment a guard comes up: a small, quick glint on the shield.
+        public void GuardGlint(Vector3 position)
+        {
+            flash.transform.position = position;
+            var p = new ParticleSystem.EmitParams { startSize = 0.35f, startColor = new Color(1f, 0.95f, 0.8f, 0.8f), applyShapeToPosition = false };
+            flash.Emit(p, 1);
+        }
+
         // A blocked hit: a spray of sparks off the surface plus a quick expanding ring.
         public void BlockSpark(Vector3 position, Vector3 normal)
         {

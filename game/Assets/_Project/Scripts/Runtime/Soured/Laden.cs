@@ -2,32 +2,55 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // The Laden: couldn't let go of things. Unaware, it carries its heap low (face showing) and does NOT block.
-    // Once alert it lifts the heap in front of its face, and after guardRaiseTime it blocks hits from the front:
-    // the oar bounces off with sparks and the Apprentice is shoved back (mashing is punished). Openings: before it
-    // notices you, while the guard is coming up, the wind-up (heap overhead), the recovery (heap on the ground),
-    // and its flanks and back.
+    // The Laden: couldn't let go of things. It approaches with its heap carried low on the hip: open. Within
+    // guardRange it plants itself, lifts the heap in front of its face (a glint marks the moment the guard is
+    // up) and shuffles in behind it; now hits from the front bounce off with sparks and a shove (mashing is
+    // punished). Openings: from range, before it notices you, while the guard rises, the wind-up (heap
+    // overhead), the recovery (heap on the ground), and its flanks and back.
     public sealed class Laden : Soured
     {
-        [Header("Laden")]
+        [Header("Laden guard")]
+        public float guardRange = 3.4f;
+        public float guardSpeed = 0.8f;       // braced shuffle while guarding
+        public float guardRaiseTime = 0.3f;   // matches the GuardUp clip; the block only counts once the heap is up
         public float blockHalfAngle = 70f;
-        public float guardRaiseTime = 0.3f; // matches the GuardUp clip; the block only counts once the heap is up
 
         float guardSince = float.MaxValue;
+        bool guardWanted, glinted;
 
-        public bool Guarding => CurrentState == State.Chase && Time.time - guardSince >= guardRaiseTime;
+        public bool Guarding => CurrentState == State.Chase && guardWanted && Time.time - guardSince >= guardRaiseTime;
 
-        protected override string ChaseClip => "GuardWalk";
+        protected override string ChaseClip(float distance) => guardWanted ? "GuardWalk" : "Walk";
+        protected override float ChaseSpeed(float distance) => guardWanted ? guardSpeed : chaseSpeed;
 
-        protected override void OnEntered(State state)
+        protected override void OnChaseDistance(float distance)
         {
-            if (state == State.Chase)
+            bool wanted = distance <= guardRange;
+            if (wanted == guardWanted)
+            {
+                if (Guarding && !glinted)
+                {
+                    glinted = true; // once per raise: the guard is up now
+                    Effects.Instance?.GuardGlint(transform.position + transform.forward * (radius + 0.2f) + Vector3.up * 1.6f);
+                }
+                return;
+            }
+            guardWanted = wanted;
+            glinted = false;
+            if (wanted)
             {
                 guardSince = Time.time;
-                PlayShort("GuardUp", 0.35f);
+                PlayShort("GuardUp", guardRaiseTime + 0.05f);
             }
             else
                 guardSince = float.MaxValue;
+        }
+
+        protected override void OnEntered(State state)
+        {
+            // Every other state drops the guard; coming back to Chase decides again from the distance.
+            guardWanted = false;
+            guardSince = float.MaxValue;
         }
 
         protected override bool BlocksHit(Hit hit)
