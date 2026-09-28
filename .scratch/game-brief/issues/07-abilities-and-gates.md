@@ -26,3 +26,8 @@ Resolved 2026-09-27 with the user (quiz format).
   lantern (every Mooring post lit) unlocks a **secret ending** (the user's idea).
 - **Critical-path water gates**: currents (Stroke) and posts across water (Hook) only. Fog never gates progress.
 - Considered and not chosen: Lantern as an Ability; 4 Abilities; 2 Abilities; all from Bosses; first found then Bosses.
+
+## Comments
+
+- 2026-09-28: the bow lantern is now also carried at the Apprentice's hip on land (the user's idea), so its growth with
+  lit Mooring posts is visible from the start of the game; it still hangs on the bow when rowing.

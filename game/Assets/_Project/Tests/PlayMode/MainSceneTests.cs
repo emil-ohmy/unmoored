@@ -225,6 +225,11 @@ namespace MyGame.Tests
             Assert.AreEqual(apprentice.maxHealingCharges, apprentice.HealingCharges);
             Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
             Assert.IsTrue(laden[1].IsAlive, "resting should re-form scattered Soured");
+
+            var lantern = apprentice.GetComponent<BowLantern>();
+            float dim = lantern.lanternLight.range;
+            yield return new WaitForSeconds(1f);
+            Assert.Greater(lantern.lanternLight.range, dim + 1f, "lighting a Mooring post should make the bow lantern grow");
         }
 
         [UnityTest]

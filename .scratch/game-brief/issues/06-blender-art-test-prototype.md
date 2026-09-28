@@ -41,3 +41,9 @@ scene builder with headless screenshots). Rebuild: Assets > MyGame > Build Art T
   - Smoothed normals baked into tangents give closed outlines on faceted and skinned meshes.
   - Edit-mode renders don't re-skin; bake the pose for screenshots.
   - bmesh solidify needs normal_update() first.
+
+## Comments
+
+- 2026-09-28: after playing the first slice the user asked for a darker, grittier look. The world is now always night
+  (weak cold moon, dark fog and water, film grain, heavy vignette) and lit by its fires. Light colours carry meaning:
+  warm = world/safety, sickly green = Soured (belt lanterns), cold pale blue = the Apprentice's bow lantern.

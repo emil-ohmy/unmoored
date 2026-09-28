@@ -14,7 +14,7 @@ Shader "MyGame/Water"
         _WaveHeight("Wave Height (m)", Float) = 0.05
         _WaveLength("Wave Length (m)", Float) = 3.5
         _WaveSpeed("Wave Speed", Float) = 0.8
-        _LampReflection("Lamp Reflection", Range(0, 3)) = 0.6
+        _LampReflection("Lamp Reflection", Range(0, 3)) = 0.35
     }
 
     SubShader
@@ -112,16 +112,16 @@ Shader "MyGame/Water"
                 half3 color = albedo * lerp(_ShadowTint.rgb, 1.0, lit) * light.color * 0.85 + albedo * SampleSH(normalWS) * 0.35;
 
             #if defined(_ADDITIONAL_LIGHTS)
-                // Lantern reflections: bright stepped pools on the water around each light.
+                // Lantern reflections: a glint on the water close to each light.
                 InputData inputData = (InputData)0;
                 inputData.positionWS = input.positionWS;
                 inputData.normalizedScreenSpaceUV = screenUV;
                 uint lightCount = GetAdditionalLightsCount();
                 LIGHT_LOOP_BEGIN(lightCount)
                     Light lamp = GetAdditionalLight(lightIndex, input.positionWS, half4(1, 1, 1, 1));
-                    half atten = lamp.distanceAttenuation;
-                    half pool = smoothstep(0.04, 0.09, atten) * 0.6 + saturate(atten) * 0.4;
-                    color += lamp.color * pool * _LampReflection * (0.35 + 0.65 * albedo);
+                    half atten = saturate(lamp.distanceAttenuation);
+                    half glint = atten * atten; // falls off steeply: a bright glint near the light, dark water beyond
+                    color += lamp.color * glint * _LampReflection * (0.35 + 0.65 * albedo);
                 LIGHT_LOOP_END
             #endif
 

@@ -12,7 +12,7 @@ using UnityEngine;
 public class ModelImportRules : AssetPostprocessor
 {
     const string Root = "Assets/_Project/Art/Models/";
-    const float GlowIntensity = 8f;
+    const float GlowIntensity = 5f;
 
     bool InScope => assetPath.StartsWith(Root) && assetPath.EndsWith(".fbx");
     bool IsCharacter => assetPath.StartsWith(Root + "Characters/");

@@ -65,7 +65,7 @@ A piece of passive Equipment that modifies the Apprentice without changing the O
 _Avoid_: Card, trinket, relic
 
 **Bow lantern**:
-The lantern on the Apprentice's boat; grows stronger with each lit Mooring post and burns through fog on the water. Never an Ability.
+The Apprentice's own lantern, carried at the hip and hung on the boat's bow when rowing; its cold light grows with each lit Mooring post and burns through fog on the water. Never an Ability.
 _Avoid_: Lamp, light
 
 **Obol**:

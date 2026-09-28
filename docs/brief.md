@@ -57,8 +57,9 @@ business and pay their fare to row them across.
   - **Stroke**, from Boss 2: row against currents, and send a wave that knocks Soured back.
   - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
     in Area 3, which hints where it is.
-- **Bow lantern:** never required. It grows with every lit Mooring post and burns through fog to optional routes and
-  secrets. Fully powered, it unlocks a secret ending.
+- **Bow lantern:** never required. Carried at the Apprentice's hip on land and hung on the bow when rowing; its cold
+  light grows with every lit Mooring post and burns through fog to optional routes and secrets. Fully powered, it
+  unlocks a secret ending.
 - **Oar attachments,** one fitted at a time and swapped at posts. The Plain blade you start with, plus:
   - **Iron blade:** heavy, big stagger.
   - **Light blade:** fast, and carries the third light swing.
@@ -114,6 +115,10 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 - **Shading:** stepped toon light with lilac-tinted shadows, dark outlines, a soft rim, fog and bloom.
 - **Palette:** a muted, cold teal-grey underworld, with warm focal accents: the Apprentice's red hood, the Orchard's
   autumn colours, lanterns and eyes.
+- **Darkness:** it is always night. A weak, cold moon; the world is revealed by its fires (torches, lanterns). Fog,
+  film grain and a heavy vignette keep it gritty.
+- **Light carries meaning:** warm orange is the world and safety (torches, Mooring posts); sickly green is a Soured
+  (their belt lanterns and eyes: green light in the dark means danger); cold pale blue is the Apprentice's bow lantern.
 - **Pipeline:** everything is modelled and animated from Blender scripts, and art direction happens by reacting to
   renders. The reference is the `prototype/art-test` branch.
 

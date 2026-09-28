@@ -19,8 +19,14 @@ public static class MainSceneBuilder
     const string Models = "Assets/_Project/Art/Models/";
     const string Generated = "Assets/_Project/Art/Generated";
     const float QuayTop = 0.5f;
-    static readonly Color Fog = Hex("#5d6475");
+    // Night: the world is lit by its fires. Light colour carries meaning (docs/brief.md):
+    // warm = the world and safety, sickly green = a Soured, cold pale = the Apprentice's bow lantern.
+    static readonly Color Fog = Hex("#161a24");
     static readonly Color LanternLight = Hex("#ffb866");
+    static readonly Color TorchLight = Hex("#ff8a3d");
+    static readonly Color SouredLight = Hex("#9ee860");
+    static readonly Color BowLanternLight = Hex("#9fc4ff");
+    static Material sparkMaterial;
 
     [MenuItem("Assets/MyGame/Build Main Scene")]
     static void BuildFromMenu()
@@ -43,6 +49,7 @@ public static class MainSceneBuilder
         AssetDatabase.ImportAsset(Models.TrimEnd('/'), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
         Directory.CreateDirectory(Generated);
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        sparkMaterial = ParticleMaterial("M_Spark", RadialTexture("T_SoftDot", ring: false));
         Lighting();
 
         var water = new GameObject("Water", typeof(MeshFilter), typeof(MeshRenderer));
@@ -61,6 +68,9 @@ public static class MainSceneBuilder
         Place("Environment/barrel", new Vector3(6.6f, QuayTop, -3.2f), 180f);
         StreetLantern(new Vector3(-6.4f, QuayTop, -3.9f), 90f);
         StreetLantern(new Vector3(6.2f, QuayTop, 4.0f), -90f);
+        foreach (var p in new[] { new Vector3(-7.2f, 0f, -4.3f), new Vector3(7.2f, 0f, -4.5f), new Vector3(-7.3f, 0f, 3.6f),
+                                  new Vector3(7.3f, 0f, 1.2f), new Vector3(-2.2f, 0f, 2.9f), new Vector3(0.4f, 0f, 4.9f) })
+            Torch(new Vector3(p.x, QuayTop, p.z));
 
         // The jetty reaches out from the quay's front edge towards the camera, with the Mooring post at its end.
         Place("Environment/jetty", new Vector3(2.4f, QuayTop - 0.03f, -5.0f), 0f);
@@ -90,7 +100,7 @@ public static class MainSceneBuilder
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
         var effects = systems.AddComponent<Effects>();
-        effects.sparkMaterial = ParticleMaterial("M_Spark", RadialTexture("T_SoftDot", ring: false));
+        effects.sparkMaterial = sparkMaterial;
         effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
         systems.AddComponent<Hud>().apprentice = apprentice;
 
@@ -141,6 +151,9 @@ public static class MainSceneBuilder
         controller.minMoveDistance = 0f;
         var apprentice = go.AddComponent<Apprentice>();
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
+        var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
+        Flicker(lantern, 0.06f, 2f, 0.01f); // a slow, steady pulse, not a flame
+        go.AddComponent<BowLantern>().lanternLight = lantern;
         return apprentice;
     }
 
@@ -171,6 +184,8 @@ public static class MainSceneBuilder
         laden.lungeDistance = 0.5f;
         laden.damage = 30f;
         laden.strikeReach = 2.2f;
+        var lantern = PointLight(Bone(go, "Spine"), GlowCentre(go, "SouredLantern_Glow"), 3.8f, 1.8f, SouredLight);
+        Flicker(lantern, 0.15f, 5f, 0.02f);
     }
 
     static MooringPost MooringPostAt(Vector3 position, float yaw)
@@ -182,7 +197,8 @@ public static class MainSceneBuilder
         respawn.SetParent(go.transform, false);
         respawn.position = position + new Vector3(-0.9f, 0f, 0.9f); // on the jetty, beside the post
         post.respawnPoint = respawn;
-        post.lanternLight = PointLight(go.transform, GlowCentre(go), 5.5f, 3.5f);
+        post.lanternLight = PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 5.5f, 3.5f, LanternLight);
+        Flicker(post.lanternLight, 0.1f, 5f, 0.01f);
         post.lanternLight.enabled = false; // dark until the Apprentice first Rests here
         return post;
     }
@@ -190,45 +206,79 @@ public static class MainSceneBuilder
     static void StreetLantern(Vector3 position, float yaw)
     {
         var go = Place("Environment/street_lantern", position, yaw + 180f);
-        PointLight(go.transform, GlowCentre(go), 7f, 4f);
+        Flicker(PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 6.5f, 3f, LanternLight), 0.1f, 5f, 0.01f);
     }
 
-    static Light PointLight(Transform parent, Vector3 position, float range, float intensity)
+    static void Torch(Vector3 position)
+    {
+        var go = Place("Environment/torch", position, Mathf.Repeat(position.x * 37f + position.z * 91f, 360f)); // varied but repeatable
+        var light = PointLight(go.transform, GlowCentre(go, "Torch_Glow") + Vector3.up * 0.15f, 6f, 3.2f, TorchLight);
+        Flicker(light, 0.25f, 7f, 0.04f);
+        var embers = new GameObject("Embers");
+        embers.transform.SetParent(go.transform, false);
+        embers.transform.position = GlowCentre(go, "Torch_Glow") + Vector3.up * 0.2f;
+        embers.AddComponent<TorchFlame>().emberMaterial = sparkMaterial;
+    }
+
+    static void Flicker(Light light, float amount, float speed, float wobble)
+    {
+        var flicker = light.gameObject.AddComponent<LightFlicker>();
+        flicker.amount = amount;
+        flicker.speed = speed;
+        flicker.wobble = wobble;
+    }
+
+    static Transform Bone(GameObject character, string name)
+    {
+        foreach (var t in character.GetComponentsInChildren<Transform>())
+            if (t.name == name)
+                return t;
+        throw new Exception($"{character.name} has no bone {name}");
+    }
+
+    static Light PointLight(Transform parent, Vector3 position, float range, float intensity, Color colour)
     {
         var light = new GameObject("Lantern Light").AddComponent<Light>();
         light.transform.SetParent(parent, true);
         light.transform.position = position;
         light.type = LightType.Point;
-        light.color = LanternLight;
+        light.color = colour;
         light.range = range;
         light.intensity = intensity;
         light.shadows = LightShadows.None;
         return light;
     }
 
-    // World-space centre of the vertices that use the "Lantern_Glow" material.
-    static Vector3 GlowCentre(GameObject go)
+    // World-space centre of the vertices that use a material whose name starts with `prefix` (a lantern's glass).
+    static Vector3 GlowCentre(GameObject go, string prefix)
     {
-        foreach (var filter in go.GetComponentsInChildren<MeshFilter>())
+        foreach (var renderer in go.GetComponentsInChildren<Renderer>())
         {
-            var materials = filter.GetComponent<MeshRenderer>().sharedMaterials;
-            for (int i = 0; i < materials.Length; i++)
+            var materials = renderer.sharedMaterials;
+            int index = Array.FindIndex(materials, m => m != null && m.name.StartsWith(prefix));
+            if (index < 0)
+                continue;
+            Mesh mesh;
+            Func<Vector3, Vector3> toWorld;
+            if (renderer is SkinnedMeshRenderer skinned)
             {
-                if (materials[i] == null || !materials[i].name.StartsWith("Lantern_Glow"))
-                    continue;
-                var mesh = filter.sharedMesh;
-                var vertices = mesh.vertices;
-                var sum = Vector3.zero;
-                int n = 0;
-                foreach (int index in mesh.GetTriangles(i))
-                {
-                    sum += vertices[index];
-                    n++;
-                }
-                return filter.transform.TransformPoint(sum / Mathf.Max(1, n));
+                mesh = new Mesh(); // raw skinned vertices are in bind-pose space: bake the posed mesh
+                skinned.BakeMesh(mesh, true);
+                toWorld = v => skinned.transform.position + skinned.transform.rotation * v;
             }
+            else
+            {
+                mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+                toWorld = renderer.transform.TransformPoint;
+            }
+            var vertices = mesh.vertices;
+            var triangles = mesh.GetTriangles(index);
+            var sum = Vector3.zero;
+            foreach (int i in triangles)
+                sum += vertices[i];
+            return toWorld(sum / Mathf.Max(1, triangles.Length));
         }
-        return go.transform.position + Vector3.up;
+        throw new Exception($"{go.name} has no {prefix} material");
     }
 
     // ------------------------------------------------------------ look
@@ -236,26 +286,27 @@ public static class MainSceneBuilder
     static void Lighting()
     {
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = Hex("#8a86a6");
-        RenderSettings.ambientEquatorColor = Hex("#5a6a78");
-        RenderSettings.ambientGroundColor = Hex("#2a2f38");
+        RenderSettings.ambientSkyColor = Hex("#2a3048");
+        RenderSettings.ambientEquatorColor = Hex("#1b2330");
+        RenderSettings.ambientGroundColor = Hex("#0c0e12");
         var sh = new SphericalHarmonicsL2();
-        sh.AddAmbientLight(Hex("#5a6a78").linear);
-        sh.AddDirectionalLight(Vector3.up, Hex("#8a86a6").linear, 0.6f);
+        sh.AddAmbientLight(Hex("#1b2330").linear);
+        sh.AddDirectionalLight(Vector3.up, Hex("#2a3048").linear, 0.5f);
         RenderSettings.ambientProbe = sh;
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
         RenderSettings.fogColor = Fog;
-        RenderSettings.fogStartDistance = 20f;
-        RenderSettings.fogEndDistance = 60f;
+        RenderSettings.fogStartDistance = 16f;
+        RenderSettings.fogEndDistance = 45f;
 
-        var sun = new GameObject("Sun").AddComponent<Light>();
-        sun.type = LightType.Directional;
-        sun.color = Hex("#ffdcae");
-        sun.intensity = 1.6f; // a little dimmer than the art test so the lanterns read
-        sun.shadows = LightShadows.Soft;
-        sun.shadowStrength = 0.9f;
-        sun.transform.rotation = Quaternion.Euler(48f, -38f, 0f);
+        // A weak, cold moon: enough to read shapes and cast long shadows, never enough to light the scene.
+        var moon = new GameObject("Moon").AddComponent<Light>();
+        moon.type = LightType.Directional;
+        moon.color = Hex("#8ea8d8");
+        moon.intensity = 0.45f;
+        moon.shadows = LightShadows.Soft;
+        moon.shadowStrength = 0.8f;
+        moon.transform.rotation = Quaternion.Euler(56f, -38f, 0f);
     }
 
     static Mesh WaterGrid(float size, float cell)
@@ -285,7 +336,15 @@ public static class MainSceneBuilder
         return mesh;
     }
 
-    static Material WaterMaterial() => GeneratedMaterial("M_Water", "MyGame/Water");
+    static Material WaterMaterial()
+    {
+        var m = GeneratedMaterial("M_Water", "MyGame/Water");
+        m.SetColor("_DeepColor", Hex("#0c1c20"));
+        m.SetColor("_ShallowColor", Hex("#173236"));
+        m.SetColor("_FoamColor", Hex("#8a9c9a"));
+        EditorUtility.SetDirty(m);
+        return m;
+    }
 
     static Material ParticleMaterial(string name, Texture2D texture)
     {
@@ -337,10 +396,16 @@ public static class MainSceneBuilder
         AssetDatabase.CreateAsset(profile, path);
         var bloom = profile.Add<Bloom>(true);
         bloom.threshold.Override(1f);
-        bloom.intensity.Override(1.1f);
-        bloom.scatter.Override(0.65f);
+        bloom.intensity.Override(1.3f);
+        bloom.scatter.Override(0.7f);
         profile.Add<Tonemapping>(true).mode.Override(TonemappingMode.Neutral);
-        profile.Add<Vignette>(true).intensity.Override(0.22f);
+        profile.Add<Vignette>(true).intensity.Override(0.36f);
+        var grain = profile.Add<FilmGrain>(true);
+        grain.type.Override(FilmGrainLookup.Medium2);
+        grain.intensity.Override(0.35f);
+        var grade = profile.Add<ColorAdjustments>(true);
+        grade.contrast.Override(12f);
+        grade.saturation.Override(-12f);
         foreach (var component in profile.components)
             AssetDatabase.AddObjectToAsset(component, profile);
         EditorUtility.SetDirty(profile);

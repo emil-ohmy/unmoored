@@ -98,6 +98,15 @@ def build():
         part("OarBand", kit.cylinder(6, 0.036, 0.05), mark, OAR @ M((0, 0, 1.62)), group="Oar"),
         part("Hand", kit.sphere(8, 6, 0.065), cloak_dark, OAR @ M((0, 0, 0.6)), smooth=True, group="Oar"),
     ]
+    # The bow lantern, carried at the left hip on land (it hangs on the boat's bow when rowing). Cold, pale light.
+    metal, soul = kit.mat("LanternMetal", "#2c2b31"), kit.mat("SoulLantern_Glow", "#cfe6ff")
+    lx, ly, lz = -0.36, -0.06, 0.38
+    parts += [
+        part("LanternCord", kit.cube(), metal, M((lx + 0.02, ly, lz + 0.14), rot=(0, 18, 0), scale=(0.015, 0.015, 0.12)), group="Body"),
+        part("LanternTop", kit.cone(4, 0.07, 0.01, 0.06), metal, M((lx, ly, lz + 0.08), rot=(0, 0, 45)), group="Body"),
+        part("LanternGlass", kit.cube(), soul, M((lx, ly, lz), scale=(0.08, 0.08, 0.11)), group="Body"),
+        part("LanternBase", kit.cube(), metal, M((lx, ly, lz - 0.065), scale=(0.1, 0.1, 0.02)), group="Body"),
+    ]
     for s in (-1, 1):
         parts.append(part("Eye", kit.sphere(8, 6), ink, M((s * 0.065, -0.255, 0.87), scale=(0.032, 0.02, 0.046)), smooth=True, group="Head"))
         parts.append(part("Foot", kit.sphere(8, 6), ink, M((s * 0.11, -0.17, 0.035), scale=(0.075, 0.09, 0.045)), smooth=True, group="Root"))

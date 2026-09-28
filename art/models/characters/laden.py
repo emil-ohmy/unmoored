@@ -115,6 +115,15 @@ def build():
         parts.append(part("Arm", kit.cone(6, 0.11, 0.06, 0.5), robe, kit.along(shoulder, hand), smooth=True, group="Heap"))
         parts.append(part("Claw", kit.cone(5, 0.04, 0.0, 0.14), claw, kit.along(hand, (s * 0.36, -0.62, 0.84)), group="Heap"))
 
+    # A lantern hung from its belt on the right: sickly green, like its eyes. Green light in the dark = a Soured.
+    lantern_glass = kit.mat("SouredLantern_Glow", "#b6f06a")
+    parts += [
+        part("BeltLanternCord", kit.cube(), metal, M((0.5, 0.0, 0.8), rot=(0, -15, 0), scale=(0.015, 0.015, 0.14)), group="Spine"),
+        part("BeltLanternTop", kit.cone(4, 0.08, 0.01, 0.07), metal, M((0.52, 0.0, 0.7), rot=(0, 0, 45)), group="Spine"),
+        part("BeltLanternGlass", kit.cube(), lantern_glass, M((0.52, 0.0, 0.61), scale=(0.1, 0.1, 0.13)), group="Spine"),
+        part("BeltLanternBase", kit.cube(), metal, M((0.52, 0.0, 0.535), scale=(0.12, 0.12, 0.02)), group="Spine"),
+    ]
+
     # The heap: a chest, a chair on top, a wall clock, a bundle and a picture frame, stacked in front.
     y = -0.58
     parts += [

@@ -35,6 +35,21 @@ namespace MyGame
         void OnEnable() => all.Add(this);
         void OnDisable() => all.Remove(this);
 
+        // Share of Mooring posts in the loaded world that have been lit (the bow lantern grows with it).
+        public static float LitFraction
+        {
+            get
+            {
+                if (all.Count == 0)
+                    return 0f;
+                int lit = 0;
+                foreach (var post in all)
+                    if (post.IsLit)
+                        lit++;
+                return (float)lit / all.Count;
+            }
+        }
+
         public static MooringPost Nearest(Vector3 position)
         {
             MooringPost best = null;
