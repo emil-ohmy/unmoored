@@ -925,6 +925,35 @@ namespace MyGame.Tests
             Assert.Greater(target.transform.position.y, 0.3f, "re-formed on the quay");
         }
 
+        // Chasing the Apprentice across water, a Laden keeps to the quay: it follows the edge round to the boardwalk
+        // instead of walking into the water.
+        [UnityTest]
+        public IEnumerator Laden_ChasingAcrossWater_KeepsToSolidGround()
+        {
+            var target = Isolate(laden[0]);
+            target.aggroRadius = 12f;
+            target.attackRange = 0f;
+            target.sweepChanceInFront = 0f;
+            var controller = target.GetComponent<CharacterController>();
+            controller.enabled = false;
+            target.transform.position = new Vector3(-5f, 0.5f, -3.5f); // the quay's south-west corner
+            controller.enabled = true;
+            PlaceApprentice(new Vector3(2.4f, 0.55f, -9.5f), target.transform.position); // on the boardwalk: water between them
+            Vector3 to = apprentice.transform.position - target.transform.position;
+            to.y = 0f;
+            target.transform.rotation = Quaternion.LookRotation(to);
+            float closest = float.MaxValue;
+            for (float t = 0; t < 8f; t += Time.deltaTime)
+            {
+                Assert.IsFalse(target.Drowned, "it walked into the water");
+                Assert.Greater(target.transform.position.y, 0.2f, $"it left solid ground at {target.transform.position}");
+                closest = Mathf.Min(closest, Vector3.Distance(target.transform.position, apprentice.transform.position));
+                yield return null;
+            }
+            Assert.AreNotEqual(Soured.State.Idle, target.CurrentState, "setup: it should have given chase");
+            Assert.Less(closest, 5f, "it should find the way round, along the edge and onto the boardwalk");
+        }
+
         [Test]
         public void Hud_UsesTheFellFonts()
         {

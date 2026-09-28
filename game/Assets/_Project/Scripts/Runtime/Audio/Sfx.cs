@@ -80,6 +80,8 @@ namespace MyGame
                 index = (index + 1) % set.Length;
             lastIndex[set] = index;
 
+            if (set[index] == null)
+                return null; // a missing clip (e.g. a scene built before its sound was imported): stay silent
             var voice = voices[nextVoice];
             nextVoice = (nextVoice + 1) % voices.Length;
             voice.transform.position = at;

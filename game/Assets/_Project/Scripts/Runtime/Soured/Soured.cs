@@ -46,6 +46,8 @@ namespace MyGame
 
         [Header("Water: knocked in, it drowns (a kill, like any other)")]
         public float waterLevel = -0.35f;
+        [Tooltip("How far past its own radius it feels for solid ground before stepping (never walks off an edge)")]
+        public float edgeLookahead = 0.35f;
 
         [Header("Perfect-blocked")]
         public float stunDuration = 1.8f;
@@ -221,6 +223,10 @@ namespace MyGame
                     return;
             }
 
+            // Walking and chasing keep to solid ground. A lunge doesn't (overshooting the edge is its own mistake), nor
+            // does knockback (shoving one off the edge is fair play).
+            if (CurrentState == State.Chase)
+                planar = KeepFooting(planar);
             knockback *= Mathf.Exp(-8f * dt);
             if (Drowned)
             {
@@ -351,6 +357,37 @@ namespace MyGame
             for (int i = 0; i < renderers.Length; i++)
                 if (lanternSlot[i] >= 0)
                     renderers[i].SetPropertyBlock(block, lanternSlot[i]);
+        }
+
+        static readonly RaycastHit[] groundHits = new RaycastHit[8];
+        static readonly float[] sidesteps = { 35f, -35f, 70f, -70f };
+
+        // Would this step take it off an edge? Then slide along the edge (angling off up to 70°), or stop at the
+        // brink. It feels just past its own radius for ground above the water.
+        Vector3 KeepFooting(Vector3 step)
+        {
+            if (step.sqrMagnitude < 1e-4f || !controller.enabled || !controller.isGrounded)
+                return step;
+            float probe = radius + edgeLookahead, speed = step.magnitude;
+            Vector3 dir = step / speed;
+            if (HasFooting(transform.position + dir * probe))
+                return step;
+            foreach (float angle in sidesteps)
+            {
+                Vector3 slide = Quaternion.Euler(0f, angle, 0f) * dir;
+                if (HasFooting(transform.position + slide * probe))
+                    return slide * (speed * Mathf.Cos(angle * Mathf.Deg2Rad));
+            }
+            return Vector3.zero;
+        }
+
+        bool HasFooting(Vector3 at)
+        {
+            int count = Physics.RaycastNonAlloc(at + Vector3.up * 0.6f, Vector3.down, groundHits, 2f, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+                if (!(groundHits[i].collider is CharacterController) && groundHits[i].point.y > waterLevel + 0.1f)
+                    return true;
+            return false;
         }
 
         // Knocked (or fallen) into the water: a splash, and it goes under.
