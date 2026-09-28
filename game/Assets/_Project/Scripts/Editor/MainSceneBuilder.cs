@@ -89,6 +89,9 @@ public static class MainSceneBuilder
 
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
+        var effects = systems.AddComponent<Effects>();
+        effects.sparkMaterial = ParticleMaterial("M_Spark", RadialTexture("T_SoftDot", ring: false));
+        effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
         systems.AddComponent<Hud>().apprentice = apprentice;
 
         var cam = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener)).GetComponent<Camera>();
@@ -283,6 +286,35 @@ public static class MainSceneBuilder
     }
 
     static Material WaterMaterial() => GeneratedMaterial("M_Water", "MyGame/Water");
+
+    static Material ParticleMaterial(string name, Texture2D texture)
+    {
+        var m = GeneratedMaterial(name, "MyGame/Particle");
+        m.SetTexture("_MainTex", texture);
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
+    // A 64x64 alpha texture: a soft round dot, or a thin soft ring.
+    static Texture2D RadialTexture(string name, bool ring)
+    {
+        string path = $"{Generated}/{name}.asset";
+        var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (existing != null)
+            return existing;
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = name };
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float d = new Vector2(x + 0.5f - size / 2f, y + 0.5f - size / 2f).magnitude / (size / 2f);
+                float a = ring ? Mathf.Clamp01(1f - Mathf.Abs(d - 0.8f) / 0.12f) : Mathf.Clamp01(1f - d);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a * a));
+            }
+        tex.Apply();
+        AssetDatabase.CreateAsset(tex, path);
+        return tex;
+    }
 
     static Material GeneratedMaterial(string name, string shader)
     {

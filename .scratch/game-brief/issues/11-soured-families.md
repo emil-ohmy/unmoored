@@ -31,3 +31,9 @@ Resolved 2026-09-27 with the user (quiz format).
   Orchard of Last Autumn: + Moths. Stopped Clocktower: + Keener, mixed with all earlier ones.
 - Considered and not chosen: the Grudge, the Waiting; 3 or 4 families; both water enemies weak to Stroke; required
   weaknesses; hit-off/timed-release Clinger; water as death; themed-only or all-everywhere placement.
+
+## Comments
+
+- 2026-09-28: after playing the first slice the user asked for a readable guard. The Laden now carries its heap low
+  while unaware (face showing, no block) and lifts it in front of its face once alert (GuardUp, 0.3 s before the block
+  counts). A blocked hit throws sparks and a flash on the heap and shoves the Apprentice back about 1.4 m.

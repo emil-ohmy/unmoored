@@ -30,20 +30,40 @@ namespace MyGame.Tests
             var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None);
             var target = laden[0].transform.position.x > laden[1].transform.position.x ? laden[0] : laden[1];
             (target == laden[0] ? laden[1] : laden[0]).gameObject.SetActive(false);
+            float aggro = target.aggroRadius, range = target.attackRange;
+            target.aggroRadius = 0f; // hold it unaware for the first frame (open: heap low)
+            target.attackRange = 0f; // and don't let it attack until after the blocked swing
             yield return new WaitForSeconds(0.5f);
             Capture(outDir, "play-1-start");
+            target.aggroRadius = aggro;
 
-            // Walk towards the Laden until it starts its wind-up.
-            bool capturedRun = false;
-            for (float t = 0; t < 6f && target.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+            // Walk towards the Laden; it notices and lifts its guard. Swing into the guard: sparks and a shove.
+            bool capturedGuard = false, swung = false;
+            for (float t = 0; t < 6f && !swung; t += Time.deltaTime)
             {
                 Vector3 to = target.transform.position - apprentice.transform.position;
-                input.Move = new Vector2(to.x, to.z).normalized;
-                if (!capturedRun && t > 0.12f)
+                to.y = 0f;
+                input.Move = to.magnitude > 2.2f ? new Vector2(to.x, to.z).normalized : Vector2.zero;
+                if (!capturedGuard && target.Guarding)
                 {
-                    Capture(outDir, "play-2-running");
-                    capturedRun = true;
+                    Capture(outDir, "play-2-guard-up");
+                    capturedGuard = true;
                 }
+                if (target.Guarding && to.magnitude < 2.4f)
+                {
+                    input.PressLight();
+                    swung = true;
+                }
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            yield return new WaitForSecondsRealtime(0.16f); // lands mid hit-stop, sparks flying
+            Capture(outDir, "play-2b-blocked");
+            target.attackRange = range;
+            for (float t = 0; t < 4f && target.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+            {
+                Vector3 to = target.transform.position - apprentice.transform.position;
+                input.Move = to.magnitude > 1.8f ? new Vector2(to.x, to.z).normalized : Vector2.zero;
                 yield return null;
             }
             input.Move = Vector2.zero;

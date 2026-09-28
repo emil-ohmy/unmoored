@@ -1,8 +1,9 @@
 """The Laden: a Soured who couldn't let go of things. Clutches a towering heap of belongings in front of it,
 which is its shield (blocks frontal hits) and its weapon (lifts it overhead, slams it down).
 
-Clips: Idle, Walk, Windup (0.9 s telegraph: heap raised high), Strike (0.3 s slam), Recover (1.2 s, heap on the
-ground: the punish window), Stagger, Block (recoil when a frontal hit is blocked).
+Clips: Idle (open: heap low, face showing), GuardUp (0.35 s: heap lifted in front of the face), GuardWalk,
+Block (0.3 s recoil when a frontal hit is blocked), Windup (0.9 s telegraph: heap raised high), Strike (0.3 s slam),
+Recover (1.2 s, heap on the ground: the punish window), Stagger.
 """
 import math
 
@@ -15,47 +16,67 @@ BONES = {
     "Heap": ((0, -0.55, 0.7), (0, -0.55, 1.4), "Spine"),  # the arms are weighted here, so they carry it
 }
 
+# Guard states, readable from the game camera:
+# OPEN  (unaware): heap lowered and tipped away, face and eyes showing above it. Does not block.
+# GUARD (alert):   heap lifted in front of the face. Blocks frontal hits.
+OPEN = {"Spine": (8, 0, 0), "Head": (-4, 0, 0), "Heap": ((18, 0, 0), (0, 0.08, -0.45))}
+GUARD = {"Spine": (-4, 0, 0), "Head": (12, 0, 0), "Heap": ((-6, 0, 0), (0, 0.02, 0.2))}
 HEAP_UP = ((-20, 0, 0), (0, 0.1, 0.6))
 HEAP_DOWN = ((35, 0, 0), (0, -0.3, -0.55))
+LIFTED = {"Spine": (-20, 0, 0), "Head": (-16, 0, 0), "Heap": ((-22, 0, 0), (0, 0.12, 0.62)), "Root": ((0, 0, 0), (0, 0.09, 0.06))}
+SLAMMED = {"Spine": (32, 0, 0), "Head": (14, 0, 0), "Heap": ((36, 0, 0), (0, -0.32, -0.57)), "Root": ((0, 0, 0), (0, -0.32, -0.09))}
+
+
+def with_(pose, **changes):
+    merged = dict(pose)
+    merged.update(changes)
+    return merged
+
+
 ACTIONS = {
     "Idle": ("BEZIER", [
-        (1, {}),
-        (24, {"Spine": (3, 0, 0), "Head": (-3, 0, 0), "Heap": ((2, 0, 0), (0, 0, -0.03)), "Root": ((0, 0, 0), (0, 0, -0.02))}),
-        (48, {}),
+        (1, OPEN),
+        (24, with_(OPEN, Spine=(11, 0, 0), Heap=((20, 0, 0), (0, 0.08, -0.48)), Root=((0, 0, 0), (0, 0, -0.02)))),
+        (48, OPEN),
     ]),
-    "Walk": ("BEZIER", [
-        (1, {"Spine": (6, 6, 0), "Heap": (0, 4, 0)}),
-        (9, {"Spine": (6, 0, 0), "Root": ((0, 0, 0), (0, 0, 0.04))}),
-        (17, {"Spine": (6, -6, 0), "Heap": (0, -4, 0)}),
-        (25, {"Spine": (6, 0, 0), "Root": ((0, 0, 0), (0, 0, 0.04))}),
-        (33, {"Spine": (6, 6, 0), "Heap": (0, 4, 0)}),
+    "GuardUp": ("BEZIER", [  # 0.35 s: the heap comes up in front of the face
+        (1, OPEN),
+        (8, with_(GUARD, Heap=((-10, 0, 0), (0, 0.0, 0.26)))),
+        (11, GUARD),
+    ]),
+    "GuardWalk": ("BEZIER", [
+        (1, with_(GUARD, Spine=(-4, 6, 0))),
+        (9, with_(GUARD, Root=((0, 0, 0), (0, 0, 0.04)))),
+        (17, with_(GUARD, Spine=(-4, -6, 0))),
+        (25, with_(GUARD, Root=((0, 0, 0), (0, 0, 0.04)))),
+        (33, with_(GUARD, Spine=(-4, 6, 0))),
+    ]),
+    "Block": ("BEZIER", [  # a blocked hit shoves the heap back into its face
+        (1, GUARD),
+        (3, with_(GUARD, Spine=(-12, 0, 0), Heap=((-16, 0, 0), (0, 0.18, 0.24)), Root=((0, 0, 0), (0, 0.06, 0)))),
+        (10, GUARD),
     ]),
     "Windup": ("BEZIER", [
-        (1, {}),
+        (1, GUARD),
         (8, {"Spine": (10, 0, 0), "Heap": ((5, 0, 0), (0, 0, -0.1)), "Root": ((0, 0, 0), (0, 0, -0.06))}),
         (24, {"Spine": (-18, 0, 0), "Head": (-15, 0, 0), "Heap": HEAP_UP, "Root": ((0, 0, 0), (0, 0.08, 0.05))}),
-        (28, {"Spine": (-20, 0, 0), "Head": (-16, 0, 0), "Heap": ((-22, 0, 0), (0, 0.12, 0.62)), "Root": ((0, 0, 0), (0, 0.09, 0.06))}),
+        (28, LIFTED),
     ]),
     "Strike": ("LINEAR", [
-        (1, {"Spine": (-20, 0, 0), "Head": (-16, 0, 0), "Heap": ((-22, 0, 0), (0, 0.12, 0.62)), "Root": ((0, 0, 0), (0, 0.09, 0.06))}),
+        (1, LIFTED),
         (5, {"Spine": (30, 0, 0), "Head": (12, 0, 0), "Heap": HEAP_DOWN, "Root": ((0, 0, 0), (0, -0.3, -0.08))}),
-        (10, {"Spine": (32, 0, 0), "Head": (14, 0, 0), "Heap": ((36, 0, 0), (0, -0.32, -0.57)), "Root": ((0, 0, 0), (0, -0.32, -0.09))}),
+        (10, SLAMMED),
     ]),
-    "Recover": ("BEZIER", [
-        (1, {"Spine": (32, 0, 0), "Head": (14, 0, 0), "Heap": ((36, 0, 0), (0, -0.32, -0.57)), "Root": ((0, 0, 0), (0, -0.32, -0.09))}),
+    "Recover": ("BEZIER", [  # heap on the ground, then hauled back up to the open carry (guard comes after)
+        (1, SLAMMED),
         (22, {"Spine": (30, 0, 0), "Head": (20, 0, 0), "Heap": HEAP_DOWN, "Root": ((0, 0, 0), (0, -0.3, -0.1))}),
-        (37, {}),
+        (37, OPEN),
     ]),
     "Stagger": ("BEZIER", [
-        (1, {}),
+        (1, GUARD),
         (5, {"Spine": (-16, 0, 6), "Head": (-12, 0, 0), "Heap": ((-10, 0, 0), (0, 0.15, -0.1)), "Root": ((0, 0, 0), (0, 0.12, 0))}),
         (12, {"Spine": (-10, 0, -5), "Heap": ((-6, 0, 0), (0, 0.1, -0.05))}),
-        (19, {}),
-    ]),
-    "Block": ("BEZIER", [
-        (1, {}),
-        (3, {"Spine": (-6, 0, 0), "Heap": ((-4, 0, 0), (0, 0.1, 0))}),
-        (9, {}),
+        (19, OPEN),
     ]),
 }
 

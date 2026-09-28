@@ -58,7 +58,8 @@ namespace MyGame
         [Header("Health")]
         public float maxHealth = 100f;
         public float staggerDuration = 0.35f;
-        public float recoilDuration = 0.3f; // when a hit bounces off a Laden's heap
+        public float recoilDuration = 0.35f; // when a hit bounces off a Laden's heap
+        public float recoilPush = 14f; // ~1.4 m shove: knockback decays at 10/s
         public float postHitInvulnerability = 0.5f;
         public float respawnDelay = 2.5f;
 
@@ -275,9 +276,9 @@ namespace MyGame
 
         void Recoil(Vector3 towardsBlocker)
         {
-            knockback = -towardsBlocker * 5f;
-            HitStop.Trigger(0.1f);
-            CameraRig.Instance?.Shake(0.15f);
+            knockback = -towardsBlocker * recoilPush;
+            HitStop.Trigger(0.12f);
+            CameraRig.Instance?.Shake(0.22f);
             Announce("blocked");
             EnterStagger(recoilDuration, "Hit");
         }

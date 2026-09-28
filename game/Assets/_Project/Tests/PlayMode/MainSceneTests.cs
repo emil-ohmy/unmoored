@@ -107,8 +107,10 @@ namespace MyGame.Tests
             var target = Isolate(laden[0], frozen: true);
             yield return null;
 
-            // In front of it, facing it: the swing bounces off the heap.
+            // In front of it, facing it, once its guard is up: the swing bounces off the heap.
             PlaceApprentice(target.transform.position + target.transform.forward * 1.6f, target.transform.position);
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(target.Guarding, "an alert Laden should have its guard up");
             float before = target.Health;
             input.PressLight();
             yield return new WaitForSeconds(0.3f);
@@ -120,6 +122,37 @@ namespace MyGame.Tests
             input.PressLight();
             yield return new WaitForSeconds(0.35f);
             Assert.Less(target.Health, before, "a hit from behind should land");
+        }
+
+        [UnityTest]
+        public IEnumerator Laden_IsOpenWhileUnaware_AndABlockedHitSparksAndShovesBack()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            target.aggroRadius = 0f; // it hasn't noticed the Apprentice
+            PlaceApprentice(target.transform.position + target.transform.forward * 1.6f, target.transform.position);
+            yield return new WaitForSeconds(0.3f);
+            float before = target.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.3f);
+            Assert.Less(target.Health, before, "an unaware Laden's lowered heap shouldn't block");
+
+            target.aggroRadius = 20f; // now it notices and raises its guard
+            yield return new WaitForSeconds(0.9f);
+            Assert.IsTrue(target.Guarding);
+            PlaceApprentice(target.transform.position + target.transform.forward * 1.6f, target.transform.position);
+            float distanceBefore = Vector3.Distance(apprentice.transform.position, target.transform.position);
+            before = target.Health;
+            input.PressLight();
+            bool sparked = false;
+            for (float t = 0; t < 0.6f; t += Time.unscaledDeltaTime) // includes the hit-stop
+            {
+                sparked |= Effects.Instance.LiveBlockSparks > 0;
+                yield return null;
+            }
+            Assert.AreEqual(before, target.Health, "the raised guard should block");
+            Assert.IsTrue(sparked, "a blocked hit should throw sparks");
+            Assert.Greater(Vector3.Distance(apprentice.transform.position, target.transform.position), distanceBefore + 0.5f,
+                "a blocked hit should shove the Apprentice back");
         }
 
         [UnityTest]

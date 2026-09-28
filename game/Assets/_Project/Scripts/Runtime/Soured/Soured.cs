@@ -45,6 +45,8 @@ namespace MyGame
         public bool IsAlive => CurrentState != State.Scattered;
 
         protected ClipPlayer clips;
+        protected virtual string IdleClip => "Idle";
+        protected virtual string ChaseClip => "Walk";
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
@@ -90,7 +92,7 @@ namespace MyGame
             switch (CurrentState)
             {
                 case State.Idle:
-                    LoopUnlessBusy("Idle");
+                    LoopUnlessBusy(IdleClip);
                     if (targetAlive && toTarget.magnitude < aggroRadius)
                         Enter(State.Chase);
                     break;
@@ -101,7 +103,7 @@ namespace MyGame
                         Enter(State.Idle);
                         break;
                     }
-                    LoopUnlessBusy("Walk");
+                    LoopUnlessBusy(ChaseClip);
                     Face(toTarget, turnSpeed * dt);
                     if (toTarget.magnitude <= attackRange)
                     {
@@ -171,6 +173,9 @@ namespace MyGame
             if (BlocksHit(hit))
             {
                 PlayShort("Block", 0.3f);
+                knockback = -hit.Knockback.normalized * 0.8f; // the heap gives a little
+                Vector3 towardsAttacker = Flat(hit.From - transform.position).normalized;
+                Effects.Instance?.BlockSpark(transform.position + towardsAttacker * (radius + 0.25f) + Vector3.up * 1.1f, towardsAttacker);
                 return HitResult.Blocked;
             }
 
@@ -215,8 +220,11 @@ namespace MyGame
             Stagger = 0f;
             knockback = Vector3.zero;
             Enter(State.Idle);
-            clips.Loop("Idle", 0f);
+            clips.Loop(IdleClip, 0f);
         }
+
+        // Called on every state change, so a subclass can react (the Laden raises its guard on Chase).
+        protected virtual void OnEntered(State state) { }
 
         protected void PlayShort(string clip, float duration)
         {
@@ -239,7 +247,7 @@ namespace MyGame
             {
                 if (on)
                 {
-                    flash.SetColor("_EmissionColor", new Color(0.7f, 0.7f, 0.7f));
+                    flash.SetColor("_EmissionColor", new Color(0.35f, 0.33f, 0.3f)); // a flash, not a white statue
                     r.SetPropertyBlock(flash);
                 }
                 else
@@ -257,6 +265,7 @@ namespace MyGame
         {
             CurrentState = state;
             stateTime = 0f;
+            OnEntered(state);
         }
 
         static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
