@@ -97,8 +97,9 @@ namespace MyGame
         public float Health { get; private set; }
         public float Stamina { get; private set; }
         public int HealingCharges { get; private set; }
-        public MooringPost NearbyPost { get; private set; }
-        public Merchant NearbyMerchant { get; private set; }
+        public IInteractable Nearby { get; private set; } // what Interact would use now (its prompt shows)
+        public MooringPost NearbyPost => Nearby as MooringPost;
+        public Merchant NearbyMerchant => Nearby as Merchant;
         public Equipment Equipment { get; private set; }
         public Menu OpenMenu { get; private set; } // while open, the Apprentice stands still and input drives the menu
         public float DashCost => dashStaminaCost * (Equipment.IsFitted(Charm.EelSkin) ? 0.5f : 1f);
@@ -202,21 +203,10 @@ namespace MyGame
                     if (face.sqrMagnitude > 0.001f)
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
                     clips.Loop(move.sqrMagnitude > 0.001f ? "Run" : "Idle", 0.1f);
-                    NearbyPost = MooringPost.Nearest(transform.position);
-                    NearbyMerchant = Merchant.Nearest(transform.position, out float toMerchant);
-                    if (NearbyPost != null && NearbyMerchant != null) // both in reach: the nearer one
+                    Nearby = Interactables.Nearest(transform.position);
+                    if (Nearby != null && Input.InteractPressed)
                     {
-                        if (toMerchant < Vector3.Distance(transform.position, NearbyPost.transform.position))
-                            NearbyPost = null;
-                        else
-                            NearbyMerchant = null;
-                    }
-                    if ((NearbyPost != null || NearbyMerchant != null) && Input.InteractPressed)
-                    {
-                        if (NearbyPost != null)
-                            NearbyPost.Rest(this);
-                        else
-                            ShowMenu(NearbyMerchant.Open(this));
+                        Nearby.Interact(this);
                         break;
                     }
                     if (Input.HealPressed)
@@ -276,8 +266,7 @@ namespace MyGame
             }
             if (CurrentState != State.Free || inMenu)
             {
-                NearbyPost = null;
-                NearbyMerchant = null;
+                Nearby = null;
             }
 
             RegenerateStamina(dt);

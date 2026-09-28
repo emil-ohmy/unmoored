@@ -131,6 +131,10 @@ _Avoid_: Afterlife, other side
 A post on a jetty where the Apprentice moors the boat and Rests; the game's checkpoint.
 _Avoid_: Checkpoint, bonfire, save point, shrine
 
+**Shortcut**:
+A way back towards a Mooring post, opened only from its far side (a barred gate, a lowered ladder); once opened it stays open.
+_Avoid_: Door, unlock, short cut
+
 **Rest**:
 Stopping at a Mooring post: heals fully, refills Healing charges, saves, and respawns all enemies except defeated Bosses.
 _Avoid_: Sit, save

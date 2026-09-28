@@ -32,6 +32,8 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Laden archer volley (`archer_volley_draw`) | in game | Synth | 1.3 s tell: three nocking clicks and a quiver rattle, then a slower, deeper draw than a single shot |
 | Arrow release (`arrow_release`, 2) | in game | Synth | string twang with a buzz, and the whoosh of the shaft |
 | Arrow thunk (`arrow_thunk`, 2) | in game | Synth | an arrow striking wood or stone and quivering |
+| Shortcut gate opened (`gate_open`) | in game | Synth | the barring plank scraped off and dropped, a long hinge creak, a thud against the stop |
+| Shortcut gate barred (`gate_rattle`) | in game | Synth | knocks against the barring plank and loose bars rattling: it won't open from this side |
 | Menu tick (`ui_tick`) | in game | Synth | a tiny soft wooden tick, moving through a menu |
 | Apprentice death (`death_toll`) | in game | Synth | one deep bell toll that sinks under water (highs close off), thump, sinking whoosh, bubbles; the music ducks under it |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |

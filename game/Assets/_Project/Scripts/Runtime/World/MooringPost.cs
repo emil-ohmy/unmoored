@@ -5,7 +5,7 @@ namespace MyGame
 {
     // A Mooring post: the checkpoint. Resting lights its lantern, heals fully, refills Healing charges, makes it
     // the respawn point and re-forms every Soured except defeated Bosses.
-    public sealed class MooringPost : MonoBehaviour
+    public sealed class MooringPost : MonoBehaviour, IInteractable
     {
         static readonly List<MooringPost> all = new List<MooringPost>();
         public static event System.Action<MooringPost, bool> Rested; // bool: this Rest lit the lantern for the first time
@@ -33,8 +33,23 @@ namespace MyGame
             SetLit(litAtStart);
         }
 
-        void OnEnable() => all.Add(this);
-        void OnDisable() => all.Remove(this);
+        void OnEnable()
+        {
+            all.Add(this);
+            Interactables.Register(this);
+        }
+
+        void OnDisable()
+        {
+            all.Remove(this);
+            Interactables.Unregister(this);
+        }
+
+        public Vector3 InteractPosition => transform.position;
+        public float InteractRadius => interactRadius;
+        public bool Available => true;
+        public string PromptLabel => "Rest";
+        public void Interact(Apprentice apprentice) => Rest(apprentice);
 
         // Share of Mooring posts in the loaded world that have been lit (the bow lantern grows with it).
         public static float LitFraction

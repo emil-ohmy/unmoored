@@ -5,10 +5,8 @@ namespace MyGame
 {
     // The merchant soul: sells Equipment for Obols. In the slice it waits on the landing by the Mooring post (standing
     // in for the Hub) with a single Charm. It sways a little, as souls do.
-    public sealed class Merchant : MonoBehaviour
+    public sealed class Merchant : MonoBehaviour, IInteractable
     {
-        static readonly List<Merchant> all = new List<Merchant>();
-
         public float interactRadius = 1.5f;
         public string[] stockIds = { "eel_skin" };
 
@@ -32,30 +30,20 @@ namespace MyGame
             baseRotation = transform.rotation;
         }
 
-        void OnEnable() => all.Add(this);
-        void OnDisable() => all.Remove(this);
+        void OnEnable() => Interactables.Register(this);
+        void OnDisable() => Interactables.Unregister(this);
+
+        public Vector3 InteractPosition => basePosition;
+        public float InteractRadius => interactRadius;
+        public bool Available => true;
+        public string PromptLabel => "Trade";
+        public void Interact(Apprentice apprentice) => apprentice.ShowMenu(Open(apprentice));
 
         void Update()
         {
             float t = Time.time;
             transform.SetPositionAndRotation(basePosition + Vector3.up * (0.03f * Mathf.Sin(t * 1.1f)),
                 baseRotation * Quaternion.Euler(1.5f * Mathf.Sin(t * 0.7f), 0f, 2f * Mathf.Sin(t * 0.9f + 1f)));
-        }
-
-        public static Merchant Nearest(Vector3 position, out float distance)
-        {
-            Merchant best = null;
-            distance = float.MaxValue;
-            foreach (var m in all)
-            {
-                float d = Vector3.Distance(position, m.basePosition);
-                if (d <= m.interactRadius && d < distance)
-                {
-                    best = m;
-                    distance = d;
-                }
-            }
-            return best;
         }
 
         public Menu Open(Apprentice apprentice) => new ShopMenu(this, apprentice);

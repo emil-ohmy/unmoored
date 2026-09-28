@@ -249,9 +249,9 @@ namespace MyGame
             keyCap.enabled = !usingGamepad;
             buttonRing.enabled = usingGamepad;
             glyph.text = usingGamepad ? "A" : "E";
-            if (apprentice.NearbyPost != null || apprentice.NearbyMerchant != null)
-                promptLabel.text = apprentice.NearbyMerchant != null ? "Trade" : "Rest";
-            float target = (apprentice.NearbyPost != null || apprentice.NearbyMerchant != null) && apprentice.IsAlive ? 1f : 0f;
+            if (apprentice.Nearby != null)
+                promptLabel.text = apprentice.Nearby.PromptLabel;
+            float target = apprentice.Nearby != null && apprentice.IsAlive ? 1f : 0f;
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, target, UiKit.DeltaTime * 5f);
         }
 

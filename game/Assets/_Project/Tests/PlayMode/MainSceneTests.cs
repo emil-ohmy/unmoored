@@ -28,8 +28,9 @@ namespace MyGame.Tests
             yield return SceneManager.LoadSceneAsync("Main");
             yield return null;
             apprentice = Object.FindAnyObjectByType<Apprentice>();
-            laden = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None);
-            archer = Object.FindAnyObjectByType<LadenArcher>();
+            // laden[0] is the quay's (nearest the middle); the archer is the yard's (the one met alone).
+            laden = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).OrderBy(l => l.transform.position.magnitude).ToArray();
+            archer = Object.FindObjectsByType<LadenArcher>(FindObjectsSortMode.None).OrderByDescending(a => a.transform.position.z).First();
             post = Object.FindAnyObjectByType<MooringPost>();
             apprentice.Input = input = new ScriptedInput();
             yield return new WaitForSeconds(0.5f); // settle onto the ground
@@ -46,8 +47,9 @@ namespace MyGame.Tests
         public void Scene_HasTheSliceCast()
         {
             Assert.IsNotNull(apprentice, "no Apprentice");
-            Assert.AreEqual(1, laden.Length, "one Laden while the combat is being tuned");
-            Assert.IsNotNull(archer, "one Laden archer, on the quay's west side");
+            Assert.AreEqual(2, laden.Length, "a Laden on the quay, and one at the crossroads");
+            Assert.AreEqual(2, Object.FindObjectsByType<LadenArcher>(FindObjectsSortMode.None).Length, "an archer in the yard, and one at the crossroads");
+            Assert.IsNotNull(Object.FindAnyObjectByType<ShortcutGate>(), "the shortcut gate home");
             Assert.IsNotNull(post, "no Mooring post");
             Assert.IsFalse(post.IsLit, "the Mooring post should start dark");
         }
@@ -574,7 +576,7 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator FallingInTheWater_WashesAshoreWithDamage()
         {
-            apprentice.Teleport(new Vector3(-14f, 1f, -9f), onSafeGround: false); // drop into open water
+            apprentice.Teleport(new Vector3(-12f, 1f, -15f), onSafeGround: false); // drop into open water
             yield return new WaitForSeconds(1f);
             Assert.Greater(apprentice.transform.position.y, 0.3f, "should be back on solid ground");
             Assert.Less(apprentice.Health, apprentice.maxHealth, "washing ashore should hurt");
@@ -919,7 +921,7 @@ namespace MyGame.Tests
             Sfx.Played += OnPlayed;
             var controller = target.GetComponent<CharacterController>();
             controller.enabled = false;
-            target.transform.position = new Vector3(-14f, 0.6f, -9f); // over open water
+            target.transform.position = new Vector3(-12f, 0.6f, -15f); // over open water
             controller.enabled = true;
             for (float t = 0; t < 2f && target.IsAlive; t += Time.deltaTime)
                 yield return null;
@@ -967,6 +969,87 @@ namespace MyGame.Tests
             }
             Assert.AreNotEqual(Soured.State.Idle, target.CurrentState, "setup: it should have given chase");
             Assert.Less(closest, 5f, "it should find the way round, along the edge and onto the boardwalk");
+        }
+
+        // ---- The loop and its shortcut
+
+        // Walk the whole loop, landing -> quay -> yard -> crossroads -> loopback, open the gate from the far side and
+        // step back onto the landing: every piece connects, and nowhere along it do you fall in.
+        [UnityTest]
+        public IEnumerator TheLoop_IsWalkableAllTheWayRound_AndTheGateOpensHome()
+        {
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false); // just the way itself
+            var gate = Object.FindAnyObjectByType<ShortcutGate>();
+            var route = new[]
+            {
+                new Vector2(2.4f, -6f), new Vector2(2.2f, -2.5f), new Vector2(-6.8f, -2f), new Vector2(-17.5f, -2f),
+                new Vector2(-24.5f, -1.5f), new Vector2(-25.5f, -4f), new Vector2(-25.5f, -19.8f), new Vector2(-23.5f, -24.5f),
+                new Vector2(-15.5f, -25.6f), new Vector2(-1.3f, -25.6f),
+            };
+            foreach (var point in route)
+                yield return WalkTo(point, 12f);
+            Assert.IsFalse(gate.IsOpen);
+            Assert.AreEqual(gate, apprentice.Nearby, "at the gate, from the crossroads side");
+            Assert.AreEqual("Open", apprentice.Nearby.PromptLabel);
+            input.PressInteract();
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsTrue(gate.IsOpen, "it opens from this side");
+            yield return WalkTo(new Vector2(2.2f, -25.6f), 5f);
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "the whole way round without falling in");
+        }
+
+        [UnityTest]
+        public IEnumerator ShortcutGate_IsBarredFromTheLandingSide_AndStaysOpenOnceOpened()
+        {
+            var gate = Object.FindAnyObjectByType<ShortcutGate>();
+            apprentice.Teleport(new Vector3(1.3f, 0.55f, -25.6f)); // the landing side
+            yield return new WaitForSeconds(0.2f);
+            yield return null;
+            Assert.AreEqual(gate, apprentice.Nearby, "the gate, not the merchant or the post");
+            Assert.AreEqual("Barred", apprentice.Nearby.PromptLabel);
+            input.PressInteract();
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsFalse(gate.IsOpen, "it can't be opened from the landing side");
+            Assert.AreEqual("gate_rattle", Sfx.Instance.LastPlayed);
+            float before = apprentice.transform.position.x;
+            for (float t = 0; t < 0.8f; t += Time.deltaTime)
+            {
+                input.Move = Vector2.left;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Greater(apprentice.transform.position.x, -0.9f, "barred: no walking through it");
+
+            apprentice.Teleport(new Vector3(-1.4f, 0.55f, -25.6f)); // the far side
+            yield return new WaitForSeconds(0.2f);
+            input.PressInteract();
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsTrue(gate.IsOpen);
+            Assert.Greater(gate.Swing, 90f, "swung open");
+            apprentice.TakeHit(1000f, Vector3.zero);
+            yield return new WaitForSeconds(apprentice.respawnDelay + 1f);
+            Assert.IsTrue(apprentice.IsAlive);
+            Assert.IsTrue(gate.IsOpen, "the way home stays open after dying");
+        }
+
+        IEnumerator WalkTo(Vector2 point, float timeout)
+        {
+            for (float t = 0; t < timeout; t += Time.deltaTime)
+            {
+                Vector2 here = new Vector2(apprentice.transform.position.x, apprentice.transform.position.z);
+                Vector2 to = point - here;
+                if (to.magnitude < 0.4f)
+                {
+                    input.Move = Vector2.zero;
+                    yield break;
+                }
+                Assert.Greater(apprentice.transform.position.y, 0.2f, $"fell off on the way to {point} (at {here})");
+                Assert.AreEqual(apprentice.maxHealth, apprentice.Health, $"washed ashore on the way to {point}");
+                input.Move = to.normalized * Mathf.Clamp01(to.magnitude + 0.3f);
+                yield return null;
+            }
+            Assert.Fail($"couldn't reach {point}: stuck at {apprentice.transform.position}");
         }
 
         // ---- The Laden archer

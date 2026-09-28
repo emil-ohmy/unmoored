@@ -288,6 +288,67 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The loop from the game camera: arriving in the yard and at the crossroads, and the gate, barred and opened.
+        [UnityTest]
+        public IEnumerator Capture_Loop()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            foreach (var soured in UnityEngine.Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                soured.aggroRadius = 0f; // stand still for the pictures
+            Capture(outDir, "loop-warmup"); // the first render after loading can come out blank
+            foreach (var (spot, name) in new[] { (new Vector3(0f, 0.55f, 0f), "loop-quay-centre"), (new Vector3(-24.6f, 0.55f, 0f), "loop-yard-centre"),
+                                                 (new Vector3(-15.5f, 0.55f, -2f), "loop-yard"), (new Vector3(-25.5f, 0.55f, -16f), "loop-crossroads"),
+                                                 (new Vector3(-3.5f, 0.55f, -25.6f), "loop-gate-barred") })
+            {
+                apprentice.Teleport(spot);
+                for (int f = 0; f < 20; f++)
+                    yield return null;
+                Capture(outDir, name);
+            }
+            apprentice.Teleport(new Vector3(-1.4f, 0.55f, -25.6f));
+            for (int f = 0; f < 10; f++)
+                yield return null;
+            input.PressInteract();
+            for (int f = 0; f < 45; f++)
+                yield return null;
+            Capture(outDir, "loop-gate-open");
+            Time.captureFramerate = 0;
+        }
+
+        // A lit, fog-free map of the whole slice from straight above: for checking the layout (not how it looks in play).
+        [UnityTest]
+        public IEnumerator Capture_Map()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            var cam = Camera.main;
+            cam.GetComponent<CameraRig>().enabled = false;
+            RenderSettings.fog = false;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.55f, 0.55f, 0.6f);
+            cam.orthographic = true;
+            cam.orthographicSize = 22f;
+            cam.farClipPlane = 300f;
+            cam.transform.SetPositionAndRotation(new Vector3(-13f, 80f, -12f), Quaternion.Euler(90f, 0f, 0f));
+            yield return null;
+            Capture(outDir, "map-warmup", 1600, 1600);
+            yield return null;
+            Capture(outDir, "map", 1600, 1600);
+        }
+
         // The screen messages and HUD, rendered with the UI (the camera draws into a texture, canvases in camera space).
         [UnityTest]
         public IEnumerator Capture_Ui()

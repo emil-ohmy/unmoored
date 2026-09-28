@@ -64,7 +64,7 @@ public static class MainSceneBuilder
         Place("Environment/quay", new Vector3(0f, 0f, 0f), 180f);
         Place("Environment/ruined_wall_long", new Vector3(-3.2f, QuayTop, 1.8f), 194f);
         Place("Environment/ruined_wall_short", new Vector3(3.4f, QuayTop, 2.6f), 148f);
-        Place("Environment/ruined_wall_short", new Vector3(-6.2f, QuayTop, -2.2f), 255f);
+        Place("Environment/ruined_wall_short", new Vector3(-5.4f, QuayTop, 4.4f), 200f); // clear of the way to the yard
         Place("Environment/barrel", new Vector3(-4.9f, QuayTop, 2.6f), 180f);
         Place("Environment/barrel", new Vector3(-4.2f, QuayTop, 3.0f), 220f);
         Place("Environment/crate", new Vector3(-5.6f, QuayTop, 3.4f), 192f);
@@ -78,12 +78,11 @@ public static class MainSceneBuilder
 
         // The way in: the Apprentice arrives by boat at a landing with the Mooring post, far out in the dark, and walks
         // a long boardwalk towards the torchlit quay. Nothing hostile until the quay: the build-up.
-        const float walkX = 2.4f, segment = 4.76f; // a walk piece is 4.42 m of planks; + one gap keeps the spacing
-        for (int k = 0; k < 4; k++)
-            Place("Environment/jetty_walk", new Vector3(walkX, QuayTop - 0.03f, -5.0f - segment * k), 0f);
-        Place("Environment/jetty_landing", new Vector3(walkX, QuayTop - 0.03f, -5.0f - segment * 4), 0f);
+        const float walkX = 2.4f;
+        Boardwalk(new Vector3(walkX, QuayTop - 0.03f, -5.0f), Vector3.back, 4);
+        Place("Environment/jetty_landing", new Vector3(walkX, QuayTop - 0.03f, -5.0f - Segment * 4), 0f);
         MooringPostAt(new Vector3(walkX + 1.25f, QuayTop, -26.7f), 180f);
-        MerchantAt(new Vector3(walkX - 1.25f, QuayTop, -26.75f), 41f); // the landing's far corner, facing the way in
+        MerchantAt(new Vector3(walkX - 1.25f, QuayTop, -24.35f), 127f); // the landing's north-west corner, clear of the gate
         Place("Environment/boat", new Vector3(walkX + 2.55f, -0.12f, -25.6f), 186f);
         StreetLantern(new Vector3(walkX + 0.75f, QuayTop, -11.8f), -90f, 2.2f);
         // The title card comes up as the torchlit quay swims into view, before anything there notices you.
@@ -96,7 +95,7 @@ public static class MainSceneBuilder
         Place("Environment/rock_b", new Vector3(5.3f, -0.1f, -10.6f), 40f);
         Place("Environment/rock_a", new Vector3(-0.9f, -0.12f, -21.3f), 300f);
         Place("Environment/rock_c", new Vector3(6.6f, -0.15f, -15.8f), 120f);
-        Place("Environment/islet_small", new Vector3(-4.6f, -0.6f, -24.5f), 80f);
+        Place("Environment/islet_small", new Vector3(-6.0f, -0.6f, -31.0f), 80f);
 
         // Half-sunken houses around the quay, rocks and islets in the water.
         Place("Environment/house_a", new Vector3(-10.4f, 0f, 3.0f), 280f);
@@ -107,16 +106,24 @@ public static class MainSceneBuilder
         Place("Environment/rock_c", new Vector3(-8.8f, -0.15f, -5.6f), 150f);
         Place("Environment/rock_b", new Vector3(8.8f, -0.1f, -5.8f), 250f);
         Place("Environment/rock_b", new Vector3(0.6f, -0.1f, 7.4f), 330f);
-        Place("Environment/islet_small", new Vector3(-12.5f, -0.6f, -3.5f), 210f);
+        Place("Environment/islet_small", new Vector3(-12.5f, -0.6f, -8.0f), 210f);
         Place("Environment/islet_big", new Vector3(13.5f, -0.8f, 9.5f), 165f);
         Place("Environment/rock_c", new Vector3(12.8f, -0.15f, -3.2f), 20f);
 
-        // Characters.
+        // The rest of the loop: quay -> yard -> crossroads -> back to the landing through a shortcut gate.
+        Yard();
+        Crossroads();
+        Loopback();
+
+        // Characters. Met in order: the Laden alone on the quay, the archer alone in the yard, then both at the
+        // crossroads; beyond them, the gate home.
         var start = new GameObject("Start Point").transform;
         start.position = new Vector3(2.4f, QuayTop, -25.3f); // on the landing, by the Mooring post
         var apprentice = Apprentice(start.position);
-        Laden(new Vector3(4.2f, QuayTop, 0.4f), 20f); // back turned: sneak up for a free hit
-        LadenArcher(new Vector3(-6.0f, QuayTop, 0.5f), 115f); // the west side, watching the way in
+        Laden("Laden", new Vector3(4.2f, QuayTop, 0.4f), 20f); // back turned: sneak up for a free hit
+        LadenArcher("Laden Archer (Yard)", new Vector3(-30.0f, QuayTop, 0.8f), 90f); // at the far end, facing the way in
+        Laden("Laden (Crossroads)", new Vector3(-23.0f, QuayTop, -23.0f), 0f); // holds the front, facing the way in
+        LadenArcher("Laden Archer (Crossroads)", new Vector3(-19.5f, QuayTop, -28.5f), -30f); // behind it, covering
 
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
@@ -144,6 +151,8 @@ public static class MainSceneBuilder
         sfx.heal = Clips("heal");
         sfx.splash = Clips("splash");
         sfx.arrowThunk = Clips("arrow_thunk");
+        sfx.gateOpen = Clips("gate_open");
+        sfx.gateRattle = Clips("gate_rattle");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -203,10 +212,72 @@ public static class MainSceneBuilder
         return apprentice;
     }
 
-    static void Laden(Vector3 position, float yaw)
+    // ---- The loop beyond the quay
+
+    const float Segment = 4.76f; // a walk piece is 4.42 m of planks; + one gap keeps the spacing
+
+    // A run of boardwalk from `start` along `direction` (pieces extend away from their origin, towards -Z at yaw 0).
+    static void Boardwalk(Vector3 start, Vector3 direction, int pieces)
+    {
+        float yaw = Mathf.Atan2(-direction.x, -direction.z) * Mathf.Rad2Deg;
+        for (int k = 0; k < pieces; k++)
+            Place("Environment/jetty_walk", start + direction * (Segment * k), yaw);
+    }
+
+    // West of the quay: the net yard, a second quay with cover (walls, crates) to break an archer's line of sight.
+    static void Yard()
+    {
+        Boardwalk(new Vector3(-7.3f, QuayTop - 0.03f, -2.0f), Vector3.left, 2);
+        StreetLantern(new Vector3(-11.9f, QuayTop, -1.2f), 0f, 2.2f);
+        Place("Environment/quay", new Vector3(-24.6f, 0f, 0f), 0f);
+        Place("Environment/ruined_wall_long", new Vector3(-24.5f, QuayTop, 3.4f), 96f);
+        Place("Environment/ruined_wall_short", new Vector3(-22.3f, QuayTop, -2.9f), 80f);
+        Place("Environment/ruined_wall_short", new Vector3(-28.4f, QuayTop, -3.3f), 118f);
+        Place("Environment/crate", new Vector3(-20.8f, QuayTop, 2.6f), 170f);
+        Place("Environment/crate", new Vector3(-26.8f, QuayTop, 3.8f), 200f);
+        Place("Environment/barrel", new Vector3(-26.3f, QuayTop, -3.6f), 180f);
+        Place("Environment/barrel", new Vector3(-20.4f, QuayTop, -3.9f), 210f);
+        foreach (var p in new[] { new Vector3(-17.6f, 0f, -4.2f), new Vector3(-31.8f, 0f, 3.6f), new Vector3(-31.6f, 0f, -3.2f), new Vector3(-17.8f, 0f, 4.3f) })
+            Torch(new Vector3(p.x, QuayTop, p.z));
+        Place("Environment/house_b", new Vector3(-24.0f, 0f, 8.6f), 186f);
+        Place("Environment/house_a", new Vector3(-35.0f, 0f, 1.5f), 96f);
+        Place("Environment/rock_b", new Vector3(-18.5f, -0.1f, 7.5f), 60f);
+        Place("Environment/rock_a", new Vector3(-32.5f, -0.12f, -7.5f), 20f);
+    }
+
+    // South of the yard: the crossroads, where a Laden and an archer hold it together.
+    static void Crossroads()
+    {
+        Boardwalk(new Vector3(-25.5f, QuayTop - 0.03f, -5.1f), Vector3.back, 3);
+        StreetLantern(new Vector3(-24.7f, QuayTop, -12.0f), -90f, 2.2f);
+        Place("Environment/quay", new Vector3(-22.6f, 0f, -24.4f), 180f);
+        Place("Environment/ruined_wall_long", new Vector3(-20.2f, QuayTop, -24.6f), 32f);
+        Place("Environment/ruined_wall_short", new Vector3(-27.4f, QuayTop, -26.6f), 160f);
+        Place("Environment/crate", new Vector3(-29.0f, QuayTop, -21.6f), 150f);
+        Place("Environment/barrel", new Vector3(-16.9f, QuayTop, -20.8f), 190f);
+        Place("Environment/barrel", new Vector3(-17.5f, QuayTop, -21.4f), 230f);
+        foreach (var p in new[] { new Vector3(-29.8f, 0f, -20.2f), new Vector3(-15.4f, 0f, -21.0f), new Vector3(-29.6f, 0f, -28.6f), new Vector3(-15.8f, 0f, -28.8f) })
+            Torch(new Vector3(p.x, QuayTop, p.z));
+        Place("Environment/house_a", new Vector3(-33.0f, 0f, -26.5f), 100f);
+        Place("Environment/house_b", new Vector3(-21.0f, 0f, -33.2f), 350f);
+        Place("Environment/rock_c", new Vector3(-12.5f, -0.15f, -31.0f), 80f);
+    }
+
+    // East from the crossroads, back to the landing: the shortcut. It ends at a barred gate beside the Mooring post,
+    // opened only from this (the crossroads) side.
+    static void Loopback()
+    {
+        Boardwalk(new Vector3(-14.8f, QuayTop - 0.03f, -25.6f), Vector3.right, 3);
+        StreetLantern(new Vector3(-7.8f, QuayTop, -24.8f), 180f, 2.2f);
+        var go = Place("Environment/shortcut_gate", new Vector3(-0.1f, QuayTop - 0.03f, -25.6f), 90f);
+        go.name = "Shortcut Gate";
+        go.AddComponent<ShortcutGate>().openFrom = Vector3.left;
+    }
+
+    static void Laden(string name, Vector3 position, float yaw)
     {
         var go = Place("Characters/laden", position, yaw);
-        go.name = "Laden";
+        go.name = name;
         var controller = go.AddComponent<CharacterController>();
         controller.center = new Vector3(0f, 0.9f, 0f);
         controller.height = 1.8f;
@@ -240,12 +311,11 @@ public static class MainSceneBuilder
         BeltLantern(go, laden);
     }
 
-    // The Laden archer: keeps its distance and shoots. On the quay's west side, away from the Laden (east), so the
-    // two can be met apart: step off the boardwalk and turn west for it.
-    static void LadenArcher(Vector3 position, float yaw)
+    // The Laden archer: keeps its distance and shoots.
+    static void LadenArcher(string name, Vector3 position, float yaw)
     {
         var go = Place("Characters/laden_archer", position, yaw);
-        go.name = "Laden Archer";
+        go.name = name;
         var controller = go.AddComponent<CharacterController>();
         controller.center = new Vector3(0f, 0.85f, 0f);
         controller.height = 1.7f;
@@ -300,7 +370,7 @@ public static class MainSceneBuilder
     {
         var go = Place("Environment/merchant_soul", position, yaw);
         go.name = "Merchant Soul";
-        go.AddComponent<Merchant>();
+        go.AddComponent<Merchant>().interactRadius = 1.2f; // short: the landing is small (post, gate and spawn nearby)
         var light = PointLight(go.transform, GlowCentre(go, "MerchantLantern_Glow"), 3.2f, 1.6f, LanternLight);
         Flicker(light, 0.12f, 5f, 0.015f);
     }
