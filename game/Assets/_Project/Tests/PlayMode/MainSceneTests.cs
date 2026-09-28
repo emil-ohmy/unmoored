@@ -66,10 +66,11 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator Apprentice_StandsOnTheQuay()
+        public IEnumerator Apprentice_StartsOnTheLanding_ByTheMooringPost()
         {
             yield return new WaitForSeconds(0.5f);
-            Assert.That(apprentice.transform.position.y, Is.InRange(0.4f, 0.65f), "not standing on the quay top");
+            Assert.That(apprentice.transform.position.y, Is.InRange(0.35f, 0.65f), "not standing on the landing");
+            Assert.IsNotNull(MooringPost.Nearest(apprentice.transform.position), "the start should be in reach of the Mooring post");
             Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
         }
 
@@ -77,10 +78,37 @@ namespace MyGame.Tests
         public IEnumerator Apprentice_MovesWithInput()
         {
             Vector3 start = apprentice.transform.position;
-            input.Move = Vector2.left;
+            input.Move = Vector2.up; // along the boardwalk towards the quay
             yield return new WaitForSeconds(0.5f);
             input.Move = Vector2.zero;
             Assert.Greater(Vector3.Distance(start, apprentice.transform.position), 2f, "barely moved in half a second");
+        }
+
+        [UnityTest]
+        public IEnumerator TheWayIn_IsQuiet_UntilTheApprenticeReachesTheQuay()
+        {
+            Assert.IsTrue(laden.All(l => l.CurrentState == Soured.State.Idle), "nothing should be alert at the start");
+            // Walk the whole boardwalk to the quay's edge.
+            for (float t = 0; t < 6f && apprentice.transform.position.z < -5.5f; t += Time.deltaTime)
+            {
+                input.Move = Vector2.up;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Greater(apprentice.transform.position.z, -5.5f, "the boardwalk should lead to the quay");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "the way in should be safe");
+            Assert.IsTrue(laden.All(l => l.CurrentState == Soured.State.Idle), "the Laden should only notice up close");
+
+            var nearest = laden.OrderBy(l => Vector3.Distance(l.transform.position, apprentice.transform.position)).First();
+            for (float t = 0; t < 3f && nearest.CurrentState == Soured.State.Idle; t += Time.deltaTime)
+            {
+                Vector3 to = nearest.transform.position - apprentice.transform.position;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.AreNotEqual(Soured.State.Idle, nearest.CurrentState, "walking up to a Laden should wake it");
+            Assert.Less(Vector3.Distance(nearest.transform.position, apprentice.transform.position), nearest.aggroRadius + 0.3f);
         }
 
         [UnityTest]

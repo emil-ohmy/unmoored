@@ -21,7 +21,7 @@ public static class MainSceneBuilder
     const float QuayTop = 0.5f;
     // Night: the world is lit by its fires. Light colour carries meaning (docs/brief.md):
     // warm = the world and safety, sickly green = a Soured, cold pale = the Apprentice's bow lantern.
-    static readonly Color Fog = Hex("#161a24");
+    static readonly Color Fog = Hex("#10131b");
     static readonly Color LanternLight = Hex("#ffb866");
     static readonly Color TorchLight = Hex("#ff8a3d");
     static readonly Color SouredLight = Hex("#9ee860");
@@ -72,10 +72,22 @@ public static class MainSceneBuilder
                                   new Vector3(7.3f, 0f, 1.2f), new Vector3(-2.2f, 0f, 2.9f), new Vector3(0.4f, 0f, 4.9f) })
             Torch(new Vector3(p.x, QuayTop, p.z));
 
-        // The jetty reaches out from the quay's front edge towards the camera, with the Mooring post at its end.
-        Place("Environment/jetty", new Vector3(2.4f, QuayTop - 0.03f, -5.0f), 0f);
-        MooringPostAt(new Vector3(3.25f, QuayTop, -9.3f), 180f);
-        Place("Environment/boat", new Vector3(3.95f, -0.12f, -8.4f), 186f);
+        // The way in: the Apprentice arrives by boat at a landing with the Mooring post, far out in the dark, and walks
+        // a long boardwalk towards the torchlit quay. Nothing hostile until the quay: the build-up.
+        const float walkX = 2.4f, segment = 4.76f; // a walk piece is 4.42 m of planks; + one gap keeps the spacing
+        for (int k = 0; k < 4; k++)
+            Place("Environment/jetty_walk", new Vector3(walkX, QuayTop - 0.03f, -5.0f - segment * k), 0f);
+        Place("Environment/jetty_landing", new Vector3(walkX, QuayTop - 0.03f, -5.0f - segment * 4), 0f);
+        MooringPostAt(new Vector3(walkX + 1.25f, QuayTop, -26.7f), 180f);
+        Place("Environment/boat", new Vector3(walkX + 2.55f, -0.12f, -25.6f), 186f);
+        StreetLantern(new Vector3(walkX + 0.75f, QuayTop, -11.8f), -90f, 2.2f);
+        StreetLantern(new Vector3(walkX - 0.75f, QuayTop, -19.4f), 90f, 2.2f);
+        Place("Environment/house_b", new Vector3(-2.8f, 0f, -14.5f), 240f);
+        Place("Environment/house_a", new Vector3(8.4f, 0f, -19.5f), 70f);
+        Place("Environment/rock_b", new Vector3(5.3f, -0.1f, -10.6f), 40f);
+        Place("Environment/rock_a", new Vector3(-0.9f, -0.12f, -21.3f), 300f);
+        Place("Environment/rock_c", new Vector3(6.6f, -0.15f, -15.8f), 120f);
+        Place("Environment/islet_small", new Vector3(-4.6f, -0.6f, -24.5f), 80f);
 
         // Half-sunken houses around the quay, rocks and islets in the water.
         Place("Environment/house_a", new Vector3(-10.4f, 0f, 3.0f), 280f);
@@ -92,10 +104,10 @@ public static class MainSceneBuilder
 
         // Characters.
         var start = new GameObject("Start Point").transform;
-        start.position = new Vector3(2.4f, QuayTop, -3.6f);
+        start.position = new Vector3(2.4f, QuayTop, -25.3f); // on the landing, by the Mooring post
         var apprentice = Apprentice(start.position);
-        Laden(new Vector3(-1.4f, QuayTop, 3.6f), 170f);
-        Laden(new Vector3(4.2f, QuayTop, 0.4f), -120f);
+        Laden(new Vector3(-1.4f, QuayTop, 3.6f), 100f); // side-on
+        Laden(new Vector3(4.2f, QuayTop, 0.4f), 20f);   // back turned: sneak up for a free hit
 
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
@@ -174,7 +186,7 @@ public static class MainSceneBuilder
         laden.staggerDrainDelay = 1.5f;
         laden.staggerDrainPerSecond = 25f;
         laden.staggerDuration = 1.2f;
-        laden.aggroRadius = 8f;
+        laden.aggroRadius = 5.5f; // lets the Apprentice reach the quay before anything notices
         laden.attackRange = 2.0f;
         laden.chaseSpeed = 1.9f;
         laden.telegraphDuration = 0.9f;
@@ -203,10 +215,10 @@ public static class MainSceneBuilder
         return post;
     }
 
-    static void StreetLantern(Vector3 position, float yaw)
+    static void StreetLantern(Vector3 position, float yaw, float intensity = 3f)
     {
         var go = Place("Environment/street_lantern", position, yaw + 180f);
-        Flicker(PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 6.5f, 3f, LanternLight), 0.1f, 5f, 0.01f);
+        Flicker(PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 6.5f, intensity, LanternLight), 0.1f, 5f, 0.01f);
     }
 
     static void Torch(Vector3 position)
@@ -286,24 +298,24 @@ public static class MainSceneBuilder
     static void Lighting()
     {
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = Hex("#2a3048");
-        RenderSettings.ambientEquatorColor = Hex("#1b2330");
-        RenderSettings.ambientGroundColor = Hex("#0c0e12");
+        RenderSettings.ambientSkyColor = Hex("#1f2436");
+        RenderSettings.ambientEquatorColor = Hex("#141a24");
+        RenderSettings.ambientGroundColor = Hex("#08090c");
         var sh = new SphericalHarmonicsL2();
-        sh.AddAmbientLight(Hex("#1b2330").linear);
-        sh.AddDirectionalLight(Vector3.up, Hex("#2a3048").linear, 0.5f);
+        sh.AddAmbientLight(Hex("#141a24").linear);
+        sh.AddDirectionalLight(Vector3.up, Hex("#1f2436").linear, 0.45f);
         RenderSettings.ambientProbe = sh;
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
         RenderSettings.fogColor = Fog;
-        RenderSettings.fogStartDistance = 16f;
-        RenderSettings.fogEndDistance = 45f;
+        RenderSettings.fogStartDistance = 14f;
+        RenderSettings.fogEndDistance = 38f;
 
         // A weak, cold moon: enough to read shapes and cast long shadows, never enough to light the scene.
         var moon = new GameObject("Moon").AddComponent<Light>();
         moon.type = LightType.Directional;
         moon.color = Hex("#8ea8d8");
-        moon.intensity = 0.45f;
+        moon.intensity = 0.25f;
         moon.shadows = LightShadows.Soft;
         moon.shadowStrength = 0.8f;
         moon.transform.rotation = Quaternion.Euler(56f, -38f, 0f);
@@ -339,8 +351,8 @@ public static class MainSceneBuilder
     static Material WaterMaterial()
     {
         var m = GeneratedMaterial("M_Water", "MyGame/Water");
-        m.SetColor("_DeepColor", Hex("#0c1c20"));
-        m.SetColor("_ShallowColor", Hex("#173236"));
+        m.SetColor("_DeepColor", Hex("#081418"));
+        m.SetColor("_ShallowColor", Hex("#10262a"));
         m.SetColor("_FoamColor", Hex("#8a9c9a"));
         EditorUtility.SetDirty(m);
         return m;
@@ -406,6 +418,7 @@ public static class MainSceneBuilder
         var grade = profile.Add<ColorAdjustments>(true);
         grade.contrast.Override(12f);
         grade.saturation.Override(-12f);
+        grade.postExposure.Override(-0.25f);
         foreach (var component in profile.components)
             AssetDatabase.AddObjectToAsset(component, profile);
         EditorUtility.SetDirty(profile);

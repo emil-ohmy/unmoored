@@ -34,6 +34,15 @@ namespace MyGame.Tests
             target.aggroRadius = 0f; // hold it unaware for the first frame (open: heap low)
             target.attackRange = 0f; // and don't let it attack until after the blocked swing
             yield return new WaitForSeconds(0.5f);
+            Capture(outDir, "play-0-landing");
+            input.Move = Vector2.up; // walk in along the boardwalk
+            for (float t = 0; t < 6f && apprentice.transform.position.z < -12f; t += Time.deltaTime)
+                yield return null;
+            Capture(outDir, "play-0b-boardwalk");
+            for (float t = 0; t < 6f && apprentice.transform.position.z < -4.5f; t += Time.deltaTime)
+                yield return null;
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(0.3f);
             Capture(outDir, "play-1-start");
             target.aggroRadius = aggro;
             yield return new WaitForSeconds(0.8f);

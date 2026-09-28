@@ -24,6 +24,7 @@ namespace MyGame
 
         [Header("Behaviour")]
         public float aggroRadius = 9f;
+        public float eyeHeight = 1.3f; // where the alert flare shows
         public float attackRange = 2.2f;
         public float chaseSpeed = 2.4f;
         public float turnSpeed = 360f;
@@ -98,7 +99,7 @@ namespace MyGame
                 case State.Idle:
                     LoopUnlessBusy(IdleClip);
                     if (targetAlive && toTarget.magnitude < aggroRadius)
-                        Enter(State.Chase);
+                        Notice();
                     break;
 
                 case State.Chase:
@@ -200,11 +201,18 @@ namespace MyGame
                 clips.PlayOnce("Stagger", staggerDuration);
             }
             else if (CurrentState == State.Idle)
-                Enter(State.Chase); // hitting a sleeper wakes it
+                Notice(); // hitting a sleeper wakes it
             return HitResult.Landed;
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // The moment it becomes aware of the Apprentice: its eyes flare, then it gives chase.
+        void Notice()
+        {
+            Effects.Instance?.AlertFlare(transform.position + transform.forward * 0.35f + Vector3.up * eyeHeight);
+            Enter(State.Chase);
+        }
 
         void Scatter()
         {

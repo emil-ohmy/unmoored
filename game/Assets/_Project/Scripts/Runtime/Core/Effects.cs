@@ -27,6 +27,14 @@ namespace MyGame
                 Instance = null;
         }
 
+        // A Soured notices the Apprentice: its eyes flare sickly green.
+        public void AlertFlare(Vector3 position)
+        {
+            flash.transform.position = position;
+            var p = new ParticleSystem.EmitParams { startSize = 0.6f, startColor = new Color(0.7f, 1f, 0.45f, 1f), applyShapeToPosition = false };
+            flash.Emit(p, 1);
+        }
+
         // The moment a guard comes up: a small, quick glint on the shield.
         public void GuardGlint(Vector3 position)
         {
