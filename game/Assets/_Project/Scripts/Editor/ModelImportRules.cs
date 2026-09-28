@@ -39,6 +39,14 @@ public class ModelImportRules : AssetPostprocessor
         Vector4 colour = description.TryGetProperty("DiffuseColor", out Vector4 c) ? c : Vector4.one;
         colour.w = 1f;
         material.SetVector("_BaseColor", colour);
+        if (description.materialName.StartsWith("Torch") && description.materialName.EndsWith("_Glow"))
+        {
+            // Torch flames: the animated flame shader (sways, stretches, flickers; hot core, dark red tip).
+            material.shader = Shader.Find("MyGame/Flame");
+            material.SetVector("_EmissionColor", colour * GlowIntensity);
+            material.SetVector("_TipColor", new Vector4(colour.x, colour.y * 0.3f, colour.z * 0.2f, 1f) * GlowIntensity * 0.55f);
+            return;
+        }
         if (description.materialName.EndsWith("_Glow"))
         {
             material.SetVector("_EmissionColor", colour * GlowIntensity);

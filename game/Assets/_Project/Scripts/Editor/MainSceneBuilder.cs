@@ -122,6 +122,7 @@ public static class MainSceneBuilder
         sfx.dash = Clips("dash");
         sfx.blockClang = Clips("block_clang");
         sfx.parry = Clips("parry");
+        sfx.soulAbsorb = Clips("soul_absorb");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();

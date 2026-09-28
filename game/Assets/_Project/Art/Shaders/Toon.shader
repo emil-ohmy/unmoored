@@ -3,6 +3,8 @@
 // emission, fog, and an inverted-hull outline. The outline pushes vertices along a SMOOTHED normal that
 // ModelImportRules bakes into the mesh tangents, so faceted meshes still get a closed outline and skinned
 // meshes keep it while animating. Meshes without baked tangents (e.g. Unity primitives) get no outline.
+// _Dissolve (0..1, set per renderer with a MaterialPropertyBlock) eats the surface away in a noise pattern with a
+// glowing edge, in every pass, so shadow, outline and depth vanish with it (a defeated Soured).
 Shader "MyGame/Toon"
 {
     Properties
@@ -17,6 +19,9 @@ Shader "MyGame/Toon"
         [HDR] _EmissionColor("Emission", Color) = (0, 0, 0, 1)
         _OutlineColor("Outline Color", Color) = (0.07, 0.06, 0.09, 1)
         _OutlineWidth("Outline Width (px)", Range(0, 6)) = 1.6
+        _Dissolve("Dissolve", Range(0, 1)) = 0
+        [HDR] _DissolveEdgeColor("Dissolve Edge", Color) = (1.4, 3.0, 0.8, 1)
+        _DissolveScale("Dissolve Noise Scale", Float) = 7
     }
 
     SubShader
@@ -37,7 +42,39 @@ Shader "MyGame/Toon"
             half4 _EmissionColor;
             half4 _OutlineColor;
             float _OutlineWidth;
+            half _Dissolve;
+            half4 _DissolveEdgeColor;
+            float _DissolveScale;
         CBUFFER_END
+
+        float DissolveHash(float3 p)
+        {
+            p = frac(p * 0.3183099 + 0.1);
+            p *= 17.0;
+            return frac(p.x * p.y * p.z * (p.x + p.y + p.z));
+        }
+
+        // Smooth 3D value noise in 0..1.
+        float DissolveNoise(float3 x)
+        {
+            float3 i = floor(x);
+            float3 f = frac(x);
+            f = f * f * (3.0 - 2.0 * f);
+            return lerp(lerp(lerp(DissolveHash(i + float3(0, 0, 0)), DissolveHash(i + float3(1, 0, 0)), f.x),
+                             lerp(DissolveHash(i + float3(0, 1, 0)), DissolveHash(i + float3(1, 1, 0)), f.x), f.y),
+                        lerp(lerp(DissolveHash(i + float3(0, 0, 1)), DissolveHash(i + float3(1, 0, 1)), f.x),
+                             lerp(DissolveHash(i + float3(0, 1, 1)), DissolveHash(i + float3(1, 1, 1)), f.x), f.y), f.z);
+        }
+
+        // Discards dissolved fragments; returns 0..1 how close this fragment is to the burning edge.
+        half DissolveClip(float3 positionWS)
+        {
+            if (_Dissolve <= 0.0)
+                return 0.0;
+            float n = DissolveNoise(positionWS * _DissolveScale) * 0.75 + DissolveNoise(positionWS * _DissolveScale * 3.1) * 0.25;
+            clip(n - _Dissolve);
+            return 1.0 - saturate((n - _Dissolve) / 0.08);
+        }
         ENDHLSL
 
         Pass
@@ -85,6 +122,7 @@ Shader "MyGame/Toon"
 
             half4 frag(Varyings input) : SV_Target
             {
+                half edge = DissolveClip(input.positionWS);
                 float3 normalWS = normalize(input.normalWS);
                 Light light = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
 
@@ -114,6 +152,8 @@ Shader "MyGame/Toon"
                     color += albedo * lamp.color * facing * pool;
                 LIGHT_LOOP_END
             #endif
+
+                color = lerp(color, _DissolveEdgeColor.rgb, edge);
                 return half4(MixFog(color, input.fogFactor), 1.0);
             }
             ENDHLSL
@@ -142,6 +182,7 @@ Shader "MyGame/Toon"
             struct Varyings
             {
                 float4 positionCS : SV_POSITION;
+                float3 positionWS : TEXCOORD1;
                 half fogFactor : TEXCOORD0;
             };
 
@@ -149,6 +190,7 @@ Shader "MyGame/Toon"
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
+                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 float4 positionCS = TransformObjectToHClip(input.positionOS.xyz);
                 float3 smoothNormal = input.tangentOS.xyz;
                 if (dot(smoothNormal, smoothNormal) > 1e-6)
@@ -166,6 +208,7 @@ Shader "MyGame/Toon"
 
             half4 frag(Varyings input) : SV_Target
             {
+                DissolveClip(input.positionWS);
                 return half4(MixFog(_OutlineColor.rgb, input.fogFactor), 1.0);
             }
             ENDHLSL
@@ -197,8 +240,15 @@ Shader "MyGame/Toon"
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            float4 vert(Attributes input) : SV_POSITION
+            struct Varyings
             {
+                float4 positionCS : SV_POSITION;
+                float3 positionWS : TEXCOORD0;
+            };
+
+            Varyings vert(Attributes input)
+            {
+                Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
                 float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
@@ -213,10 +263,16 @@ Shader "MyGame/Toon"
             #else
                 positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
             #endif
-                return positionCS;
+                output.positionCS = positionCS;
+                output.positionWS = positionWS;
+                return output;
             }
 
-            half4 frag() : SV_Target { return 0; }
+            half4 frag(Varyings input) : SV_Target
+            {
+                DissolveClip(input.positionWS);
+                return 0;
+            }
             ENDHLSL
         }
 
@@ -238,13 +294,26 @@ Shader "MyGame/Toon"
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            float4 vert(Attributes input) : SV_POSITION
+            struct Varyings
             {
+                float4 positionCS : SV_POSITION;
+                float3 positionWS : TEXCOORD0;
+            };
+
+            Varyings vert(Attributes input)
+            {
+                Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                return TransformObjectToHClip(input.positionOS.xyz);
+                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                output.positionCS = TransformWorldToHClip(output.positionWS);
+                return output;
             }
 
-            half4 frag() : SV_Target { return 0; }
+            half4 frag(Varyings input) : SV_Target
+            {
+                DissolveClip(input.positionWS);
+                return 0;
+            }
             ENDHLSL
         }
 
@@ -270,19 +339,22 @@ Shader "MyGame/Toon"
             {
                 float4 positionCS : SV_POSITION;
                 float3 normalWS : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
             };
 
             Varyings vert(Attributes input)
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                output.positionCS = TransformWorldToHClip(output.positionWS);
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 return output;
             }
 
             half4 frag(Varyings input) : SV_Target
             {
+                DissolveClip(input.positionWS);
                 return half4(normalize(input.normalWS), 0.0);
             }
             ENDHLSL

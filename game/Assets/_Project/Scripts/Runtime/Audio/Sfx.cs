@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -48,6 +48,7 @@ namespace MyGame
         public void Dash(Vector3 at) => Play(dash, at, 0.7f, "dash");
         public void BlockClang(Vector3 at, float volume = 1f) => Play(blockClang, at, volume, "block_clang");
         public void Parry(Vector3 at) => Play(parry, at, 1f, "parry");
+        public void SoulAbsorb(Vector3 at) => Play(soulAbsorb, at, 0.9f, "soul_absorb");
 
         void Play(AudioClip[] set, Vector3 at, float volume, string label)
         {

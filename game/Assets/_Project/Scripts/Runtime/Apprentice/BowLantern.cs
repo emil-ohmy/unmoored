@@ -14,6 +14,10 @@ namespace MyGame
         public float Power { get; private set; }
 
         LightFlicker flicker;
+        float pulse;
+
+        // A brief flare (a defeated Soured's fare arriving).
+        public void Pulse(float amount) => pulse = Mathf.Min(pulse + amount, 4f);
 
         void Start()
         {
@@ -21,11 +25,14 @@ namespace MyGame
                 flicker = lanternLight.GetComponent<LightFlicker>();
             Power = MooringPost.LitFraction;
             Apply();
+            if (lanternLight != null)
+                Effects.Instance?.SetFareTarget(lanternLight.transform, this);
         }
 
         void Update()
         {
             Power = Mathf.MoveTowards(Power, MooringPost.LitFraction, easeSpeed * Time.deltaTime);
+            pulse = Mathf.MoveTowards(pulse, 0f, 3f * Time.deltaTime);
             Apply();
         }
 
@@ -34,7 +41,7 @@ namespace MyGame
             if (lanternLight == null)
                 return;
             lanternLight.range = Mathf.Lerp(minRange, maxRange, Power);
-            float intensity = Mathf.Lerp(minIntensity, maxIntensity, Power);
+            float intensity = Mathf.Lerp(minIntensity, maxIntensity, Power) + pulse;
             if (flicker != null)
                 flicker.BaseIntensity = intensity;
             else

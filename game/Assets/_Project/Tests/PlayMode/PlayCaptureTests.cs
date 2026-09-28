@@ -112,6 +112,48 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.4f);
         }
 
+        // Close-ups of the death dissolve (with the fare streaming into the lantern) and of a torch flame moving.
+        [UnityTest]
+        public IEnumerator Capture_DeathAndFlames()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            var laden = UnityEngine.Object.FindAnyObjectByType<Laden>();
+            apprentice.Teleport(laden.transform.position - laden.transform.forward * 3f + Vector3.up * 0.1f);
+            yield return new WaitForSeconds(0.5f);
+            var cam = Camera.main;
+            var rig = cam.GetComponent<CameraRig>();
+            rig.enabled = false;
+            var pitch = Quaternion.Euler(50f, 0f, 0f);
+            Vector3 mid = (laden.transform.position + apprentice.transform.position) / 2f;
+            cam.transform.SetPositionAndRotation(mid + Vector3.forward * 0.8f + pitch * new Vector3(0f, 0f, -9f), pitch);
+            Capture(outDir, "death-warmup"); // the first render after moving the camera can come out blank
+            laden.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+            for (int i = 0; i < 8; i++)
+            {
+                for (int f = 0; f < 6; f++)
+                    yield return null; // 0.2 s at 30 fps
+                Capture(outDir, $"death-{i}");
+            }
+
+            var torch = UnityEngine.Object.FindAnyObjectByType<TorchFlame>().transform;
+            cam.transform.SetPositionAndRotation(torch.position + Quaternion.Euler(20f, 0f, 0f) * new Vector3(0f, 0f, -2.2f), Quaternion.Euler(20f, 0f, 0f));
+            for (int i = 0; i < 6; i++)
+            {
+                for (int f = 0; f < 4; f++)
+                    yield return null;
+                Capture(outDir, $"torch-{i}");
+            }
+            Time.captureFramerate = 0;
+        }
+
         static void Capture(string outDir, string name, int width = 1600, int height = 900)
         {
             var cam = Camera.main;

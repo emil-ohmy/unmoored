@@ -10,15 +10,87 @@ namespace MyGame
         public Material sparkMaterial; // MyGame/Particle with a soft dot
         public Material flashMaterial; // MyGame/Particle with a ring
 
-        ParticleSystem sparks, flash;
+        ParticleSystem sparks, flash, fare;
+        ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
+        Transform fareTarget;
+        BowLantern fareLantern;
 
         public int LiveBlockSparks => sparks != null ? sparks.particleCount : 0;
+        public int LiveFare => fare != null ? fare.particleCount : 0;
 
         void Awake()
         {
             Instance = this;
             sparks = Build("Block Sparks", sparkMaterial, stretch: true);
             flash = Build("Block Flash", flashMaterial, stretch: false);
+            fare = BuildFare();
+        }
+
+        // Where a defeated Soured's fare flies to: the Apprentice's lantern.
+        public void SetFareTarget(Transform target, BowLantern lantern)
+        {
+            fareTarget = target;
+            fareLantern = lantern;
+        }
+
+        // One mote of a defeated Soured's fare: it bursts out, then spirals into the Apprentice's lantern.
+        public void EmitFare(Vector3 at)
+        {
+            fare.Emit(new ParticleSystem.EmitParams
+            {
+                position = at,
+                velocity = Random.insideUnitSphere * 1.2f + Vector3.up * 1.5f, // a small puff, then the pull takes over
+                startLifetime = 5f,
+                startSize = Random.Range(0.08f, 0.15f),
+                startColor = Color.Lerp(new Color(0.75f, 1f, 0.5f), new Color(1f, 0.85f, 0.4f), Random.value),
+                applyShapeToPosition = false,
+            }, 1);
+        }
+
+        void LateUpdate()
+        {
+            if (fare == null || fare.particleCount == 0 || fareTarget == null)
+                return;
+            int count = fare.GetParticles(fareBuffer);
+            float dt = Time.deltaTime;
+            int arrived = 0;
+            for (int i = 0; i < count; i++)
+            {
+                var p = fareBuffer[i];
+                Vector3 to = fareTarget.position - p.position;
+                float distance = to.magnitude;
+                if (distance < 0.3f)
+                {
+                    p.remainingLifetime = 0f;
+                    arrived++;
+                }
+                else
+                {
+                    float age = p.startLifetime - p.remainingLifetime;
+                    // Sucked in: an accelerating pull with a slight spiral, so the fare arrives as one stream in ~1 s.
+                    Vector3 seek = to / distance * (8f + age * 18f);
+                    Vector3 swirl = Vector3.Cross(to, Vector3.up).normalized * Mathf.Clamp(distance * 0.8f, 0f, 2f);
+                    p.velocity = Vector3.Lerp(p.velocity, seek + swirl, Mathf.Clamp01(dt * (5f + age * 10f)));
+                }
+                fareBuffer[i] = p;
+            }
+            fare.SetParticles(fareBuffer, count);
+            if (arrived > 0)
+                fareLantern?.Pulse(0.4f * arrived);
+        }
+
+        ParticleSystem BuildFare()
+        {
+            var ps = Build("Fare Motes", sparkMaterial, stretch: false);
+            var main = ps.main;
+            main.maxParticles = 256;
+            var size = ps.sizeOverLifetime;
+            size.enabled = false;
+            var colour = ps.colorOverLifetime;
+            colour.enabled = false;
+            var trail = ps.trails;
+            trail.enabled = false;
+            return ps;
         }
 
         void OnDestroy()

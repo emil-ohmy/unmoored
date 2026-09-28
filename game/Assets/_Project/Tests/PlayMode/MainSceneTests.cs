@@ -386,6 +386,27 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator DefeatedLaden_FallsDissolves_AndItsFareStreamsIntoTheLantern()
+        {
+            var l = laden[0];
+            PlaceApprentice(l.transform.position - l.transform.forward * 4f, l.transform.position);
+            l.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+            Assert.AreEqual(Soured.State.Dying, l.CurrentState);
+            Assert.IsFalse(l.IsAlive, "a dying Soured is already out of the fight (no lock, no hits)");
+            int mostMotes = 0;
+            for (float t = 0; t < 3f && l.CurrentState != Soured.State.Scattered; t += Time.deltaTime)
+            {
+                mostMotes = Mathf.Max(mostMotes, Effects.Instance.LiveFare);
+                yield return null;
+            }
+            Assert.AreEqual(Soured.State.Scattered, l.CurrentState, "after dissolving it should be scattered");
+            Assert.Greater(mostMotes, 10, "its fare should fly out as motes");
+            for (float t = 0; t < 4f && Effects.Instance.LiveFare > 0; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(0, Effects.Instance.LiveFare, "every mote should reach the Apprentice's lantern");
+        }
+
+        [UnityTest]
         public IEnumerator Dash_IsInvulnerableDuringItsIFrames_ButNotAfter()
         {
             input.Move = Vector2.left;

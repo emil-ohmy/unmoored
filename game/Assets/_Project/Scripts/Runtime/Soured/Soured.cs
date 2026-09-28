@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public class Soured : MonoBehaviour
     {
-        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Scattered }
+        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered }
 
         [Header("Health")]
         public float maxHealth = 100f;
@@ -35,6 +35,11 @@ namespace MyGame
         [Header("Attacks (durations match the model's clips)")]
         public SouredAttack primary = new SouredAttack();
 
+        [Header("Death: it falls, dissolves, and its fare streams into the Apprentice's lantern")]
+        public float deathDuration = 0.8f;
+        public float dissolveDuration = 0.9f;
+        public int fareMotes = 36;
+
         [Header("Perfect-blocked")]
         public float stunDuration = 1.8f;
         public float riposteMultiplier = 2f; // hits on a stunned Soured
@@ -42,7 +47,7 @@ namespace MyGame
         public State CurrentState { get; private set; }
         public float Health { get; private set; }
         public float Stagger { get; private set; }
-        public bool IsAlive => CurrentState != State.Scattered;
+        public bool IsAlive => CurrentState != State.Scattered && CurrentState != State.Dying;
         public float HealthFraction => Mathf.Clamp01(Health / maxHealth);
         public float StateTime => stateTime; // seconds in the current state
         public SouredAttack CurrentAttack => current;
@@ -70,6 +75,8 @@ namespace MyGame
         float flashUntil;
         float oneShotUntil; // a short clip (e.g. Block) is playing; don't override it with Idle/Walk
         bool struck;
+        float dissolve;
+        int faresReleased;
 
         protected virtual void Awake()
         {
@@ -176,6 +183,23 @@ namespace MyGame
                         Enter(State.Chase);
                     break;
 
+                case State.Dying:
+                    // Dissolve from halfway through the fall, releasing its fare as the body goes.
+                    dissolve = Mathf.Clamp01((stateTime - deathDuration * 0.45f) / dissolveDuration);
+                    if (dissolve > 0f && faresReleased == 0)
+                        Sfx.Instance?.SoulAbsorb(transform.position + Vector3.up);
+                    while (faresReleased < Mathf.RoundToInt(fareMotes * dissolve))
+                    {
+                        Effects.Instance?.EmitFare(RandomPointOnBody());
+                        faresReleased++;
+                    }
+                    if (dissolve >= 1f)
+                    {
+                        Scatter();
+                        return;
+                    }
+                    break;
+
                 case State.Scattered:
                     return;
             }
@@ -232,7 +256,7 @@ namespace MyGame
             flashUntil = Time.time + 0.08f;
 
             if (Health <= 0f)
-                Scatter();
+                Die(hit);
             else if (!stunned && Stagger >= staggerCapacity && CurrentState != State.Staggered)
             {
                 Stagger = 0f;
@@ -257,6 +281,23 @@ namespace MyGame
         {
             Effects.Instance?.AlertFlare(transform.position + transform.forward * 0.35f + Vector3.up * eyeHeight);
             Enter(State.Chase);
+        }
+
+        void Die(Hit hit)
+        {
+            Enter(State.Dying);
+            dissolve = 0f;
+            faresReleased = 0;
+            knockback = hit.Knockback * 0.5f;
+            HitStop.Trigger(0.2f);
+            CameraRig.Instance?.Shake(0.3f);
+            clips.PlayOnce("Death", deathDuration);
+        }
+
+        Vector3 RandomPointOnBody()
+        {
+            var bounds = renderers.Length > 0 ? renderers[0].bounds : new Bounds(transform.position + Vector3.up, Vector3.one);
+            return bounds.center + Vector3.Scale(bounds.extents * 0.7f, Random.insideUnitSphere);
         }
 
         void Scatter()
@@ -285,6 +326,7 @@ namespace MyGame
             Health = maxHealth;
             Stagger = 0f;
             knockback = Vector3.zero;
+            dissolve = 0f;
             Enter(State.Idle);
             clips.Loop(IdleClip, 0f);
         }
@@ -306,18 +348,24 @@ namespace MyGame
                 clips.Loop(clip);
         }
 
+        // Per-renderer overrides: the hit flash (emission) and the death dissolve. With neither, clear the block so
+        // the materials' own values (glowing eyes, lantern) show.
         void UpdateFlash()
         {
             bool on = Time.time < flashUntil;
             foreach (var r in renderers)
             {
-                if (on)
+                if (!on && dissolve <= 0f)
                 {
-                    flash.SetColor("_EmissionColor", new Color(0.35f, 0.33f, 0.3f)); // a flash, not a white statue
-                    r.SetPropertyBlock(flash);
-                }
-                else
                     r.SetPropertyBlock(null);
+                    continue;
+                }
+                flash.Clear();
+                if (on)
+                    flash.SetColor("_EmissionColor", new Color(0.35f, 0.33f, 0.3f)); // a flash, not a white statue
+                if (dissolve > 0f)
+                    flash.SetFloat("_Dissolve", dissolve);
+                r.SetPropertyBlock(flash);
             }
         }
 
