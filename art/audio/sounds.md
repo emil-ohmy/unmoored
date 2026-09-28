@@ -24,6 +24,9 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Water lapping (ambient) | planned | Library or AI | bed under everything near the water |
 | Underworld drone (ambient) | planned | Synth | low, slow, uneasy |
 | Lantern lit (`lantern_lit`) | in game | Synth | soft flame "fwoomp", crackles, warm D-major chime; first Rest at a Mooring post only |
-| Healing | planned | Synth | soft glow |
+| Healing (`heal`) | in game | Synth | breathy rising shimmer over the 0.7 s heal, then a warm D-major bloom and a soft exhale as it takes hold |
+| Obols spent (`obol_clink`) | in game | Synth | a few dull silver clinks tumbling into the merchant's hand |
+| Charm fitted (`charm_fit`) | in game | Synth | cloth rustle, a clasp click, a low warm chime |
+| Menu tick (`ui_tick`) | in game | Synth | a tiny soft wooden tick, moving through a menu |
 | Apprentice death (`death_toll`) | in game | Synth | one deep bell toll that sinks under water (highs close off), thump, sinking whoosh, bubbles; the music ducks under it |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |

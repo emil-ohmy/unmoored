@@ -140,6 +140,7 @@ public static class MainSceneBuilder
         sfx.obolClink = Clips("obol_clink");
         sfx.charmFit = Clips("charm_fit");
         sfx.uiTick = Clips("ui_tick");
+        sfx.heal = Clips("heal");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -192,6 +193,7 @@ public static class MainSceneBuilder
         go.AddComponent<Equipment>();
         var apprentice = go.AddComponent<Apprentice>();
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
+        go.AddComponent<HealGlow>();
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
         Flicker(lantern, 0.06f, 2f, 0.01f); // a slow, steady pulse, not a flame
         go.AddComponent<BowLantern>().lanternLight = lantern;
@@ -416,8 +418,8 @@ public static class MainSceneBuilder
     static Material WaterMaterial()
     {
         var m = GeneratedMaterial("M_Water", "MyGame/Water");
-        m.SetColor("_DeepColor", Hex("#081418"));
-        m.SetColor("_ShallowColor", Hex("#10262a"));
+        m.SetColor("_DeepColor", Hex("#0a1b21"));
+        m.SetColor("_ShallowColor", Hex("#153137"));
         m.SetColor("_FoamColor", Hex("#8a9c9a"));
         EditorUtility.SetDirty(m);
         return m;

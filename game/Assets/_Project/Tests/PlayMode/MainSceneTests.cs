@@ -835,6 +835,60 @@ namespace MyGame.Tests
             Assert.AreEqual(before - apprentice.dashStaminaCost * 0.5f, apprentice.Stamina, 0.01f, "the dash should cost half");
         }
 
+        // A heavy blocked by the heap must be seen to land: the block happens when the blade comes down (not while
+        // it's still overhead), and only within the oar's real reach.
+        [UnityTest]
+        public IEnumerator HeavyAttack_BlockedByTheHeap_LandsBeforeItBounces()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            target.attackRange = 0f;
+            target.sweepChanceInFront = 0f;
+            PlaceApprentice(target.transform.position + target.transform.forward * 2.6f, target.transform.position);
+            for (float t = 0; t < 2f && !target.Guarding; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(target.Guarding, "setup: the Laden should raise its heap");
+
+            input.PressHeavy();
+            float pressed = Time.time;
+            for (float t = 0; t < 1.5f && apprentice.CurrentState != Apprentice.State.Staggered; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(Apprentice.State.Staggered, apprentice.CurrentState, "the heavy should bounce off the heap");
+            float contact = apprentice.heavyWindup + apprentice.heavyActive * apprentice.heavyContact;
+            Assert.GreaterOrEqual(Time.time - pressed, contact - 0.02f, "blocked while the oar was still overhead");
+            Assert.AreEqual("block_clang", Sfx.Instance.LastPlayed);
+
+            // From further than the oar reaches (even with the lunge), it's a miss, not a bounce.
+            yield return new WaitForSeconds(1f);
+            PlaceApprentice(target.transform.position + target.transform.forward * 4.2f, target.transform.position);
+            yield return new WaitForSeconds(0.3f);
+            input.PressHeavy();
+            for (float t = 0; t < 1.2f; t += Time.deltaTime)
+            {
+                Assert.AreNotEqual(Apprentice.State.Staggered, apprentice.CurrentState, "a heavy from 4.2 m can't reach the heap");
+                yield return null;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Healing_GathersWarmLight_ThenBursts()
+        {
+            var glow = apprentice.GetComponent<HealGlow>();
+            Assert.IsNotNull(glow);
+            apprentice.TakeHit(50f, Vector3.zero);
+            yield return new WaitForSeconds(1f);
+            float hurt = apprentice.Health;
+            input.PressHeal();
+            yield return null;
+            Assert.AreEqual("heal", Sfx.Instance.LastPlayed);
+            yield return new WaitForSeconds(0.35f);
+            Assert.Greater(glow.LiveEmbers, 10, "embers should gather while healing");
+            Assert.Greater(glow.GlowIntensity, 0.5f, "a warm light should swell");
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(apprentice.Health, hurt, "setup: the heal should have taken effect");
+            yield return new WaitForSeconds(1.5f);
+            Assert.Less(glow.GlowIntensity, 0.05f, "and fade once it's done");
+        }
+
         [Test]
         public void Hud_UsesTheFellFonts()
         {

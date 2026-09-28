@@ -2,6 +2,7 @@
 
 Clip timings match the Middle combat tuning (the controller rescales them if tuning changes):
 light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; dash 0.38 s; heal 0.7 s.
+RecoilHeavy / RecoilLight: bouncing off a Laden's heap (0.35 s).
 """
 from mathutils import Vector
 
@@ -51,6 +52,20 @@ ACTIONS = {
         (16, {"Oar": (-35, 0, 0), "Body": (-12, 0, 0), "Head": (-8, 0, 0), "Root": ((0, 0, 0), (0, 0.05, -0.06))}),
         (20, {"Oar": (100, 0, 0), "Body": (25, 0, 0), "Head": (10, 0, 0), "Root": ((0, 0, 0), (0, -0.2, -0.04))}),
         (35, REST),
+    ]),
+    # Blocked by a Laden's heap: the oar strikes it and springs back, jarring the Apprentice (the recoil). Each starts
+    # from its attack's contact pose, so the blow is seen to land before it bounces.
+    "RecoilHeavy": ("BEZIER", [
+        (1, {"Oar": (100, 0, 0), "Body": (25, 0, 0), "Head": (10, 0, 0), "Root": ((0, 0, 0), (0, -0.2, -0.04))}),
+        (3, {"Oar": (38, 0, 6), "Body": (-12, 0, 0), "Head": (-14, 0, 0), "Root": ((0, 0, 0), (0, 0.1, 0.0))}),
+        (6, {"Oar": (18, 0, 4), "Body": (-8, 0, 0), "Head": (-8, 0, 0), "Root": ((0, 0, 0), (0, 0.06, -0.02))}),
+        (10, REST),
+    ]),
+    "RecoilLight": ("BEZIER", [
+        (1, {"Oar": (80, 0, -5), "Body": (5, 0, 0)}),
+        (3, {"Oar": (55, 0, 50), "Body": (-8, 0, 14), "Head": (-10, 0, 0), "Root": ((0, 0, 0), (0, 0.08, 0))}),
+        (6, {"Oar": (30, 0, 25), "Body": (-4, 0, 6), "Head": (-5, 0, 0)}),
+        (10, REST),
     ]),
     "Heal": ("BEZIER", [  # bows its head to the mask, a small glow of relief (0.7 s)
         (1, REST),

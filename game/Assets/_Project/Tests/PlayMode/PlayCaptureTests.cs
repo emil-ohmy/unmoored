@@ -159,6 +159,74 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The basics: a heavy blocked by the heap (frame by frame), the heal, and the water by the torches.
+        [UnityTest]
+        public IEnumerator Capture_BlockedHeavy_Heal_Water()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            var laden = UnityEngine.Object.FindAnyObjectByType<Laden>();
+            laden.chaseSpeed = laden.guardSpeed = 0f;
+            laden.attackRange = 0f;
+            laden.sweepChanceInFront = 0f;
+            // From the usual side: the camera behind the Apprentice, looking at the heap (the Laden turns to face it).
+            laden.transform.rotation = Quaternion.LookRotation(Vector3.back); // facing the Apprentice, so it sees it and guards
+            Vector3 front = laden.transform.position + Vector3.back * 2.7f;
+            apprentice.Teleport(new Vector3(front.x, 0.55f, front.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+            var cam = Camera.main;
+            cam.GetComponent<CameraRig>().enabled = false;
+            var pitch = Quaternion.Euler(50f, 0f, 0f);
+            Vector3 mid = (laden.transform.position + apprentice.transform.position) / 2f;
+            cam.transform.SetPositionAndRotation(mid + pitch * new Vector3(0f, 0f, -8f), pitch);
+            for (int i = 0; i < 45 && !laden.Guarding; i++)
+                yield return null;
+            Capture(outDir, "polish-warmup");
+            input.PressHeavy();
+            for (int i = 1; i <= 24; i++)
+            {
+                yield return null;
+                if (i >= 12)
+                    Capture(outDir, $"polish-heavy-{i:D2}"); // every frame from 0.4 s: the slam, contact, the bounce
+            }
+
+            laden.gameObject.SetActive(false);
+            yield return new WaitForSeconds(1f);
+            cam.transform.SetPositionAndRotation(apprentice.transform.position + pitch * new Vector3(0f, 0.6f, -6f), pitch);
+            input.PressHeal();
+            foreach (var (frames, name) in new[] { (6, "a"), (8, "b"), (8, "c"), (4, "d"), (8, "e") })
+            {
+                for (int f = 0; f < frames; f++)
+                    yield return null;
+                Capture(outDir, $"polish-heal-{name}");
+            }
+
+            // Water: the boardwalk with its lanterns, and a torch by the quay's edge.
+            cam.GetComponent<CameraRig>().enabled = true;
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -14f));
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int f = 0; f < 5; f++)
+                    yield return null;
+                Capture(outDir, $"polish-water-{i}");
+            }
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -5.5f));
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            Capture(outDir, "polish-water-quay");
+            Time.captureFramerate = 0;
+        }
+
         // The screen messages and HUD, rendered with the UI (the camera draws into a texture, canvases in camera space).
         [UnityTest]
         public IEnumerator Capture_Ui()

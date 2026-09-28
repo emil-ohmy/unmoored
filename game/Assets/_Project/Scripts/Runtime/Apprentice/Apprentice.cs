@@ -37,7 +37,8 @@ namespace MyGame
         public float lightDamage = 14f;
         public float lightStagger = 20f;
         public float lightStaminaCost = 15f;
-        public float lightReach = 2.3f;
+        public float lightReach = 1.8f;   // from the target's surface: about as far as the swung oar really reaches
+        [Range(0f, 1f)] public float lightContact = 0.4f; // share of the active window when the oar meets its target
         public float lightArc = 70f;
         public float lightLunge = 0.5f;
         public float lightKnockback = 4f;
@@ -50,7 +51,8 @@ namespace MyGame
         public float heavyDamage = 35f;
         public float heavyStagger = 55f;
         public float heavyStaminaCost = 30f;
-        public float heavyReach = 2.7f;
+        public float heavyReach = 1.9f;   // from the target's surface, after the lunge: where the slammed blade lands
+        [Range(0f, 1f)] public float heavyContact = 0.85f; // the blade comes down late in the active window (the clip)
         public float heavyArc = 55f;
         public float heavyLunge = 0.9f;
         public float heavyKnockback = 10f;
@@ -105,6 +107,7 @@ namespace MyGame
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
+        public event System.Action Healed;      // a Healing charge took effect (the end of the heal)
         public int Obols { get; private set; }
         public event System.Action<int> ObolsChanged; // by how much (+ gained, - spent or dropped)
         public bool Invulnerable =>
@@ -256,6 +259,7 @@ namespace MyGame
                     {
                         Health = Mathf.Min(maxHealth, Health + healAmount);
                         Announce("healed");
+                        Healed?.Invoke();
                         ToFreeAndConsume();
                     }
                     break;
@@ -314,7 +318,9 @@ namespace MyGame
                     swingSounded = true; // the whoosh starts as the oar starts to move
                     Sfx.Instance?.OarSwing(transform.position + Vector3.up, isHeavy);
                 }
-                CheckHit();
+                // The blow lands at the clip's contact moment (after most of the lunge), not the first active frame.
+                if (stateTime >= windup + active * (isHeavy ? heavyContact : lightContact))
+                    CheckHit();
                 return transform.forward * ((isHeavy ? heavyLunge : lightLunge) / active);
             }
             if (stateTime >= windup + active && stateTime < windup + active + recovery)
@@ -373,7 +379,7 @@ namespace MyGame
             HitStop.Trigger(0.12f);
             CameraRig.Instance?.Shake(0.22f);
             Announce("blocked");
-            EnterStagger(recoilDuration, "Hit");
+            EnterStagger(recoilDuration, isHeavy ? "RecoilHeavy" : "RecoilLight"); // from the contact pose: seen to land, then bounce
         }
 
         void StartAttack(bool heavy, int step)
@@ -561,6 +567,7 @@ namespace MyGame
             HealingCharges--;
             Enter(State.Healing);
             clips.PlayOnce("Heal", healDuration);
+            Sfx.Instance?.Heal(transform.position + Vector3.up * 0.7f);
         }
 
         // ------------------------------------------------------------ damage, death, rest

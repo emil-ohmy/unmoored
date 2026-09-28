@@ -34,7 +34,8 @@ namespace MyGame
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing;
         Text glyph, promptLabel, obolText, obolGain;
-        float obolsShown, gainAt = -100f;
+        float obolsShown, gainAt = -100f, healedAt = -100f;
+        Image hpFillImage;
         int gainAmount;
         (RectTransform flame, Image outer, Image core, Image glow)[] charges;
         float hpTrailValue = 1f, hpLast = 1f, hpTrailHold, lockTrailValue, lockLast, lockTrailHold, restFlashAt = -100f;
@@ -58,6 +59,7 @@ namespace MyGame
             hudGroup = hudRoot.gameObject.AddComponent<CanvasGroup>();
             BuildLockBar(hudRoot);
             hpFill = Bar(hudRoot, "Health", new Vector2(56, -46), 380, 14, HealthRed, out hpTrail);
+            hpFillImage = hpFill.GetComponent<Image>();
             staminaFill = Bar(hudRoot, "Stamina", new Vector2(56, -70), 300, 8, StaminaMoss, out _);
             BuildCharges(hudRoot);
             BuildPrompt(hudRoot);
@@ -82,6 +84,7 @@ namespace MyGame
             apprentice.Died += OnDied;
             apprentice.Woke += OnWoke;
             apprentice.ObolsChanged += OnObolsChanged;
+            apprentice.Healed += OnHealed;
             obolsShown = apprentice.Obols;
             MooringPost.Rested += OnRested;
             AreaEntrance.Entered += OnAreaEntered;
@@ -94,10 +97,13 @@ namespace MyGame
                 apprentice.Died -= OnDied;
                 apprentice.Woke -= OnWoke;
                 apprentice.ObolsChanged -= OnObolsChanged;
+                apprentice.Healed -= OnHealed;
             }
             MooringPost.Rested -= OnRested;
             AreaEntrance.Entered -= OnAreaEntered;
         }
+
+        void OnHealed() => healedAt = UiKit.Now;
 
         void OnObolsChanged(int delta)
         {
@@ -136,6 +142,7 @@ namespace MyGame
             float now = UiKit.Now;
             float health = apprentice.Health / apprentice.maxHealth;
             hpFill.anchorMax = new Vector2(health, 1f);
+            hpFillImage.color = Color.Lerp(HealthRed, UiKit.Ember, 0.8f * (1f - UiKit.Smooth(0.05f, 0.7f, now - healedAt))); // flares warm on a heal
             hpTrail.anchorMax = new Vector2(Trail(health, ref hpLast, ref hpTrailValue, ref hpTrailHold), 1f);
             staminaFill.anchorMax = new Vector2(apprentice.Stamina / apprentice.maxStamina, 1f);
             UpdateCharges(now);

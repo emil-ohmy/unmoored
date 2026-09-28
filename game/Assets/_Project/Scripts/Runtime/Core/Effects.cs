@@ -117,6 +117,14 @@ namespace MyGame
             flash.Emit(p, 1);
         }
 
+        // A Healing charge takes hold: a warm ring spreading at the Apprentice's feet.
+        public void HealRing(Vector3 position)
+        {
+            flash.transform.position = position;
+            var p = new ParticleSystem.EmitParams { startSize = 2.2f, startLifetime = 0.45f, startColor = new Color(1f, 0.55f, 0.24f, 0.85f), applyShapeToPosition = false };
+            flash.Emit(p, 1);
+        }
+
         // The moment a guard comes up: a small, quick glint on the shield.
         public void GuardGlint(Vector3 position)
         {
