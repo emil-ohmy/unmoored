@@ -27,14 +27,23 @@ Material:
     m_Floats:
     - _DepthFade: 1.6
     - _FoamDistance: 0.25
+    - _GlintThreshold: 0.992
     - _LampReflection: 0.6
+    - _LampShininess: 30
+    - _LampSpecular: 2.2
+    - _RippleScale: 2.2
+    - _RippleSpeed: 0.35
+    - _RippleStrength: 0.12
     - _WaveHeight: 0.05
     - _WaveLength: 3.5
     - _WaveSpeed: 0.8
     m_Colors:
-    - _DeepColor: {r: 0.03137255, g: 0.078431375, b: 0.09411765, a: 1}
+    - _DeepColor: {r: 0.039215688, g: 0.105882354, b: 0.12941177, a: 1}
     - _FoamColor: {r: 0.5411765, g: 0.6117647, b: 0.6039216, a: 1}
+    - _GlintColor: {r: 0.24999997, g: 0.31999996, b: 0.42999998, a: 1}
     - _ShadowTint: {r: 0.74, g: 0.71, b: 0.88, a: 1}
-    - _ShallowColor: {r: 0.0627451, g: 0.14901961, b: 0.16470589, a: 1}
+    - _ShallowColor: {r: 0.08235294, g: 0.19215687, b: 0.21568628, a: 1}
+    - _SheenDir: {r: 0, g: 0.5, b: 1, a: 0}
+    - _SkyColor: {r: 0.11999995, g: 0.16999996, b: 0.25999996, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

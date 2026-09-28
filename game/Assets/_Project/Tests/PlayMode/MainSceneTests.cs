@@ -889,6 +889,42 @@ namespace MyGame.Tests
             Assert.Less(glow.GlowIntensity, 0.05f, "and fade once it's done");
         }
 
+        // Knocked off the quay, a Soured drowns: it counts as a kill, and it doesn't fall (and drag a locked-on
+        // camera) forever.
+        [UnityTest]
+        public IEnumerator SouredInTheWater_Drowns_AsAKill_AndReleasesTheLock()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            PlaceApprentice(target.transform.position - target.transform.forward * 2f, target.transform.position);
+            input.PressLock();
+            yield return null;
+            Assert.AreEqual(target, apprentice.LockTarget, "setup: locked on");
+            var played = new System.Collections.Generic.List<string>();
+            void OnPlayed(AudioClip clip, AudioSource source) => played.Add(clip.name);
+            Sfx.Played += OnPlayed;
+            var controller = target.GetComponent<CharacterController>();
+            controller.enabled = false;
+            target.transform.position = new Vector3(-14f, 0.6f, -9f); // over open water
+            controller.enabled = true;
+            for (float t = 0; t < 2f && target.IsAlive; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(target.Drowned, "in the water, it should drown");
+            Sfx.Played -= OnPlayed;
+            Assert.IsTrue(played.Any(n => n.StartsWith("splash")), "it should splash going in");
+            Assert.AreEqual(target.obols, apprentice.Obols, "a drowned Soured still pays its fare");
+            yield return null;
+            Assert.IsNull(apprentice.LockTarget, "the lock lets go of it");
+            yield return new WaitForSeconds(2.5f);
+            Assert.AreEqual(Soured.State.Scattered, target.CurrentState);
+            Assert.Greater(target.transform.position.y, -3f, "it sinks a little, it doesn't fall forever");
+
+            target.Reform();
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsFalse(target.Drowned);
+            Assert.IsTrue(target.IsAlive);
+            Assert.Greater(target.transform.position.y, 0.3f, "re-formed on the quay");
+        }
+
         [Test]
         public void Hud_UsesTheFellFonts()
         {

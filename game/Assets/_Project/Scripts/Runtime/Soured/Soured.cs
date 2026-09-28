@@ -44,6 +44,9 @@ namespace MyGame
         [Tooltip("Its belt lantern, knocked off where it falls (optional)")]
         public DroppedLantern droppedLantern;
 
+        [Header("Water: knocked in, it drowns (a kill, like any other)")]
+        public float waterLevel = -0.35f;
+
         [Header("Perfect-blocked")]
         public float stunDuration = 1.8f;
         public float riposteMultiplier = 2f; // hits on a stunned Soured
@@ -55,6 +58,7 @@ namespace MyGame
         public float HealthFraction => Mathf.Clamp01(Health / maxHealth);
         public float StateTime => stateTime; // seconds in the current state
         public SouredAttack CurrentAttack => current;
+        public bool Drowned { get; private set; }
 
         protected ClipPlayer clips;
         SouredAttack current;
@@ -218,8 +222,16 @@ namespace MyGame
             }
 
             knockback *= Mathf.Exp(-8f * dt);
-            verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
+            if (Drowned)
+            {
+                planar = knockback = Vector3.zero;
+                verticalVelocity = -0.6f; // sinks slowly while it dissolves, instead of falling forever
+            }
+            else
+                verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
             controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
+            if (IsAlive && transform.position.y < waterLevel)
+                Drown();
             UpdateFlash();
         }
 
@@ -341,6 +353,16 @@ namespace MyGame
                     renderers[i].SetPropertyBlock(block, lanternSlot[i]);
         }
 
+        // Knocked (or fallen) into the water: a splash, and it goes under.
+        void Drown()
+        {
+            Drowned = true;
+            Vector3 surface = new Vector3(transform.position.x, waterLevel + 0.1f, transform.position.z);
+            Effects.Instance?.Splash(surface);
+            Sfx.Instance?.Splash(surface);
+            Die(new Hit());
+        }
+
         Vector3 RandomPointOnBody()
         {
             var bounds = renderers.Length > 0 ? renderers[0].bounds : new Bounds(transform.position + Vector3.up, Vector3.one);
@@ -378,6 +400,8 @@ namespace MyGame
             Health = maxHealth;
             Stagger = 0f;
             knockback = Vector3.zero;
+            verticalVelocity = 0f;
+            Drowned = false;
             dissolve = 0f;
             Enter(State.Idle);
             clips.Loop(IdleClip, 0f);

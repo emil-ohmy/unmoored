@@ -125,6 +125,21 @@ namespace MyGame
             flash.Emit(p, 1);
         }
 
+        // Something falls into the water: droplets thrown up and a pale ring on the surface.
+        public void Splash(Vector3 position)
+        {
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 34; i++)
+                sparks.Emit(new ParticleSystem.EmitParams
+                {
+                    startColor = Color.Lerp(new Color(0.55f, 0.68f, 0.82f, 0.9f), new Color(0.85f, 0.92f, 1f, 0.9f), Random.value),
+                    startSize = Random.Range(0.06f, 0.13f),
+                    startLifetime = Random.Range(0.35f, 0.7f),
+                }, 1);
+            flash.transform.position = position;
+            flash.Emit(new ParticleSystem.EmitParams { startSize = 1.8f, startLifetime = 0.5f, startColor = new Color(0.6f, 0.75f, 0.9f, 0.7f), applyShapeToPosition = false }, 1);
+        }
+
         // The moment a guard comes up: a small, quick glint on the shield.
         public void GuardGlint(Vector3 position)
         {

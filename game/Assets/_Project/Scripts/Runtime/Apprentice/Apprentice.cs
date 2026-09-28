@@ -727,6 +727,9 @@ namespace MyGame
         void WashAshore()
         {
             Health = Mathf.Max(0f, Health - waterDamage);
+            Vector3 surface = new Vector3(transform.position.x, waterLevel + 0.1f, transform.position.z);
+            Effects.Instance?.Splash(surface);
+            Sfx.Instance?.Splash(surface);
             Teleport(lastSafeGround);
             Sfx.Instance?.Hurt(transform.position + Vector3.up);
             Announce("washed ashore");

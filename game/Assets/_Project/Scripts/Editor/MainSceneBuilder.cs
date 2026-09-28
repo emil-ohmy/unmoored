@@ -141,6 +141,7 @@ public static class MainSceneBuilder
         sfx.charmFit = Clips("charm_fit");
         sfx.uiTick = Clips("ui_tick");
         sfx.heal = Clips("heal");
+        sfx.splash = Clips("splash");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
