@@ -205,6 +205,27 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator Laden_SeesAhead_ButCanBeSneakedUpOnFromBehind()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            PlaceApprentice(target.transform.position - target.transform.forward * 2.2f, target.transform.position);
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(Soured.State.Idle, target.CurrentState, "2.2 m behind it, it shouldn't notice");
+            float before = target.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.35f);
+            Assert.Less(target.Health, before, "a sneak attack from behind should land");
+            Assert.AreNotEqual(Soured.State.Idle, target.CurrentState, "being hit should wake it");
+
+            var other = laden[1];
+            other.gameObject.SetActive(true);
+            yield return null;
+            PlaceApprentice(other.transform.position + other.transform.forward * 5f, other.transform.position);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(Soured.State.Chase, other.CurrentState, "5 m in front of it, it should see the Apprentice");
+        }
+
+        [UnityTest]
         public IEnumerator Dash_IsInvulnerableDuringItsIFrames_ButNotAfter()
         {
             input.Move = Vector2.left;
@@ -250,6 +271,7 @@ namespace MyGame.Tests
         {
             var target = Isolate(laden[0], frozen: true);
             target.aggroRadius = 0f; // it hasn't noticed the Apprentice
+            target.noticeCloseRadius = 0f;
             PlaceApprentice(target.transform.position + target.transform.forward * 1.6f, target.transform.position);
             yield return new WaitForSeconds(0.3f);
             float before = target.Health;
@@ -361,6 +383,27 @@ namespace MyGame.Tests
             Assert.Greater(apprentice.transform.position.y, 0.3f, "should be back on solid ground");
             Assert.Less(apprentice.Health, apprentice.maxHealth, "washing ashore should hurt");
             Assert.IsTrue(apprentice.IsAlive);
+        }
+
+        [UnityTest]
+        public IEnumerator FallingOffTheBoardwalk_WashesAshoreNearby_NotAtTheStart()
+        {
+            // Walk halfway up the boardwalk, then step off its side.
+            for (float t = 0; t < 4f && apprentice.transform.position.z < -15f; t += Time.deltaTime)
+            {
+                input.Move = Vector2.up;
+                yield return null;
+            }
+            Vector3 edge = apprentice.transform.position;
+            for (float t = 0; t < 1.5f && apprentice.transform.position.y > 0f; t += Time.deltaTime)
+            {
+                input.Move = Vector2.right;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(0.8f);
+            Assert.Less(Vector3.Distance(apprentice.transform.position, edge), 4f,
+                $"should wash up near where it fell in, not back at the start (fell near {edge}, washed up at {apprentice.transform.position})");
         }
 
         [UnityTest]

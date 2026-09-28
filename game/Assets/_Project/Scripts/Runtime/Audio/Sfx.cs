@@ -13,6 +13,7 @@ namespace MyGame
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
         public string LastPlayed { get; private set; } = ""; // for tests: batch mode may have no audio device
+        public static event System.Action<AudioClip, AudioSource> Played; // lets a recording log every sound
 
         const int Voices = 12;
         AudioSource[] voices;
@@ -64,6 +65,7 @@ namespace MyGame
             voice.pitch = 1f + Random.Range(-pitchJitter, pitchJitter);
             voice.volume = volume * (1f + Random.Range(-volumeJitter, volumeJitter));
             voice.Play();
+            Played?.Invoke(voice.clip, voice);
         }
     }
 }

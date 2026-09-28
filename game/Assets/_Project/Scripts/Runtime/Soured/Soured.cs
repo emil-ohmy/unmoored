@@ -23,7 +23,9 @@ namespace MyGame
         public float staggerDuration = 1.0f;
 
         [Header("Behaviour")]
-        public float aggroRadius = 9f;
+        public float aggroRadius = 9f;           // how far it sees, within its field of view
+        [Range(0f, 180f)] public float viewHalfAngle = 70f;
+        public float noticeCloseRadius = 1.5f;   // how close someone must get to be sensed from behind
         public float eyeHeight = 1.3f; // where the alert flare shows
         public float barHeight = 2.3f; // where the lock-on health bar floats
         public float attackRange = 2.2f;
@@ -46,6 +48,7 @@ namespace MyGame
         public float Stagger { get; private set; }
         public bool IsAlive => CurrentState != State.Scattered;
         public float HealthFraction => Mathf.Clamp01(Health / maxHealth);
+        public float StateTime => stateTime; // seconds in the current state
 
         protected ClipPlayer clips;
         protected virtual string IdleClip => "Idle";
@@ -100,7 +103,7 @@ namespace MyGame
             {
                 case State.Idle:
                     LoopUnlessBusy(IdleClip);
-                    if (targetAlive && toTarget.magnitude < aggroRadius)
+                    if (targetAlive && CanSense(toTarget))
                         Notice();
                     break;
 
@@ -210,6 +213,12 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // It sees ahead (within its field of view, out to aggroRadius) but only senses someone right behind it:
+        // sneaking up from behind is how you get a free hit.
+        bool CanSense(Vector3 toTarget) =>
+            toTarget.magnitude < noticeCloseRadius
+            || (toTarget.magnitude < aggroRadius && Vector3.Angle(transform.forward, toTarget) <= viewHalfAngle);
 
         // The moment it becomes aware of the Apprentice: its eyes flare, then it gives chase.
         void Notice()

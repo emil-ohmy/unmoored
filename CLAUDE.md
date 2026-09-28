@@ -18,6 +18,8 @@ tools/
   blender/kit.py                  modelling, rigging (poses in armature space), FBX export helpers
   build-audio.sh [names]          art/audio/<name>.py -> WAV into game/Assets/_Project/Audio/ (Blender's Python)
   audio/synth.py                  sound synthesis kit (noise, sweeps, filters, envelopes, loops)
+  record-demo.sh [project]        scripted demo session -> builds/recordings/demo.mp4 (frames + offline audio mix)
+  audio/mix_recording.py          rebuilds a recording's audio from its sound-event log
   unity.sh                        open | import | build-mac | build-webgl | test
 game/Assets/_Project/
   Art/Models/                     generated FBX (never edit; rebuild from art/models)

@@ -568,8 +568,9 @@ namespace MyGame
                 return;
             safeGroundTimer = 0.25f;
             Vector3 p = transform.position + Vector3.up * 0.5f;
+            // 0.5 m keeps the point clear of the brink while still fitting the 1.7 m boardwalk.
             foreach (var offset in new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right })
-                if (!Physics.Raycast(p + offset * 0.8f, Vector3.down, 1.5f))
+                if (!Physics.Raycast(p + offset * 0.5f, Vector3.down, 1.5f))
                     return;
             lastSafeGround = transform.position;
         }
