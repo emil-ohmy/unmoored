@@ -707,6 +707,62 @@ namespace MyGame.Tests
             Assert.IsTrue(light.enabled && light.transform.IsChildOf(target.transform));
         }
 
+        [UnityTest]
+        public IEnumerator DefeatingASoured_EarnsItsFare()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            target.TakeHit(new Hit { Damage = 1000f, From = target.transform.position - target.transform.forward * 2f });
+            Assert.AreEqual(target.obols, apprentice.Obols, "its Obols should be the Apprentice's");
+            yield return new WaitForSeconds(2f);
+            yield return null;
+            Assert.AreEqual(target.obols, Object.FindAnyObjectByType<Hud>().ObolsShown, "the counter should have ticked up");
+        }
+
+        [UnityTest]
+        public IEnumerator Dying_LeavesAShadeWithTheObols_TouchingItReturnsThem()
+        {
+            Vector3 fell = new Vector3(2.4f, 0.55f, -13f); // out on the boardwalk, away from the Mooring post
+            apprentice.Teleport(fell);
+            apprentice.GainObols(120);
+            yield return new WaitForSeconds(0.2f);
+            apprentice.TakeHit(1000f, Vector3.zero);
+            Assert.AreEqual(0, apprentice.Obols, "dying drops every Obol");
+            Assert.IsNotNull(Shade.Current, "a Shade should stay where the Apprentice fell");
+            Assert.AreEqual(120, Shade.Current.Obols);
+            Assert.Less(Vector2.Distance(new Vector2(Shade.Current.transform.position.x, Shade.Current.transform.position.z), new Vector2(fell.x, fell.z)), 0.5f);
+
+            yield return new WaitForSeconds(apprentice.respawnDelay + 0.5f);
+            Assert.IsTrue(apprentice.IsAlive);
+            Assert.IsNotNull(Shade.Current, "the Shade waits while the Apprentice is elsewhere");
+            var shade = Shade.Current;
+            apprentice.Teleport(fell);
+            yield return null;
+            yield return null;
+            Assert.AreEqual(120, apprentice.Obols, "touching the Shade returns its Obols");
+            Assert.IsTrue(shade.Claimed);
+            Assert.IsNull(Shade.Current);
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(shade == null, "the Shade should fade away once claimed");
+        }
+
+        [UnityTest]
+        public IEnumerator DyingAgain_BeforeReachingTheShade_LosesItsObols()
+        {
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -13f));
+            apprentice.GainObols(120);
+            yield return new WaitForSeconds(0.2f);
+            apprentice.TakeHit(1000f, Vector3.zero);
+            var first = Shade.Current;
+            yield return new WaitForSeconds(apprentice.respawnDelay + 0.5f);
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -18f)); // somewhere else on the boardwalk
+            yield return new WaitForSeconds(0.2f);
+            apprentice.TakeHit(1000f, Vector3.zero);
+            Assert.IsNull(Shade.Current, "carrying nothing, the second death leaves no Shade");
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(first == null, "the first Shade, and its Obols, are gone");
+            Assert.AreEqual(0, apprentice.Obols);
+        }
+
         [Test]
         public void Hud_UsesTheFellFonts()
         {

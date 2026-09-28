@@ -39,6 +39,7 @@ namespace MyGame
         public float deathDuration = 0.8f;
         public float dissolveDuration = 0.9f;
         public int fareMotes = 36;
+        public int obols = 40; // its fare, the Apprentice's when it falls
 
         [Tooltip("Its belt lantern, knocked off where it falls (optional)")]
         public DroppedLantern droppedLantern;
@@ -319,6 +320,8 @@ namespace MyGame
             HitStop.Trigger(0.2f);
             CameraRig.Instance?.Shake(0.3f);
             clips.PlayOnce("Death", deathDuration);
+            if (target != null)
+                target.GainObols(obols);
             if (droppedLantern != null && droppedLantern.carried != null)
             {
                 Vector3 push = hit.Knockback * 0.25f + Random.insideUnitSphere * 0.6f;

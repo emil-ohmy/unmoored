@@ -228,12 +228,29 @@ namespace MyGame.Tests
                 yield return Frames(20);
                 Shot("ui-8-lock");
 
+                apprentice.GainObols(160);
+                yield return Frames(12);
+                Shot("ui-8b-obols");
+                Vector3 fell = apprentice.transform.position;
                 apprentice.TakeHit(1000f, apprentice.transform.position + Vector3.forward);
                 foreach (var (frames, name) in new[] { (15, "a"), (21, "b"), (24, "c"), (27, "d"), (12, "e"), (15, "f"), (24, "g") })
                 {
                     yield return Frames(frames);
                     Shot($"ui-9-death-{name}");
                 }
+                laden.gameObject.SetActive(false); // keep the Shade shots calm
+                apprentice.Teleport(fell + Vector3.back * 2.5f);
+                yield return Frames(20);
+                Shot("ui-10-shade");
+                for (int i = 0; i < 40; i++)
+                {
+                    input.Move = i < 14 ? Vector2.up : Vector2.zero;
+                    yield return null;
+                    if (i == 22)
+                        Shot("ui-11-claim");
+                }
+                yield return Frames(20);
+                Shot("ui-12-claimed");
             }
             finally
             {

@@ -23,6 +23,7 @@ namespace MyGame
         public DeathScreen Death { get; private set; }
         public float PromptAlpha => promptGroup != null ? promptGroup.alpha : 0f;
         public bool GamepadGlyphs => usingGamepad;
+        public int ObolsShown => Mathf.RoundToInt(obolsShown);
 
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
         static readonly Color FlameOuter = UiKit.Hex(0xff9a45), FlameCore = UiKit.Hex(0xffe3a8), FlameSpent = UiKit.Hex(0x2a2629, 0.9f);
@@ -30,7 +31,9 @@ namespace MyGame
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing;
-        Text glyph;
+        Text glyph, obolText, obolGain;
+        float obolsShown, gainAt = -100f;
+        int gainAmount;
         (RectTransform flame, Image outer, Image core, Image glow)[] charges;
         float hpTrailValue = 1f, hpLast = 1f, hpTrailHold, lockTrailValue, lockLast, lockTrailHold, restFlashAt = -100f;
         Soured barTarget;
@@ -56,6 +59,7 @@ namespace MyGame
             staminaFill = Bar(hudRoot, "Stamina", new Vector2(56, -70), 300, 8, StaminaMoss, out _);
             BuildCharges(hudRoot);
             BuildPrompt(hudRoot);
+            BuildObols(hudRoot);
 
             restFlash = UiKit.Image(canvasRect, "Rest Flash", UiKit.SoftDot, UiKit.Ember.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             UiKit.Stretch(restFlash.rectTransform, -600f);
@@ -74,6 +78,8 @@ namespace MyGame
             usingGamepad = Gamepad.current != null;
             apprentice.Died += OnDied;
             apprentice.Woke += OnWoke;
+            apprentice.ObolsChanged += OnObolsChanged;
+            obolsShown = apprentice.Obols;
             MooringPost.Rested += OnRested;
             AreaEntrance.Entered += OnAreaEntered;
         }
@@ -84,9 +90,18 @@ namespace MyGame
             {
                 apprentice.Died -= OnDied;
                 apprentice.Woke -= OnWoke;
+                apprentice.ObolsChanged -= OnObolsChanged;
             }
             MooringPost.Rested -= OnRested;
             AreaEntrance.Entered -= OnAreaEntered;
+        }
+
+        void OnObolsChanged(int delta)
+        {
+            if (delta <= 0)
+                return;
+            gainAmount = UiKit.Now - gainAt < 1.5f ? gainAmount + delta : delta; // gains close together add up
+            gainAt = UiKit.Now;
         }
 
         void OnDied()
@@ -122,6 +137,7 @@ namespace MyGame
             staminaFill.anchorMax = new Vector2(apprentice.Stamina / apprentice.maxStamina, 1f);
             UpdateCharges(now);
             UpdatePrompt();
+            UpdateObols();
             UpdateLockBar();
 
             Death.Tick();
@@ -172,6 +188,31 @@ namespace MyGame
                 if (lit)
                     c.glow.color = FlameOuter.WithAlpha(0.26f + flicker);
             }
+        }
+
+        // Bottom right: the count of Obols carried, ticking towards the true value, and "+40" rising when some come in.
+        void BuildObols(Transform root)
+        {
+            var corner = new Vector2(1f, 0f);
+            UiKit.Image(root, "Obol", UiKit.Coin, UiKit.Hex(0xc9bfa6), corner, new Vector2(-56, 54), new Vector2(30, 30));
+            obolText = UiKit.Text(root, "Obols", textFont, 36, UiKit.Bone, TextAnchor.MiddleRight, corner, new Vector2(-84, 54));
+            obolText.rectTransform.pivot = new Vector2(1f, 0.5f);
+            obolText.rectTransform.sizeDelta = new Vector2(300, 50);
+            obolGain = UiKit.Text(root, "Obol Gain", textFont, 28, UiKit.Ember, TextAnchor.MiddleRight, corner, new Vector2(-84, 96));
+            obolGain.rectTransform.pivot = new Vector2(1f, 0.5f);
+            obolGain.rectTransform.sizeDelta = new Vector2(300, 40);
+        }
+
+        void UpdateObols()
+        {
+            float target = apprentice.Obols;
+            float rate = Mathf.Max(Mathf.Abs(target - obolsShown) * 2.5f, 40f);
+            obolsShown = Mathf.MoveTowards(obolsShown, target, rate * UiKit.DeltaTime);
+            obolText.text = Mathf.RoundToInt(obolsShown).ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+            float age = UiKit.Now - gainAt;
+            obolGain.text = "+" + gainAmount;
+            obolGain.color = UiKit.Ember.WithAlpha(UiKit.Smooth(0f, 0.1f, age) * (1f - UiKit.Smooth(1.2f, 2f, age)));
+            obolGain.rectTransform.anchoredPosition = new Vector2(-84, 90 + 10f * Mathf.Clamp01(age / 2f));
         }
 
         void BuildPrompt(Transform root)

@@ -119,6 +119,17 @@ namespace MyGame
             return 1f - Smooth(0.02f, 0.04f, Mathf.Abs(d));
         });
 
+        // An Obol: a worn disc with a raised rim and a stamped centre (shading in the grey channel, for tinting).
+        public static Sprite Coin => Cached("Coin", 64, 64,
+            (u, v) => 1f - Smooth(0.44f, 0.47f, Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f))),
+            (u, v) =>
+            {
+                float d = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f));
+                float rim = Smooth(0.34f, 0.37f, d);
+                float stamp = 1f - Smooth(0.12f, 0.15f, d);
+                return 0.55f + 0.35f * rim + 0.25f * stamp + 0.15f * (v - 0.5f);
+            });
+
         // Lighter at the top than the bottom: gives a bar's fill a little body.
         public static Sprite Sheen => Cached("Sheen", 4, 32, (u, v) => 1f, (u, v) => Mathf.Lerp(0.62f, 1f, Mathf.Pow(v, 0.7f)));
 

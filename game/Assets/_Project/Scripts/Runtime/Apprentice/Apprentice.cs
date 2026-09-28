@@ -101,6 +101,8 @@ namespace MyGame
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
+        public int Obols { get; private set; }
+        public event System.Action<int> ObolsChanged; // by how much (+ gained, - spent or dropped)
         public bool Invulnerable =>
             CurrentState == State.Dead
             || Time.time < invulnerableUntil
@@ -608,6 +610,13 @@ namespace MyGame
             Enter(State.Dead);
             clips.PlayOnce("Death", 1.0f);
             Sfx.Instance?.DeathToll(transform.position);
+            // Every Obol stays behind with the Shade (and an older Shade, never reached, is lost).
+            int carried = Obols;
+            Obols = 0;
+            var ghosts = GetComponent<DashGhosts>();
+            Shade.Leave(this, carried, ghosts != null ? ghosts.ghostMaterial : null);
+            if (carried > 0)
+                ObolsChanged?.Invoke(-carried);
             Announce("the Apprentice fell");
             Died?.Invoke();
         }
@@ -620,6 +629,23 @@ namespace MyGame
             WorldState.Instance?.ReformAllSoured();
             Announce("woke at the Mooring post");
             Woke?.Invoke();
+        }
+
+        public void GainObols(int amount)
+        {
+            if (amount <= 0)
+                return;
+            Obols += amount;
+            ObolsChanged?.Invoke(amount);
+        }
+
+        public bool SpendObols(int amount)
+        {
+            if (amount > Obols)
+                return false;
+            Obols -= amount;
+            ObolsChanged?.Invoke(-amount);
+            return true;
         }
 
         public void RestoreFully()
