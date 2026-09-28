@@ -136,7 +136,9 @@ public static class MainSceneBuilder
         controller.radius = 0.32f;
         controller.stepOffset = 0.3f;
         controller.minMoveDistance = 0f;
-        return go.AddComponent<Apprentice>();
+        var apprentice = go.AddComponent<Apprentice>();
+        go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
+        return apprentice;
     }
 
     static void Laden(Vector3 position, float yaw)
@@ -280,16 +282,18 @@ public static class MainSceneBuilder
         return mesh;
     }
 
-    static Material WaterMaterial()
+    static Material WaterMaterial() => GeneratedMaterial("M_Water", "MyGame/Water");
+
+    static Material GeneratedMaterial(string name, string shader)
     {
-        string path = Generated + "/M_Water.mat";
+        string path = $"{Generated}/{name}.mat";
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (m == null)
         {
-            m = new Material(Shader.Find("MyGame/Water"));
+            m = new Material(Shader.Find(shader));
             AssetDatabase.CreateAsset(m, path);
         }
-        m.shader = Shader.Find("MyGame/Water");
+        m.shader = Shader.Find(shader); // re-bind by name in case the shader asset's GUID changed
         return m;
     }
 

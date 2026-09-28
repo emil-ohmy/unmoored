@@ -1,7 +1,7 @@
 """The Ferryman's Apprentice: small, cloaked, bone-white mask, oversized oar (blade up). Rigged and animated.
 
 Clip timings match the Middle combat tuning (the controller rescales them if tuning changes):
-light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; roll 0.38 s; heal 0.7 s.
+light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; dash 0.38 s; heal 0.7 s.
 """
 from mathutils import Vector
 
@@ -13,7 +13,7 @@ HAND = OAR @ Vector((0, 0, 0.6))
 
 BONES = {
     "Root": ((0, 0, 0), (0, 0, 0.2), None),
-    "Pivot": ((0, 0, 0.45), (0, 0, 0.55), "Root"),  # centre of mass, so the roll tumbles around it
+    "Pivot": ((0, 0, 0.45), (0, 0, 0.55), "Root"),  # centre of mass: whole-body leans (dash, death) pivot here
     "Body": ((0, 0, 0.1), (0, 0, 0.62), "Pivot"),
     "Head": ((0, 0, 0.62), (0, 0, 1.05), "Body"),
     "Oar": (tuple(HAND), tuple(OAR @ Vector((0, 0, 0.9))), "Body"),  # pivots at the hand
@@ -21,7 +21,7 @@ BONES = {
 
 REST = {}
 # Oar: (pitch, 0, yaw). +pitch tips the upright oar forward, +yaw swings it to the Apprentice's right.
-# From the game camera a forward-tipped oar foreshortens and reads as "at the feet", so idle/run carry it tipped back.
+# From the game camera a forward-tipped oar foreshortens and reads as "at the feet", so idle/run/dash carry it tipped back.
 LIGHT_RIGHT = {"Oar": (80, 0, 70), "Body": (4, 0, 20)}
 LIGHT_LEFT = {"Oar": (80, 0, -85), "Body": (6, 0, -25)}
 ACTIONS = {
@@ -37,12 +37,12 @@ ACTIONS = {
         (13, {"Body": (12, 0, 0), "Head": (-6, 0, 0), "Oar": (-15, 0, -3), "Root": ((0, 0, 0), (0, 0, 0.06))}),
         (17, {"Body": (12, 0, 5), "Head": (-6, 0, 0), "Oar": (-18, 0, 0)}),
     ]),
-    "Roll": ("LINEAR", [
-        (1, {}),
-        (4, {"Pivot": (90, 0, 0), "Head": (20, 0, 0)}),
-        (7, {"Pivot": (180, 0, 0), "Head": (20, 0, 0)}),
-        (10, {"Pivot": (270, 0, 0), "Head": (20, 0, 0)}),
-        (12, {"Pivot": (359, 0, 0)}),
+    # Dash: a low forward lunge with the oar trailing behind (the i-frames are shown in game as ghost images).
+    "Dash": ("BEZIER", [
+        (1, {"Pivot": (12, 0, 0), "Head": (-8, 0, 0), "Oar": (-20, 0, 0), "Root": ((0, 0, 0), (0, 0, -0.05))}),
+        (3, {"Pivot": (42, 0, 0), "Head": (-30, 0, 0), "Body": (6, 0, 0), "Oar": (-75, 0, -10), "Root": ((0, 0, 0), (0, 0, -0.1))}),
+        (8, {"Pivot": (40, 0, 0), "Head": (-28, 0, 0), "Body": (6, 0, 0), "Oar": (-78, 0, -8), "Root": ((0, 0, 0), (0, 0, -0.1))}),
+        (12, {"Pivot": (10, 0, 0), "Head": (-6, 0, 0), "Oar": (-15, 0, 0), "Root": ((0, 0, 0), (0, 0, -0.02))}),
     ]),
     "Light1": ("BEZIER", [(1, REST), (4, LIGHT_RIGHT), (7, LIGHT_LEFT), (15, REST)]),
     "Light2": ("BEZIER", [(1, REST), (4, LIGHT_LEFT), (7, LIGHT_RIGHT), (15, REST)]),

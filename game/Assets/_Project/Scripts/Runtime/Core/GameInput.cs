@@ -7,7 +7,7 @@ namespace MyGame
     public interface IApprenticeInput
     {
         Vector2 Move { get; }
-        bool RollPressed { get; }
+        bool DashPressed { get; }
         bool LightPressed { get; }
         bool HeavyPressed { get; }
         bool HealPressed { get; }
@@ -17,7 +17,7 @@ namespace MyGame
     // Keyboard/mouse and gamepad bindings (gamepad-first).
     public sealed class GameInput : IApprenticeInput, System.IDisposable
     {
-        readonly InputAction move, roll, lightAttack, heavyAttack, heal, interact;
+        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact;
 
         public GameInput()
         {
@@ -25,12 +25,12 @@ namespace MyGame
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s").With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow").With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
             move.AddBinding("<Gamepad>/leftStick");
-            roll = Button("Roll", "<Keyboard>/space", "<Gamepad>/buttonEast");
+            dash = Button("Dash", "<Keyboard>/space", "<Gamepad>/buttonEast");
             lightAttack = Button("Light", "<Keyboard>/j", "<Mouse>/leftButton", "<Gamepad>/buttonWest", "<Gamepad>/rightShoulder");
             heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth", "<Gamepad>/rightTrigger");
             heal = Button("Heal", "<Keyboard>/q", "<Gamepad>/leftShoulder");
             interact = Button("Interact", "<Keyboard>/e", "<Gamepad>/buttonSouth");
-            foreach (var action in new[] { move, roll, lightAttack, heavyAttack, heal, interact })
+            foreach (var action in new[] { move, dash, lightAttack, heavyAttack, heal, interact })
                 action.Enable();
         }
 
@@ -43,7 +43,7 @@ namespace MyGame
         }
 
         public Vector2 Move => Vector2.ClampMagnitude(move.ReadValue<Vector2>(), 1f);
-        public bool RollPressed => roll.WasPressedThisFrame();
+        public bool DashPressed => dash.WasPressedThisFrame();
         public bool LightPressed => lightAttack.WasPressedThisFrame();
         public bool HeavyPressed => heavyAttack.WasPressedThisFrame();
         public bool HealPressed => heal.WasPressedThisFrame();
@@ -51,7 +51,7 @@ namespace MyGame
 
         public void Dispose()
         {
-            foreach (var action in new[] { move, roll, lightAttack, heavyAttack, heal, interact })
+            foreach (var action in new[] { move, dash, lightAttack, heavyAttack, heal, interact })
                 action.Dispose();
         }
     }
@@ -60,15 +60,15 @@ namespace MyGame
     public sealed class ScriptedInput : IApprenticeInput
     {
         public Vector2 Move { get; set; }
-        bool roll, lightAttack, heavyAttack, heal, interact;
+        bool dash, lightAttack, heavyAttack, heal, interact;
 
-        public void PressRoll() => roll = true;
+        public void PressDash() => dash = true;
         public void PressLight() => lightAttack = true;
         public void PressHeavy() => heavyAttack = true;
         public void PressHeal() => heal = true;
         public void PressInteract() => interact = true;
 
-        public bool RollPressed => Take(ref roll);
+        public bool DashPressed => Take(ref dash);
         public bool LightPressed => Take(ref lightAttack);
         public bool HeavyPressed => Take(ref heavyAttack);
         public bool HealPressed => Take(ref heal);

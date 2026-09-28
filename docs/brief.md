@@ -33,7 +33,7 @@ business and pay their fare to row them across.
 ## Combat
 
 - **Pace:** "Middle", between Death's Door's snappiness and Tunic's weight.
-- **Verbs:** move, dodge roll with invincibility frames (it can cancel an attack's recovery), a 2-swing light combo
+- **Verbs:** move, a dash with invincibility frames, shown as ghost images (it can cancel an attack's recovery), a 2-swing light combo
   and a heavy attack. Attacks go where the stick points.
 - **Stamina:** all actions cost stamina. Any stamina left lets you act. It regenerates after a short pause.
 - **Stagger meter:** hidden. Light hits fill it a little, heavy hits a lot, and it drains if you let up. When full,
@@ -103,8 +103,8 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Family | Couldn't let go of | Role | Weak to |
 |---|---|---|---|
 | Laden | things | Tank; its heap of belongings blocks frontal hits; huge stagger meter | Hook |
-| Clinger | a person | Fast pairs that latch on and drain stamina; roll to throw off | Stroke |
-| Keener | grief | Ranged wailer; roll through its sound rings; fragile | Vault |
+| Clinger | a person | Fast pairs that latch on and drain stamina; dash to throw off | Stroke |
+| Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
 | Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |
 | Drowned | life | Drags you under water: damage, then you wash ashore (not death) | Hook |
 

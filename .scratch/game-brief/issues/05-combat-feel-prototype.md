@@ -33,3 +33,9 @@ Prototype (primary source): branch `prototype/combat-feel` (commits a74d1de, bfc
   stamina 100, regen 45/s after 0.5 s; light 0.13/0.10/0.28 s (windup/active/recovery), cost 15, 14 dmg, reach 2.3 m;
   heavy 0.5/0.12/0.5 s, cost 30, 35 dmg, reach 2.7 m; input buffer 0.2 s; hit-stop 0.06 s light / 0.14 s heavy;
   Soured telegraph 0.7 s, recovery 0.8 s, 25 dmg vs Apprentice HP 100.
+
+## Comments
+
+- 2026-09-28: after playing the first slice the user swapped the dodge roll for a **dash** (same Middle timing and
+  i-frames: 0.38 s over 4 m, invulnerable 0.05–0.28 s). The i-frames are shown as fading ghost images. The brief
+  now says dash everywhere (including the Clinger and Keener lines).

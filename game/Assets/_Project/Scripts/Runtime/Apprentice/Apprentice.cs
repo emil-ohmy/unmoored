@@ -3,25 +3,25 @@ using UnityEngine;
 namespace MyGame
 {
     // The player character. Tuning defaults are the "Middle" pace from the combat-feel prototype (docs/brief.md).
-    // Verbs: move, i-frame roll (cancels attack recovery), 2-swing light combo, heavy; stamina; Healing charges;
+    // Verbs: move, i-frame dash (cancels attack recovery), 2-swing light combo, heavy; stamina; Healing charges;
     // Rest at Mooring posts. Falling in the water washes the Apprentice ashore with damage (no death on water).
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Rolling, Attacking, Healing, Staggered, Dead }
-        enum Act { None, Roll, Light, Heavy }
+        public enum State { Free, Dashing, Attacking, Healing, Staggered, Dead }
+        enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
         public float moveSpeed = 6f;
         public float turnSpeed = 1440f;
 
-        [Header("Roll")]
-        public float rollDuration = 0.38f;
-        public float rollDistance = 4f;
+        [Header("Dash")]
+        public float dashDuration = 0.38f;
+        public float dashDistance = 4f;
         public float iFrameStart = 0.05f;
         public float iFrameEnd = 0.28f;
-        public float rollRecovery = 0.12f;
-        public float rollStaminaCost = 20f;
+        public float dashRecovery = 0.12f;
+        public float dashStaminaCost = 20f;
 
         [Header("Stamina")]
         public float maxStamina = 100f;
@@ -86,7 +86,7 @@ namespace MyGame
         public bool Invulnerable =>
             CurrentState == State.Dead
             || Time.time < invulnerableUntil
-            || (CurrentState == State.Rolling && stateTime >= iFrameStart && stateTime <= iFrameEnd);
+            || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd);
 
         CharacterController controller;
         ClipPlayer clips;
@@ -100,7 +100,7 @@ namespace MyGame
         float invulnerableUntil;
         float verticalVelocity;
         Vector3 knockback;
-        Vector3 rollDirection;
+        Vector3 dashDirection;
         bool isHeavy;
         int comboStep;
         bool hitLanded;
@@ -155,10 +155,10 @@ namespace MyGame
                     TryConsumeBuffer();
                     break;
 
-                case State.Rolling:
-                    if (stateTime < rollDuration)
-                        planar = rollDirection * (rollDistance / rollDuration);
-                    if (stateTime >= rollDuration + rollRecovery)
+                case State.Dashing:
+                    if (stateTime < dashDuration)
+                        planar = dashDirection * (dashDistance / dashDuration);
+                    if (stateTime >= dashDuration + dashRecovery)
                         ToFreeAndConsume();
                     break;
 
@@ -199,7 +199,7 @@ namespace MyGame
 
         void ReadInput()
         {
-            if (Input.RollPressed) Buffer(Act.Roll);
+            if (Input.DashPressed) Buffer(Act.Dash);
             if (Input.LightPressed) Buffer(Act.Light);
             if (Input.HeavyPressed) Buffer(Act.Heavy);
         }
@@ -229,8 +229,8 @@ namespace MyGame
                 bool comboAvailable = !isHeavy && comboStep < lightComboLength - 1;
                 if (HasBuffered(Act.Light) && comboAvailable)
                     StartAttack(false, comboStep + 1);
-                else if (HasBuffered(Act.Roll))
-                    TryConsumeBuffer(); // a roll may cancel recovery
+                else if (HasBuffered(Act.Dash))
+                    TryConsumeBuffer(); // a dash may cancel recovery
             }
             else if (stateTime >= windup + active + recovery)
                 ToFreeAndConsume();
@@ -327,18 +327,18 @@ namespace MyGame
             buffered = Act.None;
             switch (act)
             {
-                case Act.Roll:
-                    if (!CanSpend(rollStaminaCost))
+                case Act.Dash:
+                    if (!CanSpend(dashStaminaCost))
                     {
                         Announce("no stamina");
                         return;
                     }
-                    Spend(rollStaminaCost);
+                    Spend(dashStaminaCost);
                     Vector3 move = MoveDirection();
-                    rollDirection = move.sqrMagnitude > 0.001f ? move.normalized : transform.forward;
-                    transform.rotation = Quaternion.LookRotation(rollDirection);
-                    Enter(State.Rolling);
-                    clips.PlayOnce("Roll", rollDuration);
+                    dashDirection = move.sqrMagnitude > 0.001f ? move.normalized : transform.forward;
+                    transform.rotation = Quaternion.LookRotation(dashDirection);
+                    Enter(State.Dashing);
+                    clips.PlayOnce("Dash", dashDuration);
                     break;
                 case Act.Light:
                     StartAttack(false, 0);
@@ -360,7 +360,7 @@ namespace MyGame
 
         void RegenerateStamina(float dt)
         {
-            bool busy = CurrentState == State.Rolling || CurrentState == State.Attacking;
+            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking;
             if (!busy && Time.time - lastStaminaUse >= staminaRegenDelay)
                 Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * dt);
         }
@@ -383,7 +383,7 @@ namespace MyGame
         {
             if (Invulnerable)
             {
-                if (CurrentState == State.Rolling)
+                if (CurrentState == State.Dashing)
                     Announce("dodged");
                 return false;
             }

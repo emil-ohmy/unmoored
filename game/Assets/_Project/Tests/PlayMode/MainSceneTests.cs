@@ -84,6 +84,24 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator Dash_IsInvulnerableDuringItsIFrames_ButNotAfter()
+        {
+            input.Move = Vector2.left;
+            input.PressDash();
+            yield return new WaitForSeconds((apprentice.iFrameStart + apprentice.iFrameEnd) / 2f);
+            Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
+            Assert.IsFalse(apprentice.TakeHit(20f, Vector3.zero), "a hit mid-dash should pass through");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
+            Assert.IsTrue(Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None).Any(r => r.name == "Dash Ghost" && r.gameObject.activeInHierarchy),
+                "the i-frames should leave ghost images");
+
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(apprentice.dashDuration + apprentice.dashRecovery);
+            Assert.IsTrue(apprentice.TakeHit(20f, Vector3.zero), "after the dash a hit should land");
+            Assert.Less(apprentice.Health, apprentice.maxHealth);
+        }
+
+        [UnityTest]
         public IEnumerator Laden_BlocksFromTheFront_ButNotFromBehind()
         {
             var target = Isolate(laden[0], frozen: true);

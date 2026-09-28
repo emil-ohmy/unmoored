@@ -15,7 +15,7 @@ namespace MyGame.Tests
     public class PlayCaptureTests
     {
         [UnityTest]
-        public IEnumerator Capture_ApproachWindupRollSwing()
+        public IEnumerator Capture_ApproachWindupDashSwing()
         {
             string outDir = Environment.GetEnvironmentVariable("SHOTS");
             if (string.IsNullOrEmpty(outDir))
@@ -50,12 +50,12 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(target.telegraphDuration * 0.8f);
             Capture(outDir, "play-3-laden-windup");
 
-            // Roll sideways out of the slam.
+            // Dash sideways out of the slam.
             Vector3 side = Vector3.Cross(Vector3.up, target.transform.position - apprentice.transform.position).normalized;
             input.Move = new Vector2(side.x, side.z);
-            input.PressRoll();
+            input.PressDash();
             yield return new WaitForSeconds(0.15f);
-            Capture(outDir, "play-4-roll");
+            Capture(outDir, "play-4-dash");
             input.Move = Vector2.zero;
             yield return new WaitForSeconds(0.35f);
             Capture(outDir, "play-5-laden-recover");
