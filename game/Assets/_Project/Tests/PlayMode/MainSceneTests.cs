@@ -763,6 +763,78 @@ namespace MyGame.Tests
             Assert.AreEqual(0, apprentice.Obols);
         }
 
+        [UnityTest]
+        public IEnumerator Merchant_SellsTheCharm_ForObols_WhileTheApprenticeStandsStill()
+        {
+            var merchant = Object.FindAnyObjectByType<Merchant>();
+            Assert.IsNotNull(merchant, "the merchant soul should wait on the landing");
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Vector3 towardsPost = post.RespawnPoint - merchant.transform.position;
+            towardsPost.y = 0f;
+            apprentice.Teleport(merchant.transform.position + towardsPost.normalized * 1.1f); // on the landing, in front of it
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(merchant, apprentice.NearbyMerchant);
+            Assert.AreEqual("Trade", hud.PromptText);
+
+            input.PressInteract();
+            yield return null;
+            var shop = apprentice.OpenMenu as ShopMenu;
+            Assert.IsNotNull(shop, "Interact should open the merchant's wares");
+            Assert.AreEqual("Eel Skin", shop.Rows[0].Label);
+            Vector3 standing = apprentice.transform.position;
+            input.Move = Vector2.right;
+            input.PressInteract();
+            yield return new WaitForSeconds(0.3f);
+            input.Move = Vector2.zero;
+            Assert.Less(Vector3.Distance(standing, apprentice.transform.position), 0.05f, "browsing, the Apprentice stands still");
+            Assert.IsFalse(apprentice.Equipment.Owns(Charm.EelSkin), "no Obols, no sale");
+            Assert.AreEqual("Not enough Obols.", shop.Notice);
+
+            apprentice.GainObols(150);
+            input.PressInteract();
+            yield return null;
+            Assert.IsTrue(apprentice.Equipment.Owns(Charm.EelSkin));
+            Assert.AreEqual(150 - Charm.EelSkin.Price, apprentice.Obols);
+            Assert.IsFalse(apprentice.Equipment.IsFitted(Charm.EelSkin), "bought, not yet fitted");
+            yield return null;
+            Assert.IsTrue(hud.Menu.Visible);
+
+            float stamina = apprentice.Stamina;
+            input.PressDash();
+            yield return null;
+            Assert.IsNull(apprentice.OpenMenu, "Dash leaves the menu");
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState, "leaving shouldn't also dash");
+            Assert.AreEqual(stamina, apprentice.Stamina);
+        }
+
+        [UnityTest]
+        public IEnumerator EelSkin_FittedAtAPost_HalvesTheDashCost()
+        {
+            Assert.AreEqual(apprentice.dashStaminaCost, apprentice.DashCost);
+            apprentice.Equipment.Own(Charm.EelSkin);
+            apprentice.Teleport(post.RespawnPoint);
+            yield return new WaitForSeconds(0.2f);
+            input.PressInteract();
+            yield return null;
+            Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "Resting with Equipment to fit should open the post's menu");
+            input.PressInteract();
+            yield return null;
+            Assert.IsTrue(apprentice.Equipment.IsFitted(Charm.EelSkin));
+            input.PressDash();
+            yield return null;
+            Assert.IsNull(apprentice.OpenMenu, "Dash stands up");
+            Assert.AreEqual(apprentice.dashStaminaCost * 0.5f, apprentice.DashCost);
+
+            yield return new WaitForSeconds(0.3f);
+            float before = apprentice.Stamina;
+            input.Move = Vector2.up;
+            input.PressDash();
+            yield return new WaitForSeconds(0.1f);
+            input.Move = Vector2.zero;
+            Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
+            Assert.AreEqual(before - apprentice.dashStaminaCost * 0.5f, apprentice.Stamina, 0.01f, "the dash should cost half");
+        }
+
         [Test]
         public void Hud_UsesTheFellFonts()
         {

@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -52,6 +52,16 @@ namespace MyGame
         public void DeathToll(Vector3 at) => Play(deathToll, at, 1f, "death_toll");
         public void OarHit(Vector3 at, bool heavy) => Play(oarHit, at, heavy ? 1f : 0.8f, "oar_hit", heavy ? 0.82f : 1f);
         public void Hurt(Vector3 at) => Play(hurt, at, 0.9f, "apprentice_hurt");
+        public void ObolClink(Vector3 at) => Play(obolClink, at, 0.8f, "obol_clink");
+        public void CharmFit(Vector3 at) => Play(charmFit, at, 0.8f, "charm_fit");
+        public void UiTick()
+        {
+            if (listener == null)
+                listener = FindAnyObjectByType<AudioListener>();
+            Play(uiTick, listener != null ? listener.transform.position : Vector3.zero, 0.35f, "ui_tick");
+        }
+
+        AudioListener listener;
         public void LanternLit(Vector3 at) => Play(lanternLit, at, 0.8f, "lantern_lit");
 
         // A Soured's attack sounds (each attack carries its own clips). Returns the voice, so a tell can be cut short.

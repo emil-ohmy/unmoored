@@ -24,6 +24,8 @@ namespace MyGame
         public float PromptAlpha => promptGroup != null ? promptGroup.alpha : 0f;
         public bool GamepadGlyphs => usingGamepad;
         public int ObolsShown => Mathf.RoundToInt(obolsShown);
+        public MenuPanel Menu { get; private set; }
+        public string PromptText => promptLabel != null ? promptLabel.text : "";
 
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
         static readonly Color FlameOuter = UiKit.Hex(0xff9a45), FlameCore = UiKit.Hex(0xffe3a8), FlameSpent = UiKit.Hex(0x2a2629, 0.9f);
@@ -31,7 +33,7 @@ namespace MyGame
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing;
-        Text glyph, obolText, obolGain;
+        Text glyph, promptLabel, obolText, obolGain;
         float obolsShown, gainAt = -100f;
         int gainAmount;
         (RectTransform flame, Image outer, Image core, Image glow)[] charges;
@@ -73,6 +75,7 @@ namespace MyGame
                 font = titleFont, size = 68, colour = UiKit.Ember, spacing = 6f, y = 40f, glow = UiKit.Ember.WithAlpha(0.22f),
                 bandAlpha = 0.6f, fadeIn = 0.5f, hold = 1.8f, fadeOut = 1.1f, drift = 0.025f,
             });
+            Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
             usingGamepad = Gamepad.current != null;
@@ -140,6 +143,7 @@ namespace MyGame
             UpdateObols();
             UpdateLockBar();
 
+            Menu.Tick(apprentice.OpenMenu, usingGamepad);
             Death.Tick();
             hudGroup.alpha = Death.HudAlpha;
             AreaTitle.Tick();
@@ -229,6 +233,7 @@ namespace MyGame
             label.rectTransform.pivot = new Vector2(0f, 0.5f);
             label.rectTransform.sizeDelta = new Vector2(200, 50);
             label.text = "Rest";
+            promptLabel = label;
         }
 
         void UpdatePrompt()
@@ -237,7 +242,9 @@ namespace MyGame
             keyCap.enabled = !usingGamepad;
             buttonRing.enabled = usingGamepad;
             glyph.text = usingGamepad ? "A" : "E";
-            float target = apprentice.NearbyPost != null && apprentice.IsAlive ? 1f : 0f;
+            if (apprentice.NearbyPost != null || apprentice.NearbyMerchant != null)
+                promptLabel.text = apprentice.NearbyMerchant != null ? "Trade" : "Rest";
+            float target = (apprentice.NearbyPost != null || apprentice.NearbyMerchant != null) && apprentice.IsAlive ? 1f : 0f;
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, target, UiKit.DeltaTime * 5f);
         }
 

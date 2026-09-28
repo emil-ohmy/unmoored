@@ -64,6 +64,14 @@ _Avoid_: Oar head, mod, upgrade
 A piece of passive Equipment that modifies the Apprentice without changing the Oar.
 _Avoid_: Card, trinket, relic
 
+**Charm slot**:
+A place for one fitted Charm; the Apprentice starts with one and buys more. Charms are fitted only at a Mooring post.
+_Avoid_: Socket, equip slot
+
+**Merchant soul**:
+The soul who sells Equipment and consumables for Obols; waits in the Hub.
+_Avoid_: Shop, vendor, trader
+
 **Bow lantern**:
 The Apprentice's own lantern, carried at the hip and hung on the boat's bow when rowing; its cold light grows with each lit Mooring post and burns through fog on the water. Never an Ability.
 _Avoid_: Lamp, light

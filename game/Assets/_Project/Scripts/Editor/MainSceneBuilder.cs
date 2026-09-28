@@ -83,6 +83,7 @@ public static class MainSceneBuilder
             Place("Environment/jetty_walk", new Vector3(walkX, QuayTop - 0.03f, -5.0f - segment * k), 0f);
         Place("Environment/jetty_landing", new Vector3(walkX, QuayTop - 0.03f, -5.0f - segment * 4), 0f);
         MooringPostAt(new Vector3(walkX + 1.25f, QuayTop, -26.7f), 180f);
+        MerchantAt(new Vector3(walkX - 1.25f, QuayTop, -26.75f), 41f); // the landing's far corner, facing the way in
         Place("Environment/boat", new Vector3(walkX + 2.55f, -0.12f, -25.6f), 186f);
         StreetLantern(new Vector3(walkX + 0.75f, QuayTop, -11.8f), -90f, 2.2f);
         // The title card comes up as the torchlit quay swims into view, before anything there notices you.
@@ -136,6 +137,9 @@ public static class MainSceneBuilder
         sfx.lanternLit = Clips("lantern_lit");
         sfx.oarHit = Clips("oar_hit");
         sfx.hurt = Clips("apprentice_hurt");
+        sfx.obolClink = Clips("obol_clink");
+        sfx.charmFit = Clips("charm_fit");
+        sfx.uiTick = Clips("ui_tick");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -185,6 +189,7 @@ public static class MainSceneBuilder
         controller.radius = 0.32f;
         controller.stepOffset = 0.3f;
         controller.minMoveDistance = 0f;
+        go.AddComponent<Equipment>();
         var apprentice = go.AddComponent<Apprentice>();
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
@@ -238,6 +243,16 @@ public static class MainSceneBuilder
         dropped.carried = lantern;
         dropped.body = body.transform;
         laden.droppedLantern = dropped;
+    }
+
+    // The merchant soul (standing in for the Hub's), with the warm lantern on its staff: warm light is safety.
+    static void MerchantAt(Vector3 position, float yaw)
+    {
+        var go = Place("Environment/merchant_soul", position, yaw);
+        go.name = "Merchant Soul";
+        go.AddComponent<Merchant>();
+        var light = PointLight(go.transform, GlowCentre(go, "MerchantLantern_Glow"), 3.2f, 1.6f, LanternLight);
+        Flicker(light, 0.12f, 5f, 0.015f);
     }
 
     static MooringPost MooringPostAt(Vector3 position, float yaw)

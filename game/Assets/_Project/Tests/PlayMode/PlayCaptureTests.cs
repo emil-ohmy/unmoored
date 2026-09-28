@@ -202,6 +202,32 @@ namespace MyGame.Tests
                 Shot("ui-2-lantern-lit");
                 yield return Frames(40);
                 Shot("ui-3-lantern-lit-late");
+
+                // The merchant soul, its wares, and fitting the Charm at the post.
+                var merchant = UnityEngine.Object.FindAnyObjectByType<Merchant>();
+                var post = UnityEngine.Object.FindAnyObjectByType<MooringPost>();
+                Vector3 towardsPost = post.RespawnPoint - merchant.transform.position;
+                towardsPost.y = 0f;
+                apprentice.Teleport(merchant.transform.position + towardsPost.normalized * 1.1f);
+                yield return Frames(20);
+                Shot("ui-3a-trade-prompt");
+                apprentice.GainObols(150);
+                input.PressInteract();
+                yield return Frames(12);
+                Shot("ui-3b-shop");
+                input.PressInteract();
+                yield return Frames(8);
+                Shot("ui-3c-bought");
+                input.PressDash();
+                apprentice.Teleport(post.RespawnPoint);
+                yield return Frames(10);
+                input.PressInteract();
+                yield return Frames(12);
+                input.PressInteract();
+                yield return Frames(8);
+                Shot("ui-3d-post-fitted");
+                input.PressDash();
+                yield return Frames(10);
                 apprentice.TakeHit(30f, apprentice.transform.position + Vector3.forward);
                 yield return Frames(4);
                 Shot("ui-4-hurt-trail");

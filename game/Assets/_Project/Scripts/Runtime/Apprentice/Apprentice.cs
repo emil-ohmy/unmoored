@@ -96,6 +96,10 @@ namespace MyGame
         public float Stamina { get; private set; }
         public int HealingCharges { get; private set; }
         public MooringPost NearbyPost { get; private set; }
+        public Merchant NearbyMerchant { get; private set; }
+        public Equipment Equipment { get; private set; }
+        public Menu OpenMenu { get; private set; } // while open, the Apprentice stands still and input drives the menu
+        public float DashCost => dashStaminaCost * (Equipment.IsFitted(Charm.EelSkin) ? 0.5f : 1f);
         public Soured LockTarget { get; private set; }
         public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
@@ -140,6 +144,21 @@ namespace MyGame
             Stamina = maxStamina;
             HealingCharges = maxHealingCharges;
             lastSafeGround = transform.position;
+            Equipment = GetComponent<Equipment>();
+            if (Equipment == null)
+                Equipment = gameObject.AddComponent<Equipment>();
+        }
+
+        public void ShowMenu(Menu menu)
+        {
+            OpenMenu?.Close();
+            OpenMenu = menu;
+        }
+
+        void CloseMenu()
+        {
+            OpenMenu?.Close();
+            OpenMenu = null;
         }
 
         void Start()
@@ -153,13 +172,26 @@ namespace MyGame
         void Update()
         {
             float dt = Time.deltaTime;
-            ReadInput();
-            UpdateLockOn();
+            if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free))
+                CloseMenu();
+            bool inMenu = OpenMenu != null;
+            if (!inMenu)
+            {
+                ReadInput();
+                UpdateLockOn();
+            }
             stateTime += dt;
             Vector3 planar = Vector3.zero;
 
             switch (CurrentState)
             {
+                case State.Free when inMenu:
+                    clips.Loop("Idle", 0.1f);
+                    OpenMenu.Tick(Input);
+                    if (!OpenMenu.IsOpen)
+                        OpenMenu = null;
+                    break;
+
                 case State.Free:
                     Vector3 move = MoveDirection();
                     planar = move * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f);
@@ -168,9 +200,20 @@ namespace MyGame
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
                     clips.Loop(move.sqrMagnitude > 0.001f ? "Run" : "Idle", 0.1f);
                     NearbyPost = MooringPost.Nearest(transform.position);
-                    if (NearbyPost != null && Input.InteractPressed)
+                    NearbyMerchant = Merchant.Nearest(transform.position, out float toMerchant);
+                    if (NearbyPost != null && NearbyMerchant != null) // both in reach: the nearer one
                     {
-                        NearbyPost.Rest(this);
+                        if (toMerchant < Vector3.Distance(transform.position, NearbyPost.transform.position))
+                            NearbyPost = null;
+                        else
+                            NearbyMerchant = null;
+                    }
+                    if ((NearbyPost != null || NearbyMerchant != null) && Input.InteractPressed)
+                    {
+                        if (NearbyPost != null)
+                            NearbyPost.Rest(this);
+                        else
+                            ShowMenu(NearbyMerchant.Open(this));
                         break;
                     }
                     if (Input.HealPressed)
@@ -227,8 +270,11 @@ namespace MyGame
                         Respawn();
                     break;
             }
-            if (CurrentState != State.Free)
+            if (CurrentState != State.Free || inMenu)
+            {
                 NearbyPost = null;
+                NearbyMerchant = null;
+            }
 
             RegenerateStamina(dt);
             knockback *= Mathf.Exp(-10f * dt);
@@ -463,12 +509,12 @@ namespace MyGame
             switch (act)
             {
                 case Act.Dash:
-                    if (!CanSpend(dashStaminaCost))
+                    if (!CanSpend(DashCost))
                     {
                         Announce("no stamina");
                         return;
                     }
-                    Spend(dashStaminaCost);
+                    Spend(DashCost);
                     Vector3 move = MoveDirection();
                     if (move.sqrMagnitude > 0.001f)
                         dashDirection = move.normalized;
@@ -530,6 +576,7 @@ namespace MyGame
             if (CurrentState == State.Blocking && Facing(attacker != null ? attacker.transform.position : transform.position - knock))
                 return Block(damage, knock, attacker);
             Health = Mathf.Max(0f, Health - damage);
+            CloseMenu(); // a blow ends any browsing
             Sfx.Instance?.Hurt(transform.position + Vector3.up);
             knockback = knock;
             invulnerableUntil = Time.time + postHitInvulnerability;

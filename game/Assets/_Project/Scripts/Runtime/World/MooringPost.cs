@@ -76,6 +76,8 @@ namespace MyGame
             if (firstLight)
                 Sfx.Instance?.LanternLit(transform.position);
             Rested?.Invoke(this, firstLight);
+            if (apprentice.Equipment.Owned.Count > 0) // something to fit: sit, and choose
+                apprentice.ShowMenu(new PostMenu(apprentice));
         }
 
         void SetLit(bool lit)
