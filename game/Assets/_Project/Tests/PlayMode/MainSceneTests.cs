@@ -598,6 +598,186 @@ namespace MyGame.Tests
             Assert.Less(Vector3.Distance(apprentice.transform.position, WorldState.Instance.RespawnPosition), 1f);
         }
 
+        [UnityTest]
+        public IEnumerator HittingASoured_Thuds_AndTakingAHit_Grunts()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            PlaceApprentice(target.transform.position - target.transform.forward * 1.6f, target.transform.position);
+            input.PressLight();
+            for (float t = 0; t < 1f && target.Health >= target.maxHealth; t += Time.deltaTime)
+                yield return null;
+            Assert.Less(target.Health, target.maxHealth, "setup: the swing should land");
+            Assert.AreEqual("oar_hit", Sfx.Instance.LastPlayed, "a landed hit should sound");
+            yield return new WaitForSeconds(1f);
+            apprentice.TakeHit(10f, Vector3.zero);
+            Assert.AreEqual("apprentice_hurt", Sfx.Instance.LastPlayed, "taking a hit should sound");
+        }
+
+        // The feedback of an attack you avoid: its tell as it winds up, the whoosh of the swing, and (for the slam)
+        // the crash of the heap on the stones, all without a hit.
+        [UnityTest]
+        public IEnumerator LadenAttack_SoundsItsTell_Swing_AndImpact_EvenWhenDodged()
+        {
+            var target = Isolate(laden[0]);
+            var played = new System.Collections.Generic.List<string>();
+            void OnPlayed(AudioClip clip, AudioSource source) => played.Add(clip.name);
+            Sfx.Played += OnPlayed;
+            try
+            {
+                PlaceApprentice(target.transform.position + target.transform.forward * 1.8f, target.transform.position);
+                for (float t = 0; t < 4f && target.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+                    yield return null;
+                Assert.AreEqual(Soured.State.Telegraph, target.CurrentState, "setup: the Laden should attack");
+                var attack = target.CurrentAttack;
+                string tell = attack.name == "Slam" ? "laden_slam_windup" : "laden_sweep_windup";
+                Assert.Contains(tell, played, "the wind-up should sound its tell");
+
+                // Dash late, sideways towards the middle of the quay: a clean dodge.
+                for (float since = target.StateTime; since < attack.ImpactTime - 0.2f; since += Time.deltaTime)
+                    yield return null;
+                Vector3 to = target.transform.position - apprentice.transform.position;
+                Vector3 side = Vector3.Cross(Vector3.up, to).normalized;
+                if (Vector3.Dot(side, -apprentice.transform.position) < 0f)
+                    side = -side;
+                input.Move = new Vector2(side.x, side.z);
+                input.PressDash();
+                for (float t = 0; t < 2f && target.CurrentState != Soured.State.Recover; t += Time.deltaTime)
+                    yield return null;
+                input.Move = Vector2.zero;
+
+                Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "setup: the dash should have dodged it");
+                Assert.IsTrue(played.Any(n => n.StartsWith("laden_swing")), "the swing should whoosh, hit or miss");
+                if (attack.name == "Slam")
+                    Assert.IsTrue(played.Any(n => n.StartsWith("laden_slam_impact")), "the slam should crash down, hit or miss");
+                else
+                    Assert.IsFalse(played.Any(n => n.StartsWith("laden_slam_impact")), "a sweep has no ground impact");
+            }
+            finally
+            {
+                Sfx.Played -= OnPlayed;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptedWindup_CutsItsTell()
+        {
+            var target = Isolate(laden[0]);
+            AudioSource tellVoice = null;
+            void OnPlayed(AudioClip clip, AudioSource source) { if (clip.name.Contains("windup")) tellVoice = source; }
+            Sfx.Played += OnPlayed;
+            try
+            {
+                PlaceApprentice(target.transform.position + target.transform.forward * 1.8f, target.transform.position);
+                for (float t = 0; t < 4f && target.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+                    yield return null;
+                Assert.IsNotNull(tellVoice, "setup: the wind-up should sound");
+                if (!tellVoice.isPlaying)
+                    Assert.Ignore("no audio device: can't tell whether the tell was cut");
+                target.Stun(); // e.g. knocked out of it
+                yield return null;
+                Assert.IsFalse(tellVoice.isPlaying, "no tell for a blow that won't come");
+            }
+            finally
+            {
+                Sfx.Played -= OnPlayed;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator DefeatedSoured_DropsItsLantern_WhereItFell_UntilItReforms()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            var dropped = target.droppedLantern;
+            Assert.IsNotNull(dropped, "the Laden should carry a lantern to drop");
+            Vector3 fell = target.transform.position;
+            target.TakeHit(new Hit { Damage = 1000f, From = fell - target.transform.forward * 2f });
+            yield return new WaitForSeconds(2.5f);
+            Assert.AreEqual(Soured.State.Scattered, target.CurrentState);
+            Assert.IsTrue(dropped.gameObject.activeSelf && dropped.Landed, "the lantern should lie where the Laden fell");
+            Vector3 p = dropped.transform.position;
+            Assert.Less(Vector2.Distance(new Vector2(p.x, p.z), new Vector2(fell.x, fell.z)), 2.5f);
+            Assert.AreEqual(fell.y, p.y, 0.15f, "on the quay, not floating or sunk");
+            var light = dropped.carried;
+            Assert.IsTrue(light.enabled && light.transform.IsChildOf(dropped.transform), "its light should go with it");
+            Assert.Less(Vector3.Distance(light.transform.position, p), 0.8f); // just above it (plus the flicker's wobble)
+
+            target.Reform();
+            yield return null;
+            Assert.IsFalse(dropped.gameObject.activeSelf, "re-formed, it has its lantern back");
+            Assert.IsTrue(light.enabled && light.transform.IsChildOf(target.transform));
+        }
+
+        [Test]
+        public void Hud_UsesTheFellFonts()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            StringAssert.StartsWith("IMFellEnglishSC", hud.titleFont != null ? hud.titleFont.name : "missing");
+            StringAssert.StartsWith("IMFellEnglish-", hud.textFont != null ? hud.textFont.name : "missing");
+        }
+
+        [UnityTest]
+        public IEnumerator Dying_ShowsTheDeathScreen_WakesBehindBlack_ThenFadesBackIn()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            apprentice.TakeHit(1000f, Vector3.zero);
+            Assert.AreEqual("death_toll", Sfx.Instance.LastPlayed, "falling should toll");
+            yield return new WaitForSeconds(2f);
+            yield return null;
+            Assert.Greater(hud.Death.MessageAlpha, 0.9f, "the death phrase should be up");
+            Assert.AreEqual(hud.deathPhrase, hud.Death.Message);
+
+            float blackBeforeWaking = 0f;
+            for (float t = 0; t < 5f && !apprentice.IsAlive; t += Time.deltaTime)
+            {
+                blackBeforeWaking = hud.Death.BlackoutAlpha;
+                yield return null;
+            }
+            Assert.IsTrue(apprentice.IsAlive, "should have woken");
+            Assert.Greater(blackBeforeWaking, 0.95f, "the jump to the Mooring post should happen behind a black screen");
+            yield return new WaitForSeconds(2f);
+            yield return null;
+            Assert.Less(hud.Death.BlackoutAlpha, 0.01f, "the world should have faded back in");
+            Assert.AreEqual(0f, hud.Death.MessageAlpha);
+            Assert.Greater(hud.Death.HudAlpha, 0.99f, "the HUD should be back");
+        }
+
+        [UnityTest]
+        public IEnumerator FirstRest_ShowsLanternLit_OnlyTheFirstTime()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            apprentice.Teleport(post.RespawnPoint);
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(hud.PromptAlpha, 0.9f, "the Rest prompt should show by the post");
+            input.PressInteract();
+            yield return null;
+            yield return null;
+            Assert.IsTrue(hud.LanternBanner.Showing, "lighting a Mooring post should be announced");
+            Assert.AreEqual("Lantern Lit", hud.LanternBanner.Text.text);
+            Assert.AreEqual("lantern_lit", Sfx.Instance.LastPlayed);
+            yield return new WaitForSeconds(4f);
+            Assert.IsFalse(hud.LanternBanner.Showing);
+            input.PressInteract();
+            yield return null;
+            yield return null;
+            Assert.IsFalse(hud.LanternBanner.Showing, "resting at a lantern already lit isn't news");
+        }
+
+        [UnityTest]
+        public IEnumerator WalkingTowardsTheQuay_ShowsTheAreaTitle()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Assert.IsFalse(hud.AreaTitle.Showing, "no title on the landing");
+            for (float t = 0; t < 5f && apprentice.transform.position.z < -9.5f; t += Time.deltaTime)
+            {
+                input.Move = Vector2.up;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            yield return null;
+            Assert.IsTrue(hud.AreaTitle.Showing, "the area's name should come up on the way in");
+            Assert.AreEqual("The Drowned Village", hud.AreaTitle.Text.text);
+        }
+
         // Keep only one Laden active so the other doesn't join in. `frozen` stops it moving, turning and
         // attacking, for tests about how it takes hits rather than how it fights.
         Laden Isolate(Laden keep, bool frozen = false)

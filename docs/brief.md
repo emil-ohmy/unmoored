@@ -130,6 +130,10 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
   (their belt lanterns and eyes: green light in the dark means danger); cold pale blue is the Apprentice's bow lantern.
 - **Pipeline:** everything is modelled and animated from Blender scripts, and art direction happens by reacting to
   renders. The reference is the `prototype/art-test` branch.
+- **UI:** sparse and printed. One typeface, IM Fell English (worn old print), its small caps for titles. Bone-white
+  text, bronze frames, warm ember for safety, blood red for death. No combat text: hits, blocks and dodges read from
+  sparks, flashes and sounds. Messages are few and ceremonial: the Area's name on entering, "Lantern Lit" when a
+  Mooring post is first lit, and on death "You Sank" before the screen sinks to black and you wake at the post.
 
 ## Scope
 

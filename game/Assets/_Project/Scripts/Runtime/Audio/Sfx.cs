@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -49,12 +49,20 @@ namespace MyGame
         public void BlockClang(Vector3 at, float volume = 1f) => Play(blockClang, at, volume, "block_clang");
         public void Parry(Vector3 at) => Play(parry, at, 1f, "parry");
         public void SoulAbsorb(Vector3 at) => Play(soulAbsorb, at, 0.9f, "soul_absorb");
+        public void DeathToll(Vector3 at) => Play(deathToll, at, 1f, "death_toll");
+        public void OarHit(Vector3 at, bool heavy) => Play(oarHit, at, heavy ? 1f : 0.8f, "oar_hit", heavy ? 0.82f : 1f);
+        public void Hurt(Vector3 at) => Play(hurt, at, 0.9f, "apprentice_hurt");
+        public void LanternLit(Vector3 at) => Play(lanternLit, at, 0.8f, "lantern_lit");
 
-        void Play(AudioClip[] set, Vector3 at, float volume, string label)
+        // A Soured's attack sounds (each attack carries its own clips). Returns the voice, so a tell can be cut short.
+        public AudioSource Attack(AudioClip[] set, Vector3 at, float volume, string label, float pitch = 1f) =>
+            Play(set, at, volume, label, pitch);
+
+        AudioSource Play(AudioClip[] set, Vector3 at, float volume, string label, float pitch = 1f)
         {
             LastPlayed = label;
             if (set == null || set.Length == 0)
-                return;
+                return null;
             int index = Random.Range(0, set.Length);
             if (set.Length > 1 && lastIndex.TryGetValue(set, out int last) && index == last)
                 index = (index + 1) % set.Length;
@@ -64,10 +72,11 @@ namespace MyGame
             nextVoice = (nextVoice + 1) % voices.Length;
             voice.transform.position = at;
             voice.clip = set[index];
-            voice.pitch = 1f + Random.Range(-pitchJitter, pitchJitter);
+            voice.pitch = pitch * (1f + Random.Range(-pitchJitter, pitchJitter));
             voice.volume = volume * (1f + Random.Range(-volumeJitter, volumeJitter));
             voice.Play();
             Played?.Invoke(voice.clip, voice);
+            return voice;
         }
     }
 }

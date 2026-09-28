@@ -40,3 +40,6 @@ builds/
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Python bytecode (sound scripts import each other)
+__pycache__/

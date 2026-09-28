@@ -20,6 +20,12 @@ namespace MyGame
         [Range(0f, 180f)] public float arc = 60f;     // half-angle around its facing that the blow covers
         public float knockback = 7f;
 
+        [Header("Sounds: the tell (the wind-up), the swing (every strike) and the impact (when it lands, hit or miss)")]
+        public AudioClip[] windupSound;
+        public AudioClip[] swingSound;
+        public AudioClip[] impactSound; // for blows that hit the ground (a slam); none for a sweep through the air
+        public float swingPitch = 1f;
+
         public float ImpactTime => telegraph + strike * impactAt; // seconds from the start of the wind-up
     }
 }

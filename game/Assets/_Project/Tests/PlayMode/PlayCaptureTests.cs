@@ -70,13 +70,15 @@ namespace MyGame.Tests
             yield return new WaitForSecondsRealtime(0.16f); // lands mid hit-stop, sparks flying
             Capture(outDir, "play-2b-blocked");
             target.attackRange = range;
-            for (float t = 0; t < 4f && target.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+            for (float t = 0; t < 10f && target.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
             {
                 Vector3 to = target.transform.position - apprentice.transform.position;
                 input.Move = to.magnitude > 1.8f ? new Vector2(to.x, to.z).normalized : Vector2.zero;
                 yield return null;
             }
             input.Move = Vector2.zero;
+            if (target.CurrentAttack == null)
+                Assert.Inconclusive("the Laden never wound up; no wind-up or dash shots this time");
             yield return new WaitForSeconds(target.CurrentAttack.telegraph * 0.8f);
             Capture(outDir, "play-3-laden-windup");
 
@@ -142,6 +144,9 @@ namespace MyGame.Tests
                     yield return null; // 0.2 s at 30 fps
                 Capture(outDir, $"death-{i}");
             }
+            for (int f = 0; f < 45; f++)
+                yield return null;
+            Capture(outDir, "death-lantern"); // the dropped lantern, glowing where the Laden fell
 
             var torch = UnityEngine.Object.FindAnyObjectByType<TorchFlame>().transform;
             cam.transform.SetPositionAndRotation(torch.position + Quaternion.Euler(20f, 0f, 0f) * new Vector3(0f, 0f, -2.2f), Quaternion.Euler(20f, 0f, 0f));
@@ -152,6 +157,89 @@ namespace MyGame.Tests
                 Capture(outDir, $"torch-{i}");
             }
             Time.captureFramerate = 0;
+        }
+
+        // The screen messages and HUD, rendered with the UI (the camera draws into a texture, canvases in camera space).
+        [UnityTest]
+        public IEnumerator Capture_Ui()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                yield return Frames(20);
+                Shot("ui-1-prompt");
+                input.PressInteract();
+                yield return Frames(20);
+                Shot("ui-2-lantern-lit");
+                yield return Frames(40);
+                Shot("ui-3-lantern-lit-late");
+                apprentice.TakeHit(30f, apprentice.transform.position + Vector3.forward);
+                yield return Frames(4);
+                Shot("ui-4-hurt-trail");
+                yield return Frames(30);
+                input.PressHeal();
+                yield return Frames(40);
+                Shot("ui-5-charge-spent");
+
+                apprentice.Teleport(new Vector3(2.4f, 0.55f, -11.5f));
+                for (int i = 0; i < 90; i++)
+                {
+                    input.Move = i < 25 ? Vector2.up : Vector2.zero;
+                    yield return null;
+                    if (i == 45)
+                        Shot("ui-6-area-title");
+                }
+                yield return Frames(60);
+                Shot("ui-7-area-title-late");
+
+                var laden = UnityEngine.Object.FindAnyObjectByType<Laden>();
+                apprentice.Teleport(laden.transform.position - laden.transform.forward * 3.5f + Vector3.up * 0.1f);
+                laden.TakeHit(new Hit { Damage = 30f, From = apprentice.transform.position });
+                input.PressLock();
+                yield return Frames(20);
+                Shot("ui-8-lock");
+
+                apprentice.TakeHit(1000f, apprentice.transform.position + Vector3.forward);
+                foreach (var (frames, name) in new[] { (15, "a"), (21, "b"), (24, "c"), (27, "d"), (12, "e"), (15, "f"), (24, "g") })
+                {
+                    yield return Frames(frames);
+                    Shot($"ui-9-death-{name}");
+                }
+            }
+            finally
+            {
+                Time.captureFramerate = 0;
+                cam.targetTexture = null;
+            }
         }
 
         static void Capture(string outDir, string name, int width = 1600, int height = 900)

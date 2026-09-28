@@ -19,6 +19,7 @@ public static class MainSceneBuilder
     const string Models = "Assets/_Project/Art/Models/";
     const string Generated = "Assets/_Project/Art/Generated";
     const string Audio = "Assets/_Project/Audio/";
+    const string Fonts = "Assets/_Project/Art/Fonts/";
     const float QuayTop = 0.5f;
     // Night: the world is lit by its fires. Light colour carries meaning (docs/brief.md):
     // warm = the world and safety, sickly green = a Soured, cold pale = the Apprentice's bow lantern.
@@ -49,6 +50,7 @@ public static class MainSceneBuilder
     {
         AssetDatabase.ImportAsset(Models.TrimEnd('/'), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
         AssetDatabase.ImportAsset(Audio.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
+        AssetDatabase.ImportAsset(Fonts.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
         Directory.CreateDirectory(Generated);
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         sparkMaterial = ParticleMaterial("M_Spark", RadialTexture("T_SoftDot", ring: false));
@@ -83,6 +85,10 @@ public static class MainSceneBuilder
         MooringPostAt(new Vector3(walkX + 1.25f, QuayTop, -26.7f), 180f);
         Place("Environment/boat", new Vector3(walkX + 2.55f, -0.12f, -25.6f), 186f);
         StreetLantern(new Vector3(walkX + 0.75f, QuayTop, -11.8f), -90f, 2.2f);
+        // The title card comes up as the torchlit quay swims into view, before anything there notices you.
+        var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
+        entrance.transform.position = new Vector3(walkX, QuayTop + 1f, -10.5f);
+        entrance.areaName = "The Drowned Village";
         StreetLantern(new Vector3(walkX - 0.75f, QuayTop, -19.4f), 90f, 2.2f);
         Place("Environment/house_b", new Vector3(-2.8f, 0f, -14.5f), 240f);
         Place("Environment/house_a", new Vector3(8.4f, 0f, -19.5f), 70f);
@@ -115,7 +121,10 @@ public static class MainSceneBuilder
         var effects = systems.AddComponent<Effects>();
         effects.sparkMaterial = sparkMaterial;
         effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
-        systems.AddComponent<Hud>().apprentice = apprentice;
+        var hud = systems.AddComponent<Hud>();
+        hud.apprentice = apprentice;
+        hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");
+        hud.textFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
@@ -123,6 +132,10 @@ public static class MainSceneBuilder
         sfx.blockClang = Clips("block_clang");
         sfx.parry = Clips("parry");
         sfx.soulAbsorb = Clips("soul_absorb");
+        sfx.deathToll = Clips("death_toll");
+        sfx.lanternLit = Clips("lantern_lit");
+        sfx.oarHit = Clips("oar_hit");
+        sfx.hurt = Clips("apprentice_hurt");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -207,8 +220,24 @@ public static class MainSceneBuilder
             lunge = 0.5f, maxLunge = 2.2f, trackUntil = 0.9f, damage = 30f, reach = 2.2f, arc = 60f, knockback = 7f,
         };
         laden.barHeight = 2.3f; // just above the raised heap
+        // Each attack sounds its own tell, so the slam and the sweep can be told apart by ear.
+        laden.primary.windupSound = Clips("laden_slam_windup");
+        laden.primary.swingSound = Clips("laden_swing");
+        laden.primary.impactSound = Clips("laden_slam_impact");
+        laden.sweep.windupSound = Clips("laden_sweep_windup");
+        laden.sweep.swingSound = Clips("laden_swing");
+        laden.sweep.swingPitch = 1.15f; // a quicker, lighter swing than the slam
         var lantern = PointLight(Bone(go, "Spine"), GlowCentre(go, "SouredLantern_Glow"), 3.8f, 1.8f, SouredLight);
         Flicker(lantern, 0.15f, 5f, 0.02f);
+        // Its lantern falls where it falls, and glows there until it re-forms.
+        var dropped = new GameObject("Dropped Lantern (" + go.name + ")").AddComponent<DroppedLantern>();
+        var body = Place("Environment/soured_lantern", Vector3.zero, 0f);
+        body.name = "Body";
+        body.transform.SetParent(dropped.transform, false);
+        body.transform.localScale = Vector3.one * 1.3f; // a touch larger than on the belt, to read on the ground
+        dropped.carried = lantern;
+        dropped.body = body.transform;
+        laden.droppedLantern = dropped;
     }
 
     static MooringPost MooringPostAt(Vector3 position, float yaw)

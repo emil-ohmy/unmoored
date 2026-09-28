@@ -204,6 +204,13 @@ namespace MyGame.Tests
                 input.Move = Vector2.zero;
                 int settle = apprentice.IsAlive ? 60 : Mathf.CeilToInt((apprentice.respawnDelay + 2.5f) * Fps);
                 for (int i = 0; i < settle; i++) { Snap(t0); yield return null; }
+
+                // 6. Show the death screen too: if the bot won, it falls here (the toll, "You Sank", waking at the post).
+                if (apprentice.IsAlive)
+                {
+                    apprentice.TakeHit(1000f, apprentice.transform.position + apprentice.transform.forward);
+                    for (int i = 0; i < Mathf.CeilToInt((apprentice.respawnDelay + 2.5f) * Fps); i++) { Snap(t0); yield return null; }
+                }
             }
             finally
             {

@@ -62,7 +62,7 @@ namespace MyGame
         public float recoilDuration = 0.35f; // when a hit bounces off a Laden's heap
         public float recoilPush = 14f; // ~1.4 m shove: knockback decays at 10/s
         public float postHitInvulnerability = 0.5f;
-        public float respawnDelay = 2.5f;
+        public float respawnDelay = 3.2f; // the death screen: the phrase, then the sink to black (Hud)
 
         [Header("Block")]
         public float perfectWindow = 0.2f;       // a blow landing this soon after raising the block is perfect-blocked
@@ -97,9 +97,10 @@ namespace MyGame
         public int HealingCharges { get; private set; }
         public MooringPost NearbyPost { get; private set; }
         public Soured LockTarget { get; private set; }
-        public string LastEvent { get; private set; } = "";
+        public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
+        public event System.Action Died, Woke; // woke: back at the Mooring post after dying
         public bool Invulnerable =>
             CurrentState == State.Dead
             || Time.time < invulnerableUntil
@@ -527,6 +528,7 @@ namespace MyGame
             if (CurrentState == State.Blocking && Facing(attacker != null ? attacker.transform.position : transform.position - knock))
                 return Block(damage, knock, attacker);
             Health = Mathf.Max(0f, Health - damage);
+            Sfx.Instance?.Hurt(transform.position + Vector3.up);
             knockback = knock;
             invulnerableUntil = Time.time + postHitInvulnerability;
             buffered = Act.None;
@@ -605,7 +607,9 @@ namespace MyGame
         {
             Enter(State.Dead);
             clips.PlayOnce("Death", 1.0f);
+            Sfx.Instance?.DeathToll(transform.position);
             Announce("the Apprentice fell");
+            Died?.Invoke();
         }
 
         void Respawn()
@@ -615,6 +619,7 @@ namespace MyGame
             RestoreFully();
             WorldState.Instance?.ReformAllSoured();
             Announce("woke at the Mooring post");
+            Woke?.Invoke();
         }
 
         public void RestoreFully()
@@ -643,6 +648,7 @@ namespace MyGame
         {
             Health = Mathf.Max(0f, Health - waterDamage);
             Teleport(lastSafeGround);
+            Sfx.Instance?.Hurt(transform.position + Vector3.up);
             Announce("washed ashore");
             if (Health <= 0f)
                 Die();

@@ -8,6 +8,7 @@ namespace MyGame
     public sealed class MooringPost : MonoBehaviour
     {
         static readonly List<MooringPost> all = new List<MooringPost>();
+        public static event System.Action<MooringPost, bool> Rested; // bool: this Rest lit the lantern for the first time
 
         public Transform respawnPoint;
         public Light lanternLight;
@@ -68,9 +69,13 @@ namespace MyGame
 
         public void Rest(Apprentice apprentice)
         {
+            bool firstLight = !IsLit;
             SetLit(true);
             apprentice.RestoreFully();
             WorldState.Instance?.OnRest(this);
+            if (firstLight)
+                Sfx.Instance?.LanternLit(transform.position);
+            Rested?.Invoke(this, firstLight);
         }
 
         void SetLit(bool lit)

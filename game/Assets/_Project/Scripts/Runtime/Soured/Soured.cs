@@ -40,6 +40,9 @@ namespace MyGame
         public float dissolveDuration = 0.9f;
         public int fareMotes = 36;
 
+        [Tooltip("Its belt lantern, knocked off where it falls (optional)")]
+        public DroppedLantern droppedLantern;
+
         [Header("Perfect-blocked")]
         public float stunDuration = 1.8f;
         public float riposteMultiplier = 2f; // hits on a stunned Soured
@@ -64,6 +67,7 @@ namespace MyGame
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
+        int[] lanternSlot; // per renderer: index of the belt lantern's material, or -1
         MaterialPropertyBlock flash;
         Vector3 spawnPosition;
         Quaternion spawnRotation;
@@ -75,6 +79,8 @@ namespace MyGame
         float flashUntil;
         float oneShotUntil; // a short clip (e.g. Block) is playing; don't override it with Idle/Walk
         bool struck;
+        AudioSource tell;  // the wind-up sound playing now, cut if the attack is interrupted
+        AudioClip tellClip;
         float dissolve;
         int faresReleased;
 
@@ -83,6 +89,8 @@ namespace MyGame
             controller = GetComponent<CharacterController>();
             clips = new ClipPlayer(GetComponentInChildren<Animation>());
             renderers = GetComponentsInChildren<Renderer>();
+            lanternSlot = System.Array.ConvertAll(renderers, r =>
+                System.Array.FindIndex(r.sharedMaterials, m => m != null && m.name.StartsWith("SouredLantern_Glow")));
             flash = new MaterialPropertyBlock();
             spawnPosition = transform.position;
             spawnRotation = transform.rotation;
@@ -130,6 +138,8 @@ namespace MyGame
                         lockedDirection = toTarget.normalized; // locked now: sidestepping is always an answer
                         Enter(State.Telegraph);
                         clips.PlayOnce(attack.windupClip, attack.telegraph);
+                        tell = Sfx.Instance?.Attack(attack.windupSound, transform.position + Vector3.up, 1f, Label("windup"));
+                        tellClip = tell != null ? tell.clip : null;
                     }
                     else
                         planar = toTarget.normalized * ChaseSpeed(distance);
@@ -147,6 +157,7 @@ namespace MyGame
                         lungeThisStrike = Mathf.Clamp(toTarget.magnitude - current.reach * 0.5f, current.lunge, current.maxLunge);
                         Enter(State.Strike);
                         clips.PlayOnce(current.strikeClip, current.strike);
+                        Sfx.Instance?.Attack(current.swingSound, transform.position + Vector3.up, 0.9f, Label("swing"), current.swingPitch);
                     }
                     break;
 
@@ -158,6 +169,7 @@ namespace MyGame
                     if (!struck && stateTime >= current.impactAt * current.strike)
                     {
                         struck = true;
+                        Impact();
                         if (targetAlive)
                             StrikeTarget(toTarget);
                     }
@@ -214,6 +226,20 @@ namespace MyGame
         protected virtual SouredAttack ChooseAttack(Vector3 toTarget, float distance) =>
             distance <= attackRange ? primary : null;
 
+        string Label(string part) => $"{current.name.ToLowerInvariant()}_{part}";
+
+        // The blow comes down: a slam crashes into the ground (with a little shake if the Apprentice is close),
+        // whether or not it hits anyone.
+        void Impact()
+        {
+            if (current.impactSound == null || current.impactSound.Length == 0)
+                return;
+            Vector3 at = transform.position + transform.forward * (current.reach * 0.7f);
+            Sfx.Instance?.Attack(current.impactSound, at, 1f, Label("impact"));
+            if (target != null && Vector3.Distance(target.transform.position, at) < 8f)
+                CameraRig.Instance?.Shake(0.12f);
+        }
+
         void StrikeTarget(Vector3 toTarget)
         {
             if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
@@ -250,6 +276,7 @@ namespace MyGame
             }
 
             Health -= hit.Damage;
+            Sfx.Instance?.OarHit(transform.position + Vector3.up * 1.1f, hit.Heavy || stunned);
             knockback = hit.Knockback * (1f - knockbackResistance);
             Stagger += hit.Stagger;
             lastHitTime = Time.time;
@@ -292,6 +319,23 @@ namespace MyGame
             HitStop.Trigger(0.2f);
             CameraRig.Instance?.Shake(0.3f);
             clips.PlayOnce("Death", deathDuration);
+            if (droppedLantern != null && droppedLantern.carried != null)
+            {
+                Vector3 push = hit.Knockback * 0.25f + Random.insideUnitSphere * 0.6f;
+                droppedLantern.Drop(droppedLantern.carried.transform.position, new Vector3(push.x, 0f, push.z));
+                HideBeltLantern(true);
+            }
+        }
+
+        // The lantern on the body vanishes the moment the dropped one appears (its material slot fully dissolved).
+        void HideBeltLantern(bool hidden)
+        {
+            var block = new MaterialPropertyBlock();
+            if (hidden)
+                block.SetFloat("_Dissolve", 1f);
+            for (int i = 0; i < renderers.Length; i++)
+                if (lanternSlot[i] >= 0)
+                    renderers[i].SetPropertyBlock(block, lanternSlot[i]);
         }
 
         Vector3 RandomPointOnBody()
@@ -323,6 +367,11 @@ namespace MyGame
             controller.enabled = true;
             foreach (var r in renderers)
                 r.enabled = true;
+            if (droppedLantern != null)
+            {
+                droppedLantern.Return();
+                HideBeltLantern(false);
+            }
             Health = maxHealth;
             Stagger = 0f;
             knockback = Vector3.zero;
@@ -377,6 +426,13 @@ namespace MyGame
 
         void Enter(State state)
         {
+            // A tell announces a blow: if the wind-up is cut short (staggered, stunned, killed), so is the sound.
+            if (state != State.Telegraph && state != State.Strike && tell != null)
+            {
+                if (tell.isPlaying && tell.clip == tellClip)
+                    tell.Stop();
+                tell = null;
+            }
             CurrentState = state;
             stateTime = 0f;
             OnEntered(state);

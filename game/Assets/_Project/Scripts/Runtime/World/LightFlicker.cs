@@ -38,5 +38,12 @@ namespace MyGame
             get => baseIntensity;
             set => baseIntensity = value;
         }
+
+        // Where the light sits (local to its parent) around which it wobbles: set it when moving the light elsewhere.
+        public Vector3 BasePosition
+        {
+            get => basePosition;
+            set => basePosition = transform.localPosition = value;
+        }
     }
 }
