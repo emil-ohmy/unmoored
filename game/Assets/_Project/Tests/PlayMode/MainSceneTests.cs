@@ -17,6 +17,7 @@ namespace MyGame.Tests
         Apprentice apprentice;
         ScriptedInput input;
         Laden[] laden;
+        LadenArcher archer;
         MooringPost post;
 
         [UnitySetUp]
@@ -28,6 +29,7 @@ namespace MyGame.Tests
             yield return null;
             apprentice = Object.FindAnyObjectByType<Apprentice>();
             laden = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None);
+            archer = Object.FindAnyObjectByType<LadenArcher>();
             post = Object.FindAnyObjectByType<MooringPost>();
             apprentice.Input = input = new ScriptedInput();
             yield return new WaitForSeconds(0.5f); // settle onto the ground
@@ -45,6 +47,7 @@ namespace MyGame.Tests
         {
             Assert.IsNotNull(apprentice, "no Apprentice");
             Assert.AreEqual(1, laden.Length, "one Laden while the combat is being tuned");
+            Assert.IsNotNull(archer, "one Laden archer, on the quay's west side");
             Assert.IsNotNull(post, "no Mooring post");
             Assert.IsFalse(post.IsLit, "the Mooring post should start dark");
         }
@@ -966,6 +969,119 @@ namespace MyGame.Tests
             Assert.Less(closest, 5f, "it should find the way round, along the edge and onto the boardwalk");
         }
 
+        // ---- The Laden archer
+
+        [UnityTest]
+        public IEnumerator Archer_ShootsFromRange_AndTheArrowHurts()
+        {
+            var target = Isolate(archer);
+            target.retreatSpeed = 0f;
+            PlaceApprentice(target.transform.position + Flat(target.transform.forward) * 7f, target.transform.position);
+            for (float t = 0; t < 5f && apprentice.Health >= apprentice.maxHealth; t += Time.deltaTime)
+                yield return null;
+            Assert.Greater(target.ShotsFired, 0, "it should shoot from 7 m");
+            Assert.Less(apprentice.Health, apprentice.maxHealth, "standing still, the arrow should hit");
+        }
+
+        // A perfect block nullifies an arrow (no chip, no stamina); a normal block stops it at the usual cost; a
+        // dash's i-frames let it pass.
+        [UnityTest]
+        public IEnumerator Archer_Arrows_PerfectBlockNullifies_BlockCosts_DashPasses()
+        {
+            var target = Isolate(archer);
+            target.retreatSpeed = 0f;
+            Vector3 spot = target.transform.position + Flat(target.transform.forward) * 7f;
+            var outcomes = new System.Collections.Generic.List<Defence>();
+            void OnResolved(Arrow arrow, Defence defence) => outcomes.Add(defence);
+            Arrow.Resolved += OnResolved;
+            try
+            {
+                // 1. Perfect block: raise it just before the arrow arrives.
+                PlaceApprentice(spot, target.transform.position);
+                float health = apprentice.Health, stamina = apprentice.Stamina;
+                yield return WaitForArrowWithin(1.3f, 5f);
+                input.BlockHeld = true;
+                for (float t = 0; t < 0.5f && outcomes.Count < 1; t += Time.deltaTime)
+                    yield return null;
+                input.BlockHeld = false;
+                Assert.AreEqual(Defence.Parried, outcomes.LastOrDefault(), "a block raised as it arrives should be perfect");
+                Assert.AreEqual(health, apprentice.Health, "a perfect block takes nothing");
+                Assert.AreEqual(stamina, apprentice.Stamina, 0.01f, "and costs nothing");
+                yield return new WaitForSeconds(0.3f);
+                Assert.AreEqual(0, Object.FindObjectsByType<Arrow>(FindObjectsSortMode.None).Length, "the arrow is gone");
+
+                // 2. Normal block: held up well before the arrow comes.
+                yield return new WaitForSeconds(0.5f);
+                input.BlockHeld = true;
+                yield return new WaitForSeconds(0.5f);
+                health = apprentice.Health;
+                stamina = apprentice.Stamina;
+                for (float t = 0; t < 5f && outcomes.Count < 2; t += Time.deltaTime)
+                    yield return null;
+                input.BlockHeld = false;
+                Assert.AreEqual(Defence.Blocked, outcomes.LastOrDefault());
+                Assert.Less(apprentice.Stamina, stamina, "a normal block costs stamina");
+                Assert.Less(apprentice.Health, health, "and lets a little through");
+
+                // 3. Dash straight back along its line: the arrow is faster, so it catches up inside the i-frames.
+                yield return new WaitForSeconds(0.8f);
+                apprentice.RestoreFully();
+                PlaceApprentice(spot, target.transform.position);
+                yield return WaitForArrowWithin(1.1f, 5f);
+                Vector3 away = Flat(apprentice.transform.position - target.transform.position);
+                input.Move = new Vector2(away.x, away.z);
+                input.PressDash();
+                yield return new WaitForSeconds(0.5f);
+                input.Move = Vector2.zero;
+                Assert.AreEqual(Defence.Dodged, outcomes.LastOrDefault(), "the i-frames should let it pass");
+                Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
+            }
+            finally
+            {
+                Arrow.Resolved -= OnResolved;
+                input.BlockHeld = false;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Archer_BacksAway_WhenCrowded_ButNotIntoTheWater()
+        {
+            var target = Isolate(archer);
+            PlaceApprentice(target.transform.position + Flat(target.transform.forward) * 3f, target.transform.position);
+            float start = Vector3.Distance(target.transform.position, apprentice.transform.position);
+            float furthest = start;
+            for (float t = 0; t < 5f; t += Time.deltaTime)
+            {
+                Assert.IsFalse(target.Drowned, "backing away, it walked into the water");
+                furthest = Mathf.Max(furthest, Vector3.Distance(target.transform.position, apprentice.transform.position));
+                yield return null;
+            }
+            Assert.Greater(furthest, start + 0.8f, "crowded, it should back away to shooting distance");
+            Assert.Greater(target.transform.position.y, 0.2f);
+        }
+
+        IEnumerator WaitForArrowWithin(float distance, float timeout)
+        {
+            for (float t = 0; t < timeout; t += Time.deltaTime)
+            {
+                foreach (var arrow in Object.FindObjectsByType<Arrow>(FindObjectsSortMode.None))
+                {
+                    Vector3 to = apprentice.transform.position - arrow.transform.position;
+                    to.y = 0f;
+                    if (!arrow.Stuck && to.magnitude < distance)
+                        yield break;
+                }
+                yield return null;
+            }
+            Assert.Fail("no arrow came");
+        }
+
+        static Vector3 Flat(Vector3 v)
+        {
+            v.y = 0f;
+            return v.normalized;
+        }
+
         [Test]
         public void Hud_UsesTheFellFonts()
         {
@@ -1039,15 +1155,19 @@ namespace MyGame.Tests
 
         // Keep only one Laden active so the other doesn't join in. `frozen` stops it moving, turning and
         // attacking, for tests about how it takes hits rather than how it fights.
-        Laden Isolate(Laden keep, bool frozen = false)
+        // Keep only this Soured active (the others would join in).
+        T Isolate<T>(T keep, bool frozen = false) where T : Soured
         {
-            foreach (var other in laden.Where(l => l != keep))
+            foreach (var other in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None).Where(s => s != keep))
                 other.gameObject.SetActive(false);
+            if (frozen && keep is Laden l)
+            {
+                l.guardSpeed = 0f;
+                l.sweep.reach = 0f;
+            }
             if (frozen)
             {
                 keep.chaseSpeed = 0f;
-                keep.guardSpeed = 0f;
-                keep.sweep.reach = 0f;
                 keep.turnSpeed = 0f;
                 keep.attackRange = 0f;
             }

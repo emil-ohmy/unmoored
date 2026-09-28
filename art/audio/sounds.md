@@ -28,6 +28,9 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Obols spent (`obol_clink`) | in game | Synth | a few dull silver clinks tumbling into the merchant's hand |
 | Charm fitted (`charm_fit`) | in game | Synth | cloth rustle, a clasp click, a low warm chime |
 | Splash (`splash`, 2) | in game | Synth | surface slap, deep bloop, water rushing over, bubbles; a Soured drowning or the Apprentice falling in |
+| Laden archer draw (`archer_draw`) | in game | Synth | 0.9 s tell: a taut bow creak tightening and a rising string hum, swelling to the release; higher and thinner than the Laden's heave |
+| Arrow release (`arrow_release`, 2) | in game | Synth | string twang with a buzz, and the whoosh of the shaft |
+| Arrow thunk (`arrow_thunk`, 2) | in game | Synth | an arrow striking wood or stone and quivering |
 | Menu tick (`ui_tick`) | in game | Synth | a tiny soft wooden tick, moving through a menu |
 | Apprentice death (`death_toll`) | in game | Synth | one deep bell toll that sinks under water (highs close off), thump, sinking whoosh, bubbles; the music ducks under it |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |

@@ -85,7 +85,7 @@ namespace MyGame
         float lastHitTime = -10f;
         float flashUntil;
         float oneShotUntil; // a short clip (e.g. Block) is playing; don't override it with Idle/Walk
-        bool struck;
+        bool struck, committed;
         AudioSource tell;  // the wind-up sound playing now, cut if the attack is interrupted
         AudioClip tellClip;
         float dissolve;
@@ -144,6 +144,7 @@ namespace MyGame
                         current = attack;
                         lockedDirection = toTarget.normalized; // locked now: sidestepping is always an answer
                         Enter(State.Telegraph);
+                        committed = false;
                         clips.PlayOnce(attack.windupClip, attack.telegraph);
                         tell = Sfx.Instance?.Attack(attack.windupSound, transform.position + Vector3.up, 1f, Label("windup"));
                         tellClip = tell != null ? tell.clip : null;
@@ -156,6 +157,11 @@ namespace MyGame
                     // Follow the target for most of the wind-up, then commit: dodging too early gets tracked.
                     if (stateTime < current.telegraph * current.trackUntil && toTarget.sqrMagnitude > 0.01f)
                         lockedDirection = toTarget.normalized;
+                    else if (!committed)
+                    {
+                        committed = true;
+                        OnCommitted(current); // it stops following: the aim is set
+                    }
                     Face(lockedDirection, turnSpeed * 2f * dt);
                     if (stateTime >= current.telegraph)
                     {
@@ -259,8 +265,21 @@ namespace MyGame
                 CameraRig.Instance?.Shake(0.12f);
         }
 
+        // The moment an attack stops tracking (a shot's aim is set): subclasses can mark it (the archer's glint).
+        protected virtual void OnCommitted(SouredAttack attack) { }
+
+        // A ranged attack's release, along its locked aim.
+        protected virtual void Shoot(SouredAttack attack, Vector3 direction) { }
+
+        protected Vector3 LockedDirection => lockedDirection;
+
         void StrikeTarget(Vector3 toTarget)
         {
+            if (current.ranged)
+            {
+                Shoot(current, lockedDirection);
+                return;
+            }
             if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
                 return;
             if (target.TakeHit(current.damage, toTarget.normalized * current.knockback, this) == Defence.Parried)

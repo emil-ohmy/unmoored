@@ -227,6 +227,63 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The Laden archer: the draw (its arrow glowing on the bow), the glint as the aim is set, the arrow in flight,
+        // and a perfect block nullifying one.
+        [UnityTest]
+        public IEnumerator Capture_Archer()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            UnityEngine.Object.FindAnyObjectByType<Laden>().gameObject.SetActive(false);
+            var archer = UnityEngine.Object.FindAnyObjectByType<LadenArcher>();
+            archer.retreatSpeed = 0f;
+            Vector3 front = archer.transform.forward;
+            front.y = 0f;
+            Vector3 spot = archer.transform.position + front.normalized * 6.5f;
+            apprentice.Teleport(new Vector3(spot.x, 0.55f, spot.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-front);
+            var cam = Camera.main;
+            cam.GetComponent<CameraRig>().enabled = false;
+            var pitch = Quaternion.Euler(50f, 0f, 0f);
+            Vector3 mid = (archer.transform.position + apprentice.transform.position) / 2f;
+            cam.transform.SetPositionAndRotation(mid + pitch * new Vector3(0f, 0f, -11f), pitch);
+            Capture(outDir, "archer-warmup");
+            for (int i = 0; i < 75; i++)
+            {
+                yield return null;
+                if (i % 3 == 0)
+                    Capture(outDir, $"archer-{i:D2}");
+            }
+            // A perfect block: raise it as the next arrow arrives.
+            for (int i = 0; i < 150; i++)
+            {
+                bool close = false;
+                foreach (var arrow in UnityEngine.Object.FindObjectsByType<Arrow>(FindObjectsSortMode.None))
+                    close |= !arrow.Stuck && Vector3.Distance(arrow.transform.position, apprentice.transform.position + Vector3.up) < 1.4f;
+                if (close)
+                {
+                    input.BlockHeld = true;
+                    for (int f = 0; f < 6; f++)
+                    {
+                        yield return null;
+                        Capture(outDir, $"archer-parry-{f}");
+                    }
+                    input.BlockHeld = false;
+                    break;
+                }
+                yield return null;
+            }
+            Time.captureFramerate = 0;
+        }
+
         // The screen messages and HUD, rendered with the UI (the camera draws into a texture, canvases in camera space).
         [UnityTest]
         public IEnumerator Capture_Ui()

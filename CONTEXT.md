@@ -31,6 +31,10 @@ _Avoid_: Enemy, monster, hollow
 A kind of Soured defined by what it couldn't let go of: the Laden, the Clinger, the Keener, the Moths, the Drowned.
 _Avoid_: Enemy type, species, class
 
+**Laden archer**:
+A Laden that let most of its heap go and kept a bow: shoots from range and keeps its distance. A variant within the Laden family, not a family of its own.
+_Avoid_: Archer (alone), ranged Laden, bowman
+
 **Crossing**:
 Rowing a Lingerer from the hub jetty to the far shore, releasing them.
 _Avoid_: Release, passing, ascension

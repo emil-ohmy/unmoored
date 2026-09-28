@@ -19,6 +19,8 @@ namespace MyGame
         public float reach = 2.3f;
         [Range(0f, 180f)] public float arc = 60f;     // half-angle around its facing that the blow covers
         public float knockback = 7f;
+        public bool ranged;                 // a shot: at the impact moment it looses a projectile instead of striking
+        public float projectileSpeed = 12f;
 
         [Header("Sounds: the tell (the wind-up), the swing (every strike) and the impact (when it lands, hit or miss)")]
         public AudioClip[] windupSound;

@@ -115,7 +115,8 @@ public static class MainSceneBuilder
         var start = new GameObject("Start Point").transform;
         start.position = new Vector3(2.4f, QuayTop, -25.3f); // on the landing, by the Mooring post
         var apprentice = Apprentice(start.position);
-        Laden(new Vector3(4.2f, QuayTop, 0.4f), 20f); // back turned: sneak up for a free hit (one enemy while tuning)
+        Laden(new Vector3(4.2f, QuayTop, 0.4f), 20f); // back turned: sneak up for a free hit
+        LadenArcher(new Vector3(-6.0f, QuayTop, 0.5f), 115f); // the west side, watching the way in
 
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
@@ -142,6 +143,7 @@ public static class MainSceneBuilder
         sfx.uiTick = Clips("ui_tick");
         sfx.heal = Clips("heal");
         sfx.splash = Clips("splash");
+        sfx.arrowThunk = Clips("arrow_thunk");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -235,9 +237,52 @@ public static class MainSceneBuilder
         laden.sweep.windupSound = Clips("laden_sweep_windup");
         laden.sweep.swingSound = Clips("laden_swing");
         laden.sweep.swingPitch = 1.15f; // a quicker, lighter swing than the slam
+        BeltLantern(go, laden);
+    }
+
+    // The Laden archer: keeps its distance and shoots. On the quay's west side, away from the Laden (east), so the
+    // two can be met apart: step off the boardwalk and turn west for it.
+    static void LadenArcher(Vector3 position, float yaw)
+    {
+        var go = Place("Characters/laden_archer", position, yaw);
+        go.name = "Laden Archer";
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.85f, 0f);
+        controller.height = 1.7f;
+        controller.radius = 0.5f;
+        controller.minMoveDistance = 0f;
+        var archer = go.AddComponent<LadenArcher>();
+        archer.maxHealth = 90f;   // no guard, less to it: the one to rush
+        archer.radius = 0.55f;
+        archer.knockbackResistance = 0.3f;
+        archer.staggerCapacity = 60f;
+        archer.staggerDuration = 1.0f;
+        archer.aggroRadius = 9f;  // it sees you coming from further off than the Laden
+        archer.attackRange = 1.7f; // the bow-jab, when cornered
+        archer.chaseSpeed = 1.7f;
+        archer.obols = 30;
+        archer.barHeight = 2.0f;
+        archer.primary = new SouredAttack
+        {
+            name = "Bash", windupClip = "BashWindup", strikeClip = "Bash", recoverClip = "BashRecover",
+            telegraph = 0.45f, strike = 0.2f, recover = 0.6f, impactAt = 0.5f,
+            lunge = 0.3f, maxLunge = 0.6f, trackUntil = 0.8f, damage = 12f, reach = 1.6f, arc = 70f, knockback = 9f,
+        };
+        archer.primary.windupSound = Clips("laden_sweep_windup");
+        archer.primary.swingSound = Clips("laden_swing");
+        archer.primary.swingPitch = 1.35f;
+        archer.shot.windupSound = Clips("archer_draw");
+        archer.shot.swingSound = Clips("arrow_release");
+        archer.trailMaterial = sparkMaterial;
+        BeltLantern(go, archer);
+    }
+
+    // Every Soured's belt lantern (sickly green light) and the prop it drops where it falls, glowing there until the
+    // Soured re-forms.
+    static void BeltLantern(GameObject go, Soured soured)
+    {
         var lantern = PointLight(Bone(go, "Spine"), GlowCentre(go, "SouredLantern_Glow"), 3.8f, 1.8f, SouredLight);
         Flicker(lantern, 0.15f, 5f, 0.02f);
-        // Its lantern falls where it falls, and glows there until it re-forms.
         var dropped = new GameObject("Dropped Lantern (" + go.name + ")").AddComponent<DroppedLantern>();
         var body = Place("Environment/soured_lantern", Vector3.zero, 0f);
         body.name = "Body";
@@ -245,7 +290,7 @@ public static class MainSceneBuilder
         body.transform.localScale = Vector3.one * 1.3f; // a touch larger than on the belt, to read on the ground
         dropped.carried = lantern;
         dropped.body = body.transform;
-        laden.droppedLantern = dropped;
+        soured.droppedLantern = dropped;
     }
 
     // The merchant soul (standing in for the Hub's), with the warm lantern on its staff: warm light is safety.
