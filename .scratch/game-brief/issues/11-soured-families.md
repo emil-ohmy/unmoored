@@ -40,3 +40,6 @@ Resolved 2026-09-27 with the user (quiz format).
 - 2026-09-28 (later): walking towards the Apprentice and blocking looked the same, so they're now separate: the
   Laden approaches open (heap low on the hip) and only raises its guard within ~3.4 m, shuffling in behind it; a glint
   marks the moment the guard is up.
+- 2026-09-28 (later): the Laden has a second attack, a wide low sweep (0.6 s wind-up, heap hauled to one side) used on
+  anyone at its flank or back and sometimes from the front, with a shorter recovery than the slam. The scene has one
+  Laden while the combat is tuned.

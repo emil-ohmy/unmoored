@@ -33,7 +33,7 @@ namespace MyGame.Tests
         public void Scene_HasTheSliceCast()
         {
             Assert.IsNotNull(apprentice, "no Apprentice");
-            Assert.AreEqual(2, laden.Length, "expected two Laden");
+            Assert.AreEqual(1, laden.Length, "one Laden while the combat is being tuned");
             Assert.IsNotNull(post, "no Mooring post");
             Assert.IsFalse(post.IsLit, "the Mooring post should start dark");
         }
@@ -159,6 +159,8 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator LockOn_SwitchesBetweenTargets()
         {
+            Object.Instantiate(laden[0], new Vector3(-1.4f, 0.55f, 3.6f), laden[0].transform.rotation); // a second target
+            yield return null;
             PlaceApprentice(new Vector3(1.4f, 0.55f, 1.9f), new Vector3(1.4f, 0.55f, 5f)); // between the two Laden
             input.PressLock();
             yield return null;
@@ -217,12 +219,170 @@ namespace MyGame.Tests
             Assert.Less(target.Health, before, "a sneak attack from behind should land");
             Assert.AreNotEqual(Soured.State.Idle, target.CurrentState, "being hit should wake it");
 
-            var other = laden[1];
-            other.gameObject.SetActive(true);
+            var other = Object.Instantiate(target, new Vector3(-0.8f, 0.55f, 3.4f), target.transform.rotation);
             yield return null;
             PlaceApprentice(other.transform.position + other.transform.forward * 5f, other.transform.position);
             yield return new WaitForSeconds(0.3f);
             Assert.AreEqual(Soured.State.Chase, other.CurrentState, "5 m in front of it, it should see the Apprentice");
+        }
+
+        float windupStart; // Time.time when the current attack's wind-up began
+
+        // Seconds since the wind-up began (the Laden's own state timer restarts at every state change).
+        float SinceWindup => Time.time - windupStart;
+
+        // Wait for the Laden (facing the Apprentice, 1.8 m away) to start the chosen attack; returns when the wind-up begins.
+        IEnumerator AwaitWindup(Laden l, bool sweep)
+        {
+            l.sweepChanceInFront = sweep ? 1f : 0f;
+            for (float t = 0; t < 3f && l.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(Soured.State.Telegraph, l.CurrentState, "the Laden never started its attack");
+            Assert.AreEqual(sweep ? "Sweep" : "Slam", l.CurrentAttack.name);
+            windupStart = Time.time - l.StateTime;
+        }
+
+        // Stage a fight on open ground in the middle of the quay (away from walls and water), Laden facing +X.
+        void FaceOff(Laden l, float distance = 1.8f)
+        {
+            l.SetSpawn(new Vector3(-1f, 0.55f, 0.5f), Quaternion.LookRotation(Vector3.right));
+            l.Reform();
+            PlaceApprentice(l.transform.position + l.transform.forward * distance, l.transform.position);
+            apprentice.RestoreFully();
+        }
+
+        [UnityTest]
+        public IEnumerator PerfectBlock_StunsTheLaden_AndARiposteHitsDouble()
+        {
+            var l = laden[0];
+            FaceOff(l);
+            yield return AwaitWindup(l, sweep: false);
+            while (SinceWindup < l.CurrentAttack.ImpactTime - 0.1f)
+                yield return null;
+            input.BlockHeld = true; // raised 0.1 s before the blow: inside the 0.2 s perfect window
+            for (float t = 0; t < 0.5f && l.CurrentState != Soured.State.Stunned; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(Soured.State.Stunned, l.CurrentState, "a perfect block should stun the Laden");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "a perfect block takes no damage");
+            input.BlockHeld = false;
+            yield return new WaitForSeconds(0.25f);
+            float before = l.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.3f);
+            Assert.That(before - l.Health, Is.EqualTo(apprentice.lightDamage * l.riposteMultiplier).Within(0.01f), "a riposte should do double damage");
+        }
+
+        [UnityTest]
+        public IEnumerator NormalBlock_TakesChipDamageAndStamina_AndMashingGivesNoPerfectBlock()
+        {
+            var l = laden[0];
+            FaceOff(l);
+            input.BlockHeld = true; // held from long before: a normal block
+            yield return AwaitWindup(l, sweep: false);
+            for (float t = 0; t < 1.5f && apprentice.Health >= apprentice.maxHealth; t += Time.deltaTime)
+                yield return null;
+            float expected = apprentice.maxHealth - l.primary.damage * apprentice.blockChip;
+            Assert.That(apprentice.Health, Is.EqualTo(expected).Within(0.01f), "a normal block lets 30% through");
+            Assert.Less(apprentice.Stamina, apprentice.maxStamina, "blocking costs stamina");
+            Assert.AreNotEqual(Soured.State.Stunned, l.CurrentState);
+
+            // Mashing: lower and re-raise right before the blow. Too soon after lowering: no perfect window.
+            input.BlockHeld = false;
+            yield return new WaitForSeconds(1.5f);
+            FaceOff(l);
+            yield return AwaitWindup(l, sweep: false);
+            while (SinceWindup < l.CurrentAttack.ImpactTime - 0.3f)
+                yield return null;
+            input.BlockHeld = true;
+            yield return null;
+            input.BlockHeld = false;
+            yield return null;
+            input.BlockHeld = true; // re-raised within 0.4 s of lowering
+            for (float t = 0; t < 0.6f && apprentice.Health >= apprentice.maxHealth; t += Time.deltaTime)
+                yield return null;
+            input.BlockHeld = false;
+            Assert.AreNotEqual(Soured.State.Stunned, l.CurrentState, "mashing block shouldn't earn a perfect block");
+        }
+
+        [UnityTest]
+        public IEnumerator Laden_SweepsAnyoneAtItsFlank()
+        {
+            var l = laden[0];
+            l.Reform();
+            l.chaseSpeed = l.guardSpeed = 0f;
+            Vector3 side = Quaternion.Euler(0f, 90f, 0f) * l.transform.forward;
+            PlaceApprentice(l.transform.position - l.transform.forward * 1.0f + side * 1.6f, l.transform.position); // behind-ish, at its side
+            l.TakeHit(new Hit { Damage = 1f, From = apprentice.transform.position }); // wake it
+            for (float t = 0; t < 2f && l.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual("Sweep", l.CurrentAttack?.name, "at its flank it should sweep, not slam");
+            for (float t = 0; t < 1.5f && apprentice.Health >= apprentice.maxHealth; t += Time.deltaTime)
+                yield return null;
+            Assert.Less(apprentice.Health, apprentice.maxHealth, "the sweep should catch an Apprentice at its flank");
+        }
+
+        // The play-test: for each attack and defence, try every press time around the blow (1/30 s steps) and log
+        // which work. The minimums are there so tuning can't quietly make a defence (near) impossible.
+        [UnityTest]
+        [Timeout(900000)]
+        public IEnumerator Measure_DodgeAndBlockWindows()
+        {
+            Time.captureFramerate = 60; // deterministic steps, faster than real time
+            var l = laden[0];
+            var report = new System.Text.StringBuilder("[Timing] press time relative to the blow (ms): o = safe, x = hit\n");
+            var widths = new System.Collections.Generic.Dictionary<string, float>();
+            foreach (bool sweep in new[] { false, true })
+            foreach (string defence in new[] { "dash sideways", "dash back", "perfect block" })
+            {
+                var line = new System.Text.StringBuilder();
+                float latestSafe = float.NaN, earliestSafe = float.NaN;
+                for (int step = -15; step <= 4; step++)
+                {
+                    float offset = step / 30f;
+                    FaceOff(l);
+                    yield return AwaitWindup(l, sweep);
+                    float due = l.CurrentAttack.ImpactTime + offset;
+                    Vector3 to = l.transform.position - apprentice.transform.position;
+                    to.y = 0f;
+                    Vector2 away = -new Vector2(to.x, to.z).normalized, across = new Vector2(-to.z, to.x).normalized;
+                    while (SinceWindup < due)
+                        yield return null;
+                    if (defence == "perfect block")
+                        input.BlockHeld = true;
+                    else
+                    {
+                        input.Move = defence == "dash back" ? away : across;
+                        input.PressDash();
+                    }
+                    yield return null;
+                    input.Move = Vector2.zero;
+                    for (float t = 0; t < 1.2f && l.CurrentState != Soured.State.Recover && l.CurrentState != Soured.State.Stunned; t += Time.deltaTime)
+                        yield return null;
+                    input.BlockHeld = false;
+                    bool safe = defence == "perfect block" ? l.CurrentState == Soured.State.Stunned : apprentice.Health >= apprentice.maxHealth;
+                    line.Append(safe ? 'o' : 'x');
+                    if (safe)
+                    {
+                        latestSafe = offset;
+                        if (float.IsNaN(earliestSafe))
+                            earliestSafe = offset;
+                    }
+                    yield return new WaitForSeconds(0.5f); // lets the block spam cooldown pass
+                }
+                string key = $"{(sweep ? "sweep" : "slam")} / {defence}";
+                widths[key] = float.IsNaN(latestSafe) ? 0f : (latestSafe - earliestSafe) * 1000f;
+                report.Append("  ").Append(key.PadRight(26)).Append(' ').Append(line.ToString())
+                      .Append("   (-500 .. +133)  safe from ").Append((earliestSafe * 1000f).ToString("0"))
+                      .Append(" to ").Append((latestSafe * 1000f).ToString("0")).Append('\n');
+            }
+            Time.captureFramerate = 0;
+            Debug.Log(report.ToString());
+            Assert.Greater(widths["slam / dash sideways"], 120f, "dodging the slam sideways must be comfortably possible");
+            Assert.Less(widths["slam / dash sideways"], 400f, "dodging the slam sideways should need timing, not just a reaction to the wind-up");
+            Assert.Greater(widths["sweep / dash sideways"], 120f, "dashing through the sweep must be possible");
+            Assert.Greater(widths["sweep / dash back"], 120f, "backing out of the sweep must be comfortably possible");
+            Assert.Greater(widths["slam / perfect block"], 100f, "the slam's perfect block window is too tight");
+            Assert.Greater(widths["sweep / perfect block"], 100f, "the sweep's perfect block window is too tight");
         }
 
         [UnityTest]
@@ -232,14 +392,14 @@ namespace MyGame.Tests
             input.PressDash();
             yield return new WaitForSeconds((apprentice.iFrameStart + apprentice.iFrameEnd) / 2f);
             Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
-            Assert.IsFalse(apprentice.TakeHit(20f, Vector3.zero), "a hit mid-dash should pass through");
+            Assert.AreEqual(Defence.Dodged, apprentice.TakeHit(20f, Vector3.zero), "a hit mid-dash should pass through");
             Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
             Assert.IsTrue(Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None).Any(r => r.name == "Dash Ghost" && r.gameObject.activeInHierarchy),
                 "the i-frames should leave ghost images");
 
             input.Move = Vector2.zero;
             yield return new WaitForSeconds(apprentice.dashDuration + apprentice.dashRecovery);
-            Assert.IsTrue(apprentice.TakeHit(20f, Vector3.zero), "after the dash a hit should land");
+            Assert.AreEqual(Defence.Taken, apprentice.TakeHit(20f, Vector3.zero), "after the dash a hit should land");
             Assert.Less(apprentice.Health, apprentice.maxHealth);
         }
 
@@ -351,9 +511,9 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator Resting_HealsRefillsAndReformsTheSoured()
         {
-            var behind = laden[1].transform.position - laden[1].transform.forward * 2f;
-            laden[1].TakeHit(new Hit { Damage = 1000f, From = behind });
-            Assert.IsFalse(laden[1].IsAlive, "setup: Laden should be scattered");
+            var behind = laden[0].transform.position - laden[0].transform.forward * 2f;
+            laden[0].TakeHit(new Hit { Damage = 1000f, From = behind });
+            Assert.IsFalse(laden[0].IsAlive, "setup: Laden should be scattered");
             input.PressHeal();
             yield return new WaitForSeconds(1f);
             Assert.AreEqual(apprentice.maxHealingCharges - 1, apprentice.HealingCharges, "healing should use a charge");
@@ -367,7 +527,7 @@ namespace MyGame.Tests
             Assert.IsTrue(post.IsLit, "resting should light the lantern");
             Assert.AreEqual(apprentice.maxHealingCharges, apprentice.HealingCharges);
             Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
-            Assert.IsTrue(laden[1].IsAlive, "resting should re-form scattered Soured");
+            Assert.IsTrue(laden[0].IsAlive, "resting should re-form scattered Soured");
 
             var lantern = apprentice.GetComponent<BowLantern>();
             float dim = lantern.lanternLight.range;
@@ -427,6 +587,7 @@ namespace MyGame.Tests
             {
                 keep.chaseSpeed = 0f;
                 keep.guardSpeed = 0f;
+                keep.sweep.reach = 0f;
                 keep.turnSpeed = 0f;
                 keep.attackRange = 0f;
             }

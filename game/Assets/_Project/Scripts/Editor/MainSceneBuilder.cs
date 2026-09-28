@@ -108,8 +108,7 @@ public static class MainSceneBuilder
         var start = new GameObject("Start Point").transform;
         start.position = new Vector3(2.4f, QuayTop, -25.3f); // on the landing, by the Mooring post
         var apprentice = Apprentice(start.position);
-        Laden(new Vector3(-1.4f, QuayTop, 3.6f), 100f); // side-on
-        Laden(new Vector3(4.2f, QuayTop, 0.4f), 20f);   // back turned: sneak up for a free hit
+        Laden(new Vector3(4.2f, QuayTop, 0.4f), 20f); // back turned: sneak up for a free hit (one enemy while tuning)
 
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
@@ -122,6 +121,7 @@ public static class MainSceneBuilder
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
         sfx.dash = Clips("dash");
         sfx.blockClang = Clips("block_clang");
+        sfx.parry = Clips("parry");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -199,13 +199,12 @@ public static class MainSceneBuilder
         laden.aggroRadius = 5.5f; // lets the Apprentice reach the quay before anything notices
         laden.attackRange = 2.0f;
         laden.chaseSpeed = 1.9f;
-        laden.telegraphDuration = 0.9f;
-        laden.strikeDuration = 0.3f;
-        laden.recoverDuration = 1.2f;
-        laden.impactAt = 0.5f;
-        laden.lungeDistance = 0.5f;
-        laden.damage = 30f;
-        laden.strikeReach = 2.2f;
+        laden.primary = new SouredAttack
+        {
+            name = "Slam", windupClip = "Windup", strikeClip = "Strike", recoverClip = "Recover",
+            telegraph = 0.9f, strike = 0.3f, recover = 1.2f, impactAt = 0.5f,
+            lunge = 0.5f, maxLunge = 2.2f, trackUntil = 0.9f, damage = 30f, reach = 2.2f, arc = 60f, knockback = 7f,
+        };
         laden.barHeight = 2.3f; // just above the raised heap
         var lantern = PointLight(Bone(go, "Spine"), GlowCentre(go, "SouredLantern_Glow"), 3.8f, 1.8f, SouredLight);
         Flicker(lantern, 0.15f, 5f, 0.02f);

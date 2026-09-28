@@ -4,7 +4,8 @@ which is its shield (blocks frontal hits) and its weapon (lifts it overhead, sla
 Clips: Idle and Walk (open: heap low on the hip, face showing), GuardUp (0.35 s: heap lifted in front of the
 face), GuardWalk (braced shuffle),
 Block (0.3 s recoil when a frontal hit is blocked), Windup (0.9 s telegraph: heap raised high), Strike (0.3 s slam),
-Recover (1.2 s, heap on the ground: the punish window), Stagger.
+Recover (1.2 s, heap on the ground: the punish window), SweepWindup / Sweep / SweepRecover (the second attack),
+Stagger (also used, slowed, when a perfect block stuns it).
 """
 import math
 
@@ -80,6 +81,23 @@ ACTIONS = {
         (1, SLAMMED),
         (22, {"Spine": (30, 0, 0), "Head": (20, 0, 0), "Heap": HEAP_DOWN, "Root": ((0, 0, 0), (0, -0.3, -0.1))}),
         (37, OPEN),
+    ]),
+    # The sweep: the heap is hauled round to one side (a different silhouette from the overhead slam), then
+    # swung round in a wide, low arc. SweepWindup 0.6 s, Sweep 0.25 s, SweepRecover 0.7 s.
+    "SweepWindup": ("BEZIER", [
+        (1, GUARD),
+        (12, {"Spine": (4, 0, 48), "Head": (6, 0, 20), "Heap": ((10, 0, 55), (0.45, 0.35, -0.2)), "Root": ((0, 0, 0), (0, 0.05, -0.06))}),
+        (19, {"Spine": (5, 0, 55), "Head": (6, 0, 22), "Heap": ((12, 0, 62), (0.5, 0.4, -0.22)), "Root": ((0, 0, 0), (0, 0.05, -0.07))}),
+    ]),
+    "Sweep": ("LINEAR", [
+        (1, {"Spine": (5, 0, 55), "Head": (6, 0, 22), "Heap": ((12, 0, 62), (0.5, 0.4, -0.22)), "Root": ((0, 0, 0), (0, 0.05, -0.07))}),
+        (5, {"Spine": (8, 0, -20), "Head": (6, 0, -10), "Heap": ((14, 0, -40), (-0.2, -0.3, -0.25))}),
+        (8, {"Spine": (10, 0, -60), "Head": (6, 0, -24), "Heap": ((16, 0, -70), (-0.55, 0.2, -0.28))}),
+    ]),
+    "SweepRecover": ("BEZIER", [
+        (1, {"Spine": (10, 0, -60), "Head": (6, 0, -24), "Heap": ((16, 0, -70), (-0.55, 0.2, -0.28))}),
+        (8, {"Spine": (14, 0, -50), "Head": (14, 0, -20), "Heap": ((20, 0, -58), (-0.5, 0.15, -0.35))}),
+        (22, OPEN),
     ]),
     "Stagger": ("BEZIER", [
         (1, GUARD),

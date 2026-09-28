@@ -33,8 +33,14 @@ business and pay their fare to row them across.
 ## Combat
 
 - **Pace:** "Middle", between Death's Door's snappiness and Tunic's weight.
-- **Verbs:** move, a dash with invincibility frames, shown as ghost images (it can cancel an attack's recovery), a 2-swing light combo
-  and a heavy attack. Attacks go where the stick points.
+- **Verbs:** move, a short dash (2.8 m) with invincibility from its first frame, shown as ghost images (it can cancel an
+  attack's recovery), a 2-swing light combo and a heavy attack. Attacks go where the stick points.
+- **Block and perfect block:** holding block lets 30% through and costs stamina (empty stamina breaks the guard). A
+  block raised within 0.2 s of the blow is a **perfect block**: no damage, and the attacker is always **stunned**, open to
+  double-damage **ripostes**. Mashing block earns no perfect window.
+- **Dodging is timing:** Soured follow their target through 90% of a wind-up and lunge after it, so a panic dash gets
+  caught; the i-frame window (about 270 ms before the blow) is what saves you. Backing off still escapes some attacks,
+  but leaves you too far away to punish.
 - **Lock-on:** lock onto a nearby Soured (and flick between targets): the Apprentice keeps facing it, every swing
   goes at it, and a directionless dash becomes a backstep. Only the locked target shows a health bar; the Stagger
   meter stays hidden.
@@ -106,7 +112,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 
 | Family | Couldn't let go of | Role | Weak to |
 |---|---|---|---|
-| Laden | things | Tank; approaches with its heap of belongings low (open), then up close lifts it as a shield that blocks frontal hits; huge stagger meter | Hook |
+| Laden | things | Tank; approaches with its heap of belongings low (open), then up close lifts it as a shield that blocks frontal hits; two attacks: an overhead slam along a line (long recovery) and a wide low sweep for anyone at its flank or back (short recovery); huge stagger meter | Hook |
 | Clinger | a person | Fast pairs that latch on and drain stamina; dash to throw off | Stroke |
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
 | Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |

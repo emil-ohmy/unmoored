@@ -28,8 +28,7 @@ namespace MyGame.Tests
             var input = new ScriptedInput();
             apprentice.Input = input;
             var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None);
-            var target = laden[0].transform.position.x > laden[1].transform.position.x ? laden[0] : laden[1];
-            (target == laden[0] ? laden[1] : laden[0]).gameObject.SetActive(false);
+            var target = laden[0];
             float aggro = target.aggroRadius, range = target.attackRange;
             target.aggroRadius = 0f; // hold it unaware for the first frame (open: heap low)
             target.attackRange = 0f; // and don't let it attack until after the blocked swing
@@ -78,7 +77,7 @@ namespace MyGame.Tests
                 yield return null;
             }
             input.Move = Vector2.zero;
-            yield return new WaitForSeconds(target.telegraphDuration * 0.8f);
+            yield return new WaitForSeconds(target.CurrentAttack.telegraph * 0.8f);
             Capture(outDir, "play-3-laden-windup");
 
             // Dash sideways out of the slam.

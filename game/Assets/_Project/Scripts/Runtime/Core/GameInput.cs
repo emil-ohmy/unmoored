@@ -13,13 +13,14 @@ namespace MyGame
         bool HealPressed { get; }
         bool InteractPressed { get; }
         bool LockPressed { get; }
+        bool BlockHeld { get; }
         int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
     }
 
     // Keyboard/mouse and gamepad bindings (gamepad-first).
     public sealed class GameInput : IApprenticeInput, System.IDisposable
     {
-        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, switchStick, switchScroll;
+        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, switchStick, switchScroll;
         bool stickArmed = true;
 
         public GameInput()
@@ -34,6 +35,7 @@ namespace MyGame
             heal = Button("Heal", "<Keyboard>/q", "<Gamepad>/leftShoulder");
             interact = Button("Interact", "<Keyboard>/e", "<Gamepad>/buttonSouth");
             lockOn = Button("LockOn", "<Keyboard>/tab", "<Mouse>/middleButton", "<Gamepad>/rightStickPress");
+            block = Button("Block", "<Keyboard>/l", "<Gamepad>/leftTrigger");
             switchStick = new InputAction("SwitchStick", InputActionType.Value, "<Gamepad>/rightStick/x");
             switchScroll = new InputAction("SwitchScroll", InputActionType.Value, "<Mouse>/scroll/y");
             foreach (var action in All)
@@ -55,6 +57,7 @@ namespace MyGame
         public bool HealPressed => heal.WasPressedThisFrame();
         public bool InteractPressed => interact.WasPressedThisFrame();
         public bool LockPressed => lockOn.WasPressedThisFrame();
+        public bool BlockHeld => block.IsPressed();
 
         public int SwitchTarget
         {
@@ -74,7 +77,7 @@ namespace MyGame
             }
         }
 
-        InputAction[] All => new[] { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, switchStick, switchScroll };
+        InputAction[] All => new[] { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, switchStick, switchScroll };
 
         public void Dispose()
         {
@@ -104,6 +107,7 @@ namespace MyGame
         public bool HealPressed => Take(ref heal);
         public bool InteractPressed => Take(ref interact);
         public bool LockPressed => Take(ref lockOn);
+        public bool BlockHeld { get; set; }
 
         public int SwitchTarget
         {

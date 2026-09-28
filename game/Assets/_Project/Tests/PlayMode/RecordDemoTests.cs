@@ -116,10 +116,11 @@ namespace MyGame.Tests
                 input.PressLock();
                 for (int i = 0; i < 20; i++) { Snap(t0); yield return null; }
 
-                // 4. The fight: keep a respectful distance while its guard is up, test the guard once, dash out of
-                //    every slam, punish every recovery.
-                bool testedGuard = false, dashedThisSwing = false;
-                int punishSwings = 0;
+                // 4. The fight: keep a respectful distance while its guard is up, test the guard once, then alternate:
+                //    dash late through one attack, perfect-block the next (stun + ripostes); punish every recovery.
+                bool testedGuard = false, reacted = false;
+                int punishSwings = 0, attacks = 0;
+                float windupStart = 0f, releaseBlockAt = -1f;
                 for (int i = 0; i < Fps * 45 && target.IsAlive && apprentice.IsAlive; i++)
                 {
                     Vector3 to = target.transform.position - apprentice.transform.position;
@@ -131,22 +132,45 @@ namespace MyGame.Tests
 
                     if (apprentice.LockTarget == null && target.IsAlive)
                         input.PressLock();
-                    if (target.CurrentState == Soured.State.Telegraph)
+                    if (releaseBlockAt > 0f && Time.time >= releaseBlockAt)
                     {
-                        if (!dashedThisSwing && d < 3.2f && target.StateTime > target.telegraphDuration * 0.55f)
+                        input.BlockHeld = false;
+                        releaseBlockAt = -1f;
+                    }
+                    // React during the wind-up and the strike alike: a late dash or block falls in the strike.
+                    if (target.CurrentState == Soured.State.Telegraph || target.CurrentState == Soured.State.Strike)
+                    {
+                        if (!reacted && windupStart <= 0f)
                         {
-                            input.Move = around; // sideways out of the slam's line
+                            windupStart = Time.time - target.StateTime;
+                            attacks++;
+                        }
+                        float since = Time.time - windupStart;
+                        float impact = target.CurrentAttack.ImpactTime;
+                        bool parryThisOne = attacks % 2 == 0; // alternate: dash through one, perfect-block the next
+                        if (!reacted && parryThisOne && since >= impact - 0.1f)
+                        {
+                            input.BlockHeld = true;
+                            releaseBlockAt = Time.time + 0.35f;
+                            reacted = true;
+                        }
+                        else if (!reacted && !parryThisOne && d < 3.4f && since >= impact - 0.15f)
+                        {
+                            input.Move = around; // late, through the i-frames: an early dash would be tracked
                             input.PressDash();
-                            dashedThisSwing = true;
+                            reacted = true;
                         }
                     }
-                    else if (target.CurrentState == Soured.State.Recover || target.CurrentState == Soured.State.Staggered)
+                    else if (target.CurrentState == Soured.State.Recover || target.CurrentState == Soured.State.Staggered
+                             || target.CurrentState == Soured.State.Stunned)
                     {
-                        dashedThisSwing = false;
+                        reacted = false;
+                        windupStart = 0f;
                         if (d > 1.9f)
                             input.Move = toward;
-                        else if (apprentice.CurrentState == Apprentice.State.Free && i % 8 == 0)
+                        else if ((apprentice.CurrentState == Apprentice.State.Free || apprentice.CurrentState == Apprentice.State.Blocking) && i % 8 == 0)
                         {
+                            input.BlockHeld = false;
                             if (target.CurrentState == Soured.State.Staggered)
                                 input.PressHeavy();
                             else
@@ -156,7 +180,8 @@ namespace MyGame.Tests
                     }
                     else
                     {
-                        dashedThisSwing = false;
+                        reacted = false;
+                        windupStart = 0f;
                         if (!testedGuard && target.Guarding && d < 2.5f)
                         {
                             input.PressLight(); // clang: the heap blocks

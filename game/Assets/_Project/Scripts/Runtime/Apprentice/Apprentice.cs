@@ -3,12 +3,13 @@ using UnityEngine;
 namespace MyGame
 {
     // The player character. Tuning defaults are the "Middle" pace from the combat-feel prototype (docs/brief.md).
-    // Verbs: move, i-frame dash (cancels attack recovery), 2-swing light combo, heavy; stamina; Healing charges;
+    // Verbs: move, i-frame dash (cancels attack recovery), 2-swing light combo, heavy, block (a perfect block in its
+    // first 0.2 s stuns the attacker; hits on a stunned Soured are double-damage ripostes); stamina; Healing charges;
     // Rest at Mooring posts. Falling in the water washes the Apprentice ashore with damage (no death on water).
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Staggered, Dead }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -17,8 +18,8 @@ namespace MyGame
 
         [Header("Dash")]
         public float dashDuration = 0.38f;
-        public float dashDistance = 4f;
-        public float iFrameStart = 0.05f;
+        public float dashDistance = 2.8f; // short enough that the Laden can track an early dash: dodging is timing (play-test)
+        public float iFrameStart = 0f; // from the first frame: a dash pressed just before the blow must work (play-test)
         public float iFrameEnd = 0.28f;
         public float dashRecovery = 0.12f;
         public float dashStaminaCost = 20f;
@@ -62,6 +63,15 @@ namespace MyGame
         public float recoilPush = 14f; // ~1.4 m shove: knockback decays at 10/s
         public float postHitInvulnerability = 0.5f;
         public float respawnDelay = 2.5f;
+
+        [Header("Block")]
+        public float perfectWindow = 0.2f;       // a blow landing this soon after raising the block is perfect-blocked
+        public float blockSpamCooldown = 0.4f;   // re-raising sooner than this after lowering gives no perfect window
+        public float blockMoveFactor = 0.35f;
+        public float blockChip = 0.3f;           // share of damage that gets through a normal block
+        public float blockStaminaCost = 25f;
+        public float guardBreakDuration = 0.8f;  // blocking with no stamina left breaks the guard
+        [Range(0f, 180f)] public float blockHalfAngle = 100f;
 
         [Header("Healing charges")]
         public int maxHealingCharges = 3;
@@ -112,6 +122,10 @@ namespace MyGame
         int comboStep;
         bool hitLanded;
         bool swingSounded;
+        float blockStartedAt;
+        float lastBlockRelease = -10f;
+        bool perfectArmed;
+        float blockClipUntil;
         Vector3 lastSafeGround;
         float safeGroundTimer;
 
@@ -158,7 +172,26 @@ namespace MyGame
                     }
                     if (Input.HealPressed)
                         TryHeal();
+                    else if (Input.BlockHeld)
+                        StartBlock();
                     TryConsumeBuffer();
+                    break;
+
+                case State.Blocking:
+                    if (!Input.BlockHeld)
+                    {
+                        lastBlockRelease = Time.time;
+                        Enter(State.Free);
+                        break;
+                    }
+                    Vector3 step = MoveDirection();
+                    planar = step * moveSpeed * blockMoveFactor;
+                    Vector3 faceBlock = LockTarget != null ? ToLockTarget() : step;
+                    if (faceBlock.sqrMagnitude > 0.001f)
+                        transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(faceBlock), turnSpeed * 0.5f * dt);
+                    if (Time.time >= blockClipUntil)
+                        clips.Loop("Block", 0.05f);
+                    TryConsumeBuffer(); // attacking or dashing lowers the block
                     break;
 
                 case State.Dashing:
@@ -264,6 +297,7 @@ namespace MyGame
                     continue;
 
                 hitLanded = true;
+                bool riposte = soured.CurrentState == Soured.State.Stunned;
                 var result = soured.TakeHit(new Hit
                 {
                     Damage = isHeavy ? heavyDamage : lightDamage,
@@ -276,9 +310,9 @@ namespace MyGame
                     Recoil(to.normalized);
                 else
                 {
-                    HitStop.Trigger(isHeavy ? heavyHitStop : lightHitStop);
-                    CameraRig.Instance?.Shake(isHeavy ? 0.25f : 0.1f);
-                    Announce(isHeavy ? "HEAVY HIT" : "hit");
+                    HitStop.Trigger(riposte ? 0.16f : isHeavy ? heavyHitStop : lightHitStop);
+                    CameraRig.Instance?.Shake(riposte || isHeavy ? 0.25f : 0.1f);
+                    Announce(riposte ? "RIPOSTE" : isHeavy ? "HEAVY HIT" : "hit");
                 }
                 return; // one target per swing
             }
@@ -463,8 +497,9 @@ namespace MyGame
         void RegenerateStamina(float dt)
         {
             bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking;
+            float rate = CurrentState == State.Blocking ? 0.4f : 1f; // holding a block slows recovery
             if (!busy && Time.time - lastStaminaUse >= staminaRegenDelay)
-                Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * dt);
+                Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * rate * dt);
         }
 
         void TryHeal()
@@ -481,14 +516,16 @@ namespace MyGame
 
         // ------------------------------------------------------------ damage, death, rest
 
-        public bool TakeHit(float damage, Vector3 knock)
+        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null)
         {
             if (Invulnerable)
             {
                 if (CurrentState == State.Dashing)
                     Announce("dodged");
-                return false;
+                return Defence.Dodged;
             }
+            if (CurrentState == State.Blocking && Facing(attacker != null ? attacker.transform.position : transform.position - knock))
+                return Block(damage, knock, attacker);
             Health = Mathf.Max(0f, Health - damage);
             knockback = knock;
             invulnerableUntil = Time.time + postHitInvulnerability;
@@ -500,7 +537,60 @@ namespace MyGame
                 Die();
             else
                 EnterStagger(staggerDuration, "Hit");
-            return true;
+            return Defence.Taken;
+        }
+
+        void StartBlock()
+        {
+            Enter(State.Blocking);
+            blockStartedAt = Time.time;
+            perfectArmed = Time.time - lastBlockRelease >= blockSpamCooldown; // no mashing your way to a parry
+            clips.Loop("Block", 0.05f);
+        }
+
+        bool Facing(Vector3 from)
+        {
+            Vector3 to = from - transform.position;
+            to.y = 0f;
+            return to.sqrMagnitude < 0.001f || Vector3.Angle(transform.forward, to) <= blockHalfAngle;
+        }
+
+        Defence Block(float damage, Vector3 knock, Soured attacker)
+        {
+            Vector3 towards = attacker != null ? attacker.transform.position - transform.position : -knock;
+            towards.y = 0f;
+            Vector3 contact = transform.position + towards.normalized * 0.6f + Vector3.up * 0.9f;
+            if (perfectArmed && Time.time - blockStartedAt <= perfectWindow)
+            {
+                HitStop.Trigger(0.18f);
+                CameraRig.Instance?.Shake(0.25f);
+                Effects.Instance?.ParryFlash(contact, towards.normalized);
+                Sfx.Instance?.Parry(contact);
+                clips.PlayOnce("Parry", 0.3f);
+                blockClipUntil = Time.time + 0.3f;
+                invulnerableUntil = Time.time + 0.2f;
+                Announce("PERFECT BLOCK");
+                return Defence.Parried; // the attacker is stunned by the caller
+            }
+
+            Stamina = Mathf.Max(0f, Stamina - blockStaminaCost);
+            lastStaminaUse = Time.time;
+            Health = Mathf.Max(0f, Health - damage * blockChip);
+            knockback = knock * 0.6f;
+            HitStop.Trigger(0.06f);
+            CameraRig.Instance?.Shake(0.12f);
+            Effects.Instance?.BlockSpark(contact, towards.normalized);
+            Sfx.Instance?.BlockClang(contact, 0.7f);
+            if (Health <= 0f)
+                Die();
+            else if (Stamina <= 0f)
+            {
+                Announce("guard broken");
+                EnterStagger(guardBreakDuration, "Hit");
+            }
+            else
+                Announce("blocked");
+            return Defence.Blocked;
         }
 
         void EnterStagger(float duration, string clip)

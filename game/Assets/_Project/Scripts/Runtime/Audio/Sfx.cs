@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -46,7 +46,8 @@ namespace MyGame
 
         public void OarSwing(Vector3 at, bool heavy) => Play(heavy ? oarSwingHeavy : oarSwing, at, heavy ? 0.9f : 0.75f, heavy ? "oar_swing_heavy" : "oar_swing");
         public void Dash(Vector3 at) => Play(dash, at, 0.7f, "dash");
-        public void BlockClang(Vector3 at) => Play(blockClang, at, 1f, "block_clang");
+        public void BlockClang(Vector3 at, float volume = 1f) => Play(blockClang, at, volume, "block_clang");
+        public void Parry(Vector3 at) => Play(parry, at, 1f, "parry");
 
         void Play(AudioClip[] set, Vector3 at, float volume, string label)
         {

@@ -27,6 +27,16 @@ namespace MyGame
                 Instance = null;
         }
 
+        // A perfect block: a big golden ring and a burst of bright sparks.
+        public void ParryFlash(Vector3 position, Vector3 normal)
+        {
+            var rotation = Quaternion.LookRotation(normal.sqrMagnitude > 0.001f ? normal : Vector3.up);
+            sparks.transform.SetPositionAndRotation(position, rotation);
+            flash.transform.position = position;
+            flash.Emit(new ParticleSystem.EmitParams { startSize = 1.5f, startColor = new Color(1f, 0.85f, 0.45f, 1f), applyShapeToPosition = false }, 1);
+            sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(1f, 0.95f, 0.7f, 1f) }, 45);
+        }
+
         // A Soured notices the Apprentice: its eyes flare sickly green.
         public void AlertFlare(Vector3 position)
         {

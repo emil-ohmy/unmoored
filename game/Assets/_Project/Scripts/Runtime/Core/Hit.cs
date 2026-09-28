@@ -13,4 +13,7 @@ namespace MyGame
     }
 
     public enum HitResult { Missed, Landed, Blocked }
+
+    // What happened when a Soured's blow reached the Apprentice.
+    public enum Defence { Dodged, Taken, Blocked, Parried }
 }

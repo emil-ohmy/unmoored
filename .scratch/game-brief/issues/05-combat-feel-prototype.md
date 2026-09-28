@@ -39,3 +39,8 @@ Prototype (primary source): branch `prototype/combat-feel` (commits a74d1de, bfc
 - 2026-09-28: after playing the first slice the user swapped the dodge roll for a **dash** (same Middle timing and
   i-frames: 0.38 s over 4 m, invulnerable 0.05–0.28 s). The i-frames are shown as fading ghost images. The brief
   now says dash everywhere (including the Clinger and Keener lines).
+- 2026-09-28 (later): the user asked for a tighter fight. Added block and perfect block (0.2 s window, always stuns;
+  ripostes do double damage; no perfect window when re-raised within 0.4 s). A frame-by-frame play-test of every defence
+  against every attack showed dodging needed no timing (the 4 m dash out-ranged any attack) and the i-frames started
+  50 ms late. Now: i-frames from frame 0, Soured track 90% of the wind-up and lunge before the blow, and the dash is
+  2.8 m (the user chose it) so dodging is a ~270 ms timing window.

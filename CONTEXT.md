@@ -82,6 +82,14 @@ _Avoid_: Potion, flask, estus
 A hidden per-enemy gauge that hits fill (light a little, heavy a lot) and that drains over time; when full, the enemy is staggered.
 _Avoid_: Poise bar, stun meter
 
+**Perfect block**:
+A block raised just before a blow lands (within 0.2 s): it takes no damage and always stuns the attacker.
+_Avoid_: Parry, deflect
+
+**Riposte**:
+A hit on a stunned Soured: double damage, straight through any guard.
+_Avoid_: Critical, counter
+
 **Telegraph**:
 The readable wind-up of an attack, shown through the attacker's animation, never through ground markers.
 _Avoid_: Tell, warning, indicator

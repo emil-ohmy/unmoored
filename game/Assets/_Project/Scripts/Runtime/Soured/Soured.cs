@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public class Soured : MonoBehaviour
     {
-        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Scattered }
+        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Scattered }
 
         [Header("Health")]
         public float maxHealth = 100f;
@@ -32,16 +32,12 @@ namespace MyGame
         public float chaseSpeed = 2.4f;
         public float turnSpeed = 360f;
 
-        [Header("Attack (durations match the model's clips)")]
-        public float telegraphDuration = 0.9f;
-        public float strikeDuration = 0.3f;
-        public float recoverDuration = 1.2f;
-        [Range(0f, 1f)] public float impactAt = 0.4f; // fraction of the strike when the blow lands
-        public float lungeDistance = 0.6f;
-        public float damage = 25f;
-        public float strikeReach = 2.3f;
-        public float strikeArc = 60f;
-        public float playerKnockback = 7f;
+        [Header("Attacks (durations match the model's clips)")]
+        public SouredAttack primary = new SouredAttack();
+
+        [Header("Perfect-blocked")]
+        public float stunDuration = 1.8f;
+        public float riposteMultiplier = 2f; // hits on a stunned Soured
 
         public State CurrentState { get; private set; }
         public float Health { get; private set; }
@@ -49,8 +45,11 @@ namespace MyGame
         public bool IsAlive => CurrentState != State.Scattered;
         public float HealthFraction => Mathf.Clamp01(Health / maxHealth);
         public float StateTime => stateTime; // seconds in the current state
+        public SouredAttack CurrentAttack => current;
 
         protected ClipPlayer clips;
+        SouredAttack current;
+        float lungeThisStrike;
         protected virtual string IdleClip => "Idle";
 
         // Chase behaviour by distance to the Apprentice; subclasses change gait and speed (the Laden guards up close).
@@ -117,43 +116,58 @@ namespace MyGame
                     OnChaseDistance(distance);
                     LoopUnlessBusy(ChaseClip(distance));
                     Face(toTarget, turnSpeed * dt);
-                    if (distance <= attackRange)
+                    var attack = ChooseAttack(toTarget, distance);
+                    if (attack != null)
                     {
+                        current = attack;
                         lockedDirection = toTarget.normalized; // locked now: sidestepping is always an answer
                         Enter(State.Telegraph);
-                        clips.PlayOnce("Windup", telegraphDuration);
+                        clips.PlayOnce(attack.windupClip, attack.telegraph);
                     }
                     else
                         planar = toTarget.normalized * ChaseSpeed(distance);
                     break;
 
                 case State.Telegraph:
+                    // Follow the target for most of the wind-up, then commit: dodging too early gets tracked.
+                    if (stateTime < current.telegraph * current.trackUntil && toTarget.sqrMagnitude > 0.01f)
+                        lockedDirection = toTarget.normalized;
                     Face(lockedDirection, turnSpeed * 2f * dt);
-                    if (stateTime >= telegraphDuration)
+                    if (stateTime >= current.telegraph)
                     {
                         struck = false;
+                        // Lunge far enough to reach a target that backed off, within limits.
+                        lungeThisStrike = Mathf.Clamp(toTarget.magnitude - current.reach * 0.5f, current.lunge, current.maxLunge);
                         Enter(State.Strike);
-                        clips.PlayOnce("Strike", strikeDuration);
+                        clips.PlayOnce(current.strikeClip, current.strike);
                     }
                     break;
 
                 case State.Strike:
-                    planar = lockedDirection * (lungeDistance / strikeDuration);
-                    if (!struck && stateTime >= impactAt * strikeDuration)
+                    // The whole lunge happens before the blow lands (a swing that closes the gap, then connects).
+                    float lungeTime = Mathf.Max(0.01f, current.strike * current.impactAt);
+                    if (stateTime < lungeTime)
+                        planar = transform.forward * (lungeThisStrike / lungeTime);
+                    if (!struck && stateTime >= current.impactAt * current.strike)
                     {
                         struck = true;
                         if (targetAlive)
                             StrikeTarget(toTarget);
                     }
-                    if (stateTime >= strikeDuration)
+                    if (CurrentState == State.Strike && stateTime >= current.strike)
                     {
                         Enter(State.Recover);
-                        clips.PlayOnce("Recover", recoverDuration);
+                        clips.PlayOnce(current.recoverClip, current.recover);
                     }
                     break;
 
                 case State.Recover:
-                    if (stateTime >= recoverDuration)
+                    if (stateTime >= current.recover)
+                        Enter(State.Chase);
+                    break;
+
+                case State.Stunned:
+                    if (stateTime >= stunDuration)
                         Enter(State.Chase);
                     break;
 
@@ -172,17 +186,35 @@ namespace MyGame
             UpdateFlash();
         }
 
-        protected virtual void StrikeTarget(Vector3 toTarget)
+        // Which attack (if any) to start now; the base Soured has one, used when the Apprentice is in range.
+        protected virtual SouredAttack ChooseAttack(Vector3 toTarget, float distance) =>
+            distance <= attackRange ? primary : null;
+
+        void StrikeTarget(Vector3 toTarget)
         {
-            if (toTarget.magnitude <= strikeReach + 0.35f && Vector3.Angle(transform.forward, toTarget) <= strikeArc)
-                target.TakeHit(damage, lockedDirection * playerKnockback);
+            if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
+                return;
+            if (target.TakeHit(current.damage, toTarget.normalized * current.knockback, this) == Defence.Parried)
+                Stun();
+        }
+
+        // A perfect block turns the blow back: the Soured reels, open to a riposte.
+        public void Stun()
+        {
+            Stagger = 0f;
+            knockback = -transform.forward * 3f;
+            Enter(State.Stunned);
+            clips.PlayOnce("Stagger", stunDuration);
         }
 
         public HitResult TakeHit(Hit hit)
         {
             if (!IsAlive)
                 return HitResult.Missed;
-            if (BlocksHit(hit))
+            bool stunned = CurrentState == State.Stunned;
+            if (stunned)
+                hit.Damage *= riposteMultiplier; // a riposte: double damage, straight through any guard
+            else if (BlocksHit(hit))
             {
                 PlayShort("Block", 0.3f);
                 knockback = -hit.Knockback.normalized * 0.8f; // the heap gives a little
@@ -201,7 +233,7 @@ namespace MyGame
 
             if (Health <= 0f)
                 Scatter();
-            else if (Stagger >= staggerCapacity && CurrentState != State.Staggered)
+            else if (!stunned && Stagger >= staggerCapacity && CurrentState != State.Staggered)
             {
                 Stagger = 0f;
                 Enter(State.Staggered);
@@ -233,6 +265,13 @@ namespace MyGame
             foreach (var r in renderers)
                 r.enabled = false;
             controller.enabled = false;
+        }
+
+        // Where it re-forms (level design; tests use it to stage a fight on open ground).
+        public void SetSpawn(Vector3 position, Quaternion rotation)
+        {
+            spawnPosition = position;
+            spawnRotation = rotation;
         }
 
         // Back to its spawn, whole again (the Ferryman's hoard pulls it back).
