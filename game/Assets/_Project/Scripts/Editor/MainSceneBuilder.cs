@@ -196,6 +196,7 @@ public static class MainSceneBuilder
         laden.lungeDistance = 0.5f;
         laden.damage = 30f;
         laden.strikeReach = 2.2f;
+        laden.barHeight = 2.3f; // just above the raised heap
         var lantern = PointLight(Bone(go, "Spine"), GlowCentre(go, "SouredLantern_Glow"), 3.8f, 1.8f, SouredLight);
         Flicker(lantern, 0.15f, 5f, 0.02f);
     }

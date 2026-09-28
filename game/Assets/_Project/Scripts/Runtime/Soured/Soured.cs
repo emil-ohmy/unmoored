@@ -25,6 +25,7 @@ namespace MyGame
         [Header("Behaviour")]
         public float aggroRadius = 9f;
         public float eyeHeight = 1.3f; // where the alert flare shows
+        public float barHeight = 2.3f; // where the lock-on health bar floats
         public float attackRange = 2.2f;
         public float chaseSpeed = 2.4f;
         public float turnSpeed = 360f;
@@ -44,6 +45,7 @@ namespace MyGame
         public float Health { get; private set; }
         public float Stagger { get; private set; }
         public bool IsAlive => CurrentState != State.Scattered;
+        public float HealthFraction => Mathf.Clamp01(Health / maxHealth);
 
         protected ClipPlayer clips;
         protected virtual string IdleClip => "Idle";

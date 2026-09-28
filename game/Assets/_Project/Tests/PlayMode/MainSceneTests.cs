@@ -112,6 +112,69 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator LockOn_TargetsTheNearbySoured_FacesIt_AndShowsItsHealth()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            Vector3 side = Quaternion.Euler(0f, 90f, 0f) * target.transform.forward;
+            PlaceApprentice(target.transform.position + side * 3f, target.transform.position + side * 10f); // facing away
+            input.PressLock();
+            yield return null;
+            Assert.AreEqual(target, apprentice.LockTarget, "lock-on should pick the Laden nearby");
+            yield return new WaitForSeconds(0.3f);
+            Vector3 to = target.transform.position - apprentice.transform.position;
+            to.y = 0f;
+            Assert.Greater(Vector3.Dot(apprentice.transform.forward, to.normalized), 0.95f, "locked on, the Apprentice should face its target");
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Assert.IsTrue(hud.LockBarVisible, "the target's health bar should show");
+            Vector2 expected = Camera.main.WorldToScreenPoint(target.transform.position + Vector3.up * target.barHeight);
+            Vector2 actual = RectTransformUtility.WorldToScreenPoint(null, hud.LockBarRect.position); // overlay: screen pixels
+            Assert.Less(Vector2.Distance(expected, actual), 4f, $"the bar should float above its target (expected {expected}, got {actual})");
+
+            input.PressLock();
+            yield return null;
+            Assert.IsNull(apprentice.LockTarget, "pressing again should release");
+            Assert.IsFalse(Object.FindAnyObjectByType<Hud>().LockBarVisible);
+        }
+
+        [UnityTest]
+        public IEnumerator LockOn_AimsAttacksAtTheTarget_AndReleasesWhenItScatters()
+        {
+            var target = Isolate(laden[0], frozen: true);
+            PlaceApprentice(target.transform.position - target.transform.forward * 1.8f, target.transform.position - target.transform.forward * 9f);
+            input.PressLock();
+            yield return null;
+            input.Move = new Vector2(1f, 0f); // stick pointing somewhere else entirely
+            float before = target.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.35f);
+            input.Move = Vector2.zero;
+            Assert.Less(target.Health, before, "a locked-on swing should turn to the target and land");
+
+            target.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+            yield return null;
+            Assert.IsNull(apprentice.LockTarget, "a scattered target (with none other near) should release the lock");
+        }
+
+        [UnityTest]
+        public IEnumerator LockOn_SwitchesBetweenTargets()
+        {
+            PlaceApprentice(new Vector3(1.4f, 0.55f, 1.9f), new Vector3(1.4f, 0.55f, 5f)); // between the two Laden
+            input.PressLock();
+            yield return null;
+            var first = apprentice.LockTarget;
+            Assert.IsNotNull(first);
+            input.Switch(1);
+            yield return null;
+            if (apprentice.LockTarget == first)
+            {
+                input.Switch(-1);
+                yield return null;
+            }
+            Assert.IsNotNull(apprentice.LockTarget);
+            Assert.AreNotEqual(first, apprentice.LockTarget, "switching should move the lock to the other Laden");
+        }
+
+        [UnityTest]
         public IEnumerator Dash_IsInvulnerableDuringItsIFrames_ButNotAfter()
         {
             input.Move = Vector2.left;

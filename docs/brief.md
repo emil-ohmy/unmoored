@@ -35,6 +35,9 @@ business and pay their fare to row them across.
 - **Pace:** "Middle", between Death's Door's snappiness and Tunic's weight.
 - **Verbs:** move, a dash with invincibility frames, shown as ghost images (it can cancel an attack's recovery), a 2-swing light combo
   and a heavy attack. Attacks go where the stick points.
+- **Lock-on:** lock onto a nearby Soured (and flick between targets): the Apprentice keeps facing it, every swing
+  goes at it, and a directionless dash becomes a backstep. Only the locked target shows a health bar; the Stagger
+  meter stays hidden.
 - **Stamina:** all actions cost stamina. Any stamina left lets you act. It regenerates after a short pause.
 - **Stagger meter:** hidden. Light hits fill it a little, heavy hits a lot, and it drains if you let up. When full,
   the Soured is staggered and its attack is interrupted.

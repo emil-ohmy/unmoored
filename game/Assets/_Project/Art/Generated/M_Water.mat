@@ -32,9 +32,9 @@ Material:
     - _WaveLength: 3.5
     - _WaveSpeed: 0.8
     m_Colors:
-    - _DeepColor: {r: 0.047058824, g: 0.10980392, b: 0.1254902, a: 1}
+    - _DeepColor: {r: 0.03137255, g: 0.078431375, b: 0.09411765, a: 1}
     - _FoamColor: {r: 0.5411765, g: 0.6117647, b: 0.6039216, a: 1}
     - _ShadowTint: {r: 0.74, g: 0.71, b: 0.88, a: 1}
-    - _ShallowColor: {r: 0.09019608, g: 0.19607843, b: 0.21176471, a: 1}
+    - _ShallowColor: {r: 0.0627451, g: 0.14901961, b: 0.16470589, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

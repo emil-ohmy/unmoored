@@ -12,12 +12,15 @@ namespace MyGame
         bool HeavyPressed { get; }
         bool HealPressed { get; }
         bool InteractPressed { get; }
+        bool LockPressed { get; }
+        int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
     }
 
     // Keyboard/mouse and gamepad bindings (gamepad-first).
     public sealed class GameInput : IApprenticeInput, System.IDisposable
     {
-        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact;
+        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, switchStick, switchScroll;
+        bool stickArmed = true;
 
         public GameInput()
         {
@@ -30,7 +33,10 @@ namespace MyGame
             heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth", "<Gamepad>/rightTrigger");
             heal = Button("Heal", "<Keyboard>/q", "<Gamepad>/leftShoulder");
             interact = Button("Interact", "<Keyboard>/e", "<Gamepad>/buttonSouth");
-            foreach (var action in new[] { move, dash, lightAttack, heavyAttack, heal, interact })
+            lockOn = Button("LockOn", "<Keyboard>/tab", "<Mouse>/middleButton", "<Gamepad>/rightStickPress");
+            switchStick = new InputAction("SwitchStick", InputActionType.Value, "<Gamepad>/rightStick/x");
+            switchScroll = new InputAction("SwitchScroll", InputActionType.Value, "<Mouse>/scroll/y");
+            foreach (var action in All)
                 action.Enable();
         }
 
@@ -48,10 +54,31 @@ namespace MyGame
         public bool HeavyPressed => heavyAttack.WasPressedThisFrame();
         public bool HealPressed => heal.WasPressedThisFrame();
         public bool InteractPressed => interact.WasPressedThisFrame();
+        public bool LockPressed => lockOn.WasPressedThisFrame();
+
+        public int SwitchTarget
+        {
+            get
+            {
+                // Right stick: a flick past 0.7 switches once; it must return near centre before the next.
+                float x = switchStick.ReadValue<float>();
+                if (stickArmed && Mathf.Abs(x) > 0.7f)
+                {
+                    stickArmed = false;
+                    return x > 0f ? 1 : -1;
+                }
+                if (Mathf.Abs(x) < 0.3f)
+                    stickArmed = true;
+                float scroll = switchScroll.ReadValue<float>();
+                return scroll > 0.1f ? 1 : scroll < -0.1f ? -1 : 0;
+            }
+        }
+
+        InputAction[] All => new[] { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, switchStick, switchScroll };
 
         public void Dispose()
         {
-            foreach (var action in new[] { move, dash, lightAttack, heavyAttack, heal, interact })
+            foreach (var action in All)
                 action.Dispose();
         }
     }
@@ -60,19 +87,33 @@ namespace MyGame
     public sealed class ScriptedInput : IApprenticeInput
     {
         public Vector2 Move { get; set; }
-        bool dash, lightAttack, heavyAttack, heal, interact;
+        bool dash, lightAttack, heavyAttack, heal, interact, lockOn;
+        int switchTarget;
 
         public void PressDash() => dash = true;
         public void PressLight() => lightAttack = true;
         public void PressHeavy() => heavyAttack = true;
         public void PressHeal() => heal = true;
         public void PressInteract() => interact = true;
+        public void PressLock() => lockOn = true;
+        public void Switch(int direction) => switchTarget = direction;
 
         public bool DashPressed => Take(ref dash);
         public bool LightPressed => Take(ref lightAttack);
         public bool HeavyPressed => Take(ref heavyAttack);
         public bool HealPressed => Take(ref heal);
         public bool InteractPressed => Take(ref interact);
+        public bool LockPressed => Take(ref lockOn);
+
+        public int SwitchTarget
+        {
+            get
+            {
+                int value = switchTarget;
+                switchTarget = 0;
+                return value;
+            }
+        }
 
         static bool Take(ref bool flag)
         {

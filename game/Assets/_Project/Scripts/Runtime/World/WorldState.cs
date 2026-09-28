@@ -8,6 +8,7 @@ namespace MyGame
     {
         public static WorldState Instance { get; private set; }
         static readonly List<Soured> soured = new List<Soured>();
+        public static IReadOnlyList<Soured> AllSoured => soured;
 
         public Transform startPoint;
         public MooringPost LastRested { get; private set; }

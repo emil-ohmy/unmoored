@@ -98,13 +98,25 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.2f);
             Capture(outDir, "play-6-swing");
             input.Move = Vector2.zero;
+
+            // Lock on: the target's health bar (with the damage trail) floats above it. The HUD normally draws
+            // straight to the screen; route it through the camera so the capture includes it.
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = Camera.main;
+                canvas.planeDistance = 1f;
+            }
+            input.PressLock();
+            yield return new WaitForSeconds(0.25f);
+            Capture(outDir, "play-7-lock-on", Screen.width, Screen.height); // HUD layout follows the screen size
             yield return new WaitForSeconds(0.4f);
         }
 
-        static void Capture(string outDir, string name)
+        static void Capture(string outDir, string name, int width = 1600, int height = 900)
         {
             var cam = Camera.main;
-            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
             var request = new RenderPipeline.StandardRequest { destination = rt };
             RenderPipeline.SubmitRenderRequest(cam, request);
             var previous = RenderTexture.active;

@@ -68,6 +68,11 @@ namespace MyGame
         public float healAmount = 45f;
         public float healDuration = 0.7f;
 
+        [Header("Lock-on")]
+        public float lockRange = 10f;
+        public float lockBreakRange = 14f;
+        public float lockedMoveSpeedFactor = 0.85f; // a little slower while circling a target
+
         [Header("Feel")]
         public float inputBuffer = 0.2f;
 
@@ -81,6 +86,7 @@ namespace MyGame
         public float Stamina { get; private set; }
         public int HealingCharges { get; private set; }
         public MooringPost NearbyPost { get; private set; }
+        public Soured LockTarget { get; private set; }
         public string LastEvent { get; private set; } = "";
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
@@ -130,6 +136,7 @@ namespace MyGame
         {
             float dt = Time.deltaTime;
             ReadInput();
+            UpdateLockOn();
             stateTime += dt;
             Vector3 planar = Vector3.zero;
 
@@ -137,14 +144,11 @@ namespace MyGame
             {
                 case State.Free:
                     Vector3 move = MoveDirection();
-                    planar = move * moveSpeed;
-                    if (move.sqrMagnitude > 0.001f)
-                    {
-                        transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(move), turnSpeed * dt);
-                        clips.Loop("Run", 0.1f);
-                    }
-                    else
-                        clips.Loop("Idle");
+                    planar = move * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f);
+                    Vector3 face = LockTarget != null ? ToLockTarget() : move; // locked: strafe, always facing it
+                    if (face.sqrMagnitude > 0.001f)
+                        transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
+                    clips.Loop(move.sqrMagnitude > 0.001f ? "Run" : "Idle", 0.1f);
                     NearbyPost = MooringPost.Nearest(transform.position);
                     if (NearbyPost != null && Input.InteractPressed)
                     {
@@ -293,15 +297,101 @@ namespace MyGame
                 return;
             }
             Spend(cost);
-            Vector3 move = MoveDirection();
-            if (move.sqrMagnitude > 0.001f)
-                transform.rotation = Quaternion.LookRotation(move); // attacks go where the stick points
+            Vector3 aim = LockTarget != null ? ToLockTarget() : MoveDirection(); // locked: every swing goes at the target
+            if (aim.sqrMagnitude > 0.001f)
+                transform.rotation = Quaternion.LookRotation(aim); // otherwise attacks go where the stick points
             isHeavy = heavy;
             comboStep = step;
             hitLanded = false;
             Enter(State.Attacking);
             float total = heavy ? heavyWindup + heavyActive + heavyRecovery : lightWindup + lightActive + lightRecovery;
             clips.PlayOnce(heavy ? "Heavy" : (step % 2 == 0 ? "Light1" : "Light2"), total);
+        }
+
+        // ------------------------------------------------------------ lock-on
+
+        void UpdateLockOn()
+        {
+            if (!IsAlive)
+            {
+                SetLockTarget(null);
+                return;
+            }
+            if (Input.LockPressed)
+                SetLockTarget(LockTarget != null ? null : BestTarget(null));
+
+            int direction = Input.SwitchTarget;
+            if (direction != 0 && LockTarget != null)
+                SetLockTarget(Neighbour(direction) ?? LockTarget);
+
+            if (LockTarget != null)
+            {
+                if (!LockTarget.IsAlive || !LockTarget.isActiveAndEnabled)
+                    SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
+                else if (ToLockTarget().magnitude > lockBreakRange)
+                    SetLockTarget(null);
+            }
+        }
+
+        void SetLockTarget(Soured target)
+        {
+            LockTarget = target;
+            CameraRig.Instance?.SetSecondary(target != null ? target.transform : null);
+        }
+
+        Vector3 ToLockTarget()
+        {
+            Vector3 to = LockTarget.transform.position - transform.position;
+            to.y = 0f;
+            return to;
+        }
+
+        // The Soured most likely meant: close, and in the direction the Apprentice is heading or facing.
+        Soured BestTarget(Soured exclude)
+        {
+            Vector3 heading = MoveDirection().sqrMagnitude > 0.001f ? MoveDirection() : transform.forward;
+            Soured best = null;
+            float bestScore = float.MaxValue;
+            foreach (var s in WorldState.AllSoured)
+            {
+                if (s == exclude || !s.IsAlive || !s.isActiveAndEnabled)
+                    continue;
+                Vector3 to = s.transform.position - transform.position;
+                to.y = 0f;
+                if (to.magnitude > lockRange)
+                    continue;
+                float score = to.magnitude + Vector3.Angle(heading, to) / 45f;
+                if (score < bestScore)
+                {
+                    best = s;
+                    bestScore = score;
+                }
+            }
+            return best;
+        }
+
+        // The next target clockwise (+1, to the right on screen) or anticlockwise (-1) from the current one.
+        Soured Neighbour(int direction)
+        {
+            Vector3 current = ToLockTarget();
+            Soured best = null;
+            float bestAngle = float.MaxValue;
+            foreach (var s in WorldState.AllSoured)
+            {
+                if (s == LockTarget || !s.IsAlive || !s.isActiveAndEnabled)
+                    continue;
+                Vector3 to = s.transform.position - transform.position;
+                to.y = 0f;
+                if (to.magnitude > lockRange)
+                    continue;
+                float angle = Vector3.SignedAngle(current, to, Vector3.up) * direction;
+                if (angle > 0f && angle < bestAngle)
+                {
+                    best = s;
+                    bestAngle = angle;
+                }
+            }
+            return best;
         }
 
         // ------------------------------------------------------------ buffer, stamina, healing
@@ -336,7 +426,10 @@ namespace MyGame
                     }
                     Spend(dashStaminaCost);
                     Vector3 move = MoveDirection();
-                    dashDirection = move.sqrMagnitude > 0.001f ? move.normalized : transform.forward;
+                    if (move.sqrMagnitude > 0.001f)
+                        dashDirection = move.normalized;
+                    else
+                        dashDirection = LockTarget != null ? -ToLockTarget().normalized : transform.forward; // locked: backstep
                     transform.rotation = Quaternion.LookRotation(dashDirection);
                     Enter(State.Dashing);
                     clips.PlayOnce("Dash", dashDuration);

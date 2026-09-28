@@ -11,6 +11,9 @@ namespace MyGame
         [Range(30f, 80f)] public float pitch = 50f;
         public float distance = 15f;
         public float smoothTime = 0.15f;
+        [Range(0f, 0.5f)] public float secondaryWeight = 0.3f; // how far to lean towards a locked-on target
+
+        Transform secondary;
 
         Vector3 velocity;
         Vector3 follow;
@@ -26,13 +29,20 @@ namespace MyGame
 
         public void Shake(float amount) => shake = Mathf.Max(shake, amount);
 
+        // Frame a second subject too (the lock-on target), without ever rotating the camera.
+        public void SetSecondary(Transform subject) => secondary = subject;
+
         public void SnapToTarget()
         {
             follow = Desired();
             velocity = Vector3.zero;
         }
 
-        Vector3 Desired() => target.position + Quaternion.Euler(pitch, 0f, 0f) * new Vector3(0f, 0f, -distance);
+        Vector3 Desired()
+        {
+            Vector3 focus = secondary != null ? Vector3.Lerp(target.position, secondary.position, secondaryWeight) : target.position;
+            return focus + Quaternion.Euler(pitch, 0f, 0f) * new Vector3(0f, 0f, -distance);
+        }
 
         void LateUpdate()
         {
