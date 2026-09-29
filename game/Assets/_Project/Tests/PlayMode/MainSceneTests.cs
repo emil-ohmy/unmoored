@@ -1070,21 +1070,20 @@ namespace MyGame.Tests
             Assert.AreNotEqual(Apprentice.State.Hooking, apprentice.CurrentState);
         }
 
-        // Hook posts never glow; their iron ring catches the moonlight now and then as you walk past (not when still).
+        // Hook posts never glow; their iron ring catches the moonlight in a tiny glint now and then while you're near
+        // (standing still too), and not at all from far off.
         [UnityTest]
-        public IEnumerator HookPosts_GlintAsYouWalkPast_NotWhileYouStandStill()
+        public IEnumerator HookPosts_GlintNowAndThen_WhileYoureNear()
         {
             var post = Object.FindObjectsByType<HookPost>(FindObjectsSortMode.None).OrderBy(p => FlatDistance(p.transform.position, new Vector3(1.55f, 0f, -17.3f))).First();
-            for (float t = 0; t < 6f && apprentice.transform.position.z < -11f; t += Time.deltaTime)
-            {
-                input.Move = Vector2.up; // up the boardwalk, past the post by the half-sunken house
-                yield return null;
-            }
-            input.Move = Vector2.zero;
-            Assert.Greater(post.Glints, 0, "walking past, its ring should catch the moonlight");
-            int glints = post.Glints;
-            yield return new WaitForSeconds(4f);
-            Assert.AreEqual(glints, post.Glints, "standing still, it doesn't wink");
+            int far = post.Glints;
+            yield return new WaitForSeconds(6f); // on the landing: too far away
+            Assert.AreEqual(far, post.Glints, "no glints from far off");
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -20.5f)); // on the boardwalk, just short of it
+            int before = post.Glints;
+            yield return new WaitForSeconds(12f); // standing still
+            Assert.Greater(post.Glints, before, "near it, even standing still, its ring should catch the moonlight");
+            Assert.LessOrEqual(post.Glints - before, 3, "now and then, not all the time");
         }
 
         [UnityTest]

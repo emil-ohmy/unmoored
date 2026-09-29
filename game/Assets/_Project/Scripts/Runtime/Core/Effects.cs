@@ -10,7 +10,7 @@ namespace MyGame
         public Material sparkMaterial; // MyGame/Particle with a soft dot
         public Material flashMaterial; // MyGame/Particle with a ring
 
-        ParticleSystem sparks, flash, fare;
+        ParticleSystem sparks, flash, fare, glints;
         ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
         Transform fareTarget;
         BowLantern fareLantern;
@@ -24,6 +24,7 @@ namespace MyGame
             sparks = Build("Block Sparks", sparkMaterial, stretch: true);
             flash = Build("Block Flash", flashMaterial, stretch: false);
             fare = BuildFare();
+            glints = BuildGlints();
         }
 
         // Where a defeated Soured's fare flies to: the Apprentice's lantern.
@@ -140,12 +141,41 @@ namespace MyGame
             flash.Emit(new ParticleSystem.EmitParams { startSize = 1.8f, startLifetime = 0.5f, startColor = new Color(0.6f, 0.75f, 0.9f, 0.7f), applyShapeToPosition = false }, 1);
         }
 
-        // Wet iron catching the moonlight: one small, quick, cold sparkle (hook post rings).
+        // Wet iron catching the moonlight: a tiny cold point of light that pops in and out (hook post rings).
         public void MoonGlint(Vector3 position)
         {
-            flash.transform.position = position;
-            var p = new ParticleSystem.EmitParams { startSize = 0.42f, startLifetime = 0.18f, startColor = new Color(0.85f, 0.92f, 1f, 0.95f), applyShapeToPosition = false };
-            flash.Emit(p, 1);
+            glints.Emit(new ParticleSystem.EmitParams
+            {
+                position = position, velocity = Vector3.zero, startSize = 0.11f, startLifetime = 0.14f,
+                startColor = new Color(0.85f, 0.92f, 1f, 0.75f), applyShapeToPosition = false,
+            }, 1);
+        }
+
+        public int LiveGlints => glints != null ? glints.particleCount : 0;
+
+        ParticleSystem BuildGlints()
+        {
+            var go = new GameObject("Moon Glints");
+            go.transform.SetParent(transform, false);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 16;
+            var emission = ps.emission;
+            emission.enabled = false;
+            var shape = ps.shape;
+            shape.enabled = false;
+            var size = ps.sizeOverLifetime; // a quick pop: up, then gone
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.2f), new Keyframe(0.35f, 1f), new Keyframe(1f, 0f)));
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = sparkMaterial;
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return ps;
         }
 
         // The moment a guard comes up: a small, quick glint on the shield.

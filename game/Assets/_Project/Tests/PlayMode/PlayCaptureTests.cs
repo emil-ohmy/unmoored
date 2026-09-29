@@ -433,6 +433,17 @@ namespace MyGame.Tests
                     Capture(outDir, "posts-way-in");
             }
             input.Move = Vector2.zero;
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -20.5f)); // just short of it, standing still: it glints now and then
+            for (int f = 0; f < 400 && shots < 2; f++)
+            {
+                yield return null;
+                if (post.Glints > glints)
+                {
+                    glints = post.Glints;
+                    yield return null; // the pop is at its biggest a few frames in
+                    Capture(outDir, $"posts-glint-{shots++}");
+                }
+            }
             var cam = Camera.main;
             cam.GetComponent<CameraRig>().enabled = false;
             Vector3 at = post.transform.position;
