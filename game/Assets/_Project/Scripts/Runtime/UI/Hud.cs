@@ -115,7 +115,7 @@ namespace MyGame
             });
             FarewellLine = new Banner(canvasRect, "Boss Farewell Line", new Banner.Style
             {
-                font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = -20f, fadeIn = 1.6f, hold = 2.6f, fadeOut = 2.0f, drift = 0.02f,
+                font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = -52f, fadeIn = 1.6f, hold = 2.6f, fadeOut = 2.0f, drift = 0.02f,
             });
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);

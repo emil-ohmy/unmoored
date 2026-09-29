@@ -59,7 +59,7 @@ namespace MyGame
             });
             epithet = new Banner(parent, "Boss Epithet", new Banner.Style
             {
-                font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = 62f, fadeIn = 1.5f, hold = 1.8f, fadeOut = 1.4f, drift = 0.02f,
+                font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = 36f, fadeIn = 1.5f, hold = 1.8f, fadeOut = 1.4f, drift = 0.02f,
             });
         }
 
