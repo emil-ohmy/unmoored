@@ -13,7 +13,8 @@ namespace MyGame
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
-        public float moveSpeed = 6f;
+        public float moveSpeed = 5f; // play-test: 6 blasted through the level
+        const float RunClipSpeed = 6f; // the speed the Run clip's stride was animated for
         public float turnSpeed = 1440f;
 
         [Header("Dash")]
@@ -203,6 +204,8 @@ namespace MyGame
                     if (face.sqrMagnitude > 0.001f)
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
                     clips.Loop(move.sqrMagnitude > 0.001f ? "Run" : "Idle", 0.1f);
+                    if (move.sqrMagnitude > 0.001f)
+                        clips.SetLoopSpeed(Mathf.Max(0.35f, planar.magnitude / RunClipSpeed)); // no foot-sliding
                     Nearby = Interactables.Nearest(transform.position);
                     if (Nearby != null && Input.InteractPressed)
                     {

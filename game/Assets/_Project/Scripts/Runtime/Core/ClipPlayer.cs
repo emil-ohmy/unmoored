@@ -35,6 +35,13 @@ namespace MyGame
             Current = clip;
         }
 
+        // Speed of the looping clip now playing (e.g. the run cycle kept in step with the actual speed).
+        public void SetLoopSpeed(float speed)
+        {
+            if (fullNames.TryGetValue(Current, out var full) && animation[full].wrapMode == WrapMode.Loop)
+                animation[full].speed = speed;
+        }
+
         public void PlayOnce(string clip, float duration, float fade = 0.05f)
         {
             if (!fullNames.TryGetValue(clip, out var full))
