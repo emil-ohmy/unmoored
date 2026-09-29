@@ -190,6 +190,21 @@ namespace MyGame.Tests
             Assert.AreEqual(1, boss.TimesDefeated);
         }
 
+        // For play-testing, the Tester's Knot is owned in the arena: fitted, every blow lands four times as hard.
+        [UnityTest]
+        public IEnumerator TestersKnot_FourTimesTheDamage()
+        {
+            FaceTheEntrance();
+            Assert.IsTrue(apprentice.Equipment.Owns(Charm.TestersKnot), "owned here from the start");
+            apprentice.Equipment.Toggle(Charm.TestersKnot);
+            boss.turnSpeed = 0f;
+            PlaceApprentice(boss.transform.position - boss.transform.forward * 2.2f);
+            yield return null;
+            input.PressLight();
+            yield return new WaitForSeconds(0.6f);
+            Assert.AreEqual(boss.maxHealth - apprentice.lightDamage * 4f, boss.Health, 0.01f);
+        }
+
         // ---- Phase two
 
         // At half health she rises: nothing gets through meanwhile, a ring of water throws you back, and the floor
@@ -232,6 +247,7 @@ namespace MyGame.Tests
             Assert.AreEqual(1, floor.Broken, $"landed at {landed}, she's at {boss.transform.position}");
             yield return new WaitForSeconds(floor.crumbleTime + 0.2f);
             Assert.IsFalse(FloorUnder(landed), "the floor gave way where it landed");
+            Assert.Greater(floor.FallingChunks, 0, "chunks of it breaking off");
         }
 
         // The Hook Yank: caught, you're dragged in to land in front of her, and a quick Drop follows.

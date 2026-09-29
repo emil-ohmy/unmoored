@@ -176,6 +176,7 @@ public static partial class MainSceneBuilder
         sfx.hookWhirl = Clips("hook_whirl");
         sfx.itemTake = Clips("item_take");
         sfx.keyItem = Clips("key_item");
+        sfx.lanternSnuff = Clips("lantern_snuff");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();

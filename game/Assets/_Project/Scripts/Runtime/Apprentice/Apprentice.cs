@@ -65,7 +65,10 @@ namespace MyGame
         public float recoilDuration = 0.35f; // when a hit bounces off a Laden's heap
         public float recoilPush = 14f; // ~1.4 m shove: knockback decays at 10/s
         public float postHitInvulnerability = 0.5f;
-        public float respawnDelay = 3.2f; // the death screen: the phrase, then the sink to black (Hud)
+        public float respawnDelay = 4.4f; // the fall, the lantern going out, the phrase, then the sink to black (Hud)
+        public float deathDuration = 2.2f; // the Death clip: reel, knees, the oar dropped, the slump
+        public float snuffDelay = 0.8f;    // kneeling: then the bow lantern gutters out
+        public float snuffDuration = 1.1f;
 
         [Header("Block")]
         public float perfectWindow = 0.2f;       // a blow landing this soon after raising the block is perfect-blocked
@@ -119,6 +122,7 @@ namespace MyGame
         public Equipment Equipment { get; private set; }
         public Menu OpenMenu { get; private set; } // while open, the Apprentice stands still and input drives the menu
         public float DashCost => dashStaminaCost * (Equipment.IsFitted(Charm.EelSkin) ? 0.5f : 1f);
+        public float DamageFactor => Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f; // (a development Charm)
         public Soured LockTarget { get; private set; }
         public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
@@ -147,6 +151,7 @@ namespace MyGame
         float bufferedAt;
         float stateTime;
         float stateDuration;
+        bool snuffSounded;
         float lastStaminaUse = -10f;
         float invulnerableUntil;
         float verticalVelocity;
@@ -308,6 +313,11 @@ namespace MyGame
                     break;
 
                 case State.Dead:
+                    if (!snuffSounded && stateTime >= snuffDelay)
+                    {
+                        snuffSounded = true;
+                        Sfx.Instance?.LanternSnuff(transform.position + Vector3.up * 0.6f);
+                    }
                     if (stateTime >= respawnDelay)
                         Respawn();
                     break;
@@ -443,7 +453,7 @@ namespace MyGame
                 bool riposte = soured.CurrentState == Soured.State.Stunned;
                 var result = soured.TakeHit(new Hit
                 {
-                    Damage = isHeavy ? heavyDamage : lightDamage,
+                    Damage = (isHeavy ? heavyDamage : lightDamage) * DamageFactor,
                     Stagger = isHeavy ? heavyStagger : lightStagger,
                     Knockback = to.normalized * (isHeavy ? heavyKnockback : lightKnockback),
                     From = transform.position,
@@ -748,16 +758,25 @@ namespace MyGame
             clips.PlayOnce(clip, duration);
         }
 
+        // The fall: the killing blow freezes, then time slows as the Apprentice reels, drops to their knees and lets the
+        // oar go; the camera closes in on them alone; the bow lantern flares, gutters and goes out, its light drifting
+        // away; they slump, and their Shade rises from the body. Then the phrase, and the dark.
         void Die()
         {
             Enter(State.Dead);
-            clips.PlayOnce("Death", 1.0f);
+            snuffSounded = false;
+            clips.PlayOnce("Death", deathDuration);
             Sfx.Instance?.DeathToll(transform.position);
+            HitStop.Trigger(0.22f);
+            HitStop.Slow(0.3f, 1.6f);
+            CameraRig.Instance?.Mourn(true);
+            CameraRig.Instance?.Shake(0.4f);
+            GetComponent<BowLantern>()?.Snuff(snuffDelay, snuffDuration);
             // Every Obol stays behind with the Shade (and an older Shade, never reached, is lost).
             int carried = Obols;
             Obols = 0;
             var ghosts = GetComponent<DashGhosts>();
-            Shade.Leave(this, carried, ghosts != null ? ghosts.ghostMaterial : null);
+            Shade.Leave(this, carried, ghosts != null ? ghosts.ghostMaterial : null, deathDuration);
             if (carried > 0)
                 ObolsChanged?.Invoke(-carried);
             Announce("the Apprentice fell");
@@ -769,6 +788,8 @@ namespace MyGame
             Vector3 point = WorldState.Instance != null ? WorldState.Instance.RespawnPosition : lastSafeGround;
             Teleport(point);
             RestoreFully();
+            CameraRig.Instance?.Mourn(false);
+            GetComponent<BowLantern>()?.Relight();
             WorldState.Instance?.ReformAllSoured();
             Announce("woke at the Mooring post");
             Woke?.Invoke();

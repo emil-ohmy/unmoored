@@ -175,7 +175,7 @@ namespace MyGame
             LastShockwave = Shockwave.Spread(at, target, ringRadius, ringSpeed, ringWidth, ringDamage, ringKnockback, ringTint);
             Effects.Instance?.Splash(at + Vector3.up * 0.1f);
             if (target != null && Vector3.Distance(target.transform.position, at) < 9f)
-                CameraRig.Instance?.Shake(0.22f);
+                CameraRig.Instance?.Shake(PhaseTwo ? 0.38f : 0.22f); // (heavier once the floor breaks under it)
             if (PhaseTwo)
                 floor?.BreakAt(at); // the floor gives way where it lands
         }

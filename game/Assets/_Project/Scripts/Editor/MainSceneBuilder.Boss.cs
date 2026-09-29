@@ -27,8 +27,8 @@ public static partial class MainSceneBuilder
         // The chapel's upper floor (the altar to the north), and the way in from the south.
         var chapel = Place("Environment/drowned_chapel", Vector3.zero, 0f);
         var floor = chapel.AddComponent<ChapelFloor>(); // its sections break away in her second phase
-        floor.crackSound = Clips("gate_rattle");
-        floor.breakSound = Clips("laden_slam_impact");
+        floor.crackSound = Clips("floor_crack");
+        floor.breakSound = Clips("floor_break");
         const float edge = -7.8f; // the chapel's south edge
         Boardwalk(new Vector3(0f, QuayTop - 0.03f, edge), Vector3.back, 2);
         float landing = edge - Segment * 2;
@@ -68,6 +68,8 @@ public static partial class MainSceneBuilder
         Flicker(PointLight(candles.transform, new Vector3(0f, QuayTop + 1.4f, 6.4f), 4.5f, 1.4f, LanternLight), 0.2f, 6f, 0.02f);
 
         var apprentice = Apprentice(start.position);
+        // For play-testing: the Tester's Knot (four times the damage) is owned here; fit it at the Mooring post.
+        apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
         var boss = Anchoress("The Antediluvian Anchoress", new Vector3(0f, QuayTop, 1.2f), 0f); // kneeling on his mark, facing the altar, her back to you
         boss.floor = floor;
 

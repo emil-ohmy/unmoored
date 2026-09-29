@@ -16,6 +16,7 @@ for action in $(ls "$tmp" | sed -E 's/_[0-9]+\.png$//' | sort -u); do
   rows+=(-i "$tmp/row_$action.png")
 done
 mkdir -p "$(dirname "$out")"
-ffmpeg -loglevel error -y "${rows[@]}" -filter_complex "vstack=inputs=$(( ${#rows[@]} / 2 ))" "$out"
+if [[ ${#rows[@]} -eq 2 ]]; then cp "${rows[1]}" "$out"; else
+  ffmpeg -loglevel error -y "${rows[@]}" -filter_complex "vstack=inputs=$(( ${#rows[@]} / 2 ))" "$out"; fi
 rm -rf "$tmp"
 echo "$out"

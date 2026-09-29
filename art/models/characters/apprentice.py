@@ -164,11 +164,18 @@ ACTIONS = {
         (16, {"Body": (12, 0, 0), "Head": (18, 0, 0), "Oar": (-8, 0, 0), "Root": ((0, 0, 0), (0, 0, -0.04))}),
         (22, REST),
     ]),
-    "Death": ("BEZIER", [  # crumples forward and stays down
+    # Death (2.2 s): reeling back from the blow, down onto the knees, the oar slipping from the hand; kneeling with
+    # the head bowed while the bow lantern gutters out; then slumping forward to lie still.
+    "Death": ("BEZIER", [
         (1, REST),
-        (8, {"Pivot": (35, 0, 0), "Head": (20, 0, 0), "Oar": (40, 0, 20), "Root": ((0, 0, 0), (0, 0, -0.1))}),
-        (18, {"Pivot": (80, 0, 10), "Head": (25, 0, 0), "Oar": (85, 0, 35), "Root": ((0, 0, 0), (0, -0.25, -0.2))}),
-        (30, {"Pivot": (82, 0, 10), "Head": (25, 0, 0), "Oar": (88, 0, 35), "Root": ((0, 0, 0), (0, -0.25, -0.22))}),
+        (4, {"Pivot": (-24, 0, 8), "Head": (-20, 0, 0), "Oar": (-20, 0, 40), "Root": ((0, 0, 0), (0, 0.1, 0.02))}),
+        (12, {"Pivot": (20, 0, 0), "Body": (6, 0, 0), "Head": (18, 0, 0), "Oar": (30, 0, 55), "Root": ((0, 0, 0), (0, 0.05, -0.2))}),
+        (17, {"Pivot": (22, 0, 2), "Body": (6, 0, 0), "Head": (26, 0, 0), "Oar": ((80, 0, 75), (0.08, -0.05, -0.22)), "Root": ((0, 0, 0), (0, 0.05, -0.21))}),
+        (28, {"Pivot": (22, 0, 4), "Body": (8, 0, 0), "Head": (34, 0, 0), "Oar": ((78, 0, 74), (0.08, -0.05, -0.23)), "Root": ((0, 0, 0), (0, 0.05, -0.21))}),
+        (46, {"Pivot": (26, 0, -3), "Body": (8, 0, 0), "Head": (38, 0, 0), "Oar": ((76, 0, 76), (0.08, -0.06, -0.24)), "Root": ((0, 0, 0), (0, 0.05, -0.22))}),
+        (55, {"Pivot": (62, 0, 10), "Head": (28, 0, 0), "Oar": ((78, 0, 76), (0.08, -0.06, -0.24)), "Root": ((0, 0, 0), (0, -0.1, -0.24))}),
+        (61, {"Pivot": (84, 0, 12), "Head": (22, 0, 0), "Oar": ((78, 0, 76), (0.08, -0.06, -0.24)), "Root": ((0, 0, 0), (0, -0.24, -0.26))}),
+        (66, {"Pivot": (82, 0, 12), "Head": (24, 0, 0), "Oar": ((78, 0, 76), (0.08, -0.06, -0.24)), "Root": ((0, 0, 0), (0, -0.24, -0.26))}),
     ]),
     # Block: the oar held across the front, braced. Parry: a quick snap forward from the block (a perfect block).
     "Block": ("BEZIER", [

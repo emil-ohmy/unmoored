@@ -779,6 +779,64 @@ namespace MyGame.Tests
             }
         }
 
+        // The Apprentice's fall: slow motion, the camera closing in, reeling, kneeling, the oar dropped, the bow lantern
+        // guttering out in drifting motes, the slump, the Shade rising from the body, the phrase.
+        [UnityTest]
+        public IEnumerator Capture_Death()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("BossArena");
+            yield return null;
+            Time.captureFramerate = 30;
+            UnityEngine.Object.FindAnyObjectByType<Anchoress>().gameObject.SetActive(false);
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            apprentice.Teleport(new Vector3(0f, 0.55f, -3f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+            apprentice.GainObols(100);
+            for (int f = 0; f < 30; f++)
+                yield return null;
+            apprentice.TakeHit(1000f, Vector3.back * 4f);
+            for (int f = 0; f < 132; f++)
+            {
+                if (f % 6 == 0)
+                    Capture(outDir, $"death-{f:D3}");
+                yield return null;
+            }
+            Time.captureFramerate = 0;
+        }
+
+        // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
+        [UnityTest]
+        public IEnumerator Capture_FloorBreak()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("BossArena");
+            yield return null;
+            Time.captureFramerate = 30;
+            UnityEngine.Object.FindAnyObjectByType<Anchoress>().gameObject.SetActive(false);
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            apprentice.Teleport(new Vector3(0f, 0.55f, -6.6f)); // on the rim, by the way in
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            UnityEngine.Object.FindAnyObjectByType<ChapelFloor>().BreakAt(new Vector3(0f, 0.5f, -4.2f));
+            for (int f = 0; f < 66; f++)
+            {
+                if (f % 3 == 0)
+                    Capture(outDir, $"floor-{f:D3}");
+                yield return null;
+            }
+            Time.captureFramerate = 0;
+        }
+
         // The Anchoress (BossArena): her vigil, waking, the Anchor Drop and its ring, the Chain Sweep, Cast and Haul.
         // The Apprentice can't be hurt, to keep the pictures coming.
         [UnityTest]
