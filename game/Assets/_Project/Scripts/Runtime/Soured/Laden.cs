@@ -27,17 +27,52 @@ namespace MyGame
         public float guardRaiseTime = 0.3f;   // matches the GuardUp clip; the block only counts once the heap is up
         public float blockHalfAngle = 70f;
 
-        float guardSince = float.MaxValue;
+        [Header("The Hook: yanked over like any Soured (the base); a guard can also be torn away (the Anchoress's)")]
+        public float ripGuardTime = 4f; // no guard for this long, torn away
+        public float ripStagger = 0.9f;
+
+        float guardSince = float.MaxValue, guardBrokenUntil = -10f;
         bool guardWanted, glinted;
 
-        public bool Guarding => CurrentState == State.Chase && guardWanted && Time.time - guardSince >= guardRaiseTime;
+        public bool Guarding => CurrentState == State.Chase && guardWanted && !GuardBroken && Time.time - guardSince >= guardRaiseTime;
+        public bool GuardBroken => Time.time < guardBrokenUntil;
+
+        // The Hook tears at what it guards with: it staggers, junk flying off it, and it can't raise its guard for a while.
+        protected void Rip(Apprentice by, float guardTime, float stagger)
+        {
+            guardBrokenUntil = Time.time + guardTime;
+            guardWanted = false;
+            StaggerNow(stagger);
+            Vector3 towards = by.transform.position - transform.position;
+            towards.y = 0f;
+            Vector3 at = transform.position + towards.normalized * (radius + 0.2f) + Vector3.up * 1.1f;
+            DebrisBurst.Throw(at, towards.normalized, HeapMaterials(), 14);
+            Sfx.Instance?.BlockClang(at);
+            CameraRig.Instance?.Shake(0.25f);
+            HitStop.Trigger(0.08f);
+        }
+
+        Material[] heap;
+
+        // What its heap is made of (its junk's materials, for the pieces that fly off).
+        Material[] HeapMaterials()
+        {
+            if (heap != null)
+                return heap;
+            var list = new System.Collections.Generic.List<Material>();
+            foreach (var r in GetComponentsInChildren<Renderer>())
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && (m.name.StartsWith("Heap") || m.name.StartsWith("Frame") || m.name.StartsWith("Clock") || m.name.StartsWith("Anchor")))
+                        list.Add(m);
+            return heap = list.ToArray();
+        }
 
         protected override string ChaseClip(float distance) => guardWanted ? "GuardWalk" : "Walk";
         protected override float ChaseSpeed(float distance) => guardWanted ? guardSpeed : chaseSpeed;
 
         protected override void OnChaseDistance(float distance)
         {
-            bool wanted = distance <= guardRange;
+            bool wanted = distance <= guardRange && !GuardBroken;
             if (wanted == guardWanted)
             {
                 if (Guarding && !glinted)

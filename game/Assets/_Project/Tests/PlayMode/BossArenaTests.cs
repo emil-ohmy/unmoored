@@ -391,6 +391,34 @@ namespace MyGame.Tests
             Assert.AreEqual(0f, hud.ObolNoteAlpha, 0.01f, "said once, then gone");
         }
 
+        // The Hook on the Anchoress: it jerks the anchor in her hands (a short stagger, her guard gone a while); again
+        // too soon, it glances off.
+        [UnityTest]
+        public IEnumerator Hook_JerksHerAnchor_ThenGlancesOff()
+        {
+            FaceTheEntrance();
+            boss.attackRange = 0f;
+            boss.castCooldown = boss.firstCastDelay = 1000f;
+            boss.midRangeSweepChance = 0f;
+            apprentice.GiveHook();
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 5f);
+            yield return WaitFor(() => boss.Awakened, 1f, "her waking");
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            input.HookHeld = false;
+            yield return WaitFor(() => boss.CurrentState == Soured.State.Staggered, 2f, "the anchor jerked");
+            Assert.IsTrue(boss.GuardBroken);
+            yield return WaitFor(() => boss.CurrentState != Soured.State.Staggered, 2f, "her recovering");
+            yield return new WaitForSeconds(apprentice.hookFoeCooldown + 0.1f);
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            input.HookHeld = false;
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreNotEqual(Soured.State.Staggered, boss.CurrentState, "again too soon: it glances off");
+        }
+
         // ---- Phase two
 
         // At half health she rises: nothing gets through meanwhile, a ring of water throws you back, and the floor

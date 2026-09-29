@@ -1166,6 +1166,48 @@ namespace MyGame.Tests
 
         // ---- The Hook
 
+        // ---- The Hook in combat
+
+        // A light Soured (the archer) caught on the Hook is yanked over to land in front of you, and reels.
+        [UnityTest]
+        public IEnumerator Hook_YanksALightSoured_OverToYou()
+        {
+            Isolate(archer);
+            archer.aggroRadius = 0f; // (calm: it won't shoot)
+            apprentice.GiveHook();
+            PlaceApprentice(archer.transform.position + archer.transform.forward * 7f, archer.transform.position);
+            yield return new WaitForSeconds(0.2f);
+            float stamina = apprentice.Stamina;
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(archer, apprentice.HookFoe, "a Soured in reach: the Hook aims at it (over any post)");
+            Assert.IsNull(apprentice.HookTarget);
+            input.HookHeld = false;
+            yield return WaitFor(() => archer.CurrentState == Soured.State.Staggered, 2f, "it yanked over, reeling");
+            Assert.Less(FlatDistance(archer.transform.position, apprentice.transform.position), 2.2f, "in front of you");
+            Assert.Less(apprentice.Stamina, stamina, "the throw costs stamina");
+        }
+
+        // A Laden comes too, heap and all (a little slower on the chain), and takes a moment to find its feet.
+        [UnityTest]
+        public IEnumerator Hook_YanksALaden_Too()
+        {
+            var target = Isolate(laden[0]);
+            target.attackRange = 0f; // (only following)
+            apprentice.GiveHook();
+            PlaceApprentice(target.transform.position + target.transform.forward * 5f, target.transform.position);
+            yield return WaitFor(() => target.CurrentState == Soured.State.Chase, 3f, "it noticing you");
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(target, apprentice.HookFoe);
+            input.HookHeld = false;
+            yield return WaitFor(() => target.Yanked, 1f, "it pulled");
+            yield return WaitFor(() => target.CurrentState == Soured.State.Staggered, 2f, "it landed, reeling");
+            Assert.Less(FlatDistance(target.transform.position, apprentice.transform.position), 2.4f, "in front of you");
+        }
+
         [UnityTest]
         public IEnumerator WithoutTheHook_NothingIsAimed_OrPulled()
         {
