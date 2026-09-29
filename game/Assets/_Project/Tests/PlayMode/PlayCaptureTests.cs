@@ -370,10 +370,11 @@ namespace MyGame.Tests
                 for (int f = 0; f < 30; f++)
                 {
                     input.Move = f < 6 ? Vector2.up : Vector2.zero;
+                    input.HookHeld = f >= 8; // aim
                     yield return null;
                 }
                 Shot("hook-2-marked");
-                input.PressHook();
+                input.HookHeld = false; // let go: throw
                 for (int f = 0; f < 20; f++)
                 {
                     yield return null;

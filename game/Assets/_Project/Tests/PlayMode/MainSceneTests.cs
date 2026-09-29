@@ -1055,16 +1055,34 @@ namespace MyGame.Tests
         // ---- The Hook
 
         [UnityTest]
-        public IEnumerator WithoutTheHook_APostIsSeen_ButCantBeUsed()
+        public IEnumerator WithoutTheHook_NothingIsAimed_OrPulled()
         {
             foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
                 s.gameObject.SetActive(false);
             PlaceApprentice(new Vector3(-29f, 0.55f, 3.4f), new Vector3(-29f, 0.55f, 9.5f)); // the yard's hook post, facing the islet
             yield return new WaitForSeconds(0.3f);
             Assert.IsFalse(apprentice.HasHook);
-            Assert.IsNotNull(apprentice.HookTarget, "the islet's post is noticed (and shown, dim), to come back to");
-            input.PressHook();
+            input.HookHeld = true;
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsNull(apprentice.HookTarget, "no aiming without the Hook (and no camera lean)");
+            input.HookHeld = false;
             yield return new WaitForSeconds(0.5f);
+            Assert.AreNotEqual(Apprentice.State.Hooking, apprentice.CurrentState);
+        }
+
+        // Aiming from inside the yard at the yard's own post would be pointless (and swing the camera about).
+        [UnityTest]
+        public IEnumerator Hook_NeverAimsAtAPostOnTheGroundYouStandOn()
+        {
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false);
+            apprentice.GrantHook();
+            PlaceApprentice(new Vector3(-29f, 0.55f, -1.5f), new Vector3(-29f, 0.55f, 5f)); // mid-yard, facing its hook post
+            input.HookHeld = true;
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsNull(apprentice.HookTarget, "the yard's own post (and the islet beyond reach) mustn't be aimed at");
+            input.HookHeld = false;
+            yield return new WaitForSeconds(0.3f);
             Assert.AreNotEqual(Apprentice.State.Hooking, apprentice.CurrentState);
         }
 
@@ -1110,9 +1128,14 @@ namespace MyGame.Tests
             Vector3 yard = new Vector3(-29f, 0.55f, 3.4f), islet = new Vector3(-29f, 0.55f, 9.5f);
             PlaceApprentice(yard, islet);
             yield return new WaitForSeconds(0.3f);
-            Assert.IsNotNull(apprentice.HookTarget, "the islet's post should be in reach, ahead");
+            Assert.IsNull(apprentice.HookTarget, "not aiming yet: nothing marked");
+            Assert.IsFalse(hud.HookMarkerVisible);
+            input.HookHeld = true;
+            yield return new WaitForSeconds(0.2f);
+            yield return null;
+            Assert.IsNotNull(apprentice.HookTarget, "aiming: the islet's post should be in reach, ahead");
             Assert.IsTrue(hud.HookMarkerVisible, "and marked");
-            input.PressHook();
+            input.HookHeld = false; // let go: throw
             yield return null;
             Assert.AreEqual(Apprentice.State.Hooking, apprentice.CurrentState);
             for (float t = 0; t < 2f && apprentice.CurrentState == Apprentice.State.Hooking; t += Time.deltaTime)
@@ -1132,12 +1155,12 @@ namespace MyGame.Tests
             Assert.AreEqual(apprentice.maxHealingCharges, apprentice.HealingCharges);
 
             // And back: face the yard (the post you stand by isn't a target) and pull.
-            input.Move = Vector2.down;
+            input.HookHeld = true;
+            input.Move = Vector2.down * 0.3f; // steer the aim back towards the yard (slowly: aiming)
             yield return new WaitForSeconds(0.2f);
-            input.Move = Vector2.zero;
-            yield return null;
             Assert.IsNotNull(apprentice.HookTarget, "the yard's post, back across");
-            input.PressHook();
+            input.Move = Vector2.zero;
+            input.HookHeld = false;
             for (float t = 0; t < 2.5f && FlatDistance(apprentice.transform.position, yard) > 0.6f; t += Time.deltaTime)
                 yield return null;
             Assert.Less(FlatDistance(apprentice.transform.position, yard), 0.6f, "back in the yard");

@@ -36,9 +36,8 @@ namespace MyGame
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing;
-        Text glyph, promptLabel, obolText, obolGain, hookGlyph;
+        Text glyph, promptLabel, obolText, obolGain;
         RectTransform hookMarker;
-        Image hookMarkerImage;
         Banner foundHint;
         float obolsShown, gainAt = -100f, healedAt = -100f;
         Image hpFillImage;
@@ -306,15 +305,12 @@ namespace MyGame
             return false;
         }
 
-        // The post the Hook would pull to: a pale blue ring on it, with the key.
+        // While aiming the Hook: a pale blue ring on the post it would pull to.
         void BuildHookMarker(Transform root)
         {
             var ring = UiKit.Image(root, "Hook Marker", UiKit.Ring, UiKit.Hex(0x9fc4ff, 0.9f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(46, 46));
             hookMarker = ring.rectTransform;
-            hookMarkerImage = ring;
             UiKit.Image(hookMarker, "Glow", UiKit.SoftDot, UiKit.Hex(0x9fc4ff, 0.25f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(90, 90));
-            hookGlyph = UiKit.Text(hookMarker, "Key", textFont, 24, UiKit.Bone, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0, -40));
-            hookGlyph.rectTransform.sizeDelta = new Vector2(120, 36);
             hookMarker.gameObject.SetActive(false);
         }
 
@@ -327,8 +323,6 @@ namespace MyGame
             hookMarker.gameObject.SetActive(show);
             if (!show)
                 return;
-            hookGlyph.text = apprentice.HasHook ? (usingGamepad ? "RB" : "F") : ""; // without the Hook: seen, not usable
-            hookMarkerImage.color = UiKit.Hex(0x9fc4ff, apprentice.HasHook ? 0.9f : 0.3f);
             var canvas = canvasRect.GetComponent<Canvas>();
             var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, uiCamera, out var local);

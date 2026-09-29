@@ -89,6 +89,7 @@ namespace MyGame
         [Header("Hook (an Ability: pull yourself to a hook post, over water too)")]
         public float hookRange = 9f;
         public float hookAimAngle = 70f;   // posts this far either side of where you face (or steer) can be aimed at
+        public float hookAimMoveFactor = 0.5f; // walking slower while aiming
         public float hookThrowTime = 0.15f; // the tether flying out
         public float hookSpeed = 13f;
         public float hookArc = 0.6f;       // the pull lifts you a little, like a leap
@@ -116,7 +117,8 @@ namespace MyGame
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
-        public HookPost HookTarget { get; private set; } // the post in reach ahead (marked; usable once you have the Hook)
+        public HookPost HookTarget { get; private set; } // while aiming the Hook: the post it would pull to (marked)
+        public bool AimingHook { get; private set; }
         public event System.Action<string, string> Found; // something gained for good: a title and a hint (HUD banner)
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
         public event System.Action Healed;      // a Healing charge took effect (the end of the heal)
@@ -210,7 +212,9 @@ namespace MyGame
 
                 case State.Free:
                     Vector3 move = MoveDirection();
-                    planar = move * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f);
+                    bool wasAiming = AimingHook;
+                    AimingHook = HasHook && Input.HookHeld;
+                    planar = move * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f) * (AimingHook ? hookAimMoveFactor : 1f);
                     Vector3 face = LockTarget != null ? ToLockTarget() : move; // locked: strafe, always facing it
                     if (face.sqrMagnitude > 0.001f)
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
@@ -223,13 +227,13 @@ namespace MyGame
                         Nearby.Interact(this);
                         break;
                     }
-                    // Seen even without the Hook (an Ability gate should show what you can't reach yet).
-                    HookTarget = HookPost.Best(transform.position, move.sqrMagnitude > 0.01f ? move : transform.forward, hookRange, hookAimAngle);
-                    if (Input.HookPressed && HookTarget != null && HasHook)
+                    // Hold to aim (a post on other ground, in reach, ahead of where you steer), release to throw.
+                    if (wasAiming && !AimingHook && HookTarget != null)
                     {
                         StartHook(HookTarget);
                         break;
                     }
+                    HookTarget = AimingHook ? HookPost.Best(transform.position, move.sqrMagnitude > 0.01f ? move : transform.forward, hookRange, hookAimAngle) : null;
                     if (Input.HealPressed)
                         TryHeal();
                     else if (Input.BlockHeld)
@@ -293,7 +297,10 @@ namespace MyGame
             {
                 Nearby = null;
                 if (CurrentState != State.Hooking)
+                {
                     HookTarget = null;
+                    AimingHook = false;
+                }
             }
             if (CurrentState != State.Hooking && tether != null)
                 tether.enabled = false;
@@ -724,7 +731,7 @@ namespace MyGame
         public void GrantHook()
         {
             HasHook = true;
-            Found?.Invoke("The Hook", "{hook} by a hook post: pull yourself across");
+            Found?.Invoke("The Hook", "Hold {hook} to aim at a hook post, let go to pull yourself across");
         }
 
         public void AddHealingCharge()

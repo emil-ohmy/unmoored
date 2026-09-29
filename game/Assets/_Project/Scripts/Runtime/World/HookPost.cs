@@ -4,7 +4,7 @@ using UnityEngine;
 namespace MyGame
 {
     // A hook post: an old pile with an iron ring. With the Hook, the Apprentice can pull itself to one within reach
-    // (over water too), landing on its platform. The nearest roughly ahead is the one aimed at.
+    // (over water too), landing on its platform. The nearest roughly ahead, on other ground, is the one aimed at.
     public sealed class HookPost : MonoBehaviour
     {
         static readonly List<HookPost> all = new List<HookPost>();
@@ -18,15 +18,19 @@ namespace MyGame
         void OnEnable() => all.Add(this);
         void OnDisable() => all.Remove(this);
 
-        // The post to pull to from here: within range, not the one you're standing at, roughly ahead (within
-        // `halfAngle` of `facing`), the nearest to straight ahead and close winning, with nothing solid in between.
+        // The post to pull to from here: within range, on other ground than you stand on (never a post on your own
+        // platform), roughly ahead (within `halfAngle` of `facing`), the nearest to straight ahead and close winning,
+        // with nothing solid in between.
         public static HookPost Best(Vector3 from, Vector3 facing, float range, float halfAngle)
         {
             HookPost best = null;
             float bestScore = float.MaxValue;
             facing.y = 0f;
+            var standingOn = GroundUnder(from);
             foreach (var post in all)
             {
+                if (standingOn != null && post.LandingGround == standingOn)
+                    continue;
                 Vector3 to = post.LandingPosition - from;
                 to.y = 0f;
                 float d = to.magnitude;
@@ -43,6 +47,36 @@ namespace MyGame
                 }
             }
             return best;
+        }
+
+        Collider landingGround;
+        bool landingGroundFound;
+
+        // What the landing spot stands on (found once: platforms don't move).
+        Collider LandingGround
+        {
+            get
+            {
+                if (!landingGroundFound)
+                {
+                    landingGround = GroundUnder(LandingPosition);
+                    landingGroundFound = true;
+                }
+                return landingGround;
+            }
+        }
+
+        static Collider GroundUnder(Vector3 at)
+        {
+            Collider ground = null;
+            float nearest = float.MaxValue;
+            foreach (var hit in Physics.RaycastAll(at + Vector3.up * 0.5f, Vector3.down, 2f, ~0, QueryTriggerInteraction.Ignore))
+                if (!(hit.collider is CharacterController) && hit.collider.GetComponentInParent<HookPost>() == null && hit.distance < nearest)
+                {
+                    nearest = hit.distance;
+                    ground = hit.collider;
+                }
+            return ground;
         }
 
         static bool ClearLine(Vector3 from, Vector3 to)

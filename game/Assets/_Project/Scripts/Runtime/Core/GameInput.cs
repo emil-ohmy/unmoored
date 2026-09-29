@@ -13,7 +13,7 @@ namespace MyGame
         bool HealPressed { get; }
         bool InteractPressed { get; }
         bool LockPressed { get; }
-        bool HookPressed { get; }
+        bool HookHeld { get; } // hold to aim the Hook, release to throw it
         bool BlockHeld { get; }
         int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
     }
@@ -60,7 +60,7 @@ namespace MyGame
         public bool InteractPressed => interact.WasPressedThisFrame();
         public bool LockPressed => lockOn.WasPressedThisFrame();
         public bool BlockHeld => block.IsPressed();
-        public bool HookPressed => hook.WasPressedThisFrame();
+        public bool HookHeld => hook.IsPressed();
 
         public int SwitchTarget
         {
@@ -93,7 +93,7 @@ namespace MyGame
     public sealed class ScriptedInput : IApprenticeInput
     {
         public Vector2 Move { get; set; }
-        bool dash, lightAttack, heavyAttack, heal, interact, lockOn, hook;
+        bool dash, lightAttack, heavyAttack, heal, interact, lockOn;
         int switchTarget;
 
         public void PressDash() => dash = true;
@@ -102,7 +102,6 @@ namespace MyGame
         public void PressHeal() => heal = true;
         public void PressInteract() => interact = true;
         public void PressLock() => lockOn = true;
-        public void PressHook() => hook = true;
         public void Switch(int direction) => switchTarget = direction;
 
         public bool DashPressed => Take(ref dash);
@@ -111,7 +110,7 @@ namespace MyGame
         public bool HealPressed => Take(ref heal);
         public bool InteractPressed => Take(ref interact);
         public bool LockPressed => Take(ref lockOn);
-        public bool HookPressed => Take(ref hook);
+        public bool HookHeld { get; set; }
         public bool BlockHeld { get; set; }
 
         public int SwitchTarget
