@@ -30,6 +30,7 @@ namespace MyGame
         const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
         public BossBar Boss { get; private set; }
+        public Banner Farewell { get; private set; } // a Boss beaten: "She Let Go"
         public string PromptText => promptLabel != null ? promptLabel.text : "";
 
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
@@ -99,6 +100,11 @@ namespace MyGame
             });
             BuildHookMarker(hudRoot);
             Boss = new BossBar(canvasRect, titleFont, textFont);
+            Farewell = new Banner(canvasRect, "Boss Farewell", new Banner.Style
+            {
+                font = titleFont, size = 80, colour = UiKit.Bone, spacing = 8f, y = 60f, glow = UiKit.Hex(0x9fc4ff, 0.22f),
+                bandAlpha = 0.6f, rule = true, fadeIn = 1.4f, hold = 3.2f, fadeOut = 2.0f, drift = 0.03f,
+            });
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
@@ -111,7 +117,10 @@ namespace MyGame
             obolsShown = apprentice.Obols;
             MooringPost.Rested += OnRested;
             AreaEntrance.Entered += OnAreaEntered;
+            BossFight.Defeated += OnBossDefeated;
         }
+
+        void OnBossDefeated(IBoss boss) => Farewell.Show(boss.Farewell);
 
         void OnDestroy()
         {
@@ -125,6 +134,7 @@ namespace MyGame
             }
             MooringPost.Rested -= OnRested;
             AreaEntrance.Entered -= OnAreaEntered;
+            BossFight.Defeated -= OnBossDefeated;
         }
 
         void OnHealed() => healedAt = UiKit.Now;
@@ -197,6 +207,7 @@ namespace MyGame
             AreaTitle.Tick();
             LanternBanner.Tick();
             FoundBanner.Tick();
+            Farewell.Tick();
             foundHint.Tick();
             float dimTarget = apprentice.CurrentState == Apprentice.State.Ceremony ? 0.85f : 0f;
             ceremonyDim.color = Color.black.WithAlpha(Mathf.MoveTowards(ceremonyDim.color.a, dimTarget, UiKit.DeltaTime * 1.2f));

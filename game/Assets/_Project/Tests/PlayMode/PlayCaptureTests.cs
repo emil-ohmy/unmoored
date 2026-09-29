@@ -712,6 +712,67 @@ namespace MyGame.Tests
             }
         }
 
+        // Her death, with the UI: the blow, the slow fall, the chain snapping, the souls rising, "She Let Go", and the
+        // Ferryman's hook coming to rest on his mark.
+        [UnityTest]
+        public IEnumerator Capture_BossDeath()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("BossArena");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var boss = UnityEngine.Object.FindAnyObjectByType<Anchoress>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                boss.transform.Rotate(0f, 180f, 0f, Space.World);
+                boss.turnSpeed = boss.chaseSpeed = boss.guardSpeed = 0f;
+                boss.phaseTwoAt = 0f;
+                typeof(Soured).GetProperty("Health").SetValue(boss, 1f);
+                Vector3 p = boss.transform.position - boss.transform.forward * 2.1f;
+                apprentice.Teleport(new Vector3(p.x, 0.55f, p.z));
+                apprentice.transform.rotation = Quaternion.LookRotation(boss.transform.forward);
+                for (int f = 0; f < 60; f++)
+                    yield return null; // her reveal fades
+                input.PressLight();
+                for (int f = 0; f < 330; f++)
+                {
+                    if (f % 12 == 0)
+                        Shot($"bossdeath-{f:D3}");
+                    yield return null;
+                }
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                Time.captureFramerate = 0;
+            }
+        }
+
         // The screen messages and HUD, rendered with the UI (the camera draws into a texture, canvases in camera space).
         [UnityTest]
         public IEnumerator Capture_Ui()

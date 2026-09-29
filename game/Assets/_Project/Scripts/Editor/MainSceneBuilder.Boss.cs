@@ -72,6 +72,8 @@ public static partial class MainSceneBuilder
         apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
         var boss = Anchoress("The Antediluvian Anchoress", new Vector3(0f, QuayTop, 1.2f), 0f); // kneeling on his mark, facing the altar, her back to you
         boss.floor = floor;
+        boss.rewardSpot = new GameObject("His Mark").transform; // the heart of the chapel: floor that never breaks
+        boss.rewardSpot.position = new Vector3(0f, QuayTop, 0f);
 
         FinishScene(scene, BossScenePath, start, apprentice, "music_drowned_dark");
     }
@@ -107,8 +109,9 @@ public static partial class MainSceneBuilder
         boss.obols = 400;
         boss.eyeHeight = 1.7f;
         boss.barHeight = 2.8f;
-        boss.deathDuration = 1.0f;
-        boss.fareMotes = 90;
+        boss.deathDuration = 2.8f;   // down to her knees, the chain snapping, then she fades
+        boss.dissolveDuration = 2.4f;
+        boss.fareMotes = 240;
         boss.primary = new SouredAttack
         {
             name = "Drop", windupClip = "Windup", strikeClip = "Strike", recoverClip = "Recover",
@@ -133,6 +136,8 @@ public static partial class MainSceneBuilder
         boss.landSound = Clips("anchor_land");
         boss.haulSound = Clips("anchor_haul");
         boss.riseSound = Clips("anchoress_rise");
+        boss.chainSnapSound = Clips("anchor_land");
+        boss.hookRestSound = Clips("hook_catch");
         boss.music = new[]
         {
             AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_anchoress_1.wav"),
@@ -181,6 +186,8 @@ public static partial class MainSceneBuilder
         boss.hookModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
 
         BeltLantern(go, boss, "Anchor"); // hung on the anchor: you can follow it in the dark
+        Object.DestroyImmediate(boss.droppedLantern.gameObject); // (hers gutters out with her, not left on the floor)
+        boss.droppedLantern = null;
         Swoosh(go, "Anchor", "AnchorArms", SouredSwoosh, 0.2f, "AnchorRing"); // the whole anchor, ring to crown
         return boss;
     }

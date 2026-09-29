@@ -201,6 +201,8 @@ namespace MyGame
             if (state == State.Recover && CurrentAttack == cast)
                 nextCast = Time.time + cast.recover + castCooldown;
             PhaseTwoEntered(state);
+            if (state == State.Dying)
+                DeathEntered();
         }
 
         // The sweep's reach is set with its aim: as far out as you stood.
@@ -239,6 +241,8 @@ namespace MyGame
         {
             modeTime += dt;
             Frame();
+            if (CurrentState == State.Dying)
+                DeathTick();
             // How long the Apprentice has stayed close (easing off twice as fast once they step back).
             bool close = Awakened && target != null && target.IsAlive
                 && Flat(target.transform.position - transform.position).magnitude <= closeRadius;
@@ -405,6 +409,8 @@ namespace MyGame
                 BossFight.Begin(this); // her name and bar on screen
             else
                 BossFight.End(this);
+            if (CurrentState == State.Dying)
+                return; // (her death has the camera: see DeathEntered)
             CameraRig.Instance?.SetFightFocus(fighting ? transform : null, cameraLean);
             CameraRig.Instance?.SetZoom(fighting ? cameraZoom : 1f);
         }
@@ -433,6 +439,7 @@ namespace MyGame
 
         void LateUpdate()
         {
+            anchorChain?.TickSnapped(Time.deltaTime); // (snapped as she died: its links scattering)
             if (anchorBone == null || anchorRing == null)
                 return;
             // The animation has put it in her hands; while it's out, it goes where the fight says instead.

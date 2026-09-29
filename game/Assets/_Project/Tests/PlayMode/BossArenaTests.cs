@@ -227,11 +227,30 @@ namespace MyGame.Tests
             yield return null;
             input.PressLight();
             yield return WaitFor(() => !boss.IsAlive, 2f, "her defeat");
-            yield return new WaitForSeconds(2.5f);
+            var hud = Object.FindAnyObjectByType<Hud>();
+            yield return WaitFor(() => boss.FreedHook != null, boss.deathDuration + boss.dissolveDuration, "his hook freed");
+            yield return null;
+            Assert.IsTrue(hud.Farewell.Showing, "her farewell");
+            Assert.AreEqual(boss.farewell, hud.Farewell.Text.text);
+            var hook = boss.FreedHook;
+            yield return WaitFor(() => hook.Landed, hook.flightTime + 0.5f, "the hook coming to rest");
+            Assert.Less(Flat(hook.transform.position - boss.rewardSpot.position).magnitude, 0.1f, "on his mark");
+            Assert.IsTrue(FloorUnder(hook.transform.position), "on floor that never breaks");
+            yield return new WaitForSeconds(1f);
             WorldState.Instance.ReformAllSoured();
             yield return null;
             Assert.IsFalse(boss.IsAlive, "a Boss doesn't re-form");
             Assert.AreEqual(1, boss.TimesDefeated);
+
+            // Take it: the key-item ceremony, and the Hook is the Apprentice's.
+            Assert.IsFalse(apprentice.HasHook);
+            PlaceApprentice(hook.transform.position + Vector3.back * 0.8f);
+            yield return null;
+            Assert.AreEqual(hook, apprentice.Nearby, "its prompt");
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.ceremonyDuration + 0.5f);
+            Assert.IsTrue(apprentice.HasHook, "the Hook is yours");
+            Assert.IsTrue(hook.Taken);
         }
 
         // For play-testing, the Tester's Knot is owned in the arena: fitted, every blow lands four times as hard.

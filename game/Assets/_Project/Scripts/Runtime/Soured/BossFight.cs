@@ -11,12 +11,16 @@ namespace MyGame
         float[] PhaseMarks { get; } // health fractions where a new phase begins
         int Phase { get; }          // 1, 2...
         UnityEngine.AudioClip[] Music { get; } // its music, one track per phase (sharing one loop, to crossfade in step)
+        string Farewell { get; }    // the line when it's beaten: "She Let Go"
     }
 
     // The Boss fight going on now, if any (the one the HUD shows).
     public static class BossFight
     {
         public static IBoss Current { get; private set; }
+        public static event System.Action<IBoss> Defeated; // its farewell (the HUD shows it)
+
+        public static void Defeat(IBoss boss) => Defeated?.Invoke(boss);
 
         public static void Begin(IBoss boss) => Current = boss;
 

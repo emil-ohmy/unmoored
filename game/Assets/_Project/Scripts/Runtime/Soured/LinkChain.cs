@@ -8,6 +8,10 @@ namespace MyGame
     {
         readonly Transform[] links;
         readonly float spacing;
+        Vector3[] flying, spin; // snapped: each link flying free
+        float floorY;
+
+        public bool Snapped => flying != null;
 
         public LinkChain(string name, Material material, int maxLinks, Vector3 linkSize, float spacing)
         {
@@ -29,8 +33,51 @@ namespace MyGame
             }
         }
 
+        // It breaks: every link shown flies apart, tumbling, and scatters on the floor.
+        public void Snap(Vector3 from, float floor)
+        {
+            floorY = floor;
+            flying = new Vector3[links.Length];
+            spin = new Vector3[links.Length];
+            for (int i = 0; i < links.Length; i++)
+            {
+                Vector3 out_ = links[i].position - from;
+                out_.y = 0f;
+                flying[i] = (out_.sqrMagnitude > 0.01f ? out_.normalized : Random.onUnitSphere) * Random.Range(1.5f, 4.5f) + Vector3.up * Random.Range(2f, 5f);
+                spin[i] = Random.insideUnitSphere * 900f;
+            }
+        }
+
+        // Snapped links fly, fall and come to rest on the floor (Draw does nothing more once snapped).
+        public void TickSnapped(float dt)
+        {
+            if (flying == null)
+                return;
+            for (int i = 0; i < links.Length; i++)
+            {
+                if (!links[i].gameObject.activeSelf)
+                    continue;
+                Vector3 p = links[i].position;
+                if (p.y <= floorY + 0.03f && flying[i].y <= 0f)
+                    continue; // at rest
+                flying[i] += Vector3.down * 18f * dt;
+                p += flying[i] * dt;
+                if (p.y <= floorY + 0.03f)
+                {
+                    p.y = floorY + 0.03f;
+                    flying[i] = Vector3.zero;
+                    links[i].rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
+                }
+                else
+                    links[i].rotation = Quaternion.Euler(spin[i] * dt) * links[i].rotation;
+                links[i].position = p;
+            }
+        }
+
         public void Draw(Vector3 a, Vector3 b, float sag, float floorY, bool shown)
         {
+            if (flying != null)
+                return;
             float distance = Vector3.Distance(a, b);
             int count = shown ? Mathf.Clamp(Mathf.CeilToInt(distance / spacing), 2, links.Length) : 0;
             for (int i = 0; i < links.Length; i++)
