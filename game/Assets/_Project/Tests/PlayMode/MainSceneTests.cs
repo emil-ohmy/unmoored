@@ -1406,6 +1406,125 @@ namespace MyGame.Tests
             Assert.Less(FlatDistance(apprentice.transform.position, yard), 0.6f, "back in the yard");
         }
 
+        // ---- Old Hesper, a Lingerer
+
+        // Speak with her: her lines one at a time, typed out as she says them (Interact finishes one, then goes on),
+        // in a band at the bottom of the screen; Dash leaves. The second time, she's waiting: his light's still out there.
+        [UnityTest]
+        public IEnumerator Hesper_TellsOfHerSon_OneLineAtATime()
+        {
+            var hesper = Object.FindAnyObjectByType<Lingerer>();
+            Assert.IsNotNull(hesper, "Old Hesper sits on the landing");
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Assert.Greater(Vector3.Distance(apprentice.transform.position, hesper.InteractPosition), hesper.InteractRadius,
+                "not in the way where you start");
+            apprentice.Teleport(hesper.InteractPosition + Vector3.right * 0.9f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(hesper, apprentice.Nearby);
+            Assert.AreEqual("Speak", hud.PromptText);
+
+            input.PressInteract();
+            yield return null;
+            var talk = apprentice.OpenMenu as Conversation;
+            Assert.IsNotNull(talk, "Interact speaks with her");
+            Assert.AreEqual(Lingerer.Business.Waiting, hesper.State);
+            Assert.AreEqual("Oh. You're not him.", talk.CurrentLine);
+            yield return new WaitForSeconds(0.1f);
+            yield return null;
+            Assert.IsTrue(hud.Dialogue.Visible);
+            Assert.AreEqual("Old Hesper", hud.Dialogue.SpeakerText);
+            Assert.Less(hud.PromptAlpha, 0.9f, "no Speak prompt over her words");
+            Assert.IsFalse(talk.LineDone, "the words come out as she says them");
+            input.PressInteract();
+            yield return null;
+            Assert.IsTrue(talk.LineDone, "Interact finishes the line");
+            Assert.AreEqual(0, talk.Line);
+            input.PressInteract();
+            yield return null;
+            Assert.AreEqual(1, talk.Line, "then goes on");
+            StringAssert.Contains("my boy", talk.CurrentLine);
+            input.PressDash();
+            yield return null;
+            Assert.IsNull(apprentice.OpenMenu, "Dash leaves");
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+
+            yield return new WaitForSeconds(0.2f);
+            input.PressInteract();
+            yield return null;
+            talk = apprentice.OpenMenu as Conversation;
+            Assert.IsNotNull(talk);
+            StringAssert.Contains("still out there", talk.CurrentLine);
+            talk.Skip();
+            StringAssert.Contains("hook", talk.CurrentLine, "without the Hook, she tells how the Ferryman crossed");
+            talk.Close();
+        }
+
+        // The errand: his boat-lantern, on the islet north of the yard (the Hook's), carried back to her. She holds
+        // it, lit; then asks after her fare (optional, and asked again later); paid, she goes to wait by the boat.
+        [UnityTest]
+        public IEnumerator Hesper_HisLantern_Brought_ThenHerFare()
+        {
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false);
+            var hesper = Object.FindAnyObjectByType<Lingerer>();
+            var keepsake = Object.FindAnyObjectByType<Keepsake>();
+            Assert.IsNotNull(keepsake, "his lantern is out there");
+            Assert.Greater(keepsake.transform.position.z, 8f, "on the islet north of the yard");
+            Assert.IsFalse(hesper.heldKeepsake.activeSelf, "her hands are empty");
+            hesper.Interact(apprentice); // (met)
+            apprentice.OpenMenu.Close();
+
+            apprentice.Teleport(keepsake.transform.position + Vector3.right * 0.6f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(keepsake, apprentice.Nearby);
+            input.PressInteract();
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(apprentice.Equipment.Carries(keepsake.id), "carried");
+            Assert.IsFalse(keepsake.gameObject.activeSelf);
+
+            apprentice.Teleport(hesper.InteractPosition + Vector3.right * 0.9f);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return null;
+            var talk = apprentice.OpenMenu as Conversation;
+            Assert.AreEqual("That's it. That's his.", talk.CurrentLine);
+            Assert.AreEqual(Lingerer.Business.Given, hesper.State);
+            Assert.IsFalse(apprentice.Equipment.Carries(keepsake.id), "given");
+            Assert.IsTrue(hesper.heldKeepsake.activeSelf, "she holds it, lit");
+            talk.Skip();
+            Assert.IsTrue(talk.Choosing, "then the fare");
+            StringAssert.StartsWith("Pay her fare (100 Obols)", talk.Rows[0].Label);
+            Assert.IsTrue(talk.Rows[0].Dim, "too few Obols");
+            talk.Choose(1); // Not yet
+            yield return null;
+            Assert.IsNull(apprentice.OpenMenu);
+            Assert.AreEqual(Lingerer.Business.Given, hesper.State, "it can wait");
+
+            apprentice.GainObols(130);
+            input.PressInteract();
+            yield return null;
+            talk = apprentice.OpenMenu as Conversation;
+            StringAssert.Contains("nothing left but oil", talk.CurrentLine, "asked again");
+            talk.Skip();
+            Assert.IsFalse(talk.Rows[0].Dim);
+            talk.Choose(0);
+            yield return null;
+            Assert.AreEqual(30, apprentice.Obols);
+            Assert.AreEqual(Lingerer.Business.Paid, hesper.State);
+            talk = apprentice.OpenMenu as Conversation;
+            Assert.AreEqual("Thank you, child.", talk.CurrentLine);
+            talk.Close();
+            yield return new WaitForSeconds(0.2f);
+            Assert.Less(FlatDistance(hesper.transform.position, hesper.waitAt.position), 0.1f, "she waits by the boat");
+
+            apprentice.Teleport(hesper.InteractPosition + Vector3.left * 0.9f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(hesper, apprentice.Nearby);
+            input.PressInteract();
+            yield return null;
+            StringAssert.Contains("Whenever you are", (apprentice.OpenMenu as Conversation).CurrentLine);
+        }
+
         // ---- The Laden archer        // ---- The Laden archer
 
         [UnityTest]

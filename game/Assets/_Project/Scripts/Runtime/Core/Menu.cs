@@ -26,7 +26,7 @@ namespace MyGame
 
         bool stickArmed;
 
-        public void Tick(IApprenticeInput input)
+        public virtual void Tick(IApprenticeInput input)
         {
             float y = input.Move.y;
             if (Mathf.Abs(y) < 0.35f)

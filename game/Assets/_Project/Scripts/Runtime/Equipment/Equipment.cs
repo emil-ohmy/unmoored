@@ -12,6 +12,16 @@ namespace MyGame
         public string[] startingCharms = new string[0];
 
         readonly List<Charm> owned = new List<Charm>();
+        readonly List<string> keepsakes = new List<string>(); // things carried for a Lingerer (their ids)
+
+        public IReadOnlyList<string> Keepsakes => keepsakes;
+        public bool Carries(string keepsake) => keepsakes.Contains(keepsake);
+        public void Carry(string keepsake)
+        {
+            if (!keepsakes.Contains(keepsake))
+                keepsakes.Add(keepsake);
+        }
+        public void Give(string keepsake) => keepsakes.Remove(keepsake);
         readonly List<Charm> fitted = new List<Charm>();
 
         public IReadOnlyList<Charm> Owned => owned;
