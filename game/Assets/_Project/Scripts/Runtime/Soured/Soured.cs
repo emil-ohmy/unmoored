@@ -465,8 +465,8 @@ namespace MyGame
             clips.PlayOnce("Stagger", duration);
         }
 
-        // Caught by the Apprentice's Hook. A light Soured is yanked over to land in front of them (over water, if need
-        // be), reeling; heavier ones answer otherwise (the Laden: its guard torn away).
+        // Caught by the Apprentice's Hook: yanked over to land in front of them (over water, if need be), reeling; the
+        // heavier the Soured, the slower it comes (a Boss answers otherwise: see the Anchoress).
         public virtual HookResult OnHooked(Apprentice by)
         {
             if (!IsAlive || CurrentState == State.Busy || CurrentState == State.Yanked)
@@ -476,7 +476,7 @@ namespace MyGame
             yankFrom = transform.position;
             yankTo = by.transform.position + (distance > 0.01f ? away / distance : by.transform.forward) * (radius + 1.0f);
             yankTo.y = by.transform.position.y;
-            yankTime = Mathf.Clamp(distance / 16f, 0.2f, 0.55f);
+            yankTime = Mathf.Clamp(distance / Mathf.Lerp(16f, 10f, knockbackResistance), 0.2f, 0.7f); // (a Laden resists: slower)
             Enter(State.Yanked);
             clips.PlayOnce("Stagger", yankTime);
             return HookResult.Yanked;

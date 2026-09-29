@@ -401,6 +401,7 @@ public static partial class MainSceneBuilder
         laden.staggerDrainDelay = 1.5f;
         laden.staggerDrainPerSecond = 25f;
         laden.staggerDuration = 1.2f;
+        laden.yankStagger = 1.3f; // yanked over on the Hook, heap and all: it takes a moment to find its feet
         laden.aggroRadius = 5.5f; // lets the Apprentice reach the quay before anything notices
         laden.attackRange = 2.0f;
         laden.chaseSpeed = 1.9f;

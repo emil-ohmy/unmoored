@@ -27,9 +27,9 @@ namespace MyGame
         public float guardRaiseTime = 0.3f;   // matches the GuardUp clip; the block only counts once the heap is up
         public float blockHalfAngle = 70f;
 
-        [Header("The Hook: too heavy to pull, it tears the heap from its grip")]
-        public float ripGuardTime = 6f; // no guard for this long
-        public float ripStagger = 1.4f;
+        [Header("The Hook: yanked over like any Soured (the base); a guard can also be torn away (the Anchoress's)")]
+        public float ripGuardTime = 4f; // no guard for this long, torn away
+        public float ripStagger = 0.9f;
 
         float guardSince = float.MaxValue, guardBrokenUntil = -10f;
         bool guardWanted, glinted;
@@ -37,15 +37,7 @@ namespace MyGame
         public bool Guarding => CurrentState == State.Chase && guardWanted && !GuardBroken && Time.time - guardSince >= guardRaiseTime;
         public bool GuardBroken => Time.time < guardBrokenUntil;
 
-        public override HookResult OnHooked(Apprentice by)
-        {
-            if (!IsAlive || CurrentState == State.Busy)
-                return HookResult.Shrugged;
-            Rip(by, ripGuardTime, ripStagger);
-            return HookResult.Ripped;
-        }
-
-        // The Hook tears at its heap: it staggers, junk flying off it, and it can't raise its guard for a while.
+        // The Hook tears at what it guards with: it staggers, junk flying off it, and it can't raise its guard for a while.
         protected void Rip(Apprentice by, float guardTime, float stagger)
         {
             guardBrokenUntil = Time.time + guardTime;

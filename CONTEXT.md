@@ -50,7 +50,7 @@ A permanent new oar technique that has both a combat use and a traversal use.
 _Avoid_: Skill, power, upgrade
 
 **Hook**, **Stroke**, **Vault**:
-The three Abilities: the Hook pulls you to a hook post, yanks a light Soured over to you, or tears a heavy one's guard away (a Laden's heap, the Anchoress's anchor); a rowing stroke that sends a wave; plant the oar and leap.
+The three Abilities: the Hook pulls you to a hook post, yanks a Soured over to you (a Boss too heavy for that: it jerks the Anchoress's anchor, her guard gone a while); a rowing stroke that sends a wave; plant the oar and leap.
 
 **Ability gate**:
 An obstacle, on land or on water, that can only be passed once the Apprentice has a specific Ability.

@@ -142,7 +142,7 @@ namespace MyGame
             if (!IsAlive || CurrentState == State.Busy || Anchor != AnchorMode.Held || Time.time < nextRip)
                 return HookResult.Shrugged;
             nextRip = Time.time + ripCooldown;
-            Rip(by, 4f, 0.9f);
+            Rip(by, ripGuardTime, ripStagger); // (too heavy to pull: the anchor jerked in her hands instead)
             return HookResult.Ripped;
         }
 

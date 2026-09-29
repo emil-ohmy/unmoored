@@ -1189,32 +1189,23 @@ namespace MyGame.Tests
             Assert.Less(apprentice.Stamina, stamina, "the throw costs stamina");
         }
 
-        // A Laden is too heavy to pull: the Hook tears its heap from its grip. It staggers, and for a while it can't raise
-        // its guard: your blows land from the front.
+        // A Laden comes too, heap and all (a little slower on the chain), and takes a moment to find its feet.
         [UnityTest]
-        public IEnumerator Hook_TearsALadensGuardAway()
+        public IEnumerator Hook_YanksALaden_Too()
         {
             var target = Isolate(laden[0]);
-            target.attackRange = 0f; // (only guarding)
+            target.attackRange = 0f; // (only following)
             apprentice.GiveHook();
-            PlaceApprentice(target.transform.position + target.transform.forward * 3f, target.transform.position);
-            yield return WaitFor(() => target.Guarding, 3f, "its guard up");
+            PlaceApprentice(target.transform.position + target.transform.forward * 5f, target.transform.position);
+            yield return WaitFor(() => target.CurrentState == Soured.State.Chase, 3f, "it noticing you");
             input.HookHeld = true;
             yield return null;
             yield return null;
             Assert.AreEqual(target, apprentice.HookFoe);
             input.HookHeld = false;
-            yield return WaitFor(() => target.CurrentState == Soured.State.Staggered, 2f, "it staggering");
-            Assert.IsTrue(target.GuardBroken, "its guard torn away");
-            Assert.Greater(FlatDistance(target.transform.position, apprentice.transform.position), 2f, "too heavy to pull");
-            yield return WaitFor(() => target.CurrentState == Soured.State.Chase, target.ripStagger + 1f, "it recovering");
-            yield return new WaitForSeconds(0.6f);
-            Assert.IsFalse(target.Guarding, "no guard for a while");
-            float health = target.Health;
-            apprentice.transform.rotation = Quaternion.LookRotation(Flat(target.transform.position - apprentice.transform.position));
-            input.PressLight();
-            yield return new WaitForSeconds(0.6f);
-            Assert.Less(target.Health, health, "a frontal blow lands");
+            yield return WaitFor(() => target.Yanked, 1f, "it pulled");
+            yield return WaitFor(() => target.CurrentState == Soured.State.Staggered, 2f, "it landed, reeling");
+            Assert.Less(FlatDistance(target.transform.position, apprentice.transform.position), 2.4f, "in front of you");
         }
 
         [UnityTest]
