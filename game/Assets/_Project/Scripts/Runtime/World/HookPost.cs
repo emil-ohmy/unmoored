@@ -47,16 +47,20 @@ namespace MyGame
             waited = 0f;
             nextGlint = Random.Range(glintEvery.x, glintEvery.y);
             Glints++;
-            Effects.Instance?.MoonGlint(RingPosition + Vector3.up * 0.3f);
+            Effects.Instance?.MoonGlint(GlintPosition);
         }
 
+        // On the ring's top, where the moon would catch it.
+        public Vector3 GlintPosition => RingPosition + Vector3.up * 0.28f;
+
+        // The glint itself must be in view (near a tall post its ring is often above the top of the screen).
         bool OnScreen()
         {
             var cam = Camera.main;
             if (cam == null)
                 return false;
-            Vector3 v = cam.WorldToViewportPoint(transform.position + Vector3.up * 1.2f); // the post in view (its ring sits high)
-            return v.z > 0f && v.x > 0.03f && v.x < 0.97f && v.y > 0.03f && v.y < 0.97f;
+            Vector3 v = cam.WorldToViewportPoint(GlintPosition);
+            return v.z > 0f && v.x > 0.04f && v.x < 0.96f && v.y > 0.04f && v.y < 0.96f;
         }
 
         // The post to pull to from here: within range, on other ground than you stand on (never a post on your own

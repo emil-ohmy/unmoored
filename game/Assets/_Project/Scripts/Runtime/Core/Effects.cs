@@ -141,13 +141,14 @@ namespace MyGame
             flash.Emit(new ParticleSystem.EmitParams { startSize = 1.8f, startLifetime = 0.5f, startColor = new Color(0.6f, 0.75f, 0.9f, 0.7f), applyShapeToPosition = false }, 1);
         }
 
-        // Wet iron catching the moonlight: a tiny cold point of light that pops in and out (hook post rings).
+        // Wet iron catching the moonlight: a small four-pointed twinkle that pops in and out (hook post rings). The
+        // star shape is what sets it apart from the water's own soft highlights.
         public void MoonGlint(Vector3 position)
         {
             glints.Emit(new ParticleSystem.EmitParams
             {
-                position = position, velocity = Vector3.zero, startSize = 0.11f, startLifetime = 0.14f,
-                startColor = new Color(0.85f, 0.92f, 1f, 0.75f), applyShapeToPosition = false,
+                position = position, velocity = Vector3.zero, startSize = 0.42f, startLifetime = 0.24f,
+                rotation = Random.Range(-12f, 12f), startColor = new Color(0.9f, 0.95f, 1f, 1f), applyShapeToPosition = false,
             }, 1);
         }
 
@@ -170,12 +171,38 @@ namespace MyGame
             shape.enabled = false;
             var size = ps.sizeOverLifetime; // a quick pop: up, then gone
             size.enabled = true;
-            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.2f), new Keyframe(0.35f, 1f), new Keyframe(1f, 0f)));
+            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.5f), new Keyframe(0.2f, 1f), new Keyframe(1f, 0f)));
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = sparkMaterial;
+            if (sparkMaterial != null)
+            {
+                var glint = new Material(sparkMaterial) { name = "Glint", mainTexture = StarTexture() };
+                glint.SetFloat("_Intensity", 5f); // bright enough for the core to bloom a touch, like a real glint
+                renderer.sharedMaterial = glint;
+            }
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return ps;
+        }
+
+        // A four-pointed twinkle: a bright core and thin rays fading out along the axes.
+        static Texture2D StarTexture()
+        {
+            const int n = 64;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { name = "T_Glint", wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color32[n * n];
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float u = (x + 0.5f) / n * 2f - 1f, v = (y + 0.5f) / n * 2f - 1f;
+                    float core = Mathf.Exp(-(u * u + v * v) * 22f);
+                    float rays = Mathf.Exp(-Mathf.Abs(v) * 24f) * Mathf.Pow(1f - Mathf.Abs(u), 2.5f)
+                               + Mathf.Exp(-Mathf.Abs(u) * 24f) * Mathf.Pow(1f - Mathf.Abs(v), 2.5f);
+                    byte a = (byte)(255 * Mathf.Clamp01(core + rays * 0.8f));
+                    pixels[y * n + x] = new Color32(255, 255, 255, a);
+                }
+            tex.SetPixels32(pixels);
+            tex.Apply(false, true);
+            return tex;
         }
 
         // The moment a guard comes up: a small, quick glint on the shield.

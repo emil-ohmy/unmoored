@@ -1079,7 +1079,7 @@ namespace MyGame.Tests
             int far = post.Glints;
             yield return new WaitForSeconds(6f); // on the landing: too far away
             Assert.AreEqual(far, post.Glints, "no glints from far off");
-            apprentice.Teleport(new Vector3(2.4f, 0.55f, -20.5f)); // on the boardwalk, just short of it
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -18.6f)); // on the boardwalk beside it, its ring in view
             int before = post.Glints;
             yield return new WaitForSeconds(12f); // standing still
             Assert.Greater(post.Glints, before, "near it, even standing still, its ring should catch the moonlight");

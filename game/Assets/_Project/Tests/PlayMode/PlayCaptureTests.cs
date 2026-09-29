@@ -453,6 +453,39 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // Is the moon glint actually visible? The frame just before one and at its peak, and where the ring is on
+        // screen (written next to them), so the patch around the ring can be compared.
+        [UnityTest]
+        public IEnumerator Capture_GlintCheck()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 60;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            var post = UnityEngine.Object.FindObjectsByType<HookPost>(FindObjectsSortMode.None)
+                .OrderBy(p => Vector3.Distance(p.transform.position, new Vector3(1.55f, 0.5f, -17.3f))).First();
+            post.glintEvery = new Vector2(1000f, 1000f); // only the one we trigger
+            apprentice.Teleport(new Vector3(2.4f, 0.55f, -18.6f)); // a step short of it, to one side: its ring in view (tall posts leave the frame's top when further off)
+            for (int f = 0; f < 40; f++)
+                yield return null;
+            Capture(outDir, "glintcheck-warmup");
+            Capture(outDir, "glintcheck-before");
+            Vector3 at = post.GlintPosition;
+            Vector3 screen = Camera.main.WorldToScreenPoint(at);
+            File.WriteAllText(Path.Combine(outDir, "glintcheck-ring.txt"),
+                $"{screen.x / Camera.main.pixelWidth * 1600f:F0} {(1f - screen.y / Camera.main.pixelHeight) * 900f:F0}");
+            Effects.Instance.MoonGlint(at);
+            for (int f = 0; f < 3; f++)
+                yield return null;
+            Capture(outDir, "glintcheck-peak");
+            Time.captureFramerate = 0;
+        }
+
         // Pickups glow: the Hook relic, faint while sealed and bright once its guardians fall.
         [UnityTest]
         public IEnumerator Capture_Relic()
