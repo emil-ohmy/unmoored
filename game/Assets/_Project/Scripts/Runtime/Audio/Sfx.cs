@@ -38,10 +38,36 @@ namespace MyGame
             }
         }
 
+        void OnEnable() => AudioSettings.OnAudioConfigurationChanged += OnAudioConfigurationChanged;
+
+        void OnDisable() => AudioSettings.OnAudioConfigurationChanged -= OnAudioConfigurationChanged;
+
         void OnDestroy()
         {
             if (Instance == this)
                 Instance = null;
+        }
+
+        // The output device changed (headphones plugged in or out, AirPods connecting): Unity's audio doesn't follow on
+        // its own and can go silent, so re-initialise it on the new device, then pick the looping sounds (music,
+        // torches) back up where they were. One-shots in flight are lost.
+        void OnAudioConfigurationChanged(bool deviceWasChanged)
+        {
+            if (!deviceWasChanged)
+                return;
+            var loops = new System.Collections.Generic.List<(AudioSource source, float time)>();
+            foreach (var source in FindObjectsByType<AudioSource>(FindObjectsSortMode.None))
+                if (source.isPlaying && source.loop && source.clip != null)
+                    loops.Add((source, source.time));
+            AudioSettings.Reset(AudioSettings.GetConfiguration());
+            foreach (var (source, time) in loops)
+            {
+                if (source == null)
+                    continue;
+                source.Play();
+                source.time = Mathf.Repeat(time, source.clip.length);
+            }
+            Debug.Log($"[Sfx] audio output device changed: re-initialised, {loops.Count} loops resumed");
         }
 
         public void OarSwing(Vector3 at, bool heavy) => Play(heavy ? oarSwingHeavy : oarSwing, at, heavy ? 0.9f : 0.75f, heavy ? "oar_swing_heavy" : "oar_swing");
