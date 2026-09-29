@@ -49,7 +49,7 @@ namespace MyGame.Tests
             apprentice.Input = input = new ScriptedInput();
             var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None);
             var target = laden.OrderByDescending(l => l.transform.position.x).First(); // the one with its back turned
-            var post = UnityEngine.Object.FindAnyObjectByType<MooringPost>();
+            var post = UnityEngine.Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None).OrderBy(p => Vector3.Distance(p.transform.position, apprentice.transform.position)).First(); // the landing's
 
             // Render the game camera (HUD included, laid out for this size) into a texture we read every frame.
             var cam = Camera.main;

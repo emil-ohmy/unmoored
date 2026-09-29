@@ -29,9 +29,12 @@ namespace MyGame.Tests
             yield return null;
             apprentice = Object.FindAnyObjectByType<Apprentice>();
             // laden[0] is the quay's (nearest the middle); the archer is the yard's (the one met alone).
-            laden = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).OrderBy(l => l.transform.position.magnitude).ToArray();
+            laden = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).Where(l => !(l is Anchoress)) // (she's a Laden too)
+                .OrderBy(l => l.transform.position.magnitude).ToArray();
             archer = Object.FindObjectsByType<LadenArcher>(FindObjectsSortMode.None).OrderByDescending(a => a.transform.position.z).First();
-            post = Object.FindAnyObjectByType<MooringPost>();
+            // The landing's Mooring post (where the Apprentice starts; the other stands before the chapel).
+            post = Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None)
+                .OrderBy(p => Vector3.Distance(p.transform.position, apprentice.transform.position)).First();
             apprentice.Input = input = new ScriptedInput();
             yield return new WaitForSeconds(0.5f); // settle onto the ground
         }
@@ -585,6 +588,63 @@ namespace MyGame.Tests
             Assert.IsTrue(apprentice.IsAlive);
         }
 
+        // Going under is smooth: a splash, you sink while the screen dips to black, you're moved behind it, and it
+        // fades back in on you on solid ground.
+        [UnityTest]
+        public IEnumerator FallingInTheWater_DipsToBlack_WashesAshoreBehindIt()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            apprentice.Teleport(new Vector3(-12f, 1f, -15f), onSafeGround: false);
+            yield return WaitFor(() => apprentice.CurrentState == Apprentice.State.Sinking, 1f, "going under");
+            Vector3 under = apprentice.transform.position;
+            yield return new WaitForSeconds(apprentice.sinkTime * 0.9f);
+            yield return null;
+            Assert.Greater(hud.DipAlpha, 0.9f, "dipped to black");
+            Assert.Less(Vector2.Distance(new Vector2(under.x, under.z), new Vector2(apprentice.transform.position.x, apprentice.transform.position.z)), 0.1f, "still where it fell, sinking");
+            yield return WaitFor(() => apprentice.CurrentState != Apprentice.State.Sinking, 1f, "washing ashore");
+            Assert.Greater(apprentice.transform.position.y, 0.3f, "moved behind the black, onto solid ground");
+            yield return new WaitForSeconds(0.9f);
+            yield return null;
+            Assert.AreEqual(0f, hud.DipAlpha, 0.01f, "and back");
+        }
+
+        // A Soured left behind (you outran it) walks back to its post and takes up its watch again.
+        [UnityTest]
+        public IEnumerator Soured_LeftBehind_WalksBackToItsPost()
+        {
+            var target = laden[0];
+            Isolate(target);
+            Vector3 home = target.transform.position;
+            Quaternion facing = target.transform.rotation;
+            PlaceApprentice(home + target.transform.forward * 3.5f, home); // in front of it (it starts with its back turned)
+            yield return WaitFor(() => target.CurrentState == Soured.State.Chase, 2f, "it noticing you");
+            target.attackRange = 0f; // (only following)
+            yield return new WaitForSeconds(1.2f);
+            Assert.Greater(Vector3.Distance(target.transform.position, home), 0.5f, "drawn from its post");
+            apprentice.Teleport(home + target.transform.forward * 22f);
+            yield return WaitFor(() => target.CurrentState == Soured.State.Returning, 2f, "it giving up");
+            yield return WaitFor(() => target.CurrentState == Soured.State.Idle, 12f, "it back at its post");
+            Assert.Less(Vector3.Distance(target.transform.position, home), 0.5f);
+            Assert.Less(Quaternion.Angle(target.transform.rotation, facing), 3f, "facing the way it was");
+        }
+
+        // Locked on to something that leaves the screen, the lock lets go after a moment: the camera comes back.
+        [UnityTest]
+        public IEnumerator LockOn_LetsGo_WhenItsTargetLeavesTheScreen()
+        {
+            var target = laden[0];
+            Isolate(target);
+            target.aggroRadius = 0f; // (calm)
+            PlaceApprentice(target.transform.position + Vector3.back * 4f, target.transform.position);
+            yield return null;
+            input.PressLock();
+            yield return null;
+            Assert.AreEqual(target, apprentice.LockTarget);
+            apprentice.Teleport(target.transform.position + Vector3.back * 11f); // in range, but off the top of the screen
+            yield return new WaitForSeconds(apprentice.lockOffScreenTime + 0.5f);
+            Assert.IsNull(apprentice.LockTarget, "off the screen: let go");
+        }
+
         // Low on health, the water finishes you.
         [UnityTest]
         public IEnumerator FallingInTheWater_WhenLow_Drowns()
@@ -877,6 +937,15 @@ namespace MyGame.Tests
             input.PressInteract();
             yield return null;
             Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "Resting with Equipment to fit should open the post's menu");
+            // Down to the Eel Skin (the dev Tester's Knot is owned too, listed first).
+            for (int i = 0; i < 5 && apprentice.Equipment.Owned[apprentice.OpenMenu.Selected] != Charm.EelSkin; i++)
+            {
+                input.Move = Vector2.zero;
+                yield return null;
+                input.Move = Vector2.down;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
             input.PressInteract();
             yield return null;
             Assert.IsTrue(apprentice.Equipment.IsFitted(Charm.EelSkin));
@@ -1169,33 +1238,49 @@ namespace MyGame.Tests
             Assert.AreNotEqual(Apprentice.State.Hooking, apprentice.CurrentState);
         }
 
+        // The way to her: from the crossroads, south along a boardwalk to the second Mooring post, then west into the
+        // drowned chapel, on foot all the way (no gaps, no water).
         [UnityTest]
-        public IEnumerator HookRelic_IsSealedUntilTheCrossroadsIsCleared_ThenGivesTheHook()
+        public IEnumerator TheWayToTheChapel_IsWalkable_PastASecondMooringPost()
         {
-            var relic = Object.FindAnyObjectByType<AbilityRelic>();
-            foreach (var guardian in relic.guardians)
-                guardian.aggroRadius = 0f; // calm, for the test
-            apprentice.Teleport(relic.transform.position + Vector3.right * 1.1f);
-            yield return new WaitForSeconds(0.3f);
-            Assert.AreEqual(relic, apprentice.Nearby);
-            Assert.AreEqual("Sealed", apprentice.Nearby.PromptLabel);
-            Assert.Less(relic.glow.Intensity, 0.6f, "sealed: only a faint glow");
-            input.PressInteract();
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false);
+            var chapelPost = Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None).First(p => p != post);
+            apprentice.Teleport(new Vector3(-20.2f, 0.55f, -28.2f)); // the crossroads' south side
+            yield return new WaitForSeconds(0.2f);
+            yield return WalkTo(new Vector2(chapelPost.RespawnPoint.x, chapelPost.RespawnPoint.z), 6f);
             yield return null;
-            Assert.IsFalse(apprentice.HasHook, "sealed while its guardians stand");
+            Assert.AreEqual(chapelPost, apprentice.Nearby, "the second Mooring post, before her");
+            var boss = Object.FindAnyObjectByType<Anchoress>(FindObjectsInactive.Include);
+            Vector3 mark = boss.rewardSpot.position;
+            yield return WalkTo(new Vector2(mark.x + 4f, mark.z), 6f);
+            Assert.Less(Vector3.Distance(apprentice.transform.position, mark), 4.6f, "in the chapel");
+        }
 
-            foreach (var guardian in relic.guardians)
-                guardian.TakeHit(new Hit { Damage = 1000f, From = guardian.transform.position - guardian.transform.forward * 2f });
-            yield return new WaitForSeconds(0.5f);
-            Assert.AreEqual("Take", apprentice.Nearby.PromptLabel, "the crossroads cleared, it can be taken");
-            Assert.Greater(relic.glow.Intensity, 2f, "a key item, takeable: a bright glow");
+        // The Hook is hers to give: in the drowned chapel, south of the crossroads past a second Mooring post. Beaten,
+        // she lets it go; it comes to rest on his mark, and taking it is the key-item ceremony. For good.
+        [UnityTest]
+        public IEnumerator TheHook_TheAnchoressLetsItGo_TakeItFromHisMark()
+        {
+            var boss = Object.FindAnyObjectByType<Anchoress>();
+            Assert.IsNotNull(boss, "the Anchoress, in the village");
+            Assert.AreEqual(2, Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None).Length, "a second Mooring post, before her");
+            Assert.IsNull(Object.FindAnyObjectByType<AbilityRelic>(), "no relic: she gives the Hook");
+            Assert.IsFalse(apprentice.HasHook);
+            boss.TakeHit(new Hit { Damage = 100000f, From = boss.transform.position - boss.transform.forward * 2f });
+            yield return WaitFor(() => boss.FreedHook != null && boss.FreedHook.Landed, 10f, "his hook, come to rest");
+            var hook = boss.FreedHook;
+            Assert.Less(Vector3.Distance(hook.transform.position, boss.rewardSpot.position), 0.1f, "on his mark");
+            apprentice.Teleport(hook.transform.position + Vector3.right * 0.9f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(hook, apprentice.Nearby);
+            Assert.AreEqual("Take", apprentice.Nearby.PromptLabel);
             Assert.IsFalse(apprentice.HookShown, "not carried before it's found");
             input.PressInteract();
             yield return null;
             yield return null;
             Assert.IsTrue(apprentice.HasHook);
-            Assert.IsTrue(relic.Taken);
-            Assert.IsFalse(relic.glow.gameObject.activeInHierarchy, "taken: no more glow");
+            Assert.IsTrue(hook.Taken);
             Assert.AreEqual(Apprentice.State.Ceremony, apprentice.CurrentState, "a key item is held up");
             Assert.IsTrue(apprentice.Invulnerable, "untouchable while it's held up");
             Assert.IsTrue(apprentice.HookShown, "the Hook in the Apprentice's hands");
@@ -1210,6 +1295,18 @@ namespace MyGame.Tests
             apprentice.TakeHit(1000f, Vector3.zero);
             yield return new WaitForSeconds(apprentice.respawnDelay + 0.5f);
             Assert.IsTrue(apprentice.HasHook, "an Ability is for good: dying doesn't take it");
+            Assert.IsFalse(boss.IsAlive, "and she stays beaten");
+        }
+
+        static IEnumerator WaitFor(System.Func<bool> condition, float timeout, string what)
+        {
+            for (float t = 0; t < timeout; t += Time.deltaTime)
+            {
+                if (condition())
+                    yield break;
+                yield return null;
+            }
+            Assert.Fail($"timed out waiting for {what}");
         }
 
         [UnityTest]

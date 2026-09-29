@@ -2,9 +2,9 @@ using MyGame;
 using UnityEditor;
 using UnityEngine;
 
-// Builds Assets/_Project/Scenes/BossArena.unity: the Anchoress's drowned chapel on its own, to play-test the Boss
-// without the walk there (she moves into the village later). You start at a Mooring post on a landing south of the
-// chapel, a short boardwalk from the fight; dying wakes you there and resets her.
+// The Anchoress's drowned chapel (DrownedChapel: placed in the Main scene south-west of the crossroads), and
+// Assets/_Project/Scenes/BossArena.unity: the chapel on its own, to play-test the Boss without the walk there. You
+// start at a Mooring post on a landing south of the chapel, a short boardwalk from the fight; dying wakes you there.
 //   Assets menu > MyGame > Build Boss Arena, or headless: -executeMethod MainSceneBuilder.BuildBossArenaFromCommandLine
 public static partial class MainSceneBuilder
 {
@@ -22,13 +22,10 @@ public static partial class MainSceneBuilder
 
     static void BuildBossArena()
     {
-        var scene = BeginScene();
+        var scene = BeginScene(Vector3.zero);
 
-        // The chapel's upper floor (the altar to the north), and the way in from the south.
-        var chapel = Place("Environment/drowned_chapel", Vector3.zero, 0f);
-        var floor = chapel.AddComponent<ChapelFloor>(); // its sections break away in her second phase
-        floor.crackSound = Clips("floor_crack");
-        floor.breakSound = Clips("floor_break");
+        // The chapel (its altar to the north), and the way in from the south: a landing with a Mooring post.
+        var boss = DrownedChapel(Vector3.zero, 0f);
         const float edge = -7.8f; // the chapel's south edge
         Boardwalk(new Vector3(0f, QuayTop - 0.03f, edge), Vector3.back, 2);
         float landing = edge - Segment * 2;
@@ -42,22 +39,42 @@ public static partial class MainSceneBuilder
         entrance.transform.position = new Vector3(0f, QuayTop + 1f, edge - 3f);
         entrance.areaName = "The Drowned Chapel";
 
+        var apprentice = Apprentice(start.position);
+        // For play-testing: the Tester's Knot (four times the damage) is owned here; fit it at the Mooring post.
+        apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
+        FinishScene(scene, BossScenePath, start, apprentice, "music_drowned_dark");
+    }
+
+    // The drowned chapel with the Anchoress keeping her vigil in it, at `centre` turned by `yaw` (at 0 its altar is to
+    // the north, +Z, and the way in is the middle of its south side, 7.8 m from the centre). Everything of hers: the
+    // floor that breaks, her lights, the seal across the way in, his mark where the Hook comes to rest.
+    static Anchoress DrownedChapel(Vector3 centre, float yaw)
+    {
+        var turn = Quaternion.Euler(0f, yaw, 0f);
+        Vector3 At(float x, float y, float z) => centre + turn * new Vector3(x, 0f, z) + Vector3.up * y; // chapel space
+
+        var chapel = Place("Environment/drowned_chapel", centre, yaw);
+        var floor = chapel.AddComponent<ChapelFloor>(); // its sections break away in her second phase
+        floor.crackSound = Clips("floor_crack");
+        floor.breakSound = Clips("floor_break");
+
         // Light: her green lanterns hung on the tall pillars at the altar end (green = danger), the candles on the
         // altar, and the moon. The near end stays dim.
         foreach (float angle in new[] { 202.5f, 247.5f, 292.5f, 337.5f })
         {
-            // The pillars stand at the octagon's corners (angles measured in the model, whose front is the world's +Z).
+            // The pillars stand at the octagon's corners (angles measured in the model, whose front is chapel +Z).
             float a = angle * Mathf.Deg2Rad;
             var pillar = new Vector3(8.05f * Mathf.Cos(a), 0f, -8.05f * Mathf.Sin(a));
-            var inwards = -new Vector3(pillar.x, 0f, pillar.z).normalized;
-            var hung = Place("Environment/soured_lantern", pillar + inwards * 0.5f + Vector3.up * (QuayTop + 1.7f), angle);
+            var inwards = -pillar.normalized;
+            var p = pillar + inwards * 0.5f;
+            var hung = Place("Environment/soured_lantern", At(p.x, QuayTop + 1.7f, p.z), angle + yaw);
             hung.name = "Hung Lantern";
             Flicker(PointLight(hung.transform, hung.transform.position + Vector3.down * 0.1f, 7.5f, 2.4f, SouredLight), 0.15f, 5f, 0.02f);
         }
         // Moonlight through the fallen roof, on the floor where she kneels: the stage, readable in the dark.
         var shaft = new GameObject("Moonlight Through The Roof").AddComponent<Light>();
         shaft.type = LightType.Spot;
-        shaft.transform.SetPositionAndRotation(new Vector3(0f, 7.5f, -0.8f), Quaternion.Euler(86f, 0f, 0f)); // (low: point and spot lights fall off with distance squared)
+        shaft.transform.SetPositionAndRotation(At(0f, 7.5f, -0.8f), turn * Quaternion.Euler(86f, 0f, 0f)); // (low: point and spot lights fall off with distance squared)
         shaft.spotAngle = 88f;
         shaft.innerSpotAngle = 50f;
         shaft.range = 14f;
@@ -65,29 +82,25 @@ public static partial class MainSceneBuilder
         shaft.color = Hex("#8ea8d8");
         shaft.shadows = LightShadows.None;
         var candles = new GameObject("Altar Candles");
-        Flicker(PointLight(candles.transform, new Vector3(0f, QuayTop + 1.4f, 6.4f), 4.5f, 1.4f, LanternLight), 0.2f, 6f, 0.02f);
+        Flicker(PointLight(candles.transform, At(0f, QuayTop + 1.4f, 6.4f), 4.5f, 1.4f, LanternLight), 0.2f, 6f, 0.02f);
 
-        var apprentice = Apprentice(start.position);
-        // For play-testing: the Tester's Knot (four times the damage) is owned here; fit it at the Mooring post.
-        apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
-        var boss = Anchoress("The Antediluvian Anchoress", new Vector3(0f, QuayTop, 1.2f), 0f); // kneeling on his mark, facing the altar, her back to you
+        var boss = Anchoress("The Antediluvian Anchoress", At(0f, QuayTop, 1.2f), yaw); // kneeling on his mark, facing the altar, her back to the way in
         boss.floor = floor;
         boss.rewardSpot = new GameObject("His Mark").transform; // the heart of the chapel: floor that never breaks
-        boss.rewardSpot.position = new Vector3(0f, QuayTop, 0f);
+        boss.rewardSpot.position = At(0f, QuayTop, 0f);
 
         // Shut in while the fight is on: chains rising out of the water across the way in, between the near side's
         // two pillar stubs (the octagon's corners, set in from the edge as the model places them).
         var seal = new GameObject("Arena Seal").AddComponent<ArenaSeal>();
         float px = 8.05f * Mathf.Cos(67.5f * Mathf.Deg2Rad), pz = -8.05f * Mathf.Sin(67.5f * Mathf.Deg2Rad);
         seal.left = new GameObject("Seal Left").transform;
-        seal.left.position = new Vector3(-px, QuayTop, pz);
+        seal.left.position = At(-px, QuayTop, pz);
         seal.right = new GameObject("Seal Right").transform;
-        seal.right.position = new Vector3(px, QuayTop, pz);
+        seal.right.position = At(px, QuayTop, pz);
         seal.linkMaterial = boss.chainMaterial;
         seal.riseSound = Clips("anchoress_drop_windup"); // the chain rattling up
         seal.sinkSound = Clips("splash");
-
-        FinishScene(scene, BossScenePath, start, apprentice, "music_drowned_dark");
+        return boss;
     }
 
     static Anchoress Anchoress(string name, Vector3 position, float yaw)

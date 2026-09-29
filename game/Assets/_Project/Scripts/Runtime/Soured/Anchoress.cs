@@ -133,6 +133,11 @@ namespace MyGame
         protected override float ChaseSpeed(float distance) => Anchor == AnchorMode.Held ? base.ChaseSpeed(distance) : 0f;
         protected override bool BlocksHit(Hit hit) => Anchor == AnchorMode.Held && base.BlocksHit(hit);
 
+        // In her chapel, she never loses you: only if you're off its floor (you've left, or fallen in).
+        public float arenaRadius = 9f;
+        bool InArena(Vector3 p) => rewardSpot == null || Flat(p - rewardSpot.position).magnitude <= arenaRadius;
+        protected override bool LosesTarget(float distance) => target == null || !InArena(target.transform.position);
+
         protected override void Awake()
         {
             base.Awake();
@@ -270,7 +275,7 @@ namespace MyGame
                     bool hauling = CurrentState == State.Recover && CurrentAttack == cast;
                     if (hauling && modeTime >= haulWait)
                         StartHaul();
-                    else if (!hauling && (CurrentState == State.Chase || CurrentState == State.Idle))
+                    else if (!hauling && (CurrentState == State.Chase || CurrentState == State.Idle || CurrentState == State.Returning))
                         StartReel(); // back on her feet: she pulls it home before anything else
                     break;
                 case AnchorMode.Hauled:
@@ -400,8 +405,7 @@ namespace MyGame
         // While the fight is on (she's awake, and you're in the chapel), the camera takes in more of it.
         void Frame()
         {
-            bool fighting = Awakened && IsAlive && target != null && target.IsAlive
-                && Flat(target.transform.position - transform.position).magnitude < aggroRadius * 1.6f;
+            bool fighting = Awakened && IsAlive && target != null && target.IsAlive && InArena(target.transform.position);
             if (fighting == framing)
                 return;
             framing = fighting;

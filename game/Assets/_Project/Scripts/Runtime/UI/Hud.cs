@@ -40,7 +40,8 @@ namespace MyGame
 
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
-        Image restFlash, keyCap, buttonRing, ceremonyDim;
+        Image restFlash, keyCap, buttonRing, ceremonyDim, dip;
+        public float DipAlpha => dip != null ? dip.color.a : 0f;
         Text glyph, promptLabel, obolText, obolGain, obolNote;
         bool obolsExplained;
         float obolNoteAt = -100f;
@@ -82,6 +83,9 @@ namespace MyGame
             BuildPrompt(hudRoot);
             BuildObols(hudRoot);
 
+            // Washing ashore: a quick dip to black and back.
+            dip = UiKit.Image(canvasRect, "Dip", null, Color.black.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            UiKit.Stretch(dip.rectTransform, -4f);
             // A key item held up: the world dims around the moment.
             ceremonyDim = UiKit.Image(canvasRect, "Ceremony Dim", UiKit.Vignette, Color.black.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             UiKit.Stretch(ceremonyDim.rectTransform); // darkest at the edges: the Apprentice, in the middle, stays lit
@@ -256,6 +260,8 @@ namespace MyGame
             FoundBanner.Tick();
             UpdateFarewell();
             foundHint.Tick();
+            dip.color = Color.black.WithAlpha(apprentice.Dip);
+            dip.enabled = dip.color.a > 0.001f;
             float dimTarget = apprentice.CurrentState == Apprentice.State.Ceremony ? 0.85f : 0f;
             ceremonyDim.color = Color.black.WithAlpha(Mathf.MoveTowards(ceremonyDim.color.a, dimTarget, UiKit.DeltaTime * 1.2f));
             ceremonyDim.enabled = ceremonyDim.color.a > 0.001f;
