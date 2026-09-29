@@ -23,15 +23,19 @@ namespace MyGame
         [Header("Their words, by where their business stands")]
         [TextArea] public string[] meeting;   // the first time
         [TextArea] public string[] waiting;   // again, before the keepsake
+        [TextArea] public string[] waitingAsides; // one before the reminder, a different one each visit
         [TextArea] public string[] waitingWithoutHook; // (added, when you can't reach it yet)
         [TextArea] public string[] given;     // the keepsake brought
         [TextArea] public string[] fareAsked; // the fare, as the keepsake is given
         [TextArea] public string[] fareAgain; // the fare, asked again on coming back
+        [TextArea] public string[] declined;  // "Not yet"
         [TextArea] public string[] paid;      // the fare paid
         [TextArea] public string[] ready;     // waiting by the boat
+        [TextArea] public string[] readyAsides; // after it, a different one each visit
         public string payLabel = "Pay the fare", declineLabel = "Not yet";
 
         public Business State { get; private set; }
+        int visits; // (this sitting: which aside comes next)
         public string SaveId => id;
 
         Vector3 basePosition;
@@ -79,6 +83,7 @@ namespace MyGame
                     choices = FareChoices(apprentice);
                     break;
                 case Business.Waiting:
+                    AddAside(lines, waitingAsides);
                     lines.AddRange(waiting);
                     if (!apprentice.HasHook && waitingWithoutHook != null)
                         lines.AddRange(waitingWithoutHook);
@@ -89,9 +94,16 @@ namespace MyGame
                     break;
                 default:
                     lines.AddRange(ready);
+                    AddAside(lines, readyAsides);
                     break;
             }
             apprentice.ShowMenu(new Conversation(displayName, InteractPosition + Vector3.up, lines, choices));
+        }
+
+        void AddAside(List<string> lines, string[] asides)
+        {
+            if (asides != null && asides.Length > 0)
+                lines.Add(asides[visits++ % asides.Length]);
         }
 
         List<Conversation.Choice> FareChoices(Apprentice apprentice)
@@ -104,7 +116,15 @@ namespace MyGame
                     Label = $"{payLabel} ({fare} Obols)" + (afford ? "" : ": you carry too few"), Dim = !afford,
                     Chosen = () => { if (afford) Pay(apprentice); },
                 },
-                new Conversation.Choice { Label = declineLabel },
+                new Conversation.Choice
+                {
+                    Label = declineLabel,
+                    Chosen = () =>
+                    {
+                        if (declined != null && declined.Length > 0)
+                            apprentice.ShowMenu(new Conversation(displayName, InteractPosition + Vector3.up, declined));
+                    },
+                },
             };
         }
 

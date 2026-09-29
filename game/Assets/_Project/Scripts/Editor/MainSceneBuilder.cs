@@ -563,7 +563,7 @@ public static partial class MainSceneBuilder
         go.name = "Old Hesper";
         var hesper = go.AddComponent<Lingerer>();
         hesper.id = "hesper";
-        hesper.displayName = "Old Hesper";
+        hesper.displayName = "Old Hesper, who keeps a light";
         hesper.keepsake = HesperKeepsake;
         hesper.fare = 100;
         hesper.interactRadius = 1.0f; // short: the landing is crowded (the gate home comes in just north of her)
@@ -588,11 +588,20 @@ public static partial class MainSceneBuilder
             "Oh. You're not him.",
             "Forgive me. I keep a lamp here for my boy. He went out the night the water came up, and he hasn't found his way back.",
             "I saw his light, though. Out on the water, on the little deck north of the yard. Burning, all this time.",
-            "I can't reach it. My old legs were never for water. But you... you carry the Ferryman's things, don't you?",
+            "I can't reach it. My old legs were never for water. Nor for all that rolling about you young ones do.",
+            "But you... you carry the Ferryman's things, don't you?",
             "If you could bring it to me. I'd know him by it.",
         };
         hesper.waiting = new[] { "His light's still out there. On the little deck, north of the yard." };
-        hesper.waitingWithoutHook = new[] { "There's no bridge. There never was. The Ferryman used to cross with a hook, you know." };
+        // Her own dry asides, one a visit. She's wry, never about his loss: the grief lines stay straight.
+        hesper.waitingAsides = new[]
+        {
+            "You're back. In one piece, mostly. That's more than most who go past the quay.",
+            "That post of yours. You sit at it, and every one of those poor things out there gets back up. Did you notice? I'd find another post.",
+            "I watched you fall in the water, earlier. And then you were back on the landing, dripping. You do that a lot, don't you, child?",
+            "You needn't keep coming to tell me you haven't found it. But it's nice. Nobody visits.",
+        };
+        hesper.waitingWithoutHook = new[] { "There's no bridge. There never was. The Ferryman used to cross with a hook, you know. Not by jumping. Please don't jump." };
         hesper.given = new[]
         {
             "That's it. That's his.",
@@ -602,14 +611,22 @@ public static partial class MainSceneBuilder
             "I can let him go now. I can go too.",
         };
         hesper.fareAsked = new[] { "They say the crossing costs a coin. I have none. I spent them all on oil." };
-        hesper.fareAgain = new[] { "The crossing costs a coin, they say. I've nothing left but oil." };
+        hesper.fareAgain = new[] { "The crossing costs a coin, they say. I've nothing left but oil. And you're not having the oil." };
+        hesper.declined = new[] { "Take your time. I've waited this long. I'm very good at it." };
         hesper.paid = new[]
         {
             "Thank you, child.",
+            "A hundred Obols. You carried all that about? Past those things on the quay? Well. Young people.",
             "I remember the Ferryman slowing, every night, to wave at my lamp. Then one night he didn't. Not a wave. Not a look.",
             "I'll wait by the boat. When you're ready to row, I'll be there.",
         };
         hesper.ready = new[] { "The boat's there, and I'm ready. Whenever you are." };
+        hesper.readyAsides = new[]
+        {
+            "You keep coming to check on me. I'm not going anywhere, child. That was rather the trouble.",
+            "Don't hurry on my account. I've been dead for years. A few more minutes won't hurt.",
+            "I've never been in a boat. I spent my whole life by the water and never once. Isn't that silly.",
+        };
     }
 
     // The merchant soul (standing in for the Hub's), with the warm lantern on its staff: warm light is safety.

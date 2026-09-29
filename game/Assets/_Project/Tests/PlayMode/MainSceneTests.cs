@@ -1432,7 +1432,7 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.1f);
             yield return null;
             Assert.IsTrue(hud.Dialogue.Visible);
-            Assert.AreEqual("Old Hesper", hud.Dialogue.SpeakerText);
+            Assert.AreEqual("Old Hesper, who keeps a light", hud.Dialogue.SpeakerText);
             Assert.Less(hud.PromptAlpha, 0.9f, "no Speak prompt over her words");
             Assert.IsFalse(talk.LineDone, "the words come out as she says them");
             input.PressInteract();
@@ -1453,7 +1453,7 @@ namespace MyGame.Tests
             yield return null;
             talk = apprentice.OpenMenu as Conversation;
             Assert.IsNotNull(talk);
-            StringAssert.Contains("still out there", talk.CurrentLine);
+            StringAssert.Contains("You're back", talk.CurrentLine, "an aside first, a different one each visit");
             talk.Skip();
             StringAssert.Contains("hook", talk.CurrentLine, "without the Hook, she tells how the Ferryman crossed");
             talk.Close();
@@ -1496,6 +1496,9 @@ namespace MyGame.Tests
             StringAssert.StartsWith("Pay her fare (100 Obols)", talk.Rows[0].Label);
             Assert.IsTrue(talk.Rows[0].Dim, "too few Obols");
             talk.Choose(1); // Not yet
+            yield return null;
+            StringAssert.Contains("Take your time", (apprentice.OpenMenu as Conversation).CurrentLine);
+            apprentice.OpenMenu.Close();
             yield return null;
             Assert.IsNull(apprentice.OpenMenu);
             Assert.AreEqual(Lingerer.Business.Given, hesper.State, "it can wait");

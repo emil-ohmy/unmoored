@@ -16,6 +16,8 @@ namespace MyGame
         readonly Image more;
         readonly (Text label, Image mark)[] choices = new (Text, Image)[MaxChoices];
 
+        readonly RectTransform rule;
+
         public bool Visible => group.alpha > 0.01f;
         public string SpeakerText => speaker.text;
         public string WordsText => words.text;
@@ -33,7 +35,8 @@ namespace MyGame
             speaker = UiKit.Text(root, "Speaker", titleFont, 40, UiKit.Ember, TextAnchor.MiddleLeft, top, new Vector2(150, -34), 4f);
             speaker.rectTransform.pivot = new Vector2(0f, 0.5f);
             speaker.rectTransform.sizeDelta = new Vector2(900, 50);
-            UiKit.Image(root, "Rule", UiKit.Rule, UiKit.Ember.WithAlpha(0.45f), top, new Vector2(420, -62), new Vector2(560, 2));
+            rule = UiKit.Image(root, "Rule", UiKit.Rule, UiKit.Ember.WithAlpha(0.45f), top, new Vector2(420, -66), new Vector2(560, 2)).rectTransform;
+            rule.pivot = new Vector2(0f, 0.5f);
             words = UiKit.Text(root, "Words", textFont, 36, UiKit.Bone, TextAnchor.UpperLeft, top, new Vector2(150, -82)); // (no letter spacing: it skews wrapped lines)
             words.rectTransform.pivot = top;
             words.rectTransform.sizeDelta = new Vector2(1200, 120);
@@ -60,7 +63,14 @@ namespace MyGame
             root.gameObject.SetActive(group.alpha > 0.001f);
             if (talk == null)
                 return;
-            speaker.text = talk.Speaker;
+            if (speaker.text != talk.Speaker)
+            {
+                speaker.text = talk.Speaker;
+                // The rule runs under the whole name, a little past it (its letter spacing isn't in preferredWidth).
+                float width = Mathf.Max(420f, speaker.preferredWidth + (speaker.text.Length - 1) * 4f + 90f);
+                rule.sizeDelta = new Vector2(width, 2f);
+                rule.anchoredPosition = new Vector2(120f, -66f); // (from its left end: it fades out towards both)
+            }
             // The words not yet said are there but clear, so the line is laid out (wrapped) once, not word by word.
             string said = talk.Shown, rest = talk.CurrentLine.Substring(said.Length);
             words.text = rest.Length > 0 ? $"{said}<color=#00000000>{rest}</color>" : said;
