@@ -133,6 +133,11 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 - **Pickups glow:** everything that can be taken glows, so it never has to be hunted for. Items glow softly and warm
   (a few embers rising); key items (Abilities) glow brightly in the Apprentice's cold pale blue, the object itself lit
   and a column of motes rising, readable from across an Area. Not yet takeable (sealed): only a faint glow.
+- **Ability gates keep their mystery:** what an Ability will use never glows or gets marked before you have it. It
+  gets noticed instead: a silhouette found nowhere else and the same every time, a story on it (a hook post's snapped
+  rope trailing into the water), the Ferryman's mark (an oar through a ring) on it and on the Ability's relic so the
+  connection clicks, and a single moonlight glint as you walk past. Place the first ones early, each beside something
+  you want, so they're seen and remembered before the Ability is found.
 - **UI:** sparse and printed. One typeface, IM Fell English (worn old print), its small caps for titles. Bone-white
   text, bronze frames, warm ember for safety, blood red for death. No combat text: hits, blocks and dodges read from
   sparks, flashes and sounds. Messages are few and ceremonial: the Area's name on entering, "Lantern Lit" when a

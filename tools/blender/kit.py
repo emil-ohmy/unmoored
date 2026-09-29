@@ -156,6 +156,17 @@ def part(name, build, material, matrix=None, smooth=False, jitter=0.0, group=Non
     return ob
 
 
+def ferryman_mark(material, matrix):
+    """The Ferryman's mark, an oar through a ring, as a thin inlay facing -Y (centred on the origin, ~0.3 m tall),
+    placed by `matrix`. Stamped on everything of his: hook posts, the Hook's pedestal. Returns the parts."""
+    ring = [(0.085 * math.cos(a), -0.004, 0.085 * math.sin(a)) for a in (2 * math.pi * k / 12 for k in range(13))]
+    return [
+        part("MarkRing", tube(ring, [0.013] * len(ring), seg=4), material, matrix),
+        part("MarkShaft", cube(), material, matrix @ M((0, -0.006, 0.0), scale=(0.022, 0.01, 0.3))),
+        part("MarkBlade", cube(), material, matrix @ M((0, -0.006, -0.13), scale=(0.06, 0.01, 0.07))),
+    ]
+
+
 def join(objs, name):
     for o in bpy.context.scene.objects:
         o.select_set(False)

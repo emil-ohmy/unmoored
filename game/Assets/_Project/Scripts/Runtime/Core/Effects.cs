@@ -140,6 +140,14 @@ namespace MyGame
             flash.Emit(new ParticleSystem.EmitParams { startSize = 1.8f, startLifetime = 0.5f, startColor = new Color(0.6f, 0.75f, 0.9f, 0.7f), applyShapeToPosition = false }, 1);
         }
 
+        // Wet iron catching the moonlight: one small, quick, cold sparkle (hook post rings).
+        public void MoonGlint(Vector3 position)
+        {
+            flash.transform.position = position;
+            var p = new ParticleSystem.EmitParams { startSize = 0.42f, startLifetime = 0.18f, startColor = new Color(0.85f, 0.92f, 1f, 0.95f), applyShapeToPosition = false };
+            flash.Emit(p, 1);
+        }
+
         // The moment a guard comes up: a small, quick glint on the shield.
         public void GuardGlint(Vector3 position)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -398,6 +399,47 @@ namespace MyGame.Tests
                 Time.captureFramerate = 0;
                 cam.targetTexture = null;
             }
+        }
+
+        // Hook posts on the way in: walking up the boardwalk past the one by the half-sunken house (catching its glint),
+        // and a close look at a post (its silhouette, ring, snapped rope and the Ferryman's mark).
+        [UnityTest]
+        public IEnumerator Capture_HookPosts()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            Capture(outDir, "posts-warmup");
+            var post = UnityEngine.Object.FindObjectsByType<HookPost>(FindObjectsSortMode.None)
+                .OrderBy(p => Vector3.Distance(p.transform.position, new Vector3(1.55f, 0.5f, -17.3f))).First();
+            int glints = post.Glints, shots = 0;
+            for (int f = 0; f < 150 && apprentice.transform.position.z < -12f; f++)
+            {
+                input.Move = Vector2.up;
+                yield return null;
+                if (post.Glints > glints && shots < 2)
+                {
+                    glints = post.Glints;
+                    Capture(outDir, $"posts-glint-{shots++}");
+                }
+                if (f == 40)
+                    Capture(outDir, "posts-way-in");
+            }
+            input.Move = Vector2.zero;
+            var cam = Camera.main;
+            cam.GetComponent<CameraRig>().enabled = false;
+            Vector3 at = post.transform.position;
+            cam.transform.SetPositionAndRotation(at + new Vector3(-2.6f, 1.6f, -2.2f), Quaternion.LookRotation(at + Vector3.up * 1.5f - (at + new Vector3(-2.6f, 1.6f, -2.2f))));
+            yield return null;
+            Capture(outDir, "posts-close");
+            Time.captureFramerate = 0;
         }
 
         // Pickups glow: the Hook relic, faint while sealed and bright once its guardians fall.

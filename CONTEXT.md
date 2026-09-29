@@ -135,6 +135,10 @@ _Avoid_: Checkpoint, bonfire, save point, shrine
 A way back towards a Mooring post, opened only from its far side (a barred gate, a lowered ladder); once opened it stays open.
 _Avoid_: Door, unlock, short cut
 
+**Ferryman's mark**:
+An oar through a ring, inlaid on everything of the Ferryman's (hook posts, the Hook's relic): a sign that it's his, and that it connects.
+_Avoid_: Sigil, rune, symbol
+
 **Hook post**:
 A pile with an iron ring that the Hook can pull the Apprentice to, across water; the first kind of Ability gate.
 _Avoid_: Grapple point, anchor

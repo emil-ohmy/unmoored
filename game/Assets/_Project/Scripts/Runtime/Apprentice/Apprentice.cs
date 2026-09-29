@@ -735,6 +735,9 @@ namespace MyGame
             Found?.Invoke("The Hook", "Hold {hook} to aim at a hook post, let go to pull yourself across");
         }
 
+        // Something found for good, announced (the HUD's banner): a title and a hint.
+        public void AnnounceFind(string title, string hint) => Found?.Invoke(title, hint);
+
         public void AddHealingCharge()
         {
             maxHealingCharges++;

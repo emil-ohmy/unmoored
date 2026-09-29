@@ -113,6 +113,7 @@ public static class MainSceneBuilder
         // The rest of the loop: quay -> yard -> crossroads -> back to the landing through a shortcut gate.
         Yard();
         HookIslet();
+        CacheDeck();
         Crossroads();
         Loopback();
 
@@ -250,14 +251,17 @@ public static class MainSceneBuilder
     }
 
     // A hook post: the pile (with its ring for the tether) and the spot on its platform where the pull sets you down.
-    static HookPost HookPostAt(Vector3 position, Vector3 landing)
+    // It faces `across`, the far side of the gap it crosses (its ring face-on to it, its snapped rope trailing into the
+    // water between).
+    static HookPost HookPostAt(Vector3 position, Vector3 landing, Vector3 across)
     {
-        var go = Place("Environment/hook_post", position, 0f);
+        Vector3 to = across - position;
+        var go = Place("Environment/hook_post", position, Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg);
         go.name = "Hook Post";
         var post = go.AddComponent<HookPost>();
         post.ring = new GameObject("Ring").transform;
         post.ring.SetParent(go.transform, false);
-        post.ring.position = position + Vector3.up * 1.95f;
+        post.ring.position = position + Vector3.up * 2.42f;
         post.landing = new GameObject("Landing").transform;
         post.landing.SetParent(go.transform, false);
         post.landing.position = landing;
@@ -269,10 +273,10 @@ public static class MainSceneBuilder
     static void HookIslet()
     {
         // Each post stands beside its landing spot, never between the two (the pull would run into it).
-        HookPostAt(new Vector3(-30.1f, QuayTop, 4.6f), new Vector3(-29.0f, QuayTop, 3.4f));
+        HookPostAt(new Vector3(-30.1f, QuayTop, 4.6f), new Vector3(-29.0f, QuayTop, 3.4f), new Vector3(-30.2f, QuayTop, 8.5f));
         // Close enough to be seen from the yard's edge (the camera shows ~6 m ahead), too far to reach without the Hook.
         Place("Environment/jetty_landing", new Vector3(-29.0f, QuayTop - 0.03f, 11.2f), 0f);
-        HookPostAt(new Vector3(-30.2f, QuayTop, 8.5f), new Vector3(-29.0f, QuayTop, 9.5f));
+        HookPostAt(new Vector3(-30.2f, QuayTop, 8.5f), new Vector3(-29.0f, QuayTop, 9.5f), new Vector3(-30.1f, QuayTop, 4.6f));
         var ember = Place("Environment/charge_ember", new Vector3(-28.4f, QuayTop, 10.5f), 0f);
         ember.name = "Healing Charge Piece";
         ember.AddComponent<ChargePiece>();
@@ -280,6 +284,24 @@ public static class MainSceneBuilder
         glow.tier = PickupGlow.Tier.Item;
         glow.colour = LanternLight;
         glow.height = 1.0f;
+    }
+
+    // Seen on the way in, long before the Hook: beside the half-sunken house west of the boardwalk, a little deck with
+    // an Obol cache on it, and a hook post on each side of the water between. Walked past at the start; reached once
+    // you have the Hook (the shortcut brings you back to it).
+    static void CacheDeck()
+    {
+        Vector3 walkPost = new Vector3(1.55f, QuayTop, -17.3f), deckPost = new Vector3(-2.6f, QuayTop, -17.9f);
+        HookPostAt(walkPost, new Vector3(2.4f, QuayTop, -18.2f), deckPost);
+        Place("Environment/jetty_landing", new Vector3(-4.0f, QuayTop - 0.03f, -17.6f), 0f);
+        HookPostAt(deckPost, new Vector3(-3.4f, QuayTop, -19.0f), walkPost);
+        var cache = Place("Environment/obol_cache", new Vector3(-4.3f, QuayTop, -19.7f), 30f);
+        cache.name = "Obol Cache";
+        cache.AddComponent<ObolCache>();
+        var glow = cache.AddComponent<PickupGlow>(); // an item: a soft warm glow
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = LanternLight;
+        glow.height = 0.7f;
     }
 
     // Where the Hook is taken, for now (a Boss will give it one day): the Ferryman's old hook on a pedestal at the

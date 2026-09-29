@@ -5,6 +5,8 @@ namespace MyGame
 {
     // A hook post: an old pile with an iron ring. With the Hook, the Apprentice can pull itself to one within reach
     // (over water too), landing on its platform. The nearest roughly ahead, on other ground, is the one aimed at.
+    // Before (and after) the Hook it never glows; its wet iron ring just catches the moonlight in a single glint now
+    // and then as you walk past, so it gets noticed and remembered.
     public sealed class HookPost : MonoBehaviour
     {
         static readonly List<HookPost> all = new List<HookPost>();
@@ -15,8 +17,55 @@ namespace MyGame
         public Vector3 RingPosition => ring != null ? ring.position : transform.position + Vector3.up * 1.6f;
         public Vector3 LandingPosition => landing != null ? landing.position : transform.position;
 
+        [Header("Moon glint")]
+        public float glintRange = 11f;
+        public Vector2 glintEvery = new Vector2(6f, 9f); // metres walked nearby between glints
+
+        public int Glints { get; private set; }
+
+        Transform walker;
+        Vector3 lastSeenAt;
+        float walked, nextGlint;
+
         void OnEnable() => all.Add(this);
         void OnDisable() => all.Remove(this);
+
+        void Start()
+        {
+            var apprentice = FindAnyObjectByType<Apprentice>();
+            walker = apprentice != null ? apprentice.transform : null;
+            if (walker != null)
+                lastSeenAt = walker.position;
+            nextGlint = Random.Range(glintEvery.x * 0.4f, glintEvery.y * 0.6f); // the first one comes soon
+        }
+
+        // Only while you walk near it with it on screen: a stationary player never sees it wink.
+        void Update()
+        {
+            if (walker == null)
+                return;
+            Vector3 step = walker.position - lastSeenAt;
+            lastSeenAt = walker.position;
+            step.y = 0f;
+            if (Vector3.Distance(walker.position, RingPosition) > glintRange || step.magnitude > 2f) // (a teleport isn't walking)
+                return;
+            walked += step.magnitude;
+            if (walked < nextGlint || !OnScreen())
+                return;
+            walked = 0f;
+            nextGlint = Random.Range(glintEvery.x, glintEvery.y);
+            Glints++;
+            Effects.Instance?.MoonGlint(RingPosition + Vector3.up * 0.3f);
+        }
+
+        bool OnScreen()
+        {
+            var cam = Camera.main;
+            if (cam == null)
+                return false;
+            Vector3 v = cam.WorldToViewportPoint(RingPosition);
+            return v.z > 0f && v.x > 0.05f && v.x < 0.95f && v.y > 0.05f && v.y < 0.95f;
+        }
 
         // The post to pull to from here: within range, on other ground than you stand on (never a post on your own
         // platform), roughly ahead (within `halfAngle` of `facing`), the nearest to straight ahead and close winning,

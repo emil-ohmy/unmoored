@@ -1070,7 +1070,48 @@ namespace MyGame.Tests
             Assert.AreNotEqual(Apprentice.State.Hooking, apprentice.CurrentState);
         }
 
-        // Aiming from inside the yard at the yard's own post would be pointless (and swing the camera about).
+        // Hook posts never glow; their iron ring catches the moonlight now and then as you walk past (not when still).
+        [UnityTest]
+        public IEnumerator HookPosts_GlintAsYouWalkPast_NotWhileYouStandStill()
+        {
+            var post = Object.FindObjectsByType<HookPost>(FindObjectsSortMode.None).OrderBy(p => FlatDistance(p.transform.position, new Vector3(1.55f, 0f, -17.3f))).First();
+            for (float t = 0; t < 6f && apprentice.transform.position.z < -11f; t += Time.deltaTime)
+            {
+                input.Move = Vector2.up; // up the boardwalk, past the post by the half-sunken house
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Greater(post.Glints, 0, "walking past, its ring should catch the moonlight");
+            int glints = post.Glints;
+            yield return new WaitForSeconds(4f);
+            Assert.AreEqual(glints, post.Glints, "standing still, it doesn't wink");
+        }
+
+        [UnityTest]
+        public IEnumerator Hook_ReachesTheObolCache_SeenOnTheWayIn()
+        {
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false);
+            apprentice.GrantHook();
+            Vector3 deck = new Vector3(-3.4f, 0.55f, -19.0f);
+            PlaceApprentice(new Vector3(2.4f, 0.55f, -18.2f), deck);
+            yield return new WaitForSeconds(0.3f);
+            input.HookHeld = true;
+            yield return new WaitForSeconds(0.2f);
+            Assert.IsNotNull(apprentice.HookTarget, "the deck's post, across the water");
+            input.HookHeld = false;
+            for (float t = 0; t < 2f && (apprentice.CurrentState == Apprentice.State.Hooking || t < 0.1f); t += Time.deltaTime)
+                yield return null;
+            Assert.Less(FlatDistance(apprentice.transform.position, deck), 0.6f, "on the deck");
+            yield return new WaitForSeconds(0.3f);
+            int before = apprentice.Obols;
+            Assert.IsInstanceOf<ObolCache>(apprentice.Nearby);
+            input.PressInteract();
+            yield return null;
+            Assert.AreEqual(before + 120, apprentice.Obols);
+        }
+
+        // Aiming from inside the yard at the yard's own post would be pointless        // Aiming from inside the yard at the yard's own post would be pointless (and swing the camera about).
         [UnityTest]
         public IEnumerator Hook_NeverAimsAtAPostOnTheGroundYouStandOn()
         {

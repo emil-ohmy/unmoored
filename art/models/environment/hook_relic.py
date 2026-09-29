@@ -1,16 +1,18 @@
-"""Where the Hook is taken, in the slice: a squat stone pedestal with the Ferryman's old grappling hook lying on it
-in a coil of chain. Two objects: RelicPedestal (stays) and RelicHook (hidden once taken). Origin at the base."""
+"""Where the Hook is taken, in the slice: a squat stone pedestal bearing the Ferryman's mark (as every hook post
+does), with his old grappling hook lying on it in a coil of chain, in the same dark iron as the posts' rings. Two objects: RelicPedestal (stays) and RelicHook (hidden once taken). Origin at the base."""
 M, part = kit.M, kit.part  # `kit` is injected by build_model.py
 
 
 def build():
     stone, stone_dark = kit.mat("RelicStone", "#6f6b66"), kit.mat("RelicStoneDark", "#55514d")
     iron, chain = kit.mat("HookIron", "#3b3a42"), kit.mat("Chain", "#4a4850")
+    bone = kit.mat("MarkBone", "#c9bfa6")
     pedestal = [
         part("Base", kit.cylinder(8, 0.45, 0.2), stone_dark, M((0, 0, 0.1))),
         part("Column", kit.cylinder(8, 0.3, 0.6), stone, M((0, 0, 0.5)), jitter=0.01),
         part("Top", kit.cylinder(8, 0.42, 0.12), stone_dark, M((0, 0, 0.86))),
     ]
+    pedestal += kit.ferryman_mark(bone, M((0, -0.3, 0.5)))  # his mark, as on every hook post: the connection clicks
     hook = [
         part("Shank", kit.cylinder(5, 0.03, 0.42), iron, M((0, 0, 0.98), rot=(0, 80, 20))),
         part("Prong", kit.tube([(0.2, 0.07, 0.98), (0.28, 0.12, 0.99), (0.3, 0.2, 1.02), (0.25, 0.26, 1.04)], [0.028, 0.024, 0.02, 0.012], seg=5), iron),
