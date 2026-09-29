@@ -5,11 +5,12 @@ namespace MyGame
     // A Soured: a soul the Ferryman kept too long. Idle -> Chase -> Telegraph (animated wind-up, no ground
     // markers) -> Strike -> Recover (the punish window). A hidden Stagger meter fills with hits and drains
     // when the Apprentice lets up; full = staggered, attack interrupted. Defeat only scatters it: it re-forms
-    // when the Apprentice Rests or dies.
+    // when the Apprentice Rests or dies. Lose the Apprentice (or be drawn too far from its post) and it walks back to
+    // where it stood (Returning), noticing them again on the way if they're close.
     [RequireComponent(typeof(CharacterController))]
     public class Soured : MonoBehaviour
     {
-        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered, Busy }
+        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered, Busy, Returning }
 
         [Header("Health")]
         public float maxHealth = 100f;
@@ -31,6 +32,7 @@ namespace MyGame
         public float attackRange = 2.2f;
         public float chaseSpeed = 2.4f;
         public float turnSpeed = 360f;
+        public float leashRadius = 14f;          // drawn further than this from its post, it gives up and goes back
 
         [Header("Attacks (durations match the model's clips)")]
         public SouredAttack primary = new SouredAttack();
@@ -134,9 +136,9 @@ namespace MyGame
                     break;
 
                 case State.Chase:
-                    if (!targetAlive || toTarget.magnitude > aggroRadius * 1.5f)
+                    if (!targetAlive || LosesTarget(toTarget.magnitude) || Flat(transform.position - spawnPosition).magnitude > leashRadius)
                     {
-                        Enter(State.Idle);
+                        Enter(State.Returning);
                         break;
                     }
                     float distance = toTarget.magnitude;
@@ -207,6 +209,29 @@ namespace MyGame
                         Enter(State.Chase);
                     break;
 
+                case State.Returning:
+                {
+                    // Back to its post; noticing the Apprentice again on the way, if they're close (not the leash).
+                    Vector3 home = Flat(spawnPosition - transform.position);
+                    if (targetAlive && CanSense(toTarget) && home.magnitude < leashRadius * 0.6f && !LosesTarget(toTarget.magnitude))
+                    {
+                        Notice();
+                        break;
+                    }
+                    if (home.magnitude < 0.3f)
+                    {
+                        transform.rotation = Quaternion.RotateTowards(transform.rotation, spawnRotation, turnSpeed * dt);
+                        if (Quaternion.Angle(transform.rotation, spawnRotation) < 2f)
+                            Enter(State.Idle);
+                        LoopUnlessBusy(IdleClip);
+                        break;
+                    }
+                    Face(home, turnSpeed * dt);
+                    LoopUnlessBusy(ChaseClip(float.MaxValue));
+                    planar = home.normalized * Mathf.Min(chaseSpeed, home.magnitude / Mathf.Max(dt, 1e-4f));
+                    break;
+                }
+
                 case State.Stunned:
                     if (stateTime >= stunDuration)
                         Enter(State.Chase);
@@ -248,7 +273,7 @@ namespace MyGame
                 swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
             // Walking and chasing keep to solid ground. A lunge doesn't (overshooting the edge is its own mistake), nor
             // does knockback (shoving one off the edge is fair play).
-            if (CurrentState == State.Chase)
+            if (CurrentState == State.Chase || CurrentState == State.Returning)
                 planar = KeepFooting(planar);
             knockback *= Mathf.Exp(-8f * dt);
             if (Drowned)
@@ -385,6 +410,9 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // Whether the Apprentice is too far away to keep after (then it goes back to its post).
+        protected virtual bool LosesTarget(float distance) => distance > aggroRadius * 1.5f;
 
         // Nothing gets through for now (a Boss mid-way between phases).
         protected virtual bool Unhittable => false;

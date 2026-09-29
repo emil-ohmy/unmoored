@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -86,7 +86,8 @@ namespace MyGame
 
         [Header("Lock-on")]
         public float lockRange = 10f;
-        public float lockBreakRange = 14f;
+        public float lockBreakRange = 12f;
+        public float lockOffScreenTime = 0.6f; // off the screen this long, and the lock lets go (the camera comes back)
         public float lockedMoveSpeedFactor = 0.85f; // a little slower while circling a target
 
         [Header("Hook (an Ability: pull yourself to a hook post, over water too)")]
@@ -111,6 +112,7 @@ namespace MyGame
         public float waterLevel = -0.35f;
         [Range(0f, 1f)] public float waterDamage = 1f / 3f; // of max health: a hard lesson at full, the end when low
         public float washAshoreStagger = 0.9f;             // coughing up the river before you can move
+        public float sinkTime = 0.5f;                      // gone under, before you wash ashore (behind a dip to black)
 
         public IApprenticeInput Input { get; set; }
         public State CurrentState { get; private set; }
@@ -142,7 +144,13 @@ namespace MyGame
             || Time.time < invulnerableUntil
             || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd)
             || (CurrentState == State.Hooking && stateTime >= hookThrowTime) // pulled clear of harm
-            || CurrentState == State.Ceremony;
+            || CurrentState == State.Ceremony
+            || CurrentState == State.Sinking;
+
+        // How dark the screen dips around washing ashore: to black as you go under, back as you come up (the HUD).
+        public float Dip => CurrentState == State.Sinking
+            ? UiKit.Smooth(0.05f, sinkTime * 0.9f, stateTime)
+            : 1f - UiKit.Smooth(0.1f, 0.7f, Time.time - washedAt);
 
         CharacterController controller;
         ClipPlayer clips;
@@ -313,6 +321,11 @@ namespace MyGame
                         Enter(stateAfterStagger);
                     break;
 
+                case State.Sinking:
+                    if (stateTime >= sinkTime)
+                        WashAshore(); // behind the black
+                    break;
+
                 case State.Dead:
                     if (!snuffSounded && stateTime >= snuffDelay)
                     {
@@ -381,13 +394,18 @@ namespace MyGame
             else
             {
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
+                if (CurrentState == State.Sinking)
+                {
+                    planar = knockback = Vector3.zero; // going under, slowly
+                    verticalVelocity = -1.2f;
+                }
                 if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead)
                     planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
                 controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
             TrackSafeGround(dt);
-            if (transform.position.y < waterLevel && IsAlive && CurrentState != State.Hooking)
-                WashAshore();
+            if (transform.position.y < waterLevel && IsAlive && CurrentState != State.Hooking && CurrentState != State.Sinking)
+                GoUnder();
         }
 
         void ReadInput()
@@ -525,9 +543,26 @@ namespace MyGame
             {
                 if (!LockTarget.IsAlive || !LockTarget.isActiveAndEnabled)
                     SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
-                else if (ToLockTarget().magnitude > lockBreakRange)
+                else if (ToLockTarget().magnitude > lockBreakRange || OffScreenTooLong())
                     SetLockTarget(null);
             }
+        }
+
+        float offScreenFor;
+
+        // A lock on something that has left the screen lets go after a moment, so the camera comes back to you.
+        bool OffScreenTooLong()
+        {
+            var cam = Camera.main;
+            if (cam == null || LockTarget == null)
+                return false;
+            Vector3 v = cam.WorldToViewportPoint(LockTarget.transform.position + Vector3.up);
+            bool off = v.z <= 0f || v.x < -0.02f || v.x > 1.02f || v.y < -0.02f || v.y > 1.02f;
+            offScreenFor = off ? offScreenFor + Time.deltaTime : 0f;
+            if (offScreenFor < lockOffScreenTime)
+                return false;
+            offScreenFor = 0f;
+            return true;
         }
 
         void SetLockTarget(Soured target)
@@ -1119,12 +1154,25 @@ namespace MyGame
             CameraRig.Instance?.SnapToTarget();
         }
 
-        void WashAshore()
+        // Into the water: a splash, and you go under while the screen dips to black; then you wash ashore.
+        void GoUnder()
         {
-            Health = Mathf.Max(0f, Health - maxHealth * waterDamage);
             Vector3 surface = new Vector3(transform.position.x, waterLevel + 0.1f, transform.position.z);
             Effects.Instance?.Splash(surface);
             Sfx.Instance?.Splash(surface);
+            SetLockTarget(null);
+            CloseMenu();
+            Enter(State.Sinking);
+            clips.PlayOnce("Hit", sinkTime);
+        }
+
+        float washedAt = -100f;
+
+        // Behind the black: on solid ground near where you fell, coughing, a third of your health gone.
+        void WashAshore()
+        {
+            Health = Mathf.Max(0f, Health - maxHealth * waterDamage);
+            washedAt = Time.time;
             Teleport(SafeGroundNear(lastSafeGround));
             Sfx.Instance?.Hurt(transform.position + Vector3.up);
             Announce("washed ashore");

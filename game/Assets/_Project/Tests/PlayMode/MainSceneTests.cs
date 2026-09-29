@@ -588,6 +588,63 @@ namespace MyGame.Tests
             Assert.IsTrue(apprentice.IsAlive);
         }
 
+        // Going under is smooth: a splash, you sink while the screen dips to black, you're moved behind it, and it
+        // fades back in on you on solid ground.
+        [UnityTest]
+        public IEnumerator FallingInTheWater_DipsToBlack_WashesAshoreBehindIt()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            apprentice.Teleport(new Vector3(-12f, 1f, -15f), onSafeGround: false);
+            yield return WaitFor(() => apprentice.CurrentState == Apprentice.State.Sinking, 1f, "going under");
+            Vector3 under = apprentice.transform.position;
+            yield return new WaitForSeconds(apprentice.sinkTime * 0.9f);
+            yield return null;
+            Assert.Greater(hud.DipAlpha, 0.9f, "dipped to black");
+            Assert.Less(Vector2.Distance(new Vector2(under.x, under.z), new Vector2(apprentice.transform.position.x, apprentice.transform.position.z)), 0.1f, "still where it fell, sinking");
+            yield return WaitFor(() => apprentice.CurrentState != Apprentice.State.Sinking, 1f, "washing ashore");
+            Assert.Greater(apprentice.transform.position.y, 0.3f, "moved behind the black, onto solid ground");
+            yield return new WaitForSeconds(0.9f);
+            yield return null;
+            Assert.AreEqual(0f, hud.DipAlpha, 0.01f, "and back");
+        }
+
+        // A Soured left behind (you outran it) walks back to its post and takes up its watch again.
+        [UnityTest]
+        public IEnumerator Soured_LeftBehind_WalksBackToItsPost()
+        {
+            var target = laden[0];
+            Isolate(target);
+            Vector3 home = target.transform.position;
+            Quaternion facing = target.transform.rotation;
+            PlaceApprentice(home + target.transform.forward * 3.5f, home); // in front of it (it starts with its back turned)
+            yield return WaitFor(() => target.CurrentState == Soured.State.Chase, 2f, "it noticing you");
+            target.attackRange = 0f; // (only following)
+            yield return new WaitForSeconds(1.2f);
+            Assert.Greater(Vector3.Distance(target.transform.position, home), 0.5f, "drawn from its post");
+            apprentice.Teleport(home + target.transform.forward * 22f);
+            yield return WaitFor(() => target.CurrentState == Soured.State.Returning, 2f, "it giving up");
+            yield return WaitFor(() => target.CurrentState == Soured.State.Idle, 12f, "it back at its post");
+            Assert.Less(Vector3.Distance(target.transform.position, home), 0.5f);
+            Assert.Less(Quaternion.Angle(target.transform.rotation, facing), 3f, "facing the way it was");
+        }
+
+        // Locked on to something that leaves the screen, the lock lets go after a moment: the camera comes back.
+        [UnityTest]
+        public IEnumerator LockOn_LetsGo_WhenItsTargetLeavesTheScreen()
+        {
+            var target = laden[0];
+            Isolate(target);
+            target.aggroRadius = 0f; // (calm)
+            PlaceApprentice(target.transform.position + Vector3.back * 4f, target.transform.position);
+            yield return null;
+            input.PressLock();
+            yield return null;
+            Assert.AreEqual(target, apprentice.LockTarget);
+            apprentice.Teleport(target.transform.position + Vector3.back * 11f); // in range, but off the top of the screen
+            yield return new WaitForSeconds(apprentice.lockOffScreenTime + 0.5f);
+            Assert.IsNull(apprentice.LockTarget, "off the screen: let go");
+        }
+
         // Low on health, the water finishes you.
         [UnityTest]
         public IEnumerator FallingInTheWater_WhenLow_Drowns()
