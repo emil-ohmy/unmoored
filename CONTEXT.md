@@ -114,7 +114,7 @@ _Avoid_: Corpse, ghost, bloodstain, echo
 The unique, tough enemy at the climax of an Area.
 
 **The Antediluvian Anchoress**:
-The Drowned Village's Boss: a Laden who would not let the Ferryman go. She chained his ferry's anchor to herself (fastened with his stolen hook) and keeps vigil in the drowned chapel; beaten, she gives up the Hook. "Antediluvian": from before the flood. Her full title, for lore and descriptions: the Antediluvian Anchoress of the Forsaken Crossing.
+The Drowned Village's Boss: a Laden who would not let the Ferryman go. She chained his ferry's anchor to herself (fastened with his stolen hook) and keeps vigil in the drowned chapel; beaten, she gives up the Hook. "Antediluvian": from before the flood. Her full title, revealed as her fight first begins: the Antediluvian Anchoress, of Fleeting Memories.
 _Avoid_: the Hoarder (her old working name), the Bell-Keeper, the anchor boss
 
 ### World

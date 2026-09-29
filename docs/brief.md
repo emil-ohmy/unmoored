@@ -36,7 +36,7 @@ people) it may wink at being a soulslike. Remember to put the humour in: it's pa
 - **Where it never jokes:** Bosses, Lingerers and the lore themselves, their words and their stories. A Boss is
   never silly in the fight; the joke comes after, from the game.
 - **The pattern for a Boss beaten: the joke big, the sincere line small beneath it.** The laugh lands first, then the
-  quiet line catches you. The Anchoress: **"ANCHOR DOWN...ed"** (the "ed" arriving a beat late) / *She let go.*
+  quiet line catches you. The Anchoress: **"ANCHOR DOWN"** / *She let go.*
 - **Sparingly:** a joke that's always there wears out. Rare variants (a death screen now and then, not every time),
   one per Boss, and never over a moment that should hurt.
 

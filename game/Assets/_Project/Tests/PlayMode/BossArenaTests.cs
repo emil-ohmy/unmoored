@@ -231,11 +231,8 @@ namespace MyGame.Tests
             yield return WaitFor(() => boss.FreedHook != null, boss.deathDuration + boss.dissolveDuration, "his hook freed");
             yield return null;
             Assert.IsTrue(hud.Farewell.Showing, "her farewell: the game's joke...");
-            Assert.AreEqual("ANCHOR DOWN...", hud.Farewell.Text.text);
-            yield return new WaitForSeconds(1.4f);
-            yield return null;
-            Assert.AreEqual("ANCHOR DOWN...ed", hud.Farewell.Text.text, "...the 'ed' a beat late");
-            yield return new WaitForSeconds(1.2f);
+            Assert.AreEqual("ANCHOR DOWN", hud.Farewell.Text.text);
+            yield return new WaitForSeconds(2.6f);
             yield return null;
             Assert.IsTrue(hud.FarewellLine.Showing, "...and the truth beneath it");
             Assert.AreEqual("She let go.", hud.FarewellLine.Text.text);

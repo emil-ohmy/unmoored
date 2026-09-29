@@ -5,12 +5,12 @@ namespace MyGame
     // The Anchoress lets go. The killing blow holds, time slows and the camera closes in on her; she sinks to her knees
     // over the anchor, and the chain snaps, its links scattering over the floor. Her lantern gutters out; the souls she
     // kept waiting rise out of her as she fades (and her fare streams into the Apprentice's lantern); "ANCHOR
-    // DOWN...ed", and beneath it, quietly, "She let go."
+    // DOWN", and beneath it, quietly, "She let go."
     // Last, the Ferryman's hook rises out of her in his cold blue light and comes to rest on his mark: take it.
     public sealed partial class Anchoress
     {
         [Header("Her death")]
-        public string farewell = "ANCHOR DOWN...|ed"; // the game's joke (the "ed" a beat late)...
+        public string farewell = "ANCHOR DOWN";    // the game's joke...
         public string farewellLine = "She let go.";     // ...and the truth, beneath it
         public Transform rewardSpot;           // where his hook comes to rest: his mark, at the chapel's heart
         public AudioClip[] chainSnapSound, hookRestSound;

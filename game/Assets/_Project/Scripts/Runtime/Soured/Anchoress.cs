@@ -87,7 +87,7 @@ namespace MyGame
 
         [Header("Her name plate")]
         public string title = "The Antediluvian Anchoress";
-        public string epithet = "of the Forsaken Crossing";
+        public string epithet = "of Fleeting Memories";
 
         public string Title => title;
         public string Epithet => epithet;

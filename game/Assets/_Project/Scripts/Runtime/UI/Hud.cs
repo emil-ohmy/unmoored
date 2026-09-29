@@ -31,7 +31,7 @@ namespace MyGame
         const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
         public BossBar Boss { get; private set; }
-        public Banner Farewell { get; private set; }     // a Boss beaten: its joke ("ANCHOR DOWN...ed")...
+        public Banner Farewell { get; private set; }     // a Boss beaten: its joke ("ANCHOR DOWN")...
         public Banner FarewellLine { get; private set; } // ...and the sincere line beneath ("She let go.")
         public string PromptText => promptLabel != null ? promptLabel.text : "";
 
