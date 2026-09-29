@@ -77,7 +77,7 @@ namespace MyGame
         public void SoulAbsorb(Vector3 at) => Play(soulAbsorb, at, 0.9f, "soul_absorb");
         public void DeathToll(Vector3 at) => Play(deathToll, at, 1f, "death_toll");
         public void OarHit(Vector3 at, bool heavy) => Play(oarHit, at, heavy ? 1f : 0.8f, "oar_hit", heavy ? 0.82f : 1f);
-        public void Hurt(Vector3 at) => Play(hurt, at, 0.9f, "apprentice_hurt");
+        public void Hurt(Vector3 at, float volume = 0.9f) => Play(hurt, at, volume, "apprentice_hurt");
         public void Heal(Vector3 at) => Play(heal, at, 0.8f, "heal");
         public void Splash(Vector3 at) => Play(splash, at, 1f, "splash");
         public void ArrowThunk(Vector3 at) => Play(arrowThunk, at, 0.8f, "arrow_thunk");

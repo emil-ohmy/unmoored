@@ -809,6 +809,35 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The Undertow: she kneels to pray and the sour water wells up round her, churning.
+        [UnityTest]
+        public IEnumerator Capture_Undertow()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("BossArena");
+            yield return null;
+            Time.captureFramerate = 30;
+            var boss = UnityEngine.Object.FindAnyObjectByType<Anchoress>();
+            boss.transform.Rotate(0f, 180f, 0f, Space.World);
+            boss.turnSpeed = boss.chaseSpeed = boss.guardSpeed = 0f;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            Vector3 p = boss.transform.position - boss.transform.forward * 1.8f;
+            apprentice.Teleport(new Vector3(p.x, 0.55f, p.z));
+            for (int f = 0; f < 300 && boss.CurrentAttack != boss.undertow; f++)
+                yield return null;
+            for (int f = 0; f < 150; f++)
+            {
+                if (f % 6 == 0)
+                    Capture(outDir, $"undertow-{f:D3}");
+                yield return null;
+            }
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

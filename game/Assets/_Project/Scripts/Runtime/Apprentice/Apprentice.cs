@@ -380,6 +380,8 @@ namespace MyGame
             else
             {
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
+                if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead)
+                    planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
                 controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
             TrackSafeGround(dt);
@@ -670,6 +672,35 @@ namespace MyGame
         }
 
         // ------------------------------------------------------------ damage, death, rest
+
+        float wadeFactor = 1f;
+        Vector3 wadeDrift;
+        int wadeFrame = -10;
+        bool Wading => Time.frameCount - wadeFrame <= 1;
+
+        // Wading through something that drags at you (the Anchoress's Undertow), for this frame: slower, and pulled.
+        public void Wade(float factor, Vector3 drift)
+        {
+            wadeFactor = factor;
+            wadeDrift = drift;
+            wadeFrame = Time.frameCount;
+        }
+
+        // Harm over time (standing in something that hurts): no stagger, no knockback, and no blocking it; only a
+        // dash's i-frames slip it. True if it hurt.
+        public bool TakeTickDamage(float damage)
+        {
+            if (!IsAlive || CurrentState == State.Ceremony
+                || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd))
+                return false;
+            Health = Mathf.Max(0f, Health - damage);
+            Sfx.Instance?.Hurt(transform.position + Vector3.up, 0.4f);
+            CameraRig.Instance?.Shake(0.05f);
+            Announce($"-{damage:0} (over time)");
+            if (Health <= 0f)
+                Die();
+            return true;
+        }
 
         public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null)
         {

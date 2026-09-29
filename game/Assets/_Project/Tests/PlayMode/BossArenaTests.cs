@@ -162,6 +162,30 @@ namespace MyGame.Tests
             Assert.AreEqual(apprentice.maxHealth - boss.shoveDamage, apprentice.Health, 0.01f, "and the anchor didn't catch you too");
         }
 
+        // Stay close too long (even at her back) and she kneels to pray: the water rises round her, dragging you in and
+        // hurting a little every tick, without ever staggering you.
+        [UnityTest]
+        public IEnumerator Undertow_TooCloseTooLong_TheWaterRises()
+        {
+            FaceTheEntrance();
+            boss.turnSpeed = boss.chaseSpeed = boss.guardSpeed = 0f; // (so the test can stay at her back)
+            PlaceApprentice(boss.transform.position - boss.transform.forward * 1.8f);
+            yield return WaitFor(() => boss.CurrentState == Soured.State.Telegraph, boss.undertowAfter + 1.5f, "a wind-up");
+            Assert.AreEqual(boss.undertow, boss.CurrentAttack, $"too close, too long (got {boss.CurrentAttack.name} at {boss.StateTime}, close {boss.CloseTime:0.00}, angle {Vector3.Angle(boss.transform.forward, apprentice.transform.position - boss.transform.position):0})");
+            yield return WaitFor(() => boss.Pool != null, boss.undertow.telegraph + 0.5f, "the water rising");
+            yield return new WaitForSeconds(boss.poolSpread + 0.1f);
+            float before = Flat(apprentice.transform.position - boss.transform.position).magnitude;
+            yield return new WaitForSeconds(1.2f);
+            Assert.Greater(boss.Pool.Ticks, 1, "it hurts, tick by tick");
+            Assert.AreEqual(apprentice.maxHealth - boss.poolDamage * boss.Pool.Ticks, apprentice.Health, 0.01f);
+            Assert.AreNotEqual(Apprentice.State.Staggered, apprentice.CurrentState, "without staggering you");
+            Assert.Less(Flat(apprentice.transform.position - boss.transform.position).magnitude, before, "dragged towards her");
+            PlaceApprentice(boss.transform.position - boss.transform.forward * (boss.poolRadius + 1f));
+            float outside = apprentice.Health;
+            yield return new WaitForSeconds(0.8f);
+            Assert.AreEqual(outside, apprentice.Health, "out of it, it can't reach you");
+        }
+
         // Her back is open: she's slow to turn, doesn't attack what's behind her, and has no guard there.
         [UnityTest]
         public IEnumerator Guard_FrontalHitsBounceOff_HerBackIsOpen()

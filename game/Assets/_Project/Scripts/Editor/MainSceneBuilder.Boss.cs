@@ -138,6 +138,23 @@ public static partial class MainSceneBuilder
         boss.yank.windupSound = Clips("hook_whirl");
         boss.yank.swingSound = Clips("hook_throw");
         boss.hookCatchSound = Clips("hook_catch");
+        boss.undertow.windupSound = Clips("undertow"); // the kneel and the prayer, the water welling up
+
+        // The Undertow's water: the river's own shader, soured: near-black green, churning fast.
+        var pool = GeneratedMaterial("M_UndertowPool", "MyGame/Water");
+        pool.SetColor("_DeepColor", Hex("#08140c"));
+        pool.SetColor("_ShallowColor", Hex("#17301a"));
+        pool.SetColor("_FoamColor", Hex("#9cc468"));
+        pool.SetFloat("_FoamDistance", 0.03f);
+        pool.SetFloat("_DepthFade", 0.3f);
+        pool.SetFloat("_WaveHeight", 0.02f);
+        pool.SetFloat("_WaveLength", 1.2f);
+        pool.SetFloat("_WaveSpeed", 2.2f);
+        pool.SetFloat("_RippleScale", 4f);
+        pool.SetFloat("_RippleSpeed", 1.4f);
+        pool.SetFloat("_RippleStrength", 0.3f);
+        EditorUtility.SetDirty(pool);
+        boss.poolMaterial = pool;
 
         // The anchor: its bone, and points on it measured from the model (the ring the chain ties to, the crown that
         // hits the floor), and the hook at her waist where the chain starts.

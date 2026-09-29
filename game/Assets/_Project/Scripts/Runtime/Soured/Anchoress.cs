@@ -14,6 +14,9 @@ namespace MyGame
     //   Cast and Haul: from range: hefted back and thrown at you; it lies a moment, then she hauls it home along the
     //                  ground, through anyone between. Dodge it, or perfect-block the haul: the chain snaps taut against
     //                  the oar and she's yanked off balance. While the anchor is out she has no guard.
+    //   Undertow:      stay close to her too long (at her back too) and she kneels over the anchor to pray: sour
+    //                  black water wells up around her, slowing you, dragging you in, hurting a little every tick.
+    //                  Wade or dash out. She's open while she prays and as she rises: stay and trade, if you dare.
     // A stagger (or a perfect block) makes her drop it; she must reel it in before she can attack again. Her lantern
     // hangs from the anchor's stock (a light for the ferry to see), so in the dark you can follow it: flying, lying,
     // dragged home in a spray of sparks. While she fights, the camera leans towards her and draws back a little.
@@ -63,6 +66,24 @@ namespace MyGame
         public float haulKnockback = 6f;
         public float reelTime = 0.45f;
 
+        [Header("Undertow: too close for too long, and the water rises around her")]
+        public SouredAttack undertow = new SouredAttack
+        {
+            name = "Undertow", windupClip = "UndertowWindup", strikeClip = "Undertow", recoverClip = "UndertowRecover",
+            telegraph = 0.9f, strike = 2.6f, recover = 1.3f, impactAt = 0f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0f, damage = 0f, reach = 3.4f, arc = 180f, knockback = 0f, scripted = true,
+        };
+        public float closeRadius = 2.8f;     // within this, it counts as close (any side)
+        public float undertowAfter = 3.5f;   // seconds of it (easing off again when you step back)
+        public float undertowCooldown = 9f;
+        public float poolRadius = 3.4f;
+        public float poolSpread = 0.45f;
+        public float poolTick = 0.35f;
+        public float poolDamage = 5f;
+        [Range(0.1f, 1f)] public float poolWade = 0.55f; // your speed in it
+        public float poolDrag = 1.0f;        // m/s towards her
+        public Material poolMaterial;
+
         [Header("Framing the fight")]
         public float cameraLean = 0.35f;
         public float cameraZoom = 1.12f;
@@ -83,9 +104,11 @@ namespace MyGame
         public bool Awakened { get; private set; }
         public Shockwave LastShockwave { get; private set; }
         public int Casts { get; private set; }
+        public float CloseTime { get; private set; }
+        public UndertowPool Pool { get; private set; }
         public Vector3 AnchorMiddle => lastRing - lastFrame * Vector3.up * (AnchorLength * 0.5f);
 
-        float modeTime, nextCast, nextRoll, sweepReach, nextScrape;
+        float modeTime, nextCast, nextRoll, sweepReach, nextScrape, nextUndertow;
         bool hitThisMove, sweepCommitted, framing, shoved;
         Vector3 anchorAt, flightFrom, flightTo, haulFrom, blendRing;
         Quaternion flightFrame, blendFrame;
@@ -112,6 +135,8 @@ namespace MyGame
             float angle = Vector3.Angle(transform.forward, toTarget);
             if (FollowUp(distance, angle) is SouredAttack follow)
                 return follow;
+            if (CloseTime >= undertowAfter && Time.time >= nextUndertow)
+                return undertow; // you've stayed too close too long, wherever you stand
             if (angle > backAngle)
                 return null; // behind her: she has to turn first
             if (distance <= sweepRadius + 0.4f && angle > flankAngle)
@@ -142,6 +167,18 @@ namespace MyGame
             }
             if (state == State.Telegraph)
                 hitThisMove = sweepCommitted = shoved = false;
+            if (state == State.Telegraph && CurrentAttack == undertow)
+            {
+                CloseTime = 0f;
+                nextUndertow = Time.time + undertow.telegraph + undertow.strike + undertow.recover + undertowCooldown;
+            }
+            if (state == State.Strike && CurrentAttack == undertow)
+                Pool = UndertowPool.Well(transform, target, poolMaterial, poolRadius, poolSpread, poolTick, poolDamage, poolWade, poolDrag);
+            else if (Pool != null && state != State.Strike)
+            {
+                Pool.Recede(state == State.Recover ? 0.7f : 0.35f); // she rises (or is knocked out of her prayer)
+                Pool = null;
+            }
             if (state == State.Staggered || state == State.Stunned || state == State.Dying)
                 DropAnchor(); // whatever it was doing out there, it falls where it is
             if (state == State.Recover && CurrentAttack == sweep && Anchor == AnchorMode.Swung)
@@ -187,6 +224,10 @@ namespace MyGame
         {
             modeTime += dt;
             Frame();
+            // How long the Apprentice has stayed close (easing off twice as fast once they step back).
+            bool close = Awakened && target != null && target.IsAlive
+                && Flat(target.transform.position - transform.position).magnitude <= closeRadius;
+            CloseTime = close ? CloseTime + dt : Mathf.Max(0f, CloseTime - 2f * dt);
             PhaseTwoTick(dt);
             var attack = CurrentAttack;
             if (CurrentState == State.Telegraph && attack == sweep && Anchor == AnchorMode.Held && StateTime >= attack.telegraph * 0.55f)
@@ -359,6 +400,11 @@ namespace MyGame
             ResetPhaseTwo();
             Awakened = false;
             hitThisMove = false;
+            CloseTime = 0f;
+            nextUndertow = 0f;
+            if (Pool != null)
+                Destroy(Pool.gameObject);
+            Pool = null;
             Frame();
             SetMode(AnchorMode.Held);
             base.Reform();

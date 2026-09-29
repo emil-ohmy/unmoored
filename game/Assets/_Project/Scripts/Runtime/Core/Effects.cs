@@ -130,7 +130,9 @@ namespace MyGame
         }
 
         // A mote of the bow lantern's light drifting away as it goes out: pale, cold, rising slowly and fading.
-        public void Wisp(Vector3 at)
+        public void Wisp(Vector3 at) => Wisp(at, new Color(0.72f, 0.86f, 1f, 1f));
+
+        public void Wisp(Vector3 at, Color colour)
         {
             wisps.Emit(new ParticleSystem.EmitParams
             {
@@ -138,7 +140,7 @@ namespace MyGame
                 velocity = new Vector3(Random.Range(-0.25f, 0.25f), Random.Range(0.5f, 1.1f), Random.Range(-0.25f, 0.25f)),
                 startLifetime = Random.Range(1.2f, 2.2f),
                 startSize = Random.Range(0.06f, 0.14f),
-                startColor = new Color(0.72f, 0.86f, 1f, 1f),
+                startColor = colour,
                 applyShapeToPosition = false,
             }, 1);
         }

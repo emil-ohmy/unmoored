@@ -11,7 +11,8 @@ brought down in front), SweepWindup / Sweep / SweepRecover (the Chain Sweep: the
 CastWindup / Cast / Haul (Cast and Haul: hefted back, thrown, then hauled in hand over hand), Reel (pulling it home),
 Stagger (the anchor slips from her hands), Death. Phase two: Rise (the anchor lifted to the sky and planted: the floor
 starts to break), YankWindup / Yank / YankRecover (the Hook Yank: the anchor planted, the Ferryman's hook whirled on its
-line, thrown, and hauled back with whoever it caught).
+line, thrown, and hauled back with whoever it caught). UndertowWindup / Undertow / UndertowRecover (down on her knees
+over the anchor, praying while the water rises, and up again).
 """
 import math
 
@@ -50,6 +51,9 @@ THROWN = {"Spine": (26, 0, -12), "Head": (14, 0, -6), "Arms": (-70, 0, -10), "An
 # Planted: the anchor stood on its crown right in front of her, both hands on it (phase two's Rise, and the Yank).
 PLANTED = {"Spine": (20, 0, 0), "Head": (10, 0, 0), "Arms": ((10, 0, 0), (0, 0, -0.05)), "Anchor": ((-10, 0, 0), (0, 0, 0.1)),
            "Root": ((0, 0, 0), (0, 0, -0.1))}
+# Kneeling in prayer over the anchor stood upright before her, both hands on it, head bowed (the Undertow).
+KNEEL = {"Spine": (16, 0, 0), "Head": (34, 0, 0), "Arms": ((10, 0, 0), (0, 0, 0)), "Anchor": ((-10, 0, 0), (0, 0, 0.78)),
+         "Root": ((0, 0, 0), (0, 0, -0.42))}
 # Hauling in hand over hand: braced, leaning back, arms low in front.
 HAUL_A = {"Spine": (-14, 0, 6), "Head": (8, 0, 0), "Arms": (-30, 0, 8), "Root": ((0, 0, 0), (0, 0.1, -0.12))}
 HAUL_B = {"Spine": (-20, 0, -6), "Head": (6, 0, 0), "Arms": (-10, 0, -8), "Root": ((0, 0, 0), (0, 0.14, -0.14))}
@@ -191,6 +195,30 @@ ACTIONS = {
         (1, with_(PLANTED, Spine=(22, 0, -12), Head=(4, 0, -6))),
         (8, with_(PLANTED, Spine=(-18, 0, 4), Head=(8, 0, 0), Root=((0, 0, 0), (0, 0.12, -0.12)))),
         (27, OPEN),
+    ]),
+    # The Undertow: down onto her knees over the anchor (0.9 s), praying while the water rises round her (2.6 s,
+    # rocking, her shoulders shaking), then back up (1.3 s).
+    "UndertowWindup": ("BEZIER", [
+        (1, GUARD),
+        (10, with_(KNEEL, Spine=(4, 0, 0), Head=(10, 0, 0), Root=((0, 0, 0), (0, 0, -0.2)))),
+        (22, with_(KNEEL, Root=((0, 0, 0), (0, 0, -0.45)))),
+        (27, KNEEL),
+    ]),
+    "Undertow": ("BEZIER", [
+        (1, KNEEL),
+        (14, with_(KNEEL, Spine=(22, 0, 3), Head=(40, 0, 0))),
+        (22, with_(KNEEL, Spine=(19, 0, -3), Head=(37, 2, 0))),
+        (34, with_(KNEEL, Spine=(24, 0, 2), Head=(42, 0, 0))),
+        (46, with_(KNEEL, Spine=(18, 0, -2), Head=(36, -2, 0))),
+        (58, with_(KNEEL, Spine=(23, 0, 3), Head=(41, 0, 0))),
+        (70, with_(KNEEL, Spine=(19, 0, -3), Head=(37, 2, 0))),
+        (79, KNEEL),
+    ]),
+    "UndertowRecover": ("BEZIER", [
+        (1, KNEEL),
+        (14, with_(KNEEL, Spine=(4, 0, 0), Head=(12, 0, 0), Root=((0, 0, 0), (0, 0, -0.3)))),
+        (30, with_(OPEN, Spine=(12, 0, 0))),
+        (40, OPEN),
     ]),
     # Death: a jolt back, down onto her knees, and forward over the anchor.
     "Death": ("BEZIER", [
