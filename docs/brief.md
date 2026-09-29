@@ -99,7 +99,7 @@ back toward the Hub.
 
 | # | Area | Reached by | Boss | Reward | Introduces |
 |---|---|---|---|---|---|
-| 1 | The Drowned Village | open | The Hoarder | Hook | Laden, Clinger |
+| 1 | The Drowned Village | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
 | 2 | The Orchard of Last Autumn | Hook | The Gardener | Stroke | Moths |
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |

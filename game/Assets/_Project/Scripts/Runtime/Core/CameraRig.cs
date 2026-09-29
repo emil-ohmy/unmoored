@@ -14,6 +14,8 @@ namespace MyGame
         [Range(0f, 0.5f)] public float secondaryWeight = 0.3f; // how far to lean towards a locked-on target
 
         Transform secondary;
+        Transform fightFocus; // a whole fight's lean (a Boss), under any lock-on or aim
+        float fightWeight;
         Transform listener;
 
         Vector3 velocity;
@@ -46,7 +48,15 @@ namespace MyGame
             secondaryWeight = weight;
         }
 
-        // Ease in closer (a factor on the distance: 0.7 = 30% closer) for a moment worth framing (a key item held up).
+        // Lean towards the heart of a fight for as long as it lasts (a Boss), whenever nothing is locked on or aimed at.
+        public void SetFightFocus(Transform subject, float weight)
+        {
+            fightFocus = subject;
+            fightWeight = weight;
+        }
+
+        // Ease in closer (a factor on the distance: 0.7 = 30% closer) for a moment worth framing (a key item held up), or
+        // out (above 1) to take in a wide fight.
         public void SetZoom(float factor) => zoomTarget = factor;
         public float Zoom => zoom;
 
@@ -58,7 +68,9 @@ namespace MyGame
 
         Vector3 Desired()
         {
-            Vector3 focus = secondary != null ? Vector3.Lerp(target.position, secondary.position, secondaryWeight) : target.position;
+            Vector3 focus = secondary != null ? Vector3.Lerp(target.position, secondary.position, secondaryWeight)
+                : fightFocus != null ? Vector3.Lerp(target.position, fightFocus.position, fightWeight)
+                : target.position;
             return focus + Quaternion.Euler(pitch, 0f, 0f) * new Vector3(0f, 0f, -distance * zoom);
         }
 

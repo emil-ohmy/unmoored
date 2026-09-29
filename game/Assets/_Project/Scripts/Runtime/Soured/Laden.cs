@@ -9,7 +9,7 @@ namespace MyGame
     // up) and shuffles in behind it; now hits from the front bounce off with sparks and a shove (mashing is
     // punished). Openings: from range, before it notices you, while the guard rises, the wind-up (heap
     // overhead), the recovery (heap on the ground), and its flanks and back.
-    public sealed class Laden : Soured
+    public class Laden : Soured
     {
         [Header("Laden sweep (the second attack)")]
         public SouredAttack sweep = new SouredAttack

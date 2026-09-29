@@ -128,6 +128,13 @@ namespace MyGame
                 sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(0.8f, 0.9f, 1f, 1f), startLifetime = Random.Range(0.4f, 0.8f) }, 1);
         }
 
+        // Iron dragged over stone: a few sparks kicked up behind it.
+        public void Scrape(Vector3 position, Vector3 behind)
+        {
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation((behind.normalized + Vector3.up * 0.7f).normalized));
+            sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(1f, 0.82f, 0.55f, 1f), startLifetime = Random.Range(0.15f, 0.35f) }, 3);
+        }
+
         // A Healing charge takes hold: a warm ring spreading at the Apprentice's feet.
         public void HealRing(Vector3 position)
         {

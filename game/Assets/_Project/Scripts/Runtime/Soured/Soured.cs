@@ -186,10 +186,11 @@ namespace MyGame
                         planar = transform.forward * (lungeThisStrike / lungeTime);
                     if (current.ranged)
                         Loose(toTarget, targetAlive);
-                    else if (!struck && stateTime >= current.impactAt * current.strike)
+                    else if (!current.scripted && !struck && stateTime >= current.impactAt * current.strike)
                     {
                         struck = true;
                         Impact();
+                        OnImpact(current);
                         if (targetAlive)
                             StrikeTarget(toTarget);
                     }
@@ -235,6 +236,7 @@ namespace MyGame
                 case State.Scattered:
                     return;
             }
+            Tick(dt);
 
             if (swingTrail != null) // the smear of a melee blow (a shot has none)
                 swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
@@ -274,6 +276,16 @@ namespace MyGame
                 CameraRig.Instance?.Shake(0.12f);
         }
 
+        // Every frame, after the state's own work (a subclass's extra machinery: the Anchoress's anchor).
+        protected virtual void Tick(float dt) { }
+
+        // A melee blow lands (hit or miss), before it's checked against the Apprentice.
+        protected virtual void OnImpact(SouredAttack attack) { }
+
+        // Delivers a blow to the Apprentice (a scripted attack's, landing by its own rules).
+        protected Defence HitTarget(float damage, Vector3 knock) =>
+            target != null ? target.TakeHit(damage, knock, this) : Defence.Dodged;
+
         // The moment an attack stops tracking (a shot's aim is set): subclasses can mark it (the archer's glint).
         protected virtual void OnCommitted(SouredAttack attack) { }
 
@@ -307,7 +319,7 @@ namespace MyGame
         {
             if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
                 return;
-            if (target.TakeHit(current.damage, toTarget.normalized * current.knockback, this) == Defence.Parried)
+            if (HitTarget(current.damage, toTarget.normalized * current.knockback) == Defence.Parried)
                 Stun();
         }
 
@@ -467,7 +479,7 @@ namespace MyGame
         }
 
         // Back to its spawn, whole again (the Ferryman's hoard pulls it back).
-        public void Reform()
+        public virtual void Reform()
         {
             controller.enabled = false;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);

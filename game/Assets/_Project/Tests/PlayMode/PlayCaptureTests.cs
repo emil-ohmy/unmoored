@@ -779,6 +779,92 @@ namespace MyGame.Tests
             }
         }
 
+        // The Anchoress (BossArena): her vigil, waking, the Anchor Drop and its ring, the Chain Sweep, Cast and Haul.
+        // The Apprentice can't be hurt, to keep the pictures coming.
+        [UnityTest]
+        public IEnumerator Capture_Anchoress()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("BossArena");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var boss = UnityEngine.Object.FindAnyObjectByType<Anchoress>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            apprentice.postHitInvulnerability = 1000f;
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            Capture(outDir, "boss-0-landing");
+            input.Move = Vector2.up;
+            for (int f = 0; f < 400 && apprentice.transform.position.z < -4.5f; f++)
+                yield return null;
+            input.Move = Vector2.zero;
+            Capture(outDir, "boss-1-vigil");
+            apprentice.TakeHit(0f, Vector3.zero); // (starts the long invulnerability)
+            input.Move = Vector2.up;
+            for (int f = 0; f < 200 && !boss.Awakened; f++)
+                yield return null;
+            input.Move = Vector2.zero;
+            for (int f = 0; f < 6; f++)
+                yield return null;
+            Capture(outDir, "boss-2-wakes");
+
+            IEnumerator Stage(float forward, float right)
+            {
+                Vector3 p = boss.transform.position + boss.transform.forward * forward + boss.transform.right * right;
+                apprentice.Teleport(new Vector3(p.x, 0.55f, p.z));
+                Vector3 to = boss.transform.position - p;
+                to.y = 0f;
+                apprentice.transform.rotation = Quaternion.LookRotation(to);
+                yield return null;
+            }
+            IEnumerator Film(string name, SouredAttack attack, int frames, int every)
+            {
+                for (int f = 0; f < 240 && !(boss.CurrentState == Soured.State.Telegraph && boss.CurrentAttack == attack); f++)
+                    yield return null;
+                for (int f = 0; f < frames; f++)
+                {
+                    if (f % every == 0)
+                        Capture(outDir, $"{name}-{f:D3}");
+                    yield return null;
+                }
+            }
+
+            // The Anchor Drop (turned to face the way in, so there's floor in front of her).
+            boss.transform.Rotate(0f, 180f, 0f, Space.World);
+            boss.castCooldown = boss.firstCastDelay = 1000f;
+            boss.sweepChanceInFront = 0f;
+            boss.midRangeSweepChance = 0f;
+            float flank = boss.flankAngle;
+            boss.flankAngle = 180f;
+            for (int f = 0; f < 90 && boss.Anchor != Anchoress.AnchorMode.Held; f++)
+                yield return null;
+            yield return Stage(2.3f, 0f);
+            yield return Film("boss-drop", boss.primary, 90, 3);
+
+            // The Chain Sweep.
+            boss.sweepChanceInFront = 1f;
+            for (int f = 0; f < 90 && boss.CurrentState != Soured.State.Chase; f++)
+                yield return null;
+            yield return Stage(2.3f, 0f);
+            yield return Film("boss-sweep", boss.sweep, 75, 3);
+
+            // Cast and Haul.
+            boss.flankAngle = flank;
+            boss.sweepChanceInFront = 0.3f;
+            for (int f = 0; f < 90 && boss.CurrentState != Soured.State.Chase; f++)
+                yield return null;
+            boss.castCooldown = 5f;
+            typeof(Anchoress).GetField("nextCast", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(boss, 0f);
+            yield return Stage(5.8f, 0f);
+            yield return Film("boss-cast", boss.cast, 120, 4);
+            Time.captureFramerate = 0;
+        }
+
         static void Capture(string outDir, string name, int width = 1600, int height = 900)
         {
             var cam = Camera.main;
