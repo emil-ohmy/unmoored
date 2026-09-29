@@ -49,7 +49,7 @@ public static partial class MainSceneBuilder
 
     static void Build()
     {
-        var scene = BeginScene();
+        var scene = BeginScene(new Vector3(-15f, 0f, -17f)); // the water, centred under the whole loop (the chapel's far out)
 
         // The quay and what stands on it.
         Place("Environment/quay", new Vector3(0f, 0f, 0f), 180f);
@@ -101,29 +101,32 @@ public static partial class MainSceneBuilder
         Place("Environment/islet_big", new Vector3(13.5f, -0.8f, 9.5f), 165f);
         Place("Environment/rock_c", new Vector3(12.8f, -0.15f, -3.2f), 20f);
 
-        // The rest of the loop: quay -> yard -> crossroads -> back to the landing through a shortcut gate.
+        // The rest of the loop: quay -> yard -> crossroads -> back to the landing through a shortcut gate; and from the
+        // crossroads, south to a second Mooring post and the Boss.
         Yard();
         HookIslet();
         CacheDeck();
         Crossroads();
         Loopback();
+        ToTheChapel();
 
         // Characters. Met in order: the Laden alone on the quay, the archer alone in the yard, then both at the
-        // crossroads; beyond them, the gate home.
+        // crossroads; beyond them, the gate home; and south of the crossroads, past a Mooring post, the Anchoress.
         var start = new GameObject("Start Point").transform;
         start.position = new Vector3(2.4f, QuayTop, -25.3f); // on the landing, by the Mooring post
         var apprentice = Apprentice(start.position);
         Laden("Laden", new Vector3(4.2f, QuayTop, 0.4f), 20f); // back turned: sneak up for a free hit
         LadenArcher("Laden Archer (Yard)", new Vector3(-30.0f, QuayTop, 0.8f), 90f); // at the far end, facing the way in
-        var crossroadsLaden = Laden("Laden (Crossroads)", new Vector3(-23.0f, QuayTop, -23.0f), 0f); // holds the front, facing the way in
-        var crossroadsArcher = LadenArcher("Laden Archer (Crossroads)", new Vector3(-19.5f, QuayTop, -28.5f), -30f); // behind it, covering
-        HookRelic(new Vector3(-28.3f, QuayTop, -28.3f), crossroadsLaden, crossroadsArcher);
+        Laden("Laden (Crossroads)", new Vector3(-23.0f, QuayTop, -23.0f), 0f); // holds the front, facing the way in
+        LadenArcher("Laden Archer (Crossroads)", new Vector3(-19.5f, QuayTop, -28.5f), -30f); // behind it, covering
+        // For play-testing: the Tester's Knot (four times the damage) is owned; fit it at any Mooring post.
+        apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
 
         FinishScene(scene, ScenePath, start, apprentice, "music_drowned_dark");
     }
 
     // A new, empty scene with what every scene has before its layout: the night's lighting and the water.
-    static UnityEngine.SceneManagement.Scene BeginScene()
+    static UnityEngine.SceneManagement.Scene BeginScene(Vector3 waterCentre)
     {
         AssetDatabase.ImportAsset(Models.TrimEnd('/'), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
         AssetDatabase.ImportAsset(Audio.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
@@ -136,6 +139,7 @@ public static partial class MainSceneBuilder
         var water = new GameObject("Water", typeof(MeshFilter), typeof(MeshRenderer));
         water.GetComponent<MeshFilter>().sharedMesh = WaterGrid(90f, 1f);
         water.GetComponent<MeshRenderer>().sharedMaterial = WaterMaterial();
+        water.transform.position = waterCentre;
         return scene;
     }
 
@@ -327,26 +331,6 @@ public static partial class MainSceneBuilder
         glow.height = 0.7f;
     }
 
-    // Where the Hook is taken, for now (a Boss will give it one day): the Ferryman's old hook on a pedestal at the
-    // crossroads, sealed until its two guardians have been beaten; then it glows cold blue, like the Apprentice's lantern.
-    static void HookRelic(Vector3 position, params Soured[] guardians)
-    {
-        var go = Place("Environment/hook_relic", position, 60f);
-        go.name = "Hook Relic";
-        var relic = go.AddComponent<AbilityRelic>();
-        relic.guardians = guardians;
-        relic.relic = go.transform.Find("RelicHook")?.gameObject;
-        var glowGo = new GameObject("Key Item Glow");
-        glowGo.transform.SetParent(go.transform, false);
-        glowGo.transform.position = position;
-        var glow = glowGo.AddComponent<PickupGlow>(); // a key item: bright, in the Apprentice's cold blue
-        glow.tier = PickupGlow.Tier.Key;
-        glow.colour = BowLanternLight;
-        glow.height = 1.2f;
-        glow.glowing = relic.relic != null ? relic.relic.GetComponentsInChildren<Renderer>() : new Renderer[0];
-        relic.glow = glow;
-    }
-
     // South of the yard: the crossroads, where a Laden and an archer hold it together.
     static void Crossroads()
     {
@@ -361,8 +345,28 @@ public static partial class MainSceneBuilder
         foreach (var p in new[] { new Vector3(-29.8f, 0f, -20.2f), new Vector3(-15.4f, 0f, -21.0f), new Vector3(-29.6f, 0f, -28.6f), new Vector3(-15.8f, 0f, -28.8f) })
             Torch(new Vector3(p.x, QuayTop, p.z));
         Place("Environment/house_a", new Vector3(-33.0f, 0f, -26.5f), 100f);
-        Place("Environment/house_b", new Vector3(-21.0f, 0f, -33.2f), 350f);
+        Place("Environment/house_b", new Vector3(-10.5f, 0f, -37.5f), 330f); // (clear of the way south, to the chapel)
         Place("Environment/rock_c", new Vector3(-12.5f, -0.15f, -31.0f), 80f);
+    }
+
+    // South from the crossroads: a boardwalk to a landing with the Area's second Mooring post (always one before a
+    // Boss), then west along a short boardwalk to the drowned chapel's way in (the chapel turned so its altar is to the
+    // west: its tall pillars stand at the far side, away from the camera).
+    static Anchoress ToTheChapel()
+    {
+        Vector3 from = new Vector3(-20.2f, QuayTop - 0.03f, -29.4f); // the crossroads quay's south edge
+        Boardwalk(from, Vector3.back, 2);
+        float landing = from.z - Segment * 2;
+        Place("Environment/jetty_landing", new Vector3(from.x, QuayTop - 0.03f, landing), 0f);
+        MooringPostAt(new Vector3(from.x + 1.25f, QuayTop, landing - 2.66f), 180f);
+        StreetLantern(new Vector3(from.x + 0.75f, QuayTop, from.z - 4.0f), -90f, 2.2f);
+        float z = landing - 1.7f; // the landing's middle
+        Boardwalk(new Vector3(from.x - 1.7f, QuayTop - 0.03f, z), Vector3.left, 1);
+        var centre = new Vector3(from.x - 1.7f - Segment - 7.8f + 0.35f, 0f, z);
+        var entrance = new GameObject("Area Entrance (Chapel)").AddComponent<AreaEntrance>();
+        entrance.transform.SetPositionAndRotation(new Vector3(from.x - 3.5f, QuayTop + 1f, z), Quaternion.Euler(0f, 90f, 0f)); // across this boardwalk
+        entrance.areaName = "The Drowned Chapel";
+        return DrownedChapel(centre, -90f);
     }
 
     // East from the crossroads, back to the landing: the shortcut. It ends at a barred gate beside the Mooring post,

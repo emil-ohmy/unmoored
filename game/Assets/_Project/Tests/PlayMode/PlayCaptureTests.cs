@@ -28,7 +28,7 @@ namespace MyGame.Tests
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             var input = new ScriptedInput();
             apprentice.Input = input;
-            var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None);
+            var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).Where(l => !(l is Anchoress)).OrderBy(l => l.transform.position.magnitude).ToArray();
             var target = laden[0];
             float aggro = target.aggroRadius, range = target.attackRange;
             target.aggroRadius = 0f; // hold it unaware for the first frame (open: heap low)
@@ -268,7 +268,7 @@ namespace MyGame.Tests
 
             // A Laden's slam (the Apprentice can't be hurt, to keep the pictures coming).
             var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsInactive.Include, FindObjectsSortMode.None)
-                .OrderBy(l => l.transform.position.magnitude).First();
+                .Where(l => !(l is Anchoress)).OrderBy(l => l.transform.position.magnitude).First();
             laden.gameObject.SetActive(true);
             laden.sweepChanceInFront = 0f;
             apprentice.postHitInvulnerability = 100f;
@@ -542,36 +542,7 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
-        // Pickups glow: the Hook relic, faint while sealed and bright once its guardians fall.
-        [UnityTest]
-        public IEnumerator Capture_Relic()
-        {
-            string outDir = Environment.GetEnvironmentVariable("SHOTS");
-            if (string.IsNullOrEmpty(outDir))
-                Assert.Ignore("set SHOTS to capture");
-            Directory.CreateDirectory(outDir);
-            yield return SceneManager.LoadSceneAsync("Main");
-            yield return null;
-            Time.captureFramerate = 30;
-            var relic = UnityEngine.Object.FindAnyObjectByType<AbilityRelic>();
-            foreach (var soured in UnityEngine.Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
-                soured.aggroRadius = 0f;
-            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
-            apprentice.Input = new ScriptedInput();
-            apprentice.Teleport(relic.transform.position + new Vector3(2.5f, 0.05f, 1.5f));
-            for (int f = 0; f < 30; f++)
-                yield return null;
-            Capture(outDir, "relic-warmup");
-            Capture(outDir, "relic-sealed");
-            foreach (var guardian in relic.guardians)
-                guardian.TakeHit(new Hit { Damage = 1000f, From = guardian.transform.position - guardian.transform.forward * 2f });
-            for (int f = 0; f < 75; f++)
-                yield return null;
-            Capture(outDir, "relic-takeable");
-            Time.captureFramerate = 0;
-        }
-
-        // A key item held up (the Hook from its relic), with the UI: the raise, the burst, the dimmed world, the banner.
+        // A key item held up (the Hook, from the Anchoress), with the UI: the raise, the burst, the dimmed world, the banner.
         [UnityTest]
         public IEnumerator Capture_KeyItem()
         {
@@ -585,9 +556,11 @@ namespace MyGame.Tests
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             var input = new ScriptedInput();
             apprentice.Input = input;
-            var relic = UnityEngine.Object.FindAnyObjectByType<AbilityRelic>();
-            foreach (var guardian in relic.guardians)
-                guardian.TakeHit(new Hit { Damage = 1000f, From = guardian.transform.position - guardian.transform.forward * 2f });
+            var boss = UnityEngine.Object.FindAnyObjectByType<Anchoress>();
+            boss.TakeHit(new Hit { Damage = 100000f, From = boss.transform.position - boss.transform.forward * 2f });
+            for (int f = 0; f < 600 && (boss.FreedHook == null || !boss.FreedHook.Landed); f++)
+                yield return null;
+            var relic = boss.FreedHook;
             var cam = Camera.main;
             var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
             cam.targetTexture = rt;
@@ -644,9 +617,9 @@ namespace MyGame.Tests
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.55f, 0.55f, 0.6f);
             cam.orthographic = true;
-            cam.orthographicSize = 22f;
+            cam.orthographicSize = 29f;
             cam.farClipPlane = 300f;
-            cam.transform.SetPositionAndRotation(new Vector3(-13f, 80f, -12f), Quaternion.Euler(90f, 0f, 0f));
+            cam.transform.SetPositionAndRotation(new Vector3(-15f, 80f, -19f), Quaternion.Euler(90f, 0f, 0f)); // (the chapel, south-west, too)
             yield return null;
             Capture(outDir, "map-warmup", 1600, 1600);
             yield return null;
@@ -822,7 +795,7 @@ namespace MyGame.Tests
 
                 // The merchant soul, its wares, and fitting the Charm at the post.
                 var merchant = UnityEngine.Object.FindAnyObjectByType<Merchant>();
-                var post = UnityEngine.Object.FindAnyObjectByType<MooringPost>();
+                var post = UnityEngine.Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None).OrderBy(p => Vector3.Distance(p.transform.position, apprentice.transform.position)).First(); // the landing's
                 Vector3 towardsPost = post.RespawnPoint - merchant.transform.position;
                 towardsPost.y = 0f;
                 apprentice.Teleport(merchant.transform.position + towardsPost.normalized * 1.1f);
