@@ -13,6 +13,7 @@ namespace MyGame
         bool HealPressed { get; }
         bool InteractPressed { get; }
         bool LockPressed { get; }
+        bool HookPressed { get; }
         bool BlockHeld { get; }
         int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
     }
@@ -20,7 +21,7 @@ namespace MyGame
     // Keyboard/mouse and gamepad bindings (gamepad-first).
     public sealed class GameInput : IApprenticeInput, System.IDisposable
     {
-        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, switchStick, switchScroll;
+        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll;
         bool stickArmed = true;
 
         public GameInput()
@@ -30,12 +31,13 @@ namespace MyGame
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow").With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
             move.AddBinding("<Gamepad>/leftStick");
             dash = Button("Dash", "<Keyboard>/space", "<Gamepad>/buttonEast");
-            lightAttack = Button("Light", "<Keyboard>/j", "<Mouse>/leftButton", "<Gamepad>/buttonWest", "<Gamepad>/rightShoulder");
+            lightAttack = Button("Light", "<Keyboard>/j", "<Mouse>/leftButton", "<Gamepad>/buttonWest");
             heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth", "<Gamepad>/rightTrigger");
             heal = Button("Heal", "<Keyboard>/q", "<Gamepad>/leftShoulder");
             interact = Button("Interact", "<Keyboard>/e", "<Gamepad>/buttonSouth");
             lockOn = Button("LockOn", "<Keyboard>/tab", "<Mouse>/middleButton", "<Gamepad>/rightStickPress");
             block = Button("Block", "<Keyboard>/l", "<Gamepad>/leftTrigger");
+            hook = Button("Hook", "<Keyboard>/f", "<Gamepad>/rightShoulder");
             switchStick = new InputAction("SwitchStick", InputActionType.Value, "<Gamepad>/rightStick/x");
             switchScroll = new InputAction("SwitchScroll", InputActionType.Value, "<Mouse>/scroll/y");
             foreach (var action in All)
@@ -58,6 +60,7 @@ namespace MyGame
         public bool InteractPressed => interact.WasPressedThisFrame();
         public bool LockPressed => lockOn.WasPressedThisFrame();
         public bool BlockHeld => block.IsPressed();
+        public bool HookPressed => hook.WasPressedThisFrame();
 
         public int SwitchTarget
         {
@@ -77,7 +80,7 @@ namespace MyGame
             }
         }
 
-        InputAction[] All => new[] { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, switchStick, switchScroll };
+        InputAction[] All => new[] { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll };
 
         public void Dispose()
         {
@@ -90,7 +93,7 @@ namespace MyGame
     public sealed class ScriptedInput : IApprenticeInput
     {
         public Vector2 Move { get; set; }
-        bool dash, lightAttack, heavyAttack, heal, interact, lockOn;
+        bool dash, lightAttack, heavyAttack, heal, interact, lockOn, hook;
         int switchTarget;
 
         public void PressDash() => dash = true;
@@ -99,6 +102,7 @@ namespace MyGame
         public void PressHeal() => heal = true;
         public void PressInteract() => interact = true;
         public void PressLock() => lockOn = true;
+        public void PressHook() => hook = true;
         public void Switch(int direction) => switchTarget = direction;
 
         public bool DashPressed => Take(ref dash);
@@ -107,6 +111,7 @@ namespace MyGame
         public bool HealPressed => Take(ref heal);
         public bool InteractPressed => Take(ref interact);
         public bool LockPressed => Take(ref lockOn);
+        public bool HookPressed => Take(ref hook);
         public bool BlockHeld { get; set; }
 
         public int SwitchTarget

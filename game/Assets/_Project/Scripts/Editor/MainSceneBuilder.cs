@@ -112,6 +112,7 @@ public static class MainSceneBuilder
 
         // The rest of the loop: quay -> yard -> crossroads -> back to the landing through a shortcut gate.
         Yard();
+        HookIslet();
         Crossroads();
         Loopback();
 
@@ -122,8 +123,9 @@ public static class MainSceneBuilder
         var apprentice = Apprentice(start.position);
         Laden("Laden", new Vector3(4.2f, QuayTop, 0.4f), 20f); // back turned: sneak up for a free hit
         LadenArcher("Laden Archer (Yard)", new Vector3(-30.0f, QuayTop, 0.8f), 90f); // at the far end, facing the way in
-        Laden("Laden (Crossroads)", new Vector3(-23.0f, QuayTop, -23.0f), 0f); // holds the front, facing the way in
-        LadenArcher("Laden Archer (Crossroads)", new Vector3(-19.5f, QuayTop, -28.5f), -30f); // behind it, covering
+        var crossroadsLaden = Laden("Laden (Crossroads)", new Vector3(-23.0f, QuayTop, -23.0f), 0f); // holds the front, facing the way in
+        var crossroadsArcher = LadenArcher("Laden Archer (Crossroads)", new Vector3(-19.5f, QuayTop, -28.5f), -30f); // behind it, covering
+        HookRelic(new Vector3(-28.3f, QuayTop, -28.3f), crossroadsLaden, crossroadsArcher);
 
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
@@ -153,6 +155,8 @@ public static class MainSceneBuilder
         sfx.arrowThunk = Clips("arrow_thunk");
         sfx.gateOpen = Clips("gate_open");
         sfx.gateRattle = Clips("gate_rattle");
+        sfx.hookThrow = Clips("hook_throw");
+        sfx.hookCatch = Clips("hook_catch");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -245,6 +249,48 @@ public static class MainSceneBuilder
         Place("Environment/rock_a", new Vector3(-32.5f, -0.12f, -7.5f), 20f);
     }
 
+    // A hook post: the pile (with its ring for the tether) and the spot on its platform where the pull sets you down.
+    static HookPost HookPostAt(Vector3 position, Vector3 landing)
+    {
+        var go = Place("Environment/hook_post", position, 0f);
+        go.name = "Hook Post";
+        var post = go.AddComponent<HookPost>();
+        post.ring = new GameObject("Ring").transform;
+        post.ring.SetParent(go.transform, false);
+        post.ring.position = position + Vector3.up * 1.95f;
+        post.landing = new GameObject("Landing").transform;
+        post.landing.SetParent(go.transform, false);
+        post.landing.position = landing;
+        return post;
+    }
+
+    // Off the yard's north edge, across the water: a small deck with a Healing charge piece, glowing where you can
+    // see it but can't reach it. The Hook's first gate: a hook post on each side.
+    static void HookIslet()
+    {
+        // Each post stands beside its landing spot, never between the two (the pull would run into it).
+        HookPostAt(new Vector3(-30.1f, QuayTop, 4.6f), new Vector3(-29.0f, QuayTop, 3.4f));
+        // Close enough to be seen from the yard's edge (the camera shows ~6 m ahead), too far to reach without the Hook.
+        Place("Environment/jetty_landing", new Vector3(-29.0f, QuayTop - 0.03f, 11.2f), 0f);
+        HookPostAt(new Vector3(-30.2f, QuayTop, 8.5f), new Vector3(-29.0f, QuayTop, 9.5f));
+        var ember = Place("Environment/charge_ember", new Vector3(-28.4f, QuayTop, 10.5f), 0f);
+        ember.name = "Healing Charge Piece";
+        ember.AddComponent<ChargePiece>();
+        Flicker(PointLight(ember.transform, GlowCentre(ember, "ChargeEmber_Glow"), 3.2f, 1.8f, LanternLight), 0.15f, 4f, 0.01f);
+    }
+
+    // Where the Hook is taken, for now (a Boss will give it one day): the Ferryman's old hook on a pedestal at the
+    // crossroads, sealed until its two guardians have been beaten; then it glows cold blue, like the Apprentice's lantern.
+    static void HookRelic(Vector3 position, params Soured[] guardians)
+    {
+        var go = Place("Environment/hook_relic", position, 60f);
+        go.name = "Hook Relic";
+        var relic = go.AddComponent<AbilityRelic>();
+        relic.guardians = guardians;
+        relic.relic = go.transform.Find("RelicHook")?.gameObject;
+        relic.glow = PointLight(go.transform, position + Vector3.up * 1.3f, 3.5f, 0f, BowLanternLight);
+    }
+
     // South of the yard: the crossroads, where a Laden and an archer hold it together.
     static void Crossroads()
     {
@@ -274,7 +320,7 @@ public static class MainSceneBuilder
         go.AddComponent<ShortcutGate>().openFrom = Vector3.left;
     }
 
-    static void Laden(string name, Vector3 position, float yaw)
+    static Laden Laden(string name, Vector3 position, float yaw)
     {
         var go = Place("Characters/laden", position, yaw);
         go.name = name;
@@ -309,10 +355,11 @@ public static class MainSceneBuilder
         laden.sweep.swingSound = Clips("laden_swing");
         laden.sweep.swingPitch = 1.15f; // a quicker, lighter swing than the slam
         BeltLantern(go, laden);
+        return laden;
     }
 
     // The Laden archer: keeps its distance and shoots.
-    static void LadenArcher(string name, Vector3 position, float yaw)
+    static LadenArcher LadenArcher(string name, Vector3 position, float yaw)
     {
         var go = Place("Characters/laden_archer", position, yaw);
         go.name = name;
@@ -347,6 +394,7 @@ public static class MainSceneBuilder
         archer.volley.releaseSound = Clips("arrow_release");
         archer.trailMaterial = sparkMaterial;
         BeltLantern(go, archer);
+        return archer;
     }
 
     // Every Soured's belt lantern (sickly green light) and the prop it drops where it falls, glowing there until the

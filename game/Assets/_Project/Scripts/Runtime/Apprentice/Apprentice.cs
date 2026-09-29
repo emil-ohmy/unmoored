@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -86,6 +86,13 @@ namespace MyGame
         public float lockBreakRange = 14f;
         public float lockedMoveSpeedFactor = 0.85f; // a little slower while circling a target
 
+        [Header("Hook (an Ability: pull yourself to a hook post, over water too)")]
+        public float hookRange = 9f;
+        public float hookAimAngle = 70f;   // posts this far either side of where you face (or steer) can be aimed at
+        public float hookThrowTime = 0.15f; // the tether flying out
+        public float hookSpeed = 13f;
+        public float hookArc = 0.6f;       // the pull lifts you a little, like a leap
+
         [Header("Feel")]
         public float inputBuffer = 0.2f;
 
@@ -108,6 +115,9 @@ namespace MyGame
         public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
+        public bool HasHook { get; private set; }
+        public HookPost HookTarget { get; private set; } // the post in reach ahead (marked; usable once you have the Hook)
+        public event System.Action<string, string> Found; // something gained for good: a title and a hint (HUD banner)
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
         public event System.Action Healed;      // a Healing charge took effect (the end of the heal)
         public int Obols { get; private set; }
@@ -115,7 +125,8 @@ namespace MyGame
         public bool Invulnerable =>
             CurrentState == State.Dead
             || Time.time < invulnerableUntil
-            || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd);
+            || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd)
+            || (CurrentState == State.Hooking && stateTime >= hookThrowTime); // pulled clear of harm
 
         CharacterController controller;
         ClipPlayer clips;
@@ -212,6 +223,13 @@ namespace MyGame
                         Nearby.Interact(this);
                         break;
                     }
+                    // Seen even without the Hook (an Ability gate should show what you can't reach yet).
+                    HookTarget = HookPost.Best(transform.position, move.sqrMagnitude > 0.01f ? move : transform.forward, hookRange, hookAimAngle);
+                    if (Input.HookPressed && HookTarget != null && HasHook)
+                    {
+                        StartHook(HookTarget);
+                        break;
+                    }
                     if (Input.HealPressed)
                         TryHeal();
                     else if (Input.BlockHeld)
@@ -266,18 +284,36 @@ namespace MyGame
                     if (stateTime >= respawnDelay)
                         Respawn();
                     break;
+
+                case State.Hooking:
+                    UpdateHook();
+                    break;
             }
             if (CurrentState != State.Free || inMenu)
             {
                 Nearby = null;
+                if (CurrentState != State.Hooking)
+                    HookTarget = null;
             }
+            if (CurrentState != State.Hooking && tether != null)
+                tether.enabled = false;
+            FrameHookTarget();
 
             RegenerateStamina(dt);
             knockback *= Mathf.Exp(-10f * dt);
-            verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
-            controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
+            if (CurrentState == State.Hooking)
+            {
+                verticalVelocity = 0f;
+                controller.Move(hookStep); // the pull sets the path; collisions still apply
+                hookStep = Vector3.zero;
+            }
+            else
+            {
+                verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
+                controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
+            }
             TrackSafeGround(dt);
-            if (transform.position.y < waterLevel && IsAlive)
+            if (transform.position.y < waterLevel && IsAlive && CurrentState != State.Hooking)
                 WashAshore();
         }
 
@@ -424,6 +460,7 @@ namespace MyGame
         void SetLockTarget(Soured target)
         {
             LockTarget = target;
+            framedHook = null; // lock-on framing takes over (and hands back to the Hook's when released)
             CameraRig.Instance?.SetSecondary(target != null ? target.transform : null);
         }
 
@@ -675,6 +712,102 @@ namespace MyGame
             WorldState.Instance?.ReformAllSoured();
             Announce("woke at the Mooring post");
             Woke?.Invoke();
+        }
+
+        // ------------------------------------------------------------ the Hook
+
+        HookPost hookPost;
+        Vector3 hookFrom, hookStep;
+        float hookDuration;
+        LineRenderer tether;
+
+        public void GrantHook()
+        {
+            HasHook = true;
+            Found?.Invoke("The Hook", "{hook} by a hook post: pull yourself across");
+        }
+
+        public void AddHealingCharge()
+        {
+            maxHealingCharges++;
+            HealingCharges = Mathf.Min(HealingCharges + 1, maxHealingCharges);
+            Found?.Invoke("A Healing Charge", "One more flame to heal with");
+        }
+
+        void StartHook(HookPost post)
+        {
+            hookPost = post;
+            hookFrom = transform.position;
+            hookDuration = Mathf.Max(0.2f, Vector3.Distance(hookFrom, post.LandingPosition) / hookSpeed);
+            Vector3 to = post.LandingPosition - hookFrom;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.001f)
+                transform.rotation = Quaternion.LookRotation(to);
+            buffered = Act.None;
+            Enter(State.Hooking);
+            clips.PlayOnce("Dash", hookThrowTime + hookDuration);
+            Sfx.Instance?.HookThrow(transform.position + Vector3.up);
+            if (tether == null)
+                tether = BuildTether();
+            tether.enabled = true;
+        }
+
+        // The tether flies out to the ring, catches, and pulls the Apprentice along a low arc to the post's platform.
+        void UpdateHook()
+        {
+            Vector3 hand = transform.position + Vector3.up * 0.75f + transform.right * 0.3f;
+            Vector3 ring = hookPost.RingPosition;
+            if (stateTime < hookThrowTime)
+            {
+                tether.SetPosition(0, hand);
+                tether.SetPosition(1, Vector3.Lerp(hand, ring, stateTime / hookThrowTime));
+                return;
+            }
+            float before = stateTime - Time.deltaTime;
+            if (before < hookThrowTime)
+                Sfx.Instance?.HookCatch(ring); // it catches: the pull starts
+            float u = Mathf.Clamp01((stateTime - hookThrowTime) / hookDuration);
+            float eased = u * u * (3f - 2f * u);
+            Vector3 target = Vector3.Lerp(hookFrom, hookPost.LandingPosition, eased) + Vector3.up * (hookArc * Mathf.Sin(u * Mathf.PI));
+            hookStep = target - transform.position;
+            tether.SetPosition(0, hand);
+            tether.SetPosition(1, ring);
+            if (u >= 1f)
+            {
+                lastSafeGround = hookPost.LandingPosition;
+                ToFreeAndConsume();
+            }
+        }
+
+        Transform framedHook;
+
+        // A hook post in reach ahead: the camera leans towards where it leads, so you see what the Hook would reach
+        // (lock-on framing takes precedence).
+        void FrameHookTarget()
+        {
+            Transform frame = LockTarget == null && HookTarget != null
+                ? (HookTarget.landing != null ? HookTarget.landing : HookTarget.transform) : null;
+            if (frame == framedHook)
+                return;
+            framedHook = frame;
+            if (LockTarget == null)
+                CameraRig.Instance?.SetSecondary(frame, 0.45f);
+        }
+
+        LineRenderer BuildTether()
+        {
+            var line = new GameObject("Hook Tether").AddComponent<LineRenderer>();
+            line.transform.SetParent(transform, false);
+            line.positionCount = 2;
+            line.widthMultiplier = 0.06f;
+            line.useWorldSpace = true;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            line.sharedMaterial = Effects.Instance != null ? Effects.Instance.sparkMaterial : null;
+            var colour = new Color(0.62f, 0.77f, 1f);
+            line.startColor = colour;
+            line.endColor = new Color(0.85f, 0.92f, 1f);
+            line.enabled = false;
+            return line;
         }
 
         public void GainObols(int amount)

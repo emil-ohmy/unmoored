@@ -24,6 +24,9 @@ namespace MyGame
         public float PromptAlpha => promptGroup != null ? promptGroup.alpha : 0f;
         public bool GamepadGlyphs => usingGamepad;
         public int ObolsShown => Mathf.RoundToInt(obolsShown);
+        public Banner FoundBanner { get; private set; }
+        public bool HookMarkerVisible => hookMarker != null && hookMarker.gameObject.activeSelf;
+        const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
         public string PromptText => promptLabel != null ? promptLabel.text : "";
 
@@ -33,7 +36,10 @@ namespace MyGame
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing;
-        Text glyph, promptLabel, obolText, obolGain;
+        Text glyph, promptLabel, obolText, obolGain, hookGlyph;
+        RectTransform hookMarker;
+        Image hookMarkerImage;
+        Banner foundHint;
         float obolsShown, gainAt = -100f, healedAt = -100f;
         Image hpFillImage;
         int gainAmount;
@@ -77,6 +83,16 @@ namespace MyGame
                 font = titleFont, size = 68, colour = UiKit.Ember, spacing = 6f, y = 40f, glow = UiKit.Ember.WithAlpha(0.22f),
                 bandAlpha = 0.6f, fadeIn = 0.5f, hold = 1.8f, fadeOut = 1.1f, drift = 0.025f,
             });
+            FoundBanner = new Banner(canvasRect, "Found", new Banner.Style
+            {
+                font = titleFont, size = 60, colour = UiKit.Bone, spacing = 5f, y = -150f, glow = UiKit.Hex(0x9fc4ff, 0.18f),
+                bandAlpha = 0.6f, fadeIn = 0.5f, hold = 3.0f, fadeOut = 1.0f, drift = 0.02f,
+            });
+            foundHint = new Banner(canvasRect, "Found Hint", new Banner.Style
+            {
+                font = textFont, size = 30, colour = UiKit.Ash, y = -210f, fadeIn = 0.7f, hold = 2.8f, fadeOut = 1.0f,
+            });
+            BuildHookMarker(hudRoot);
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
@@ -85,6 +101,7 @@ namespace MyGame
             apprentice.Woke += OnWoke;
             apprentice.ObolsChanged += OnObolsChanged;
             apprentice.Healed += OnHealed;
+            apprentice.Found += OnFound;
             obolsShown = apprentice.Obols;
             MooringPost.Rested += OnRested;
             AreaEntrance.Entered += OnAreaEntered;
@@ -98,12 +115,23 @@ namespace MyGame
                 apprentice.Woke -= OnWoke;
                 apprentice.ObolsChanged -= OnObolsChanged;
                 apprentice.Healed -= OnHealed;
+                apprentice.Found -= OnFound;
             }
             MooringPost.Rested -= OnRested;
             AreaEntrance.Entered -= OnAreaEntered;
         }
 
         void OnHealed() => healedAt = UiKit.Now;
+
+        // Something gained for good: its name, and a hint (with the key of the device in use).
+        void OnFound(string title, string hint)
+        {
+            AreaTitle.Dismiss();
+            LanternBanner.Dismiss();
+            FoundBanner.Show(title);
+            if (!string.IsNullOrEmpty(hint))
+                foundHint.Show(hint.Replace("{hook}", usingGamepad ? "RB" : "F"));
+        }
 
         void OnObolsChanged(int delta)
         {
@@ -149,12 +177,15 @@ namespace MyGame
             UpdatePrompt();
             UpdateObols();
             UpdateLockBar();
+            UpdateHookMarker();
 
             Menu.Tick(apprentice.OpenMenu, usingGamepad);
             Death.Tick();
             hudGroup.alpha = Death.HudAlpha;
             AreaTitle.Tick();
             LanternBanner.Tick();
+            FoundBanner.Tick();
+            foundHint.Tick();
             float flash = now - restFlashAt;
             restFlash.color = UiKit.Ember.WithAlpha(0.09f * UiKit.Smooth(0f, 0.12f, flash) * (1f - UiKit.Smooth(0.12f, 1.4f, flash)));
             restFlash.enabled = restFlash.color.a > 0.001f;
@@ -173,7 +204,7 @@ namespace MyGame
 
         void BuildCharges(Transform root)
         {
-            charges = new (RectTransform, Image, Image, Image)[apprentice.maxHealingCharges];
+            charges = new (RectTransform, Image, Image, Image)[MaxChargeSlots]; // shown up to the current maximum
             for (int i = 0; i < charges.Length; i++)
             {
                 var slot = UiKit.Rect(root, "Charge", new Vector2(0, 1), new Vector2(66 + i * 30, -104), new Vector2(20, 30));
@@ -190,6 +221,7 @@ namespace MyGame
             for (int i = 0; i < charges.Length; i++)
             {
                 var c = charges[i];
+                c.flame.parent.gameObject.SetActive(i < apprentice.maxHealingCharges);
                 bool lit = i < apprentice.HealingCharges;
                 c.outer.color = lit ? FlameOuter : FlameSpent;
                 c.core.enabled = c.glow.enabled = lit;
@@ -272,6 +304,36 @@ namespace MyGame
                 if (control is ButtonControl button && button.wasPressedThisFrame)
                     return true;
             return false;
+        }
+
+        // The post the Hook would pull to: a pale blue ring on it, with the key.
+        void BuildHookMarker(Transform root)
+        {
+            var ring = UiKit.Image(root, "Hook Marker", UiKit.Ring, UiKit.Hex(0x9fc4ff, 0.9f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(46, 46));
+            hookMarker = ring.rectTransform;
+            hookMarkerImage = ring;
+            UiKit.Image(hookMarker, "Glow", UiKit.SoftDot, UiKit.Hex(0x9fc4ff, 0.25f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(90, 90));
+            hookGlyph = UiKit.Text(hookMarker, "Key", textFont, 24, UiKit.Bone, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0, -40));
+            hookGlyph.rectTransform.sizeDelta = new Vector2(120, 36);
+            hookMarker.gameObject.SetActive(false);
+        }
+
+        void UpdateHookMarker()
+        {
+            var post = apprentice.CurrentState == Apprentice.State.Free ? apprentice.HookTarget : null;
+            var cam = Camera.main;
+            Vector3 screen = post != null && cam != null ? cam.WorldToScreenPoint(post.RingPosition) : Vector3.zero;
+            bool show = post != null && screen.z > 0f;
+            hookMarker.gameObject.SetActive(show);
+            if (!show)
+                return;
+            hookGlyph.text = apprentice.HasHook ? (usingGamepad ? "RB" : "F") : ""; // without the Hook: seen, not usable
+            hookMarkerImage.color = UiKit.Hex(0x9fc4ff, apprentice.HasHook ? 0.9f : 0.3f);
+            var canvas = canvasRect.GetComponent<Canvas>();
+            var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, uiCamera, out var local);
+            hookMarker.anchoredPosition = local;
+            hookMarker.localScale = Vector3.one * (1f + 0.06f * Mathf.Sin(UiKit.Now * 4f));
         }
 
         void BuildLockBar(Transform root)

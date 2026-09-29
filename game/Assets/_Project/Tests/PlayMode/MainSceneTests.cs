@@ -1052,7 +1052,98 @@ namespace MyGame.Tests
             Assert.Fail($"couldn't reach {point}: stuck at {apprentice.transform.position}");
         }
 
-        // ---- The Laden archer
+        // ---- The Hook
+
+        [UnityTest]
+        public IEnumerator WithoutTheHook_APostIsSeen_ButCantBeUsed()
+        {
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false);
+            PlaceApprentice(new Vector3(-29f, 0.55f, 3.4f), new Vector3(-29f, 0.55f, 9.5f)); // the yard's hook post, facing the islet
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsFalse(apprentice.HasHook);
+            Assert.IsNotNull(apprentice.HookTarget, "the islet's post is noticed (and shown, dim), to come back to");
+            input.PressHook();
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreNotEqual(Apprentice.State.Hooking, apprentice.CurrentState);
+        }
+
+        [UnityTest]
+        public IEnumerator HookRelic_IsSealedUntilTheCrossroadsIsCleared_ThenGivesTheHook()
+        {
+            var relic = Object.FindAnyObjectByType<AbilityRelic>();
+            foreach (var guardian in relic.guardians)
+                guardian.aggroRadius = 0f; // calm, for the test
+            apprentice.Teleport(relic.transform.position + Vector3.right * 1.1f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(relic, apprentice.Nearby);
+            Assert.AreEqual("Sealed", apprentice.Nearby.PromptLabel);
+            input.PressInteract();
+            yield return null;
+            Assert.IsFalse(apprentice.HasHook, "sealed while its guardians stand");
+
+            foreach (var guardian in relic.guardians)
+                guardian.TakeHit(new Hit { Damage = 1000f, From = guardian.transform.position - guardian.transform.forward * 2f });
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual("Take", apprentice.Nearby.PromptLabel, "the crossroads cleared, it can be taken");
+            input.PressInteract();
+            yield return null;
+            yield return null;
+            Assert.IsTrue(apprentice.HasHook);
+            Assert.IsTrue(relic.Taken);
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Assert.IsTrue(hud.FoundBanner.Showing);
+            Assert.AreEqual("The Hook", hud.FoundBanner.Text.text);
+
+            apprentice.TakeHit(1000f, Vector3.zero);
+            yield return new WaitForSeconds(apprentice.respawnDelay + 0.5f);
+            Assert.IsTrue(apprentice.HasHook, "an Ability is for good: dying doesn't take it");
+        }
+
+        [UnityTest]
+        public IEnumerator Hook_PullsAcrossTheWater_ToTheIslet_TakesTheCharge_AndBack()
+        {
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false);
+            apprentice.GrantHook();
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Vector3 yard = new Vector3(-29f, 0.55f, 3.4f), islet = new Vector3(-29f, 0.55f, 9.5f);
+            PlaceApprentice(yard, islet);
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsNotNull(apprentice.HookTarget, "the islet's post should be in reach, ahead");
+            Assert.IsTrue(hud.HookMarkerVisible, "and marked");
+            input.PressHook();
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Hooking, apprentice.CurrentState);
+            for (float t = 0; t < 2f && apprentice.CurrentState == Apprentice.State.Hooking; t += Time.deltaTime)
+            {
+                Assert.Greater(apprentice.transform.position.y, 0.2f, "pulled over the water, not through it");
+                yield return null;
+            }
+            Assert.Less(FlatDistance(apprentice.transform.position, islet), 0.6f, "set down on the islet");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "no washing ashore on the way");
+
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsInstanceOf<ChargePiece>(apprentice.Nearby, "the charge piece is right there");
+            int before = apprentice.maxHealingCharges;
+            input.PressInteract();
+            yield return null;
+            Assert.AreEqual(before + 1, apprentice.maxHealingCharges, "one more Healing charge, for good");
+            Assert.AreEqual(apprentice.maxHealingCharges, apprentice.HealingCharges);
+
+            // And back: face the yard (the post you stand by isn't a target) and pull.
+            input.Move = Vector2.down;
+            yield return new WaitForSeconds(0.2f);
+            input.Move = Vector2.zero;
+            yield return null;
+            Assert.IsNotNull(apprentice.HookTarget, "the yard's post, back across");
+            input.PressHook();
+            for (float t = 0; t < 2.5f && FlatDistance(apprentice.transform.position, yard) > 0.6f; t += Time.deltaTime)
+                yield return null;
+            Assert.Less(FlatDistance(apprentice.transform.position, yard), 0.6f, "back in the yard");
+        }
+
+        // ---- The Laden archer        // ---- The Laden archer
 
         [UnityTest]
         public IEnumerator Archer_ShootsFromRange_AndTheArrowHurts()
@@ -1183,11 +1274,14 @@ namespace MyGame.Tests
             Assert.Fail("no arrow came");
         }
 
+        // The horizontal direction of v (normalised).
         static Vector3 Flat(Vector3 v)
         {
             v.y = 0f;
             return v.normalized;
         }
+
+        static float FlatDistance(Vector3 a, Vector3 b) => new Vector2(a.x - b.x, a.z - b.z).magnitude;
 
         [Test]
         public void Hud_UsesTheFellFonts()

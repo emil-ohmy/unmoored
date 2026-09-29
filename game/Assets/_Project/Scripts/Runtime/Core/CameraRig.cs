@@ -37,7 +37,14 @@ namespace MyGame
         public void Shake(float amount) => shake = Mathf.Max(shake, amount);
 
         // Frame a second subject too (the lock-on target), without ever rotating the camera.
-        public void SetSecondary(Transform subject) => secondary = subject;
+        public void SetSecondary(Transform subject) => SetSecondary(subject, 0.3f);
+
+        // Lean the framing towards a second subject (a locked-on target, the hook post you're aiming at).
+        public void SetSecondary(Transform subject, float weight)
+        {
+            secondary = subject;
+            secondaryWeight = weight;
+        }
 
         public void SnapToTarget()
         {
@@ -55,7 +62,8 @@ namespace MyGame
         {
             if (target == null)
                 return;
-            float dt = Time.unscaledDeltaTime; // keeps following and shaking during hit-stop
+            // Unscaled: keeps following and shaking during hit-stop. Stepped time (tests, recordings) steps it too.
+            float dt = Time.captureDeltaTime > 0f ? Time.captureDeltaTime : Time.unscaledDeltaTime;
             follow = Vector3.SmoothDamp(follow, Desired(), ref velocity, smoothTime, Mathf.Infinity, dt);
             shake = Mathf.MoveTowards(shake, 0f, dt * 1.5f);
             transform.SetPositionAndRotation(follow + Random.insideUnitSphere * shake, Quaternion.Euler(pitch, 0f, 0f));

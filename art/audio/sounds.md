@@ -34,6 +34,8 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Arrow thunk (`arrow_thunk`, 2) | in game | Synth | an arrow striking wood or stone and quivering |
 | Shortcut gate opened (`gate_open`) | in game | Synth | the barring plank scraped off and dropped, a long hinge creak, a thud against the stop |
 | Shortcut gate barred (`gate_rattle`) | in game | Synth | knocks against the barring plank and loose bars rattling: it won't open from this side |
+| Hook thrown (`hook_throw`) | in game | Synth | a quick whoosh and the chain rattling out |
+| Hook catches (`hook_catch`) | in game | Synth | a hard iron clank on the ring and the tether's taut thrum as the pull starts |
 | Menu tick (`ui_tick`) | in game | Synth | a tiny soft wooden tick, moving through a menu |
 | Apprentice death (`death_toll`) | in game | Synth | one deep bell toll that sinks under water (highs close off), thump, sinking whoosh, bubbles; the music ducks under it |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |

@@ -135,6 +135,14 @@ _Avoid_: Checkpoint, bonfire, save point, shrine
 A way back towards a Mooring post, opened only from its far side (a barred gate, a lowered ladder); once opened it stays open.
 _Avoid_: Door, unlock, short cut
 
+**Hook post**:
+A pile with an iron ring that the Hook can pull the Apprentice to, across water; the first kind of Ability gate.
+_Avoid_: Grapple point, anchor
+
+**Healing charge piece**:
+A find, hidden behind a secret, that adds one Healing charge for good.
+_Avoid_: Flask upgrade, estus shard
+
 **Rest**:
 Stopping at a Mooring post: heals fully, refills Healing charges, saves, and respawns all enemies except defeated Bosses.
 _Avoid_: Sit, save

@@ -61,6 +61,7 @@ namespace MyGame
         public float StateTime => stateTime; // seconds in the current state
         public SouredAttack CurrentAttack => current;
         public bool Drowned { get; private set; }
+        public int TimesDefeated { get; private set; } // it re-forms, but the world remembers it was beaten
 
         protected ClipPlayer clips;
         SouredAttack current;
@@ -370,6 +371,7 @@ namespace MyGame
 
         void Die(Hit hit)
         {
+            TimesDefeated++;
             Enter(State.Dying);
             dissolve = 0f;
             faresReleased = 0;

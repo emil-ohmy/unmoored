@@ -324,6 +324,76 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The Hook, with the UI: the islet seen from the yard, the post marked, the tether mid-pull, the charge found.
+        [UnityTest]
+        public IEnumerator Capture_Hook()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            foreach (var soured in UnityEngine.Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                soured.gameObject.SetActive(false);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                apprentice.Teleport(new Vector3(-29f, 0.55f, 2.4f));
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+                for (int f = 0; f < 25; f++)
+                    yield return null;
+                Shot("hook-1-islet-unreachable");
+                apprentice.GrantHook();
+                for (int f = 0; f < 30; f++)
+                {
+                    input.Move = f < 6 ? Vector2.up : Vector2.zero;
+                    yield return null;
+                }
+                Shot("hook-2-marked");
+                input.PressHook();
+                for (int f = 0; f < 20; f++)
+                {
+                    yield return null;
+                    if (f == 3 || f == 9 || f == 14)
+                        Shot($"hook-3-pull-{f:D2}");
+                }
+                for (int f = 0; f < 15; f++)
+                    yield return null;
+                input.PressInteract();
+                for (int f = 0; f < 25; f++)
+                    yield return null;
+                Shot("hook-4-charge-found");
+            }
+            finally
+            {
+                Time.captureFramerate = 0;
+                cam.targetTexture = null;
+            }
+        }
+
         // A lit, fog-free map of the whole slice from straight above: for checking the layout (not how it looks in play).
         [UnityTest]
         public IEnumerator Capture_Map()
