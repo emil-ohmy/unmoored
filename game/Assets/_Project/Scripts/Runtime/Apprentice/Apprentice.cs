@@ -117,7 +117,7 @@ namespace MyGame
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
-        public HookPost HookTarget { get; private set; } // while aiming the Hook: the post it would pull to (marked)
+        public HookPost HookTarget { get; private set; } // with the Hook: the post it would pull to (ringed; brighter while aiming)
         public bool AimingHook { get; private set; }
         public event System.Action<string, string> Found; // something gained for good: a title and a hint (HUD banner)
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
@@ -227,13 +227,14 @@ namespace MyGame
                         Nearby.Interact(this);
                         break;
                     }
-                    // Hold to aim (a post on other ground, in reach, ahead of where you steer), release to throw.
+                    // With the Hook, the post in reach ahead (on other ground) is ringed; hold to aim, let go to throw
+                    // (a quick tap too).
                     if (wasAiming && !AimingHook && HookTarget != null)
                     {
                         StartHook(HookTarget);
                         break;
                     }
-                    HookTarget = AimingHook ? HookPost.Best(transform.position, move.sqrMagnitude > 0.01f ? move : transform.forward, hookRange, hookAimAngle) : null;
+                    HookTarget = HasHook ? HookPost.Best(transform.position, move.sqrMagnitude > 0.01f ? move : transform.forward, hookRange, hookAimAngle) : null;
                     if (Input.HealPressed)
                         TryHeal();
                     else if (Input.BlockHeld)
@@ -788,11 +789,11 @@ namespace MyGame
 
         Transform framedHook;
 
-        // A hook post in reach ahead: the camera leans towards where it leads, so you see what the Hook would reach
+        // While aiming the Hook: the camera leans towards where the post leads, so you see what it would reach
         // (lock-on framing takes precedence).
         void FrameHookTarget()
         {
-            Transform frame = LockTarget == null && HookTarget != null
+            Transform frame = LockTarget == null && AimingHook && HookTarget != null
                 ? (HookTarget.landing != null ? HookTarget.landing : HookTarget.transform) : null;
             if (frame == framedHook)
                 return;

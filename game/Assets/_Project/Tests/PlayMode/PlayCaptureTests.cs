@@ -370,7 +370,12 @@ namespace MyGame.Tests
                 for (int f = 0; f < 30; f++)
                 {
                     input.Move = f < 6 ? Vector2.up : Vector2.zero;
-                    input.HookHeld = f >= 8; // aim
+                    yield return null;
+                }
+                Shot("hook-1b-ringed-dim"); // with the Hook, not aiming: the ring shows, dim, no camera lean
+                for (int f = 0; f < 25; f++)
+                {
+                    input.HookHeld = true; // aim
                     yield return null;
                 }
                 Shot("hook-2-marked");
@@ -393,6 +398,35 @@ namespace MyGame.Tests
                 Time.captureFramerate = 0;
                 cam.targetTexture = null;
             }
+        }
+
+        // Pickups glow: the Hook relic, faint while sealed and bright once its guardians fall.
+        [UnityTest]
+        public IEnumerator Capture_Relic()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var relic = UnityEngine.Object.FindAnyObjectByType<AbilityRelic>();
+            foreach (var soured in UnityEngine.Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                soured.aggroRadius = 0f;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            apprentice.Teleport(relic.transform.position + new Vector3(2.5f, 0.05f, 1.5f));
+            for (int f = 0; f < 30; f++)
+                yield return null;
+            Capture(outDir, "relic-warmup");
+            Capture(outDir, "relic-sealed");
+            foreach (var guardian in relic.guardians)
+                guardian.TakeHit(new Hit { Damage = 1000f, From = guardian.transform.position - guardian.transform.forward * 2f });
+            for (int f = 0; f < 75; f++)
+                yield return null;
+            Capture(outDir, "relic-takeable");
+            Time.captureFramerate = 0;
         }
 
         // A lit, fog-free map of the whole slice from straight above: for checking the layout (not how it looks in play).

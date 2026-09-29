@@ -1096,6 +1096,7 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.3f);
             Assert.AreEqual(relic, apprentice.Nearby);
             Assert.AreEqual("Sealed", apprentice.Nearby.PromptLabel);
+            Assert.Less(relic.glow.Intensity, 0.6f, "sealed: only a faint glow");
             input.PressInteract();
             yield return null;
             Assert.IsFalse(apprentice.HasHook, "sealed while its guardians stand");
@@ -1104,11 +1105,13 @@ namespace MyGame.Tests
                 guardian.TakeHit(new Hit { Damage = 1000f, From = guardian.transform.position - guardian.transform.forward * 2f });
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual("Take", apprentice.Nearby.PromptLabel, "the crossroads cleared, it can be taken");
+            Assert.Greater(relic.glow.Intensity, 2f, "a key item, takeable: a bright glow");
             input.PressInteract();
             yield return null;
             yield return null;
             Assert.IsTrue(apprentice.HasHook);
             Assert.IsTrue(relic.Taken);
+            Assert.IsFalse(relic.glow.gameObject.activeInHierarchy, "taken: no more glow");
             var hud = Object.FindAnyObjectByType<Hud>();
             Assert.IsTrue(hud.FoundBanner.Showing);
             Assert.AreEqual("The Hook", hud.FoundBanner.Text.text);
@@ -1128,13 +1131,15 @@ namespace MyGame.Tests
             Vector3 yard = new Vector3(-29f, 0.55f, 3.4f), islet = new Vector3(-29f, 0.55f, 9.5f);
             PlaceApprentice(yard, islet);
             yield return new WaitForSeconds(0.3f);
-            Assert.IsNull(apprentice.HookTarget, "not aiming yet: nothing marked");
-            Assert.IsFalse(hud.HookMarkerVisible);
+            yield return null;
+            Assert.IsNotNull(apprentice.HookTarget, "with the Hook, the islet's post in reach ahead is ringed");
+            Assert.IsTrue(hud.HookMarkerVisible);
+            float dim = hud.HookMarkerAlpha;
             input.HookHeld = true;
             yield return new WaitForSeconds(0.2f);
             yield return null;
-            Assert.IsNotNull(apprentice.HookTarget, "aiming: the islet's post should be in reach, ahead");
-            Assert.IsTrue(hud.HookMarkerVisible, "and marked");
+            Assert.IsNotNull(apprentice.HookTarget, "aiming at it");
+            Assert.Greater(hud.HookMarkerAlpha, dim + 0.3f, "and the ring brightens while aiming");
             input.HookHeld = false; // let go: throw
             yield return null;
             Assert.AreEqual(Apprentice.State.Hooking, apprentice.CurrentState);

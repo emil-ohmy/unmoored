@@ -9,7 +9,7 @@ namespace MyGame
     {
         public Soured[] guardians;
         public GameObject relic;       // hidden once taken
-        public Light glow;             // lights up once it can be taken
+        public PickupGlow glow;        // a key item: faint while sealed, bright once it can be taken
         public float interactRadius = 1.6f;
 
         public bool Taken { get; private set; }
@@ -43,7 +43,7 @@ namespace MyGame
             if (relic != null)
                 relic.SetActive(false);
             if (glow != null)
-                glow.enabled = false;
+                glow.gameObject.SetActive(false);
             Sfx.Instance?.LanternLit(transform.position + Vector3.up);
             apprentice.GrantHook();
         }
@@ -51,7 +51,7 @@ namespace MyGame
         void Update()
         {
             if (glow != null && !Taken)
-                glow.intensity = Mathf.MoveTowards(glow.intensity, Unsealed ? 2.2f + 0.3f * Mathf.Sin(Time.time * 2f) : 0f, Time.deltaTime * 2f);
+                glow.Lit = Unsealed;
         }
     }
 }

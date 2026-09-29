@@ -276,7 +276,10 @@ public static class MainSceneBuilder
         var ember = Place("Environment/charge_ember", new Vector3(-28.4f, QuayTop, 10.5f), 0f);
         ember.name = "Healing Charge Piece";
         ember.AddComponent<ChargePiece>();
-        Flicker(PointLight(ember.transform, GlowCentre(ember, "ChargeEmber_Glow"), 3.2f, 1.8f, LanternLight), 0.15f, 4f, 0.01f);
+        var glow = ember.AddComponent<PickupGlow>(); // an item: a soft warm glow (its ember already burns)
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = LanternLight;
+        glow.height = 1.0f;
     }
 
     // Where the Hook is taken, for now (a Boss will give it one day): the Ferryman's old hook on a pedestal at the
@@ -288,7 +291,15 @@ public static class MainSceneBuilder
         var relic = go.AddComponent<AbilityRelic>();
         relic.guardians = guardians;
         relic.relic = go.transform.Find("RelicHook")?.gameObject;
-        relic.glow = PointLight(go.transform, position + Vector3.up * 1.3f, 3.5f, 0f, BowLanternLight);
+        var glowGo = new GameObject("Key Item Glow");
+        glowGo.transform.SetParent(go.transform, false);
+        glowGo.transform.position = position;
+        var glow = glowGo.AddComponent<PickupGlow>(); // a key item: bright, in the Apprentice's cold blue
+        glow.tier = PickupGlow.Tier.Key;
+        glow.colour = BowLanternLight;
+        glow.height = 1.2f;
+        glow.glowing = relic.relic != null ? relic.relic.GetComponentsInChildren<Renderer>() : new Renderer[0];
+        relic.glow = glow;
     }
 
     // South of the yard: the crossroads, where a Laden and an archer hold it together.

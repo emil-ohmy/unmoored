@@ -26,6 +26,7 @@ namespace MyGame
         public int ObolsShown => Mathf.RoundToInt(obolsShown);
         public Banner FoundBanner { get; private set; }
         public bool HookMarkerVisible => hookMarker != null && hookMarker.gameObject.activeSelf;
+        public float HookMarkerAlpha => hookMarkerImage != null ? hookMarkerImage.color.a : 0f;
         const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
         public string PromptText => promptLabel != null ? promptLabel.text : "";
@@ -38,6 +39,7 @@ namespace MyGame
         Image restFlash, keyCap, buttonRing;
         Text glyph, promptLabel, obolText, obolGain;
         RectTransform hookMarker;
+        Image hookMarkerImage, hookMarkerGlow;
         Banner foundHint;
         float obolsShown, gainAt = -100f, healedAt = -100f;
         Image hpFillImage;
@@ -305,12 +307,13 @@ namespace MyGame
             return false;
         }
 
-        // While aiming the Hook: a pale blue ring on the post it would pull to.
+        // With the Hook: a pale blue ring on the post it would pull to, dim; bright and pulsing while aiming.
         void BuildHookMarker(Transform root)
         {
             var ring = UiKit.Image(root, "Hook Marker", UiKit.Ring, UiKit.Hex(0x9fc4ff, 0.9f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(46, 46));
             hookMarker = ring.rectTransform;
-            UiKit.Image(hookMarker, "Glow", UiKit.SoftDot, UiKit.Hex(0x9fc4ff, 0.25f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(90, 90));
+            hookMarkerImage = ring;
+            hookMarkerGlow = UiKit.Image(hookMarker, "Glow", UiKit.SoftDot, UiKit.Hex(0x9fc4ff, 0.25f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(90, 90));
             hookMarker.gameObject.SetActive(false);
         }
 
@@ -326,8 +329,16 @@ namespace MyGame
             var canvas = canvasRect.GetComponent<Canvas>();
             var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, uiCamera, out var local);
+            // Off the screen (a post beyond the top, say): pinned to the edge in its direction, smaller.
+            Vector2 half = canvasRect.rect.size * 0.5f - new Vector2(50f, 50f);
+            bool offScreen = Mathf.Abs(local.x) > half.x || Mathf.Abs(local.y) > half.y;
+            if (offScreen)
+                local = new Vector2(Mathf.Clamp(local.x, -half.x, half.x), Mathf.Clamp(local.y, -half.y, half.y));
             hookMarker.anchoredPosition = local;
-            hookMarker.localScale = Vector3.one * (1f + 0.06f * Mathf.Sin(UiKit.Now * 4f));
+            bool aiming = apprentice.AimingHook;
+            hookMarkerImage.color = UiKit.Hex(0x9fc4ff, aiming ? 0.95f : 0.35f);
+            hookMarkerGlow.color = UiKit.Hex(0x9fc4ff, aiming ? 0.35f : 0.08f);
+            hookMarker.localScale = Vector3.one * ((aiming ? 1.1f + 0.08f * Mathf.Sin(UiKit.Now * 6f) : 0.9f) * (offScreen ? 0.7f : 1f));
         }
 
         void BuildLockBar(Transform root)
