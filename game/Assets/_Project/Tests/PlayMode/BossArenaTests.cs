@@ -368,7 +368,8 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(2f);
             input.Move = Vector2.zero;
             Assert.Greater(apprentice.transform.position.z, seal.transform.position.z, "held in");
-            apprentice.TakeHit(1000f, Vector3.zero);
+            apprentice.TakeTickDamage(10000f); // (a sure death: no invulnerability after a hit to get in the way)
+            Assert.IsFalse(apprentice.IsAlive);
             yield return new WaitForSeconds(seal.sinkTime + 0.2f);
             Assert.IsFalse(seal.Sealed, "the fight's over (you fell): they sink");
             Assert.AreEqual(0f, seal.Raised, 0.01f);
