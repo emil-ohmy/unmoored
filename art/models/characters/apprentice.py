@@ -4,6 +4,8 @@ Clip timings match the Middle combat tuning (the controller rescales them if tun
 light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; dash 0.38 s; heal 0.7 s.
 RecoilHeavy / RecoilLight: bouncing off a Laden's heap (0.35 s).
 """
+import math
+
 from mathutils import Vector
 
 M, part = kit.M, kit.part  # `kit` is injected by build_model.py
@@ -23,16 +25,39 @@ BONES = {
 REST = {}
 # Oar: (pitch, 0, yaw). +pitch tips the upright oar forward, +yaw swings it to the Apprentice's right.
 # From the game camera a forward-tipped oar foreshortens and reads as "at the feet", so idle/run/dash carry it tipped back.
-# The light swings are whole-body swings, not a flick of the wrist: the torso winds up (twisting away), the hand travels
-# an arc across the front (the Oar bone's offset moves the hand; its rotation is the oar about the hand), the root
-# steps into it, and the head counter-turns a little so the mask keeps facing the target. Light1 is a forehand
-# (right to left), Light2 the backhand. Contact is mid-arc (frame ~5-6: windup 0.13 s, active 0.10 s of 0.51 s).
-LIGHT1_WIND = {"Body": (2, 0, 40), "Head": (0, 0, -18), "Oar": ((75, 0, 95), (0.1, 0.18, 0.05)), "Root": ((0, 0, 0), (0, 0.03, 0))}
-LIGHT1_HIT = {"Body": (6, 0, -12), "Head": (0, 0, 6), "Oar": ((86, 0, 0), (-0.04, -0.22, 0.0)), "Root": ((0, 0, 0), (0, -0.08, 0))}
-LIGHT1_FOLLOW = {"Body": (6, 0, -50), "Head": (0, 0, 22), "Oar": ((80, 0, -80), (-0.22, -0.16, 0.0)), "Root": ((0, 0, 0), (0, -0.1, 0))}
-LIGHT2_WIND = {"Body": (2, 0, -40), "Head": (0, 0, 18), "Oar": ((75, 0, -100), (-0.34, 0.1, 0.05)), "Root": ((0, 0, 0), (0, 0.03, 0))}
-LIGHT2_HIT = {"Body": (6, 0, 12), "Head": (0, 0, -6), "Oar": ((86, 0, -5), (-0.08, -0.22, 0.0)), "Root": ((0, 0, 0), (0, -0.08, 0))}
-LIGHT2_FOLLOW = {"Body": (6, 0, 50), "Head": (0, 0, -22), "Oar": ((80, 0, 85), (0.1, -0.12, 0.0)), "Root": ((0, 0, 0), (0, -0.1, 0))}
+# The light swings are swung from the body, not flicked from the wrist. The hand rides a circle round the body's
+# centre at arm's length and the oar points straight out along the same line, like a spoke, so hand and oar sweep
+# together about the body (the eye reads the pivot, and the pivot is the body, not the hand). The torso turns with the
+# swing and the head counter-turns so the mask keeps facing the target. Keys come nearly every frame so the hand
+# follows the arc instead of cutting across it. Light1 is a forehand (from the hand's side across the front), Light2
+# the backhand. Contact is mid-arc, the oar straight ahead (frame ~6: windup 0.13 s, active 0.10 s of 0.51 s).
+HAND_REST = Vector((0.413, -0.143, 0.611))  # where the Oar bone's head (the hand) sits at rest
+SWING_RADIUS = 0.46
+
+
+def swing(phi, pitch=88.0, step=0.0, lift=0.0):
+    """The swing pose at angle `phi` (degrees: 0 = straight ahead, + = the hand's side, round behind at +/-180)."""
+    body_yaw = max(-55.0, min(55.0, 0.55 * phi))
+    rad = math.radians(phi)
+    hand_world = Vector((SWING_RADIUS * math.sin(rad), -SWING_RADIUS * math.cos(rad), HAND_REST.z + lift))
+    by = math.radians(-body_yaw)  # the Oar's offset is in the (turning) body's frame
+    local = Vector((hand_world.x * math.cos(by) - hand_world.y * math.sin(by),
+                    hand_world.x * math.sin(by) + hand_world.y * math.cos(by), hand_world.z))
+    offset = local - HAND_REST
+    return {"Body": (4, 0, body_yaw), "Head": (0, 0, -0.5 * body_yaw),
+            "Oar": ((pitch, 0, phi - body_yaw), tuple(offset)), "Root": ((0, 0, 0), (0, -step, 0))}
+
+
+def swing_keys(arc):
+    """[(frame, phi, pitch, step)] -> keys, between rest poses."""
+    return [(1, REST)] + [(f, swing(phi, pitch, step)) for f, phi, pitch, step in arc] + [(15, REST)]
+
+
+LIGHT1_ARC = [(3, 105, 80, 0.0), (4, 95, 82, 0.02), (5, 50, 86, 0.06), (6, 5, 88, 0.08), (7, -55, 88, 0.1),
+              (8, -95, 85, 0.1), (10, -105, 82, 0.08)]
+LIGHT2_ARC = [(3, -110, 80, 0.0), (4, -100, 82, 0.02), (5, -55, 86, 0.06), (6, -5, 88, 0.08), (7, 50, 88, 0.1),
+              (8, 90, 85, 0.1), (10, 100, 82, 0.08)]
+LIGHT1_HIT = swing(5, 88, 0.08)  # the contact pose (the recoil off a Laden's heap starts here)
 # The heavy is a two-handed overhead chop: the oar goes up and back with the hands raised and the body rising, then
 # the hands drive down in front, on the centre line (the attack's own lunge carries it forward; the clip doesn't step
 # again, or the oar would bury itself in whatever it hits). The body only bends a little and the head stays level (it's
@@ -62,8 +87,8 @@ ACTIONS = {
         (8, {"Pivot": (40, 0, 0), "Head": (-28, 0, 0), "Body": (6, 0, 0), "Oar": (-78, 0, -8), "Root": ((0, 0, 0), (0, 0, -0.1))}),
         (12, {"Pivot": (10, 0, 0), "Head": (-6, 0, 0), "Oar": (-15, 0, 0), "Root": ((0, 0, 0), (0, 0, -0.02))}),
     ]),
-    "Light1": ("BEZIER", [(1, REST), (4, LIGHT1_WIND), (6, LIGHT1_HIT), (8, LIGHT1_FOLLOW), (15, REST)]),
-    "Light2": ("BEZIER", [(1, REST), (4, LIGHT2_WIND), (6, LIGHT2_HIT), (8, LIGHT2_FOLLOW), (15, REST)]),
+    "Light1": ("BEZIER", swing_keys(LIGHT1_ARC)),
+    "Light2": ("BEZIER", swing_keys(LIGHT2_ARC)),
     "Heavy": ("BEZIER", [
         (1, REST),
         (10, {"Oar": ((-55, 0, 20), (-0.15, 0.05, 0.2)), "Body": (-9, 0, 15), "Head": (8, 0, -8), "Root": ((0, 0, 0), (0, 0.03, -0.02))}),
