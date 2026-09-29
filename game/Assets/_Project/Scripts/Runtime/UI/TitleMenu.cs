@@ -170,10 +170,12 @@ namespace MyGame
 
         void Play(int slot)
         {
+            if (SceneFader.Busy)
+                return;
             SaveSlots.Current = slot;
             LoadingScene = gameScene;
             Sfx.Instance?.UiTick();
-            UnityEngine.SceneManagement.SceneManager.LoadScene(gameScene);
+            SceneFader.Load(gameScene); // a fade, a moment's loading, and the village fades in
         }
 
         void Quit()

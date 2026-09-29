@@ -11,7 +11,7 @@ namespace MyGame
     public sealed class ScreenList
     {
         public const int MaxRows = 12;
-        const float RowHeight = 54f, Width = 820f;
+        const float RowHeight = 54f, Width = 1060f;
 
         public struct Row
         {
@@ -58,7 +58,7 @@ namespace MyGame
                 label.rectTransform.sizeDelta = new Vector2(Width, RowHeight);
                 var value = UiKit.Text(row, "Value", textFont, 34, UiKit.Ash, TextAnchor.MiddleRight, new Vector2(1f, 0.5f), new Vector2(-10, 0));
                 value.rectTransform.pivot = new Vector2(1f, 0.5f);
-                value.rectTransform.sizeDelta = new Vector2(420, RowHeight);
+                value.rectTransform.sizeDelta = new Vector2(560, RowHeight);
                 rows[i] = (row, band, left, right, label, value);
             }
             detail = UiKit.Text(root, "Detail", textFont, 28, UiKit.Ash, TextAnchor.UpperCenter, centre, Vector2.zero, 1f);
@@ -93,7 +93,7 @@ namespace MyGame
                 value.text = page[i].Value ?? "";
                 value.color = chosen ? UiKit.Bone : UiKit.Ash;
                 band.enabled = left.enabled = right.enabled = chosen;
-                float half = values ? Width / 2f - 8f : Mathf.Min(Width / 2f, label.preferredWidth / 2f + 34f);
+                float half = values ? Width / 2f + 16f : Mathf.Min(Width / 2f, label.preferredWidth / 2f + 34f); // (with values: outside the row, clear of them)
                 left.rectTransform.anchoredPosition = new Vector2(-half, 0f);
                 right.rectTransform.anchoredPosition = new Vector2(half, 0f);
             }

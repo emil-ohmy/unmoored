@@ -21,6 +21,7 @@ namespace MyGame
 
         MenuInput input;
         ScreenList list;
+        Apprentice apprentice;
         Image shade;
         Page page;
         int selected;
@@ -44,6 +45,7 @@ namespace MyGame
 
         void Start()
         {
+            apprentice = FindAnyObjectByType<Apprentice>();
             input = new MenuInput();
             var canvasGo = new GameObject("Pause Canvas", typeof(Canvas), typeof(CanvasScaler));
             canvasGo.transform.SetParent(transform, false);
@@ -72,13 +74,25 @@ namespace MyGame
             if (!Open)
             {
                 if (input.PausePressed)
-                    Toggle(true);
+                    PausePressed();
             }
             else
                 Navigate();
             shade.color = Color.black.WithAlpha(Mathf.MoveTowards(shade.color.a, Open ? 0.7f : 0f, Time.unscaledDeltaTime * 4f));
             shade.enabled = shade.color.a > 0.001f;
             list.Tick();
+        }
+
+        // Esc / Start: pauses, unless a menu in the world is open (a Mooring post's, the merchant's): then it leaves that.
+        public void PausePressed()
+        {
+            if (apprentice != null && apprentice.OpenMenu != null)
+            {
+                apprentice.OpenMenu.Close();
+                Sfx.Instance?.UiTick();
+            }
+            else if (!SceneFader.Busy)
+                Toggle(true);
         }
 
         public void Toggle(bool open)
@@ -197,7 +211,7 @@ namespace MyGame
             SaveSystem.Instance?.SaveNow();
             Toggle(false);
             SaveSlots.Current = -1;
-            UnityEngine.SceneManagement.SceneManager.LoadScene(titleScene);
+            SceneFader.Load(titleScene);
         }
 
         void QuitGame()

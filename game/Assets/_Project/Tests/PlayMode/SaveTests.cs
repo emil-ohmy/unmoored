@@ -129,8 +129,10 @@ namespace MyGame.Tests
             Assert.AreEqual(SaveSlots.Count + 1, title.Rows.Count, "three slots and Back");
             StringAssert.Contains("empty", title.Rows[1].Label);
             title.Choose(1);
-            yield return null;
-            yield return new WaitForSeconds(0.5f);
+            Assert.IsTrue(SceneFader.Busy, "a fade, and a moment's loading");
+            for (float t = 0; t < 6f && SceneFader.Busy; t += Time.deltaTime)
+                yield return null;
+            Assert.IsFalse(SceneFader.Busy, "faded back in");
             Assert.AreEqual("Main", SceneManager.GetActiveScene().name, "a new game in slot II");
             Assert.AreEqual(1, SaveSlots.Current);
             Assert.IsTrue(SaveSlots.Exists(1));
@@ -169,6 +171,28 @@ namespace MyGame.Tests
                 yield return null;
             Assert.AreEqual(1f, Time.timeScale);
             Assert.Greater(Vector3.Distance(at, apprentice.transform.position), 0.5f, "and on again");
+        }
+
+        // Esc with a Mooring post's menu open leaves the menu; it doesn't pause on top of it.
+        [UnityTest]
+        public IEnumerator Escape_LeavesAMenuInTheWorld_RatherThanPausing()
+        {
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            var apprentice = Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            var post = MooringPost.All.OrderBy(p => Vector3.Distance(p.transform.position, apprentice.transform.position)).First();
+            post.Rest(apprentice); // (the Tester's Knot is owned: its menu opens)
+            yield return null;
+            Assert.IsNotNull(apprentice.OpenMenu);
+            var pause = Object.FindAnyObjectByType<PauseMenu>();
+            pause.PausePressed();
+            yield return null;
+            Assert.IsNull(apprentice.OpenMenu, "the menu left");
+            Assert.IsFalse(pause.Open, "and no pause on top of it");
+            pause.PausePressed();
+            Assert.IsTrue(pause.Open, "the next press pauses");
+            pause.Toggle(false);
         }
 
         [Test]

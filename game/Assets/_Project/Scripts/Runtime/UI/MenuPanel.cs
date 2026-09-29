@@ -103,7 +103,7 @@ namespace MyGame
             notice.text = menu.Notice;
             notice.color = UiKit.Ember.WithAlpha(1f - UiKit.Smooth(1.6f, 2.2f, age));
             notice.rectTransform.anchoredPosition = new Vector2(34, below - 116f);
-            string confirm = gamepad ? "(A)" : "[E]", leave = gamepad ? "(B)" : "[Space]";
+            string confirm = gamepad ? "(A)" : "[E]", leave = gamepad ? "(B)" : "[Esc]";
             hints.text = $"{confirm} {menu.ConfirmLabel}        {leave} {menu.LeaveLabel}";
             hints.rectTransform.anchoredPosition = new Vector2(34, below - 160f);
             root.sizeDelta = new Vector2(Width, -(below - 190f));

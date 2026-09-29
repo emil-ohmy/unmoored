@@ -13,7 +13,6 @@ namespace MyGame
         Equipment Equipment => apprentice.Equipment;
 
         public override string Title => "Equipment";
-        public override string LeaveLabel => "Stand up";
         public override string ConfirmLabel => Equipment.Owned.Count > 0 && Equipment.IsFitted(Equipment.Owned[Selected]) ? "Remove" : "Fit";
 
         public override IReadOnlyList<Row> Rows
