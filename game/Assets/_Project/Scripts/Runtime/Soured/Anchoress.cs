@@ -10,7 +10,7 @@ namespace MyGame
     //                  it lands. Sidestep the blow, then dash through the ring or be beyond it. Long recovery.
     //   Chain Sweep:   the anchor let out on its chain to her right, as far as you stand (up to a long reach), then
     //                  swung round in front of her to her left. Back off past it once it's let out, dash through it,
-    //                  or be behind her.
+    //                  or be behind her. Hug her and she shoulders you out of the way as the swing starts.
     //   Cast and Haul: from range: hefted back and thrown at you; it lies a moment, then she hauls it home along the
     //                  ground, through anyone between. Dodge it, or perfect-block the haul: the chain snaps taut against
     //                  the oar and she's yanked off balance. While the anchor is out she has no guard.
@@ -39,6 +39,9 @@ namespace MyGame
         public float sweepHitRadius = 1.0f;
         [Range(0f, 1f)] public float midRangeSweepChance = 0.35f; // tried every so often when you hover just out of reach
         public float backAngle = 125f; // further round than this, you're behind her: the sweep doesn't reach
+        public float shoveRadius = 1.8f;   // this close as the swing starts (inside its reach), she shoulders you away
+        public float shoveDamage = 8f;
+        public float shoveTo = 3.8f;       // where it sets you down: beyond the anchor's path
 
         [Header("Cast and Haul")]
         public SouredAttack cast = new SouredAttack
@@ -83,7 +86,7 @@ namespace MyGame
         public Vector3 AnchorMiddle => lastRing - lastFrame * Vector3.up * (AnchorLength * 0.5f);
 
         float modeTime, nextCast, nextRoll, sweepReach, nextScrape;
-        bool hitThisMove, sweepCommitted, framing;
+        bool hitThisMove, sweepCommitted, framing, shoved;
         Vector3 anchorAt, flightFrom, flightTo, haulFrom, blendRing;
         Quaternion flightFrame, blendFrame;
         Vector3 lastRing;
@@ -138,7 +141,7 @@ namespace MyGame
                 nextCast = Time.time + firstCastDelay;
             }
             if (state == State.Telegraph)
-                hitThisMove = sweepCommitted = false;
+                hitThisMove = sweepCommitted = shoved = false;
             if (state == State.Staggered || state == State.Stunned || state == State.Dying)
                 DropAnchor(); // whatever it was doing out there, it falls where it is
             if (state == State.Recover && CurrentAttack == sweep && Anchor == AnchorMode.Swung)
@@ -189,7 +192,11 @@ namespace MyGame
             if (CurrentState == State.Telegraph && attack == sweep && Anchor == AnchorMode.Held && StateTime >= attack.telegraph * 0.55f)
                 SetMode(AnchorMode.Swung); // let out on the chain to her right: the tell
             else if (CurrentState == State.Strike && attack == sweep && Anchor == AnchorMode.Swung)
+            {
+                if (!shoved)
+                    Shove();
                 StrikeWith(sweepHitRadius, sweep.damage, SweepKnock(), stunOnParry: true);
+            }
             else if (CurrentState == State.Strike && attack == cast && Anchor == AnchorMode.Held && StateTime >= attack.strike * attack.impactAt)
                 Release();
 
@@ -235,6 +242,26 @@ namespace MyGame
                 return;
             hitThisMove = true;
             if (HitTarget(damage, knock) == Defence.Parried && stunOnParry)
+                Stun();
+        }
+
+        // The swing starts with anyone pressed up against her inside its reach: she shoulders them out past it (a
+        // small hit, a big shove). Dash through it, or perfect-block it to stun her.
+        void Shove()
+        {
+            shoved = true;
+            if (target == null || !target.IsAlive)
+                return;
+            Vector3 away = Flat(target.transform.position - transform.position);
+            if (away.magnitude > shoveRadius || Vector3.Angle(transform.forward, away) > backAngle)
+                return;
+            var push = (away.sqrMagnitude > 0.01f ? away.normalized : transform.forward) * (10f * Mathf.Max(0f, shoveTo - away.magnitude));
+            var result = HitTarget(shoveDamage, push); // (knockback eases off at 10/s: this much sets you down about shoveTo out)
+            if (result == Defence.Dodged)
+                return;
+            hitThisMove = true; // out past the anchor: the swing itself won't catch you too
+            CameraRig.Instance?.Shake(0.2f);
+            if (result == Defence.Parried)
                 Stun();
         }
 

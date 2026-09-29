@@ -146,6 +146,22 @@ namespace MyGame.Tests
             Assert.AreEqual(apprentice.maxHealth - boss.sweep.damage, apprentice.Health, 0.01f, "hit by the anchor on its chain");
         }
 
+        // Pressed up against her, you're inside the swing's reach: she shoulders you out past it instead.
+        [UnityTest]
+        public IEnumerator ChainSweep_HugHer_AndSheShouldersYouAway()
+        {
+            FaceTheEntrance();
+            boss.castCooldown = boss.firstCastDelay = 1000f;
+            PlaceApprentice(boss.transform.position + boss.transform.right * 1.3f);
+            yield return WaitFor(() => boss.CurrentState == Soured.State.Telegraph, 3f, "a wind-up");
+            Assert.AreEqual(boss.sweep, boss.CurrentAttack);
+            yield return WaitFor(() => apprentice.Health < apprentice.maxHealth || boss.CurrentState == Soured.State.Recover, 3f, "the shove");
+            Assert.AreEqual(apprentice.maxHealth - boss.shoveDamage, apprentice.Health, 0.01f, "shouldered, not swept");
+            yield return new WaitForSeconds(0.6f);
+            Assert.Greater(Flat(apprentice.transform.position - boss.transform.position).magnitude, 3f, "pushed out past the swing");
+            Assert.AreEqual(apprentice.maxHealth - boss.shoveDamage, apprentice.Health, 0.01f, "and the anchor didn't catch you too");
+        }
+
         // Her back is open: she's slow to turn, doesn't attack what's behind her, and has no guard there.
         [UnityTest]
         public IEnumerator Guard_FrontalHitsBounceOff_HerBackIsOpen()
