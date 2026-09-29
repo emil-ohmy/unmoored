@@ -177,6 +177,7 @@ namespace MyGame
             foreach (var t in GetComponentsInChildren<Transform>())
                 if (t.name == "Hook")
                     hookBone = t; // the rig's Hook bone (the Hook at the hip, whirled, held up)
+            swingTrail = GetComponent<SwingTrail>();
             bodyRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
             if (bodyRenderer != null)
                 hookSlot = System.Array.FindIndex(bodyRenderer.sharedMaterials, m => m != null && m.name.StartsWith("HookIron"));
@@ -349,6 +350,13 @@ namespace MyGame
                 hookInFlight = false;
             }
             UpdateWhirl();
+            if (swingTrail != null)
+            {
+                // The smear shows through the swing's active part (a touch either side, so it reads as one arc).
+                float windup = isHeavy ? heavyWindup : lightWindup, active = isHeavy ? heavyActive : lightActive;
+                swingTrail.Emitting = CurrentState == State.Attacking && stateTime >= windup * 0.8f && stateTime <= windup + active + 0.05f;
+                swingTrail.lifetime = isHeavy ? 0.18f : 0.16f;
+            }
             FrameHookTarget();
 
             RegenerateStamina(dt);
@@ -940,6 +948,7 @@ namespace MyGame
                 (towards.sqrMagnitude > 0.001f ? Quaternion.LookRotation(towards) : transform.rotation) * hookHeadRest);
         }
 
+        SwingTrail swingTrail;
         SkinnedMeshRenderer bodyRenderer;
         int hookSlot = -1;
         MaterialPropertyBlock hookGlow;

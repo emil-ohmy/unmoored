@@ -214,6 +214,7 @@ public static class MainSceneBuilder
         var apprentice = go.AddComponent<Apprentice>();
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
+        Swoosh(go, "Oar", "OarBlade", ApprenticeSwoosh, 0.16f, towardsPivot: 0.55f); // from the tip to half-way down the shaft: a wide crescent
         apprentice.hookHeadModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
         Flicker(lantern, 0.06f, 2f, 0.01f); // a slow, steady pulse, not a flame
@@ -392,6 +393,7 @@ public static class MainSceneBuilder
         laden.sweep.swingSound = Clips("laden_swing");
         laden.sweep.swingPitch = 1.15f; // a quicker, lighter swing than the slam
         BeltLantern(go, laden);
+        Swoosh(go, "Heap", "FrameGold", SouredSwoosh, 0.18f, "HeapWood"); // the whole heap, top to chest: a big heavy smear
         return laden;
     }
 
@@ -431,7 +433,66 @@ public static class MainSceneBuilder
         archer.volley.releaseSound = Clips("arrow_release");
         archer.trailMaterial = sparkMaterial;
         BeltLantern(go, archer);
+        Swoosh(go, "Bow", "BowWood", SouredSwoosh, 0.1f); // the bow-jab (inner edge: the wood nearest the shoulders, the grip)
         return archer;
+    }
+
+    // Swooshes are white with a cold tint for the Apprentice, sickly green for the Soured (green = danger).
+    static readonly Color ApprenticeSwoosh = new Color(0.92f, 0.96f, 1f, 0.9f);
+    static readonly Color SouredSwoosh = new Color(0.82f, 1f, 0.66f, 0.85f);
+
+    // A swing's smear (SwingTrail), traced by two points on the weapon measured from the model itself (so no
+    // guessing at bone axes): the tip is the `tipMaterial` vertex farthest from the bone; the inner edge is the
+    // `innerMaterial` part's centre, or (with none) the tip part's vertex nearest the bone. Both ride the bone.
+    static void Swoosh(GameObject go, string bone, string tipMaterial, Color colour, float lifetime, string innerMaterial = null, float towardsPivot = 0f)
+    {
+        var skinned = go.GetComponentInChildren<SkinnedMeshRenderer>();
+        var baked = new Mesh();
+        skinned.BakeMesh(baked, true);
+        var materials = skinned.sharedMaterials;
+        var boneTransform = Bone(go, bone);
+        Vector3 pivot = boneTransform.position;
+        Vector3[] Points(string material)
+        {
+            int index = Array.FindIndex(materials, m => m != null && m.name.StartsWith(material));
+            if (index < 0)
+                throw new Exception($"{go.name}: no {material} material for its swoosh");
+            var verts = baked.vertices;
+            var tris = baked.GetTriangles(index);
+            var points = new Vector3[tris.Length];
+            for (int i = 0; i < tris.Length; i++)
+                points[i] = skinned.transform.TransformPoint(verts[tris[i]]);
+            return points;
+        }
+        var tipPoints = Points(tipMaterial);
+        Vector3 tipAt = tipPoints[0], nearAt = tipPoints[0];
+        foreach (var p in tipPoints)
+        {
+            if (Vector3.Distance(p, pivot) > Vector3.Distance(tipAt, pivot))
+                tipAt = p;
+            if (Vector3.Distance(p, pivot) < Vector3.Distance(nearAt, pivot))
+                nearAt = p;
+        }
+        Vector3 innerAt = Vector3.Lerp(nearAt, pivot, towardsPivot); // (the Apprentice's reaches down the shaft: wider)
+        if (innerMaterial != null)
+        {
+            var innerPoints = Points(innerMaterial);
+            innerAt = Vector3.zero;
+            foreach (var p in innerPoints)
+                innerAt += p / innerPoints.Length;
+        }
+        var tip = new GameObject("Swing Tip").transform;
+        tip.SetParent(boneTransform, false);
+        tip.position = tipAt;
+        var inner = new GameObject("Swing Inner").transform;
+        inner.SetParent(boneTransform, false);
+        inner.position = innerAt;
+        var trail = go.AddComponent<SwingTrail>();
+        trail.tip = tip;
+        trail.inner = inner;
+        trail.material = GeneratedMaterial("M_Swoosh", "MyGame/Swoosh");
+        trail.colour = colour;
+        trail.lifetime = lifetime;
     }
 
     // Every Soured's belt lantern (sickly green light) and the prop it drops where it falls, glowing there until the

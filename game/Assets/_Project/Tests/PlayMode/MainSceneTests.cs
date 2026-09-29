@@ -615,6 +615,37 @@ namespace MyGame.Tests
             Assert.Less(Vector3.Distance(apprentice.transform.position, WorldState.Instance.RespawnPosition), 1f);
         }
 
+        // Swings leave a smear (a cel-style swoosh) through their active part, and it's gone a moment later; the
+        // Soured's melee blows too (a shot doesn't).
+        [UnityTest]
+        public IEnumerator Swings_LeaveASwoosh_ThatFadesQuickly()
+        {
+            var trail = apprentice.GetComponent<SwingTrail>();
+            Assert.IsNotNull(trail, "the Apprentice's oar should have a swoosh");
+            int most = 0;
+            input.PressLight();
+            for (float t = 0; t < 0.4f; t += Time.deltaTime)
+            {
+                most = Mathf.Max(most, trail.Samples);
+                yield return null;
+            }
+            Assert.Greater(most, 3, "a light swing should draw a smear");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, trail.Samples, "and it fades a moment later");
+
+            var target = Isolate(laden[0]);
+            var ladenTrail = target.GetComponent<SwingTrail>();
+            Assert.IsNotNull(ladenTrail);
+            PlaceApprentice(target.transform.position + target.transform.forward * 1.8f, target.transform.position);
+            most = 0;
+            for (float t = 0; t < 4f && target.CurrentState != Soured.State.Recover; t += Time.deltaTime)
+            {
+                most = Mathf.Max(most, ladenTrail.Samples);
+                yield return null;
+            }
+            Assert.Greater(most, 3, "the Laden's blow should draw its smear too");
+        }
+
         [UnityTest]
         public IEnumerator HittingASoured_Thuds_AndTakingAHit_Grunts()
         {

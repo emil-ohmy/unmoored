@@ -75,6 +75,7 @@ namespace MyGame
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
+        SwingTrail swingTrail;
         int[] lanternSlot; // per renderer: index of the belt lantern's material, or -1
         MaterialPropertyBlock flash;
         Vector3 spawnPosition;
@@ -98,6 +99,7 @@ namespace MyGame
             controller = GetComponent<CharacterController>();
             clips = new ClipPlayer(GetComponentInChildren<Animation>());
             renderers = GetComponentsInChildren<Renderer>();
+            swingTrail = GetComponent<SwingTrail>();
             lanternSlot = System.Array.ConvertAll(renderers, r =>
                 System.Array.FindIndex(r.sharedMaterials, m => m != null && m.name.StartsWith("SouredLantern_Glow")));
             flash = new MaterialPropertyBlock();
@@ -234,6 +236,8 @@ namespace MyGame
                     return;
             }
 
+            if (swingTrail != null) // the smear of a melee blow (a shot has none)
+                swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
             // Walking and chasing keep to solid ground. A lunge doesn't (overshooting the edge is its own mistake), nor
             // does knockback (shoving one off the edge is fair play).
             if (CurrentState == State.Chase)

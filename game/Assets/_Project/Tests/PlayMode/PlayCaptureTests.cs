@@ -265,6 +265,22 @@ namespace MyGame.Tests
                 yield return null;
                 Capture(outDir, $"swing-heavy-{f:D2}");
             }
+
+            // A Laden's slam (the Apprentice can't be hurt, to keep the pictures coming).
+            var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .OrderBy(l => l.transform.position.magnitude).First();
+            laden.gameObject.SetActive(true);
+            laden.sweepChanceInFront = 0f;
+            apprentice.postHitInvulnerability = 100f;
+            apprentice.Teleport(laden.transform.position + laden.transform.forward * 1.9f);
+            apprentice.TakeHit(0f, Vector3.zero); // (starts the long invulnerability)
+            for (int f = 0; f < 150 && laden.CurrentState != Soured.State.Strike; f++)
+                yield return null;
+            for (int f = 0; f < 8; f++)
+            {
+                Capture(outDir, $"swing-laden-{f:D2}");
+                yield return null;
+            }
             Time.captureFramerate = 0;
         }
 
