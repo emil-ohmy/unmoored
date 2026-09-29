@@ -62,6 +62,20 @@ namespace MyGame
             Current = shade;
         }
 
+        // Loading a save: a Shade waiting where the Apprentice fell, with their Obols (in the pose they stand in now).
+        public static void Restore(Apprentice apprentice, int obols, Vector3 position, Quaternion rotation, Material ghostMaterial)
+        {
+            Leave(apprentice, obols, ghostMaterial);
+            if (Current == null)
+                return;
+            Current.transform.SetPositionAndRotation(position, rotation);
+            Current.basePosition = position;
+            Current.restored = true;
+        }
+
+        bool restored;
+        public Vector3 RestPosition => basePosition;
+
         void Awake()
         {
             block = new MaterialPropertyBlock();
@@ -83,7 +97,12 @@ namespace MyGame
                 return;
             }
             if (appearFrom <= 0f)
-                Rise();
+            {
+                if (restored)
+                    appearFrom = t - RiseTime; // (already risen: it has waited here)
+                else
+                    Rise();
+            }
             float risen = UiKit.Smooth(0f, 1f, (t - appearFrom) / RiseTime);
             if (fadeFrom < 0f)
             {

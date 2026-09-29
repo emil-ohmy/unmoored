@@ -439,6 +439,13 @@ namespace MyGame
 
         protected Vector3 SpawnPosition => spawnPosition;
 
+        // Loading a save: beaten before, gone (it doesn't re-form either, if it's a Boss).
+        protected void RestoreDefeated()
+        {
+            TimesDefeated = Mathf.Max(1, TimesDefeated);
+            Scatter();
+        }
+
         protected void PlaceAt(Vector3 position)
         {
             controller.enabled = false;

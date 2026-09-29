@@ -50,6 +50,17 @@ namespace MyGame
             return hook;
         }
 
+        // Loading a save: already at rest on his mark, waiting to be taken.
+        public static FerrymansHook AtRest(GameObject hookModel, Vector3 spot)
+        {
+            var hook = Free(hookModel, spot, spot, null);
+            hook.Landed = true;
+            hook.transform.position = spot;
+            if (hook.model != null)
+                hook.model.rotation = hook.restRotation;
+            return hook;
+        }
+
         void OnEnable() => Interactables.Register(this);
         void OnDisable() => Interactables.Unregister(this);
 

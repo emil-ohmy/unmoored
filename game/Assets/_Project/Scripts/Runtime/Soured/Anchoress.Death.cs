@@ -25,6 +25,19 @@ namespace MyGame
         Light[] lanternLights;
         float[] lanternIntensity;
 
+        // Loading a save: beaten before. Her lantern out; his hook still lying on his mark if it wasn't taken.
+        public void RestoreBeaten(bool hookTaken)
+        {
+            RestoreDefeated();
+            BossFight.RestoreBeaten();
+            if (anchorBone != null)
+                foreach (var l in anchorBone.GetComponentsInChildren<Light>())
+                    l.enabled = false;
+            anchorChain?.Draw(Vector3.zero, Vector3.zero, 0f, 0f, false);
+            if (!hookTaken && FreedHook == null)
+                FreedHook = FerrymansHook.AtRest(hookModel, rewardSpot != null ? rewardSpot.position : SpawnPosition);
+        }
+
         void DeathEntered()
         {
             HitStop.Trigger(0.35f);

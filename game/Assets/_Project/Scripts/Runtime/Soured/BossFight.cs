@@ -30,6 +30,8 @@ namespace MyGame
             Defeated?.Invoke(boss);
         }
 
+        public static void RestoreBeaten() => Beaten++; // loading a save: one beaten before
+
         public static void ResetWorld() // a new world (the scene loaded fresh)
         {
             Beaten = 0;

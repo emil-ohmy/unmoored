@@ -14,6 +14,7 @@ namespace MyGame
         public float interactRadius = 1.8f;
 
         public bool IsOpen { get; private set; }
+        public string SaveId { get; private set; }
         public float Swing => hinge != null ? Mathf.Abs(Mathf.DeltaAngle(0f, hinge.eulerAngles.y)) : 0f;
         public Transform Door => door;
 
@@ -24,6 +25,7 @@ namespace MyGame
         // swings away from the side it's opened from.
         void Awake()
         {
+            SaveId = SaveKey.Of(this);
             if (door == null)
                 door = transform.Find("GateDoor");
             var renderer = door != null ? door.GetComponentInChildren<Renderer>() : null;
@@ -51,6 +53,13 @@ namespace MyGame
 
         bool OnOpeningSide(Apprentice apprentice) =>
             apprentice != null && Vector3.Dot(apprentice.transform.position - transform.position, openFrom) > 0f;
+
+        // Loading a save: already open (swung back all the way, no sound).
+        public void RestoreOpen()
+        {
+            IsOpen = true;
+            openedAt = -1000f;
+        }
 
         public void Interact(Apprentice apprentice)
         {

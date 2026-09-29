@@ -8,6 +8,9 @@ namespace MyGame
         public int obols = 120;
         public float interactRadius = 1.4f;
         public bool Taken { get; private set; }
+        public string SaveId { get; private set; }
+
+        void Awake() => SaveId = SaveKey.Of(this);
 
         void OnEnable() => Interactables.Register(this);
         void OnDisable() => Interactables.Unregister(this);
@@ -16,6 +19,13 @@ namespace MyGame
         public float InteractRadius => interactRadius;
         public bool Available => !Taken;
         public string PromptLabel => "Take";
+
+        // Loading a save: already taken.
+        public void RestoreTaken()
+        {
+            Taken = true;
+            gameObject.SetActive(false);
+        }
 
         public void Interact(Apprentice apprentice)
         {

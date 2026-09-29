@@ -23,6 +23,8 @@ namespace MyGame
 
         AudioSource source;
         readonly AudioSource[] fight = new AudioSource[2];
+        float ambientLevel;                               // the fades' own levels; the sources play them at the
+        readonly float[] fightLevel = new float[2];       // player's music volume (Settings.Music)
         Apprentice apprentice;
         IBoss boss;
         float quietUntil;
@@ -41,6 +43,7 @@ namespace MyGame
             s.spatialBlend = 0f;
             s.volume = 0f;
             s.playOnAwake = false;
+            s.ignoreListenerPause = true; // (the music plays on under the pause menu)
         }
 
         void Start()
@@ -71,22 +74,24 @@ namespace MyGame
             {
                 float target = i == slot ? fightVolume * duck : 0f;
                 float time;
-                if (target > fight[i].volume)
-                    time = fight[1 - i].volume > 0.01f ? phaseCrossfade : 1.5f; // swelling in: a new phase, or the fight
+                if (target > fightLevel[i])
+                    time = fightLevel[1 - i] > 0.01f ? phaseCrossfade : 1.5f; // swelling in: a new phase, or the fight
                 else if (i == slot)
                     time = duckTime;                                           // ducking under the death toll
                 else
                     time = boss != null ? phaseCrossfade : (victory ? 0.4f : 1.2f); // the old phase, or the fight's end
-                fight[i].volume = Mathf.MoveTowards(fight[i].volume, target, fightVolume / Mathf.Max(time, 0.01f) * UiKit.DeltaTime);
-                if (fight[i].isPlaying && fight[i].volume <= 0f && i != slot)
+                fightLevel[i] = Mathf.MoveTowards(fightLevel[i], target, fightVolume / Mathf.Max(time, 0.01f) * UiKit.DeltaTime);
+                fight[i].volume = fightLevel[i] * Settings.Music;
+                if (fight[i].isPlaying && fightLevel[i] <= 0f && i != slot)
                     fight[i].Stop();
             }
             if (boss == null)
                 FightPhase = 0;
 
             AmbientTarget = boss != null || UiKit.Now < quietUntil ? 0f : volume * duck;
-            float ambientTime = source.volume > AmbientTarget ? (boss != null ? 1.5f : duckTime) : fadeIn;
-            source.volume = Mathf.MoveTowards(source.volume, AmbientTarget, volume / Mathf.Max(ambientTime, 0.01f) * UiKit.DeltaTime);
+            float ambientTime = ambientLevel > AmbientTarget ? (boss != null ? 1.5f : duckTime) : fadeIn;
+            ambientLevel = Mathf.MoveTowards(ambientLevel, AmbientTarget, volume / Mathf.Max(ambientTime, 0.01f) * UiKit.DeltaTime);
+            source.volume = ambientLevel * Settings.Music;
         }
 
         // The fight begins: its music for the phase it's in, from the top.

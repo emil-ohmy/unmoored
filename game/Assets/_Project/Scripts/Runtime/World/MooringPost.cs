@@ -16,6 +16,7 @@ namespace MyGame
         public bool litAtStart;
 
         public bool IsLit { get; private set; }
+        public string SaveId { get; private set; }
         public Vector3 RespawnPoint => respawnPoint != null ? respawnPoint.position : transform.position;
 
         Material lantern;
@@ -23,6 +24,7 @@ namespace MyGame
 
         void Awake()
         {
+            SaveId = SaveKey.Of(this);
             foreach (var r in GetComponentsInChildren<Renderer>())
                 foreach (var m in r.materials)
                     if (m.name.StartsWith("Lantern_Glow"))
@@ -52,6 +54,11 @@ namespace MyGame
         public void Interact(Apprentice apprentice) => Rest(apprentice);
 
         // Share of Mooring posts in the loaded world that have been lit (the bow lantern grows with it).
+        public static System.Collections.Generic.IReadOnlyList<MooringPost> All => all;
+
+        // Loading a save: lit, quietly (no sound, no banner).
+        public void RestoreLit() => SetLit(true);
+
         public static float LitFraction
         {
             get
