@@ -18,7 +18,7 @@ namespace MyGame
 
         Vector3 velocity;
         Vector3 follow;
-        float shake;
+        float shake, zoom = 1f, zoomTarget = 1f;
 
         void Awake()
         {
@@ -46,6 +46,10 @@ namespace MyGame
             secondaryWeight = weight;
         }
 
+        // Ease in closer (a factor on the distance: 0.7 = 30% closer) for a moment worth framing (a key item held up).
+        public void SetZoom(float factor) => zoomTarget = factor;
+        public float Zoom => zoom;
+
         public void SnapToTarget()
         {
             follow = Desired();
@@ -55,7 +59,7 @@ namespace MyGame
         Vector3 Desired()
         {
             Vector3 focus = secondary != null ? Vector3.Lerp(target.position, secondary.position, secondaryWeight) : target.position;
-            return focus + Quaternion.Euler(pitch, 0f, 0f) * new Vector3(0f, 0f, -distance);
+            return focus + Quaternion.Euler(pitch, 0f, 0f) * new Vector3(0f, 0f, -distance * zoom);
         }
 
         void LateUpdate()
@@ -64,6 +68,7 @@ namespace MyGame
                 return;
             // Unscaled: keeps following and shaking during hit-stop. Stepped time (tests, recordings) steps it too.
             float dt = Time.captureDeltaTime > 0f ? Time.captureDeltaTime : Time.unscaledDeltaTime;
+            zoom = Mathf.MoveTowards(zoom, zoomTarget, dt * 0.6f);
             follow = Vector3.SmoothDamp(follow, Desired(), ref velocity, smoothTime, Mathf.Infinity, dt);
             shake = Mathf.MoveTowards(shake, 0f, dt * 1.5f);
             transform.SetPositionAndRotation(follow + Random.insideUnitSphere * shake, Quaternion.Euler(pitch, 0f, 0f));

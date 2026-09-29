@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -59,6 +59,8 @@ namespace MyGame
         public void GateRattle(Vector3 at) => Play(gateRattle, at, 0.8f, "gate_rattle");
         public void HookThrow(Vector3 at) => Play(hookThrow, at, 0.85f, "hook_throw");
         public void HookCatch(Vector3 at) => Play(hookCatch, at, 0.9f, "hook_catch");
+        public void ItemTake(Vector3 at) => Play(itemTake, at, 0.8f, "item_take");
+        public void KeyItem(Vector3 at) => Play(keyItem, at, 1f, "key_item");
         public void ObolClink(Vector3 at) => Play(obolClink, at, 0.8f, "obol_clink");
         public void CharmFit(Vector3 at) => Play(charmFit, at, 0.8f, "charm_fit");
         public void UiTick()

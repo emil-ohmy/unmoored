@@ -118,6 +118,16 @@ namespace MyGame
             flash.Emit(p, 1);
         }
 
+        // A key item held up: a big cold ring bursting out from it.
+        public void KeyItemRing(Vector3 position)
+        {
+            flash.transform.position = position;
+            flash.Emit(new ParticleSystem.EmitParams { startSize = 3.2f, startLifetime = 0.7f, startColor = new Color(0.62f, 0.77f, 1f, 0.9f), applyShapeToPosition = false }, 1);
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 30; i++)
+                sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(0.8f, 0.9f, 1f, 1f), startLifetime = Random.Range(0.4f, 0.8f) }, 1);
+        }
+
         // A Healing charge takes hold: a warm ring spreading at the Apprentice's feet.
         public void HealRing(Vector3 position)
         {

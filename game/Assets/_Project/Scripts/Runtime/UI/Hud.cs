@@ -36,7 +36,7 @@ namespace MyGame
 
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
-        Image restFlash, keyCap, buttonRing;
+        Image restFlash, keyCap, buttonRing, ceremonyDim;
         Text glyph, promptLabel, obolText, obolGain;
         RectTransform hookMarker;
         Image hookMarkerImage, hookMarkerGlow;
@@ -72,6 +72,9 @@ namespace MyGame
             BuildPrompt(hudRoot);
             BuildObols(hudRoot);
 
+            // A key item held up: the world dims around the moment.
+            ceremonyDim = UiKit.Image(canvasRect, "Ceremony Dim", UiKit.Vignette, Color.black.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            UiKit.Stretch(ceremonyDim.rectTransform); // darkest at the edges: the Apprentice, in the middle, stays lit
             restFlash = UiKit.Image(canvasRect, "Rest Flash", UiKit.SoftDot, UiKit.Ember.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             UiKit.Stretch(restFlash.rectTransform, -600f);
             AreaTitle = new Banner(canvasRect, "Area Title", new Banner.Style
@@ -187,6 +190,9 @@ namespace MyGame
             LanternBanner.Tick();
             FoundBanner.Tick();
             foundHint.Tick();
+            float dimTarget = apprentice.CurrentState == Apprentice.State.Ceremony ? 0.85f : 0f;
+            ceremonyDim.color = Color.black.WithAlpha(Mathf.MoveTowards(ceremonyDim.color.a, dimTarget, UiKit.DeltaTime * 1.2f));
+            ceremonyDim.enabled = ceremonyDim.color.a > 0.001f;
             float flash = now - restFlashAt;
             restFlash.color = UiKit.Ember.WithAlpha(0.09f * UiKit.Smooth(0f, 0.12f, flash) * (1f - UiKit.Smooth(0.12f, 1.4f, flash)));
             restFlash.enabled = restFlash.color.a > 0.001f;

@@ -20,10 +20,13 @@ namespace MyGame
         public void Interact(Apprentice apprentice)
         {
             Taken = true;
-            Sfx.Instance?.ObolClink(transform.position + Vector3.up * 0.3f);
-            apprentice.GainObols(obols);
-            apprentice.AnnounceFind("An Obol Cache", $"{obols} Obols");
-            gameObject.SetActive(false);
+            apprentice.PickUp(transform, () =>
+            {
+                Sfx.Instance?.ObolClink(transform.position + Vector3.up * 0.3f);
+                apprentice.GainObols(obols);
+                apprentice.AnnounceFind("An Obol Cache", $"{obols} Obols");
+                gameObject.SetActive(false);
+            });
         }
     }
 }

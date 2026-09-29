@@ -158,6 +158,9 @@ public static class MainSceneBuilder
         sfx.gateRattle = Clips("gate_rattle");
         sfx.hookThrow = Clips("hook_throw");
         sfx.hookCatch = Clips("hook_catch");
+        sfx.hookWhirl = Clips("hook_whirl");
+        sfx.itemTake = Clips("item_take");
+        sfx.keyItem = Clips("key_item");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
         music.AddComponent<MusicPlayer>();
@@ -211,6 +214,7 @@ public static class MainSceneBuilder
         var apprentice = go.AddComponent<Apprentice>();
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
+        apprentice.hookHeadModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
         Flicker(lantern, 0.06f, 2f, 0.01f); // a slow, steady pulse, not a flame
         go.AddComponent<BowLantern>().lanternLight = lantern;

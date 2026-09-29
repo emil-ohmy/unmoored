@@ -19,10 +19,13 @@ namespace MyGame
 
         public void Interact(Apprentice apprentice)
         {
-            Taken = true;
-            Sfx.Instance?.Heal(transform.position + Vector3.up * 0.6f);
-            apprentice.AddHealingCharge();
-            gameObject.SetActive(false);
+            Taken = true; // (no second prompt while the Apprentice stoops for it)
+            apprentice.PickUp(transform, () =>
+            {
+                Sfx.Instance?.Heal(transform.position + Vector3.up * 0.6f);
+                apprentice.AddHealingCharge();
+                gameObject.SetActive(false);
+            });
         }
     }
 }

@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -94,6 +94,13 @@ namespace MyGame
         public float hookSpeed = 13f;
         public float hookArc = 0.6f;       // the pull lifts you a little, like a leap
 
+        [Header("Hook visuals")]
+        public GameObject hookHeadModel; // the Hook's head in flight (spawned per throw)
+
+        [Header("Taking things")]
+        public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
+        public float ceremonyDuration = 2.4f; // a key item held up
+
         [Header("Feel")]
         public float inputBuffer = 0.2f;
 
@@ -118,6 +125,7 @@ namespace MyGame
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
         public HookPost HookTarget { get; private set; } // with the Hook: the post it would pull to (ringed; brighter while aiming)
+        public bool HookShown => hookBone != null && hookBone.localScale.x > 0.5f; // at the hip (not before it's found, nor in flight)
         public bool AimingHook { get; private set; }
         public event System.Action<string, string> Found; // something gained for good: a title and a hint (HUD banner)
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
@@ -128,7 +136,8 @@ namespace MyGame
             CurrentState == State.Dead
             || Time.time < invulnerableUntil
             || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd)
-            || (CurrentState == State.Hooking && stateTime >= hookThrowTime); // pulled clear of harm
+            || (CurrentState == State.Hooking && stateTime >= hookThrowTime) // pulled clear of harm
+            || CurrentState == State.Ceremony;
 
         CharacterController controller;
         ClipPlayer clips;
@@ -165,6 +174,13 @@ namespace MyGame
             Equipment = GetComponent<Equipment>();
             if (Equipment == null)
                 Equipment = gameObject.AddComponent<Equipment>();
+            foreach (var t in GetComponentsInChildren<Transform>())
+                if (t.name == "Hook")
+                    hookBone = t; // the rig's Hook bone (the Hook at the hip, whirled, held up)
+            bodyRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
+            if (bodyRenderer != null)
+                hookSlot = System.Array.FindIndex(bodyRenderer.sharedMaterials, m => m != null && m.name.StartsWith("HookIron"));
+            hookGlow = new MaterialPropertyBlock();
         }
 
         public void ShowMenu(Menu menu)
@@ -218,9 +234,14 @@ namespace MyGame
                     Vector3 face = LockTarget != null ? ToLockTarget() : move; // locked: strafe, always facing it
                     if (face.sqrMagnitude > 0.001f)
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
-                    clips.Loop(move.sqrMagnitude > 0.001f ? "Run" : "Idle", 0.1f);
-                    if (move.sqrMagnitude > 0.001f)
-                        clips.SetLoopSpeed(Mathf.Max(0.35f, planar.magnitude / RunClipSpeed)); // no foot-sliding
+                    if (AimingHook)
+                        clips.Loop("HookAim", 0.1f); // the Hook whirled on its chain
+                    else
+                    {
+                        clips.Loop(move.sqrMagnitude > 0.001f ? "Run" : "Idle", 0.1f);
+                        if (move.sqrMagnitude > 0.001f)
+                            clips.SetLoopSpeed(Mathf.Max(0.35f, planar.magnitude / RunClipSpeed)); // no foot-sliding
+                    }
                     Nearby = Interactables.Nearest(transform.position);
                     if (Nearby != null && Input.InteractPressed)
                     {
@@ -293,6 +314,22 @@ namespace MyGame
                 case State.Hooking:
                     UpdateHook();
                     break;
+
+                case State.PickingUp:
+                    if (pendingTake != null && stateTime >= pickupDuration * 0.5f)
+                    {
+                        var take = pendingTake;
+                        pendingTake = null;
+                        Sfx.Instance?.ItemTake(transform.position + Vector3.up * 0.4f);
+                        take();
+                    }
+                    if (stateTime >= pickupDuration)
+                        ToFreeAndConsume();
+                    break;
+
+                case State.Ceremony:
+                    UpdateCeremony();
+                    break;
             }
             if (CurrentState != State.Free || inMenu)
             {
@@ -303,8 +340,15 @@ namespace MyGame
                     AimingHook = false;
                 }
             }
-            if (CurrentState != State.Hooking && tether != null)
-                tether.enabled = false;
+            if (CurrentState != State.Hooking)
+            {
+                if (tether != null)
+                    tether.enabled = false;
+                if (hookHead != null)
+                    Destroy(hookHead); // (a throw cut short by a blow)
+                hookInFlight = false;
+            }
+            UpdateWhirl();
             FrameHookTarget();
 
             RegenerateStamina(dt);
@@ -729,10 +773,86 @@ namespace MyGame
         float hookDuration;
         LineRenderer tether;
 
+        public const string HookHint = "Hold {hook} to aim at a hook post, let go to pull yourself across";
+
         public void GrantHook()
         {
-            HasHook = true;
-            Found?.Invoke("The Hook", "Hold {hook} to aim at a hook post, let go to pull yourself across");
+            GiveHook();
+            Found?.Invoke("The Hook", HookHint);
+        }
+
+        public void GiveHook() => HasHook = true; // (no fanfare: see ReceiveKeyItem)
+
+        // ------------------------------------------------------------ taking things
+
+        System.Action pendingTake;
+        string ceremonyTitle, ceremonyHint;
+        bool ceremonyAnnounced, ceremonyFlashed;
+        Light ceremonyLight;
+
+        // Stoop to pick an item up; it's taken (`take`) at the bottom of the stoop. A blow before then leaves it there.
+        public void PickUp(Transform item, System.Action take)
+        {
+            Vector3 to = item.position - transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.001f)
+                transform.rotation = Quaternion.LookRotation(to);
+            pendingTake = take;
+            buffered = Act.None;
+            Enter(State.PickingUp);
+            clips.PlayOnce("Pickup", pickupDuration);
+        }
+
+        // A key item (an Ability): held up high for a moment, the world dimming and the camera easing in, a cold burst
+        // of light and its motif; then its banner. Untouchable meanwhile.
+        public void ReceiveKeyItem(string title, string hint, System.Action grant)
+        {
+            grant();
+            ceremonyTitle = title;
+            ceremonyHint = hint;
+            ceremonyAnnounced = ceremonyFlashed = false;
+            buffered = Act.None;
+            SetLockTarget(null);
+            Enter(State.Ceremony);
+            clips.PlayOnce("RaiseItem", ceremonyDuration);
+            Sfx.Instance?.KeyItem(transform.position + Vector3.up);
+            CameraRig.Instance?.SetZoom(0.72f);
+            if (ceremonyLight == null)
+            {
+                ceremonyLight = new GameObject("Key Item Light").AddComponent<Light>();
+                ceremonyLight.transform.SetParent(transform, false);
+                ceremonyLight.type = LightType.Point;
+                ceremonyLight.color = new Color(0.62f, 0.77f, 1f);
+                ceremonyLight.range = 6f;
+                ceremonyLight.shadows = LightShadows.None;
+            }
+            ceremonyLight.intensity = 0f;
+            ceremonyLight.enabled = true;
+        }
+
+        void UpdateCeremony()
+        {
+            float t = stateTime / ceremonyDuration;
+            Vector3 held = hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
+            ceremonyLight.transform.position = held + Vector3.up * 0.2f;
+            // The light swells as it's lifted, flares at the top, and eases away as it's lowered.
+            ceremonyLight.intensity = t < 0.3f ? 6f * (t / 0.3f) * (t / 0.3f) : 6f * Mathf.Clamp01((0.95f - t) / 0.65f);
+            if (!ceremonyFlashed && t >= 0.28f)
+            {
+                ceremonyFlashed = true;
+                Effects.Instance?.KeyItemRing(held);
+            }
+            if (!ceremonyAnnounced && t >= 0.4f)
+            {
+                ceremonyAnnounced = true;
+                Found?.Invoke(ceremonyTitle, ceremonyHint);
+            }
+            if (t >= 1f)
+            {
+                ceremonyLight.enabled = false;
+                CameraRig.Instance?.SetZoom(1f);
+                ToFreeAndConsume();
+            }
         }
 
         // Something found for good, announced (the HUD's banner): a title and a hint.
@@ -756,27 +876,42 @@ namespace MyGame
                 transform.rotation = Quaternion.LookRotation(to);
             buffered = Act.None;
             Enter(State.Hooking);
-            clips.PlayOnce("Dash", hookThrowTime + hookDuration);
+            clips.PlayOnce("HookThrow", hookThrowTime);
             Sfx.Instance?.HookThrow(transform.position + Vector3.up);
             if (tether == null)
                 tether = BuildTether();
             tether.enabled = true;
+            // The Hook itself flies out along the tether (the one at the hip hides meanwhile).
+            if (hookHeadModel != null)
+            {
+                hookHead = Instantiate(hookHeadModel);
+                foreach (var c in hookHead.GetComponentsInChildren<Collider>())
+                    Destroy(c);
+                hookHeadRest = hookHeadModel.transform.localRotation;
+            }
+            hookInFlight = true;
         }
 
         // The tether flies out to the ring, catches, and pulls the Apprentice along a low arc to the post's platform.
         void UpdateHook()
         {
-            Vector3 hand = transform.position + Vector3.up * 0.75f + transform.right * 0.3f;
+            Vector3 hand = hookBone != null ? hookBone.position : transform.position + Vector3.up * 0.75f + transform.right * 0.3f;
             Vector3 ring = hookPost.RingPosition;
             if (stateTime < hookThrowTime)
             {
+                Vector3 end = Vector3.Lerp(hand, ring, stateTime / hookThrowTime);
                 tether.SetPosition(0, hand);
-                tether.SetPosition(1, Vector3.Lerp(hand, ring, stateTime / hookThrowTime));
+                tether.SetPosition(1, end);
+                PlaceHookHead(end, ring - hand);
                 return;
             }
             float before = stateTime - Time.deltaTime;
             if (before < hookThrowTime)
+            {
                 Sfx.Instance?.HookCatch(ring); // it catches: the pull starts
+                clips.Loop("HookPull", 0.05f);
+            }
+            PlaceHookHead(ring, ring - hand);
             float u = Mathf.Clamp01((stateTime - hookThrowTime) / hookDuration);
             float eased = u * u * (3f - 2f * u);
             Vector3 target = Vector3.Lerp(hookFrom, hookPost.LandingPosition, eased) + Vector3.up * (hookArc * Mathf.Sin(u * Mathf.PI));
@@ -788,6 +923,68 @@ namespace MyGame
                 lastSafeGround = hookPost.LandingPosition;
                 ToFreeAndConsume();
             }
+        }
+
+        GameObject hookHead;
+        Quaternion hookHeadRest;
+        bool hookInFlight;
+        Transform hookBone;
+        AudioSource whirl;
+
+        void PlaceHookHead(Vector3 at, Vector3 towards)
+        {
+            if (hookHead == null)
+                return;
+            towards.y = 0f;
+            hookHead.transform.SetPositionAndRotation(at,
+                (towards.sqrMagnitude > 0.001f ? Quaternion.LookRotation(towards) : transform.rotation) * hookHeadRest);
+        }
+
+        SkinnedMeshRenderer bodyRenderer;
+        int hookSlot = -1;
+        MaterialPropertyBlock hookGlow;
+        static readonly Color HookColour = new Color(0.62f, 0.77f, 1f);
+
+        // The Hook at the hip: shown once it's been found, hidden while it's out on the tether. Whenever it's out
+        // (whirled, flying, held up) its dark iron glows faint cold blue so it reads at night; brightly when held up.
+        void LateUpdate()
+        {
+            if (hookBone != null)
+                hookBone.localScale = HasHook && !hookInFlight ? Vector3.one : Vector3.one * 0.0001f;
+            float glow = CurrentState == State.Ceremony ? 1.6f + 0.5f * Mathf.Sin(Time.time * 6f)
+                       : AimingHook && CurrentState == State.Free || CurrentState == State.Hooking ? 0.7f : 0f;
+            if (hookSlot >= 0)
+            {
+                hookGlow.SetColor("_EmissionColor", HookColour * glow);
+                bodyRenderer.SetPropertyBlock(hookGlow, hookSlot);
+            }
+            if (hookHead != null)
+            {
+                hookGlow.SetColor("_EmissionColor", HookColour * 0.9f);
+                foreach (var r in hookHead.GetComponentsInChildren<Renderer>())
+                    r.SetPropertyBlock(hookGlow);
+            }
+        }
+
+        // The chain's whoosh while the Hook is whirled (aiming).
+        void UpdateWhirl()
+        {
+            bool whirling = AimingHook && CurrentState == State.Free;
+            if (whirl == null)
+            {
+                if (!whirling || Sfx.Instance == null || Sfx.Instance.hookWhirl == null || Sfx.Instance.hookWhirl.Length == 0)
+                    return;
+                whirl = gameObject.AddComponent<AudioSource>();
+                whirl.clip = Sfx.Instance.hookWhirl[0];
+                whirl.loop = true;
+                whirl.playOnAwake = false;
+                whirl.spatialBlend = 0.7f;
+                whirl.volume = 0.5f;
+            }
+            if (whirling && !whirl.isPlaying)
+                whirl.Play();
+            else if (!whirling && whirl.isPlaying)
+                whirl.Stop();
         }
 
         Transform framedHook;

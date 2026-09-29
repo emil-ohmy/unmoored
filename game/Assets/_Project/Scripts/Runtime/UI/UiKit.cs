@@ -80,6 +80,13 @@ namespace MyGame
             return Sq(1f - Smooth(0f, 1f, d));
         });
 
+        // Clear in the middle, darkening towards the edges and corners.
+        public static Sprite Vignette => Cached("Vignette", 128, 72, (u, v) =>
+        {
+            float d = new Vector2((u - 0.5f) * 1.6f, (v - 0.5f) * 1.2f).magnitude;
+            return Smooth(0.3f, 0.95f, d);
+        });
+
         // A horizontal band that feathers out at its top and bottom and fades away towards both ends.
         public static Sprite Band => Cached("Band", 256, 64, (u, v) =>
             (1f - Smooth(0.3f, 1f, Mathf.Abs(2f * v - 1f))) * (1f - Smooth(0.45f, 1f, Mathf.Abs(2f * u - 1f))));

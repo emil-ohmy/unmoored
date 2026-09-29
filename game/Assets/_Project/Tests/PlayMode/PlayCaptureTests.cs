@@ -555,6 +555,63 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // A key item held up (the Hook from its relic), with the UI: the raise, the burst, the dimmed world, the banner.
+        [UnityTest]
+        public IEnumerator Capture_KeyItem()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            var relic = UnityEngine.Object.FindAnyObjectByType<AbilityRelic>();
+            foreach (var guardian in relic.guardians)
+                guardian.TakeHit(new Hit { Damage = 1000f, From = guardian.transform.position - guardian.transform.forward * 2f });
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                apprentice.Teleport(relic.transform.position + new Vector3(1.1f, 0.05f, -0.3f));
+                for (int f = 0; f < 60; f++)
+                    yield return null;
+                Shot("key-0-before");
+                input.PressInteract();
+                foreach (var (frames, name) in new[] { (9, "1-crouch"), (12, "2-raised"), (12, "3-held"), (15, "4-banner"), (30, "5-lowered") })
+                {
+                    for (int f = 0; f < frames; f++)
+                        yield return null;
+                    Shot($"key-{name}");
+                }
+            }
+            finally
+            {
+                Time.captureFramerate = 0;
+                cam.targetTexture = null;
+            }
+        }
+
         // A lit, fog-free map of the whole slice from straight above: for checking the layout (not how it looks in play).
         [UnityTest]
         public IEnumerator Capture_Map()

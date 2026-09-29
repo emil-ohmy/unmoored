@@ -44,8 +44,7 @@ namespace MyGame
                 relic.SetActive(false);
             if (glow != null)
                 glow.gameObject.SetActive(false);
-            Sfx.Instance?.LanternLit(transform.position + Vector3.up);
-            apprentice.GrantHook();
+            apprentice.ReceiveKeyItem("The Hook", Apprentice.HookHint, apprentice.GiveHook); // held up, Zelda-ish
         }
 
         void Update()

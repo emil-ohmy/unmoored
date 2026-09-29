@@ -36,6 +36,9 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Shortcut gate barred (`gate_rattle`) | in game | Synth | knocks against the barring plank and loose bars rattling: it won't open from this side |
 | Hook thrown (`hook_throw`) | in game | Synth | a quick whoosh and the chain rattling out |
 | Hook catches (`hook_catch`) | in game | Synth | a hard iron clank on the ring and the tether's taut thrum as the pull starts |
+| Hook whirled (`hook_whirl`, loop) | in game | Synth | a soft whoosh per turn of the Hook on its chain and the links' rattle, while aiming |
+| Item taken (`item_take`) | in game | Synth | a cloth rustle as the Apprentice stoops, a small bright tick as the hand closes on it |
+| Key item held up (`key_item`) | in game | Synth | a rising motif in D (minor third lifting to major) in glass and low bell, a choir swelling into a held D major chord |
 | Menu tick (`ui_tick`) | in game | Synth | a tiny soft wooden tick, moving through a menu |
 | Apprentice death (`death_toll`) | in game | Synth | one deep bell toll that sinks under water (highs close off), thump, sinking whoosh, bubbles; the music ducks under it |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |

@@ -1106,7 +1106,7 @@ namespace MyGame.Tests
             int before = apprentice.Obols;
             Assert.IsInstanceOf<ObolCache>(apprentice.Nearby);
             input.PressInteract();
-            yield return null;
+            yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(before + 120, apprentice.Obols);
         }
 
@@ -1146,15 +1146,23 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual("Take", apprentice.Nearby.PromptLabel, "the crossroads cleared, it can be taken");
             Assert.Greater(relic.glow.Intensity, 2f, "a key item, takeable: a bright glow");
+            Assert.IsFalse(apprentice.HookShown, "not carried before it's found");
             input.PressInteract();
             yield return null;
             yield return null;
             Assert.IsTrue(apprentice.HasHook);
             Assert.IsTrue(relic.Taken);
             Assert.IsFalse(relic.glow.gameObject.activeInHierarchy, "taken: no more glow");
+            Assert.AreEqual(Apprentice.State.Ceremony, apprentice.CurrentState, "a key item is held up");
+            Assert.IsTrue(apprentice.Invulnerable, "untouchable while it's held up");
+            Assert.IsTrue(apprentice.HookShown, "the Hook in the Apprentice's hands");
+            Assert.AreEqual("key_item", Sfx.Instance.LastPlayed);
             var hud = Object.FindAnyObjectByType<Hud>();
-            Assert.IsTrue(hud.FoundBanner.Showing);
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsTrue(hud.FoundBanner.Showing, "then its banner");
             Assert.AreEqual("The Hook", hud.FoundBanner.Text.text);
+            yield return new WaitForSeconds(1.4f);
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState, "and back to it");
 
             apprentice.TakeHit(1000f, Vector3.zero);
             yield return new WaitForSeconds(apprentice.respawnDelay + 0.5f);
@@ -1180,9 +1188,12 @@ namespace MyGame.Tests
             yield return null;
             Assert.IsNotNull(apprentice.HookTarget, "aiming at it");
             Assert.Greater(hud.HookMarkerAlpha, dim + 0.3f, "and the ring brightens while aiming");
+            Assert.IsTrue(apprentice.HookShown, "carried at the hip (whirled while aiming)");
             input.HookHeld = false; // let go: throw
             yield return null;
+            yield return null;
             Assert.AreEqual(Apprentice.State.Hooking, apprentice.CurrentState);
+            Assert.IsFalse(apprentice.HookShown, "out on the tether, not at the hip");
             for (float t = 0; t < 2f && apprentice.CurrentState == Apprentice.State.Hooking; t += Time.deltaTime)
             {
                 Assert.Greater(apprentice.transform.position.y, 0.2f, "pulled over the water, not through it");
@@ -1196,6 +1207,8 @@ namespace MyGame.Tests
             int before = apprentice.maxHealingCharges;
             input.PressInteract();
             yield return null;
+            Assert.AreEqual(Apprentice.State.PickingUp, apprentice.CurrentState, "it stoops to pick it up");
+            yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(before + 1, apprentice.maxHealingCharges, "one more Healing charge, for good");
             Assert.AreEqual(apprentice.maxHealingCharges, apprentice.HealingCharges);
 

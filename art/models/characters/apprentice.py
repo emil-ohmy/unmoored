@@ -2,7 +2,8 @@
 
 Clip timings match the Middle combat tuning (the controller rescales them if tuning changes):
 light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; dash 0.38 s; heal 0.7 s.
-RecoilHeavy / RecoilLight: bouncing off a Laden's heap (0.35 s).
+RecoilHeavy / RecoilLight: bouncing off a Laden's heap (0.35 s). HookAim (loop), HookThrow (0.15 s), HookPull, Pickup
+(0.6 s), RaiseItem (2.4 s: a key item held up).
 """
 import math
 
@@ -20,6 +21,7 @@ BONES = {
     "Body": ((0, 0, 0.1), (0, 0, 0.62), "Pivot"),
     "Head": ((0, 0, 0.62), (0, 0, 1.05), "Body"),
     "Oar": (tuple(HAND), tuple(OAR @ Vector((0, 0, 0.9))), "Body"),  # pivots at the hand
+    "Hook": ((0.22, 0.16, 0.5), (0.22, 0.16, 0.7), "Body"),  # the Hook, hung at the back of the hip (hidden until found)
 }
 
 REST = {}
@@ -67,6 +69,19 @@ LIGHT1_HIT = swing(5, 88, 0.08)  # the contact pose (the recoil off a Laden's he
 # a stub hidden against the hood. The follow-through carries on down.
 HEAVY_RAISED = {"Oar": ((-78, 0, 30), (-0.22, 0.08, 0.3)), "Body": (-12, 0, 22), "Head": (12, 0, -12), "Root": ((0, 0, 0), (0, 0.04, -0.03))}
 HEAVY_CHOP = {"Oar": ((70, 0, -14), (-0.28, -0.22, 0.02)), "Body": (10, 0, -12), "Head": (-10, 0, 8), "Root": ((0, 0, 0), (0, -0.06, -0.06))}
+# The Hook's whirl while aiming: round a small circle above the shoulder, turning with it, one turn per 16 frames.
+HOOK_WHIRL_CENTRE = (-0.06, -0.2, 0.78)  # offset from its rest at the hip: up above the shoulder, a little ahead
+HOOK_AIM_BODY = {"Body": (-5, 0, 0), "Head": (2, 0, 0), "Oar": (-28, 0, 4)}
+HOOK_WHIRL = [
+    (1 + 4 * k, dict(HOOK_AIM_BODY, Hook=((20, 0, 90 * k),
+                                          (HOOK_WHIRL_CENTRE[0] + 0.22 * math.cos(math.radians(90 * k)),
+                                           HOOK_WHIRL_CENTRE[1] + 0.22 * math.sin(math.radians(90 * k)),
+                                           HOOK_WHIRL_CENTRE[2]))))
+    for k in range(5)
+]
+RAISED = {"Pivot": (-4, 0, 0), "Body": (-8, 0, 0), "Head": (-20, 0, 0), "Oar": (12, 0, -24),
+          "Hook": ((0, 0, 0), (-0.22, -0.2, 0.86)), "Root": ((0, 0, 0), (0, 0, 0.02))}
+
 ACTIONS = {
     "Idle": ("BEZIER", [
         (1, REST),
@@ -110,6 +125,38 @@ ACTIONS = {
         (3, {"Oar": (55, 0, 50), "Body": (-8, 0, 14), "Head": (-10, 0, 0), "Root": ((0, 0, 0), (0, 0.08, 0))}),
         (6, {"Oar": (30, 0, 25), "Body": (-4, 0, 6), "Head": (-5, 0, 0)}),
         (10, REST),
+    ]),
+    # The Hook. Aiming: the Hook whirled on its chain above the shoulder, the oar held back (a loop; the game
+    # hides the Hook until it's found). Throw (0.15 s): flung forward. Pull: leaning into the chain as it drags the
+    # Apprentice across, oar trailing, feet just off the ground (held for the pull).
+    "HookAim": ("BEZIER", HOOK_WHIRL),
+    "HookThrow": ("LINEAR", [
+        (1, dict(HOOK_AIM_BODY, Hook=((0, 0, 0), HOOK_WHIRL_CENTRE))),
+        (4, {"Body": (14, 0, 0), "Head": (-6, 0, 0), "Oar": (-30, 0, 0), "Hook": ((80, 0, 0), (-0.1, -0.6, 0.35)),
+             "Root": ((0, 0, 0), (0, -0.04, 0))}),
+    ]),
+    "HookPull": ("BEZIER", [
+        (1, {"Pivot": (28, 0, 0), "Head": (-16, 0, 0), "Oar": (-55, 0, -12), "Hook": ((80, 0, 0), (-0.1, -0.55, 0.4)),
+             "Root": ((0, 0, 0), (0, 0, 0.08))}),
+        (8, {"Pivot": (32, 0, 0), "Head": (-18, 0, 0), "Oar": (-60, 0, -14), "Hook": ((82, 0, 0), (-0.1, -0.58, 0.42)),
+             "Root": ((0, 0, 0), (0, 0, 0.1))}),
+    ]),
+    # Picking something up (0.6 s): a quick bow down to it and back up; the game takes the item at the bottom.
+    "Pickup": ("BEZIER", [
+        (1, REST),
+        (5, {"Pivot": (32, 0, 0), "Head": (16, 0, 0), "Oar": (-12, 0, 0), "Root": ((0, 0, 0), (0, -0.04, -0.09))}),
+        (8, {"Pivot": (30, 0, 0), "Head": (14, 0, 0), "Oar": (-12, 0, 0), "Root": ((0, 0, 0), (0, -0.04, -0.08))}),
+        (14, REST),
+    ]),
+    # A key item (an Ability) held up (2.4 s): a crouch, then the Hook lifted high overhead in both hands, the head
+    # tipped back to look up at it, the oar planted aside; held a moment, then lowered.
+    "RaiseItem": ("BEZIER", [
+        (1, REST),
+        (8, {"Pivot": (10, 0, 0), "Head": (8, 0, 0), "Oar": (8, 0, -20), "Root": ((0, 0, 0), (0, 0, -0.07))}),
+        (15, RAISED),
+        (30, dict(RAISED, Hook=((0, 0, 8), (-0.22, -0.2, 0.9)))),
+        (46, RAISED),
+        (58, REST),
     ]),
     "Heal": ("BEZIER", [  # bows its head to the mask, a small glow of relief (0.7 s)
         (1, REST),
@@ -177,6 +224,23 @@ def build():
         part("LanternGlass", kit.cube(), soul, M((lx, ly, lz), scale=(0.08, 0.08, 0.11)), group="Body"),
         part("LanternBase", kit.cube(), metal, M((lx, ly, lz - 0.065), scale=(0.1, 0.1, 0.02)), group="Body"),
     ]
+    # The Hook (the Ferryman's, taken from his relic): a small iron grappling hook with a few links of chain, hung at the
+    # back of the hip. Same dark iron as the relic and the hook posts' rings.
+    iron = kit.mat("HookIron", "#3b3a42")
+    hx, hy, hz, k = 0.22, 0.16, 0.5, 1.5  # k: sized up to read from the game's camera
+
+    def at(dx, dy, dz):
+        return (hx + dx * k, hy + dy * k, hz + dz * k)
+
+    parts += [
+        part("HookShank", kit.cylinder(5, 0.024 * k, 0.24 * k), iron, M(at(0, 0, 0.08)), group="Hook"),
+        part("HookProngL", kit.tube([at(0, 0, -0.04), at(-0.07, 0, -0.06), at(-0.1, 0, 0.0)], [0.022 * k, 0.017 * k, 0.01 * k], seg=5), iron, group="Hook"),
+        part("HookProngR", kit.tube([at(0, 0, -0.04), at(0.07, 0, -0.06), at(0.1, 0, 0.0)], [0.022 * k, 0.017 * k, 0.01 * k], seg=5), iron, group="Hook"),
+        part("HookProngB", kit.tube([at(0, 0, -0.04), at(0, 0.07, -0.06), at(0, 0.1, 0.0)], [0.022 * k, 0.017 * k, 0.01 * k], seg=5), iron, group="Hook"),
+        part("HookEye", kit.cylinder(6, 0.032 * k, 0.02 * k), iron, M(at(0, 0, 0.21), rot=(90, 0, 0)), group="Hook"),
+    ]
+    for i in range(3):
+        parts.append(part("HookLink", kit.cylinder(5, 0.024 * k, 0.013 * k), iron, M(at(0, 0, 0.25 + 0.04 * i), rot=(90 * (i % 2), 0, 90 * (i % 2))), group="Hook"))
     for s in (-1, 1):
         parts.append(part("Eye", kit.sphere(8, 6), ink, M((s * 0.065, -0.255, 0.87), scale=(0.032, 0.02, 0.046)), smooth=True, group="Head"))
         parts.append(part("Foot", kit.sphere(8, 6), ink, M((s * 0.11, -0.17, 0.035), scale=(0.075, 0.09, 0.045)), smooth=True, group="Root"))
