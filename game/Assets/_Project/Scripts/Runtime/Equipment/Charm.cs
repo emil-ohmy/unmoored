@@ -16,7 +16,7 @@ namespace MyGame
         }
 
         public static readonly Charm EelSkin = new Charm("eel_skin", "Eel Skin",
-            "Slick as the river. Dashing costs half the stamina.", 120);
+            "Slick as the river. Dashing costs half the stamina. Smells about the same.", 120);
 
         // For play-testing only (owned from the start in development, never sold or found): every blow lands four
         // times as hard.

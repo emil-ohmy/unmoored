@@ -62,6 +62,8 @@ namespace MyGame
             this.merchant = merchant;
             this.apprentice = apprentice;
             wares = new List<Charm>(merchant.Stock);
+            // Its patter (the game's own voice: docs/brief.md, Tone and voice).
+            Say(BossFight.Beaten > 0 ? "Everything must go. Unlike some people." : "Wares for the crossing. Such as it is.");
         }
 
         public override string Title => "The Merchant Soul";

@@ -35,6 +35,8 @@ namespace MyGame
             Apply(0f, 0f);
         }
 
+        public void SetPhrase(string phrase) => message.text = phrase;
+
         public void OnDied(float delayUntilWaking)
         {
             dead = true;

@@ -75,6 +75,18 @@ public static partial class MainSceneBuilder
         boss.rewardSpot = new GameObject("His Mark").transform; // the heart of the chapel: floor that never breaks
         boss.rewardSpot.position = new Vector3(0f, QuayTop, 0f);
 
+        // Shut in while the fight is on: chains rising out of the water across the way in, between the near side's
+        // two pillar stubs (the octagon's corners, set in from the edge as the model places them).
+        var seal = new GameObject("Arena Seal").AddComponent<ArenaSeal>();
+        float px = 8.05f * Mathf.Cos(67.5f * Mathf.Deg2Rad), pz = -8.05f * Mathf.Sin(67.5f * Mathf.Deg2Rad);
+        seal.left = new GameObject("Seal Left").transform;
+        seal.left.position = new Vector3(-px, QuayTop, pz);
+        seal.right = new GameObject("Seal Right").transform;
+        seal.right.position = new Vector3(px, QuayTop, pz);
+        seal.linkMaterial = boss.chainMaterial;
+        seal.riseSound = Clips("anchoress_drop_windup"); // the chain rattling up
+        seal.sinkSound = Clips("splash");
+
         FinishScene(scene, BossScenePath, start, apprentice, "music_drowned_dark");
     }
 

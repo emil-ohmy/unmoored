@@ -22,7 +22,19 @@ namespace MyGame
         public static IBoss Current { get; private set; }
         public static event System.Action<IBoss> Defeated; // its farewell (the HUD shows it)
 
-        public static void Defeat(IBoss boss) => Defeated?.Invoke(boss);
+        public static int Beaten { get; private set; } // Bosses beaten in this world (the merchant notices)
+
+        public static void Defeat(IBoss boss)
+        {
+            Beaten++;
+            Defeated?.Invoke(boss);
+        }
+
+        public static void ResetWorld() // a new world (the scene loaded fresh)
+        {
+            Beaten = 0;
+            Current = null;
+        }
 
         public static void Begin(IBoss boss) => Current = boss;
 

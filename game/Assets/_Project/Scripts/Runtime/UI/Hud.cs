@@ -41,7 +41,10 @@ namespace MyGame
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing, ceremonyDim;
-        Text glyph, promptLabel, obolText, obolGain;
+        Text glyph, promptLabel, obolText, obolGain, obolNote;
+        bool obolsExplained;
+        float obolNoteAt = -100f;
+        public float ObolNoteAlpha => obolNote != null ? obolNote.color.a : 0f;
         RectTransform hookMarker, lockMarker;
         Image lockMarkerGlow;
         Soured markerTarget;
@@ -194,10 +197,17 @@ namespace MyGame
             gainAt = UiKit.Now;
         }
 
+        // Now and then the game's own voice (docs/brief.md, Tone and voice): never the first time, and rarely.
+        static readonly string[] DeathVariants = { "You Sank (Again)", "Glub.", "Buoyancy Check Failed" };
+        const float VariantChance = 0.15f;
+        int deaths, lanternsLit;
+
         void OnDied()
         {
             AreaTitle.Dismiss();
             LanternBanner.Dismiss();
+            deaths++;
+            Death.SetPhrase(deaths > 1 && Random.value < VariantChance ? DeathVariants[Random.Range(0, DeathVariants.Length)] : deathPhrase);
             Death.OnDied(apprentice.respawnDelay);
         }
 
@@ -212,7 +222,7 @@ namespace MyGame
         {
             restFlashAt = UiKit.Now;
             if (firstLight)
-                LanternBanner.Show("Lantern Lit");
+                LanternBanner.Show(++lanternsLit > 1 && Random.value < VariantChance * 0.6f ? "Lantern Lit (It's a Bonfire)" : "Lantern Lit");
         }
 
         // LateUpdate: after all gameplay has run this frame, so the HUD never shows last frame's state.
@@ -307,6 +317,11 @@ namespace MyGame
             obolGain = UiKit.Text(root, "Obol Gain", textFont, 28, UiKit.Ember, TextAnchor.MiddleRight, corner, new Vector2(-84, 96));
             obolGain.rectTransform.pivot = new Vector2(1f, 0.5f);
             obolGain.rectTransform.sizeDelta = new Vector2(300, 40);
+            obolNote = UiKit.Text(root, "Obol Note", textFont, 26, UiKit.Ash, TextAnchor.MiddleRight, corner, new Vector2(-56, 20));
+            obolNote.rectTransform.pivot = new Vector2(1f, 0.5f);
+            obolNote.rectTransform.sizeDelta = new Vector2(420, 34);
+            obolNote.text = "Obols (souls, basically)";
+            obolNote.color = UiKit.Ash.WithAlpha(0f);
         }
 
         void UpdateObols()
@@ -317,6 +332,14 @@ namespace MyGame
             obolText.text = Mathf.RoundToInt(obolsShown).ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
             float age = UiKit.Now - gainAt;
             obolGain.text = "+" + gainAmount;
+            // The first Obols ever: what they are, in the game's own voice.
+            if (!obolsExplained && gainAt > 0f && apprentice.Obols > 0)
+            {
+                obolsExplained = true;
+                obolNoteAt = UiKit.Now + 0.4f;
+            }
+            float noteAge = UiKit.Now - obolNoteAt;
+            obolNote.color = UiKit.Ash.WithAlpha(UiKit.Smooth(0f, 0.5f, noteAge) * (1f - UiKit.Smooth(3.5f, 4.5f, noteAge)));
             obolGain.color = UiKit.Ember.WithAlpha(UiKit.Smooth(0f, 0.1f, age) * (1f - UiKit.Smooth(1.2f, 2f, age)));
             obolGain.rectTransform.anchoredPosition = new Vector2(-84, 90 + 10f * Mathf.Clamp01(age / 2f));
         }

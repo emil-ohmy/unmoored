@@ -961,6 +961,37 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The arena sealed: chains risen across the way in once she wakes.
+        [UnityTest]
+        public IEnumerator Capture_Seal()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("BossArena");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var boss = UnityEngine.Object.FindAnyObjectByType<Anchoress>();
+            apprentice.Input = new ScriptedInput();
+            apprentice.Teleport(new Vector3(0f, 0.55f, -4.5f));
+            for (int f = 0; f < 10; f++)
+                yield return null;
+            boss.attackRange = 0f;
+            boss.castCooldown = boss.firstCastDelay = 1000f;
+            boss.chaseSpeed = boss.guardSpeed = 0f;
+            apprentice.Teleport(new Vector3(0.6f, 0.55f, -5.8f)); // back towards the way in
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            for (int f = 0; f < 45; f++)
+            {
+                if (f == 8 || f == 16 || f == 44)
+                    Capture(outDir, $"seal-{f:D3}");
+                yield return null;
+            }
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

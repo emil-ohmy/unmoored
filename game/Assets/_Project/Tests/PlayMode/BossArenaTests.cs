@@ -349,6 +349,50 @@ namespace MyGame.Tests
             Assert.Greater(music.AmbientTarget, 0f, "then the ambient comes back");
         }
 
+        // While her fight is on, chains rise across the way in and hold you in; they sink when it ends (you fall, or
+        // she's beaten).
+        [UnityTest]
+        public IEnumerator Seal_ChainsShutTheWayIn_WhileTheFightIsOn()
+        {
+            var seal = Object.FindAnyObjectByType<ArenaSeal>();
+            Assert.IsFalse(seal.Sealed, "open before the fight");
+            FaceTheEntrance();
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 5f);
+            yield return WaitFor(() => boss.Awakened, 1f, "her waking");
+            yield return new WaitForSeconds(seal.riseTime + 0.1f);
+            Assert.IsTrue(seal.Sealed);
+            Assert.AreEqual(1f, seal.Raised, 0.01f, "the chains up");
+            // Run for the way out: the chains hold.
+            boss.attackRange = 0f;
+            boss.castCooldown = boss.firstCastDelay = 1000f;
+            boss.midRangeSweepChance = 0f;
+            boss.chaseSpeed = boss.guardSpeed = 0f;
+            input.Move = Vector2.down;
+            yield return new WaitForSeconds(2f);
+            input.Move = Vector2.zero;
+            Assert.Greater(apprentice.transform.position.z, seal.transform.position.z, "held in");
+            apprentice.TakeHit(1000f, Vector3.zero);
+            yield return new WaitForSeconds(seal.sinkTime + 0.2f);
+            Assert.IsFalse(seal.Sealed, "the fight's over (you fell): they sink");
+            Assert.AreEqual(0f, seal.Raised, 0.01f);
+        }
+
+        // The game's own voice: the merchant notices a Boss beaten; the first Obols get a note (see docs/brief.md).
+        [UnityTest]
+        public IEnumerator Voice_TheFirstObolsGetANote()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            yield return null;
+            Assert.AreEqual(0f, hud.ObolNoteAlpha, 0.01f);
+            apprentice.GainObols(10);
+            yield return new WaitForSeconds(1.5f);
+            yield return null;
+            Assert.Greater(hud.ObolNoteAlpha, 0.5f, "Obols (souls, basically)");
+            yield return new WaitForSeconds(4f);
+            yield return null;
+            Assert.AreEqual(0f, hud.ObolNoteAlpha, 0.01f, "said once, then gone");
+        }
+
         // ---- Phase two
 
         // At half health she rises: nothing gets through meanwhile, a ring of water throws you back, and the floor
