@@ -480,7 +480,7 @@ namespace MyGame.Tests
             File.WriteAllText(Path.Combine(outDir, "glintcheck-ring.txt"),
                 $"{screen.x / Camera.main.pixelWidth * 1600f:F0} {(1f - screen.y / Camera.main.pixelHeight) * 900f:F0}");
             Effects.Instance.MoonGlint(at);
-            for (int f = 0; f < 3; f++)
+            for (int f = 0; f < 14; f++) // its peak, 0.24 s in
                 yield return null;
             Capture(outDir, "glintcheck-peak");
             Time.captureFramerate = 0;

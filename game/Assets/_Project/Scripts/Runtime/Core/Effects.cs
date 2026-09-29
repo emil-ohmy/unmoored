@@ -141,13 +141,13 @@ namespace MyGame
             flash.Emit(new ParticleSystem.EmitParams { startSize = 1.8f, startLifetime = 0.5f, startColor = new Color(0.6f, 0.75f, 0.9f, 0.7f), applyShapeToPosition = false }, 1);
         }
 
-        // Wet iron catching the moonlight: a small four-pointed twinkle that pops in and out (hook post rings). The
-        // star shape is what sets it apart from the water's own soft highlights.
+        // Wet iron catching the moonlight: a small four-pointed twinkle that swells and eases away (hook post rings).
+        // The star shape is what sets it apart from the water's own soft highlights.
         public void MoonGlint(Vector3 position)
         {
             glints.Emit(new ParticleSystem.EmitParams
             {
-                position = position, velocity = Vector3.zero, startSize = 0.42f, startLifetime = 0.24f,
+                position = position, velocity = Vector3.zero, startSize = 0.42f, startLifetime = 0.6f,
                 rotation = Random.Range(-12f, 12f), startColor = new Color(0.9f, 0.95f, 1f, 1f), applyShapeToPosition = false,
             }, 1);
         }
@@ -169,9 +169,17 @@ namespace MyGame
             emission.enabled = false;
             var shape = ps.shape;
             shape.enabled = false;
-            var size = ps.sizeOverLifetime; // a quick pop: up, then gone
+            // A smooth swell and ease away: size and brightness together.
+            var size = ps.sizeOverLifetime;
             size.enabled = true;
-            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.5f), new Keyframe(0.2f, 1f), new Keyframe(1f, 0f)));
+            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0.3f, 0f, 0f), new Keyframe(0.4f, 1f, 0f, 0f), new Keyframe(1f, 0.2f, 0f, 0f)));
+            var colour = ps.colorOverLifetime;
+            colour.enabled = true;
+            var fade = new Gradient();
+            fade.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                         new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.4f), new GradientAlphaKey(0f, 1f) });
+            colour.color = fade;
             var renderer = go.GetComponent<ParticleSystemRenderer>();
             if (sparkMaterial != null)
             {

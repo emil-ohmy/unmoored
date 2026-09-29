@@ -1083,7 +1083,7 @@ namespace MyGame.Tests
             int before = post.Glints;
             yield return new WaitForSeconds(12f); // standing still
             Assert.Greater(post.Glints, before, "near it, even standing still, its ring should catch the moonlight");
-            Assert.LessOrEqual(post.Glints - before, 3, "now and then, not all the time");
+            Assert.LessOrEqual(post.Glints - before, 9, "now and then, not all the time");
         }
 
         [UnityTest]

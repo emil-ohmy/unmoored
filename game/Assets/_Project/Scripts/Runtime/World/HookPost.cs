@@ -19,7 +19,7 @@ namespace MyGame
 
         [Header("Moon glint")]
         public float glintRange = 11f;
-        public Vector2 glintEvery = new Vector2(4f, 9f); // seconds between glints, while near and on screen
+        public Vector2 glintEvery = new Vector2(1.5f, 3.5f); // seconds between glints, while near and on screen
 
         public int Glints { get; private set; }
 
