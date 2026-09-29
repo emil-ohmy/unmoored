@@ -151,6 +151,10 @@ _Avoid_: Grapple point, anchor
 A find, hidden behind a secret, that adds one Healing charge for good.
 _Avoid_: Flask upgrade, estus shard
 
+**Journey**:
+One playthrough, kept in one of three save slots: chosen, begun or continued from the title screen, and saved as you go (every Rest, and whenever something that lasts changes).
+_Avoid_: Save file, profile, run
+
 **Rest**:
 Stopping at a Mooring post: heals fully, refills Healing charges, saves, and respawns all enemies except defeated Bosses.
 _Avoid_: Sit, save

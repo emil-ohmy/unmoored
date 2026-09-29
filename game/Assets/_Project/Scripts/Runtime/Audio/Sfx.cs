@@ -90,12 +90,23 @@ namespace MyGame
         public void LanternSnuff(Vector3 at) => Play(lanternSnuff, at, 1f, "lantern_snuff");
         public void ObolClink(Vector3 at) => Play(obolClink, at, 0.8f, "obol_clink");
         public void CharmFit(Vector3 at) => Play(charmFit, at, 0.8f, "charm_fit");
+        // A menu's tick: its own voice, not in the world (it plays while the game is paused).
         public void UiTick()
         {
-            if (listener == null)
-                listener = FindAnyObjectByType<AudioListener>();
-            Play(uiTick, listener != null ? listener.transform.position : Vector3.zero, 0.35f, "ui_tick");
+            LastPlayed = "ui_tick";
+            if (uiTick == null || uiTick.Length == 0 || uiTick[0] == null)
+                return;
+            if (uiVoice == null)
+            {
+                uiVoice = gameObject.AddComponent<AudioSource>();
+                uiVoice.playOnAwake = false;
+                uiVoice.spatialBlend = 0f;
+                uiVoice.ignoreListenerPause = true;
+            }
+            uiVoice.PlayOneShot(uiTick[Random.Range(0, uiTick.Length)], 0.35f * Settings.Effects);
         }
+
+        AudioSource uiVoice;
 
         AudioListener listener;
         public void LanternLit(Vector3 at) => Play(lanternLit, at, 0.8f, "lantern_lit");
@@ -121,7 +132,7 @@ namespace MyGame
             voice.transform.position = at;
             voice.clip = set[index];
             voice.pitch = pitch * (1f + Random.Range(-pitchJitter, pitchJitter));
-            voice.volume = volume * (1f + Random.Range(-volumeJitter, volumeJitter));
+            voice.volume = volume * Settings.Effects * (1f + Random.Range(-volumeJitter, volumeJitter));
             voice.Play();
             Played?.Invoke(voice.clip, voice);
             return voice;

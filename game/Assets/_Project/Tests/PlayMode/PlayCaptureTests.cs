@@ -965,6 +965,81 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The title screen, its slots page, and the pause menu (its pages), with the UI.
+        [UnityTest]
+        public IEnumerator Capture_Menus()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            RenderTexture rt = null;
+            Camera cam = null;
+            void Hook()
+            {
+                cam = Camera.main;
+                rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+                cam.targetTexture = rt;
+                foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+                {
+                    canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    canvas.worldCamera = cam;
+                    canvas.planeDistance = 1f;
+                }
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            Time.captureFramerate = 30;
+            yield return SceneManager.LoadSceneAsync("Title");
+            for (int f = 0; f < 3; f++)
+                yield return null;
+            Hook();
+            for (int f = 0; f < 100; f++)
+                yield return null;
+            Shot("menu-title");
+            var title = UnityEngine.Object.FindAnyObjectByType<TitleMenu>();
+            title.Choose(title.Rows.Count > 3 ? 1 : 0); // Play
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            Shot("menu-slots");
+            cam.targetTexture = null;
+
+            SaveSlots.Current = -1;
+            yield return SceneManager.LoadSceneAsync("Main");
+            for (int f = 0; f < 5; f++)
+                yield return null;
+            Hook();
+            var pause = UnityEngine.Object.FindAnyObjectByType<PauseMenu>();
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            Hook(); // (the pause canvas exists now)
+            pause.Toggle(true);
+            for (int f = 0; f < 30; f++)
+                yield return null;
+            Shot("menu-pause");
+            pause.GetType().GetMethod("Go", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .Invoke(pause, new object[] { Enum.Parse(pause.GetType().GetNestedType("Page", System.Reflection.BindingFlags.NonPublic), "Controls"), 0 });
+            for (int f = 0; f < 10; f++)
+                yield return null;
+            Shot("menu-controls");
+            pause.GetType().GetMethod("Go", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .Invoke(pause, new object[] { Enum.Parse(pause.GetType().GetNestedType("Page", System.Reflection.BindingFlags.NonPublic), "Settings"), 1 });
+            for (int f = 0; f < 10; f++)
+                yield return null;
+            Shot("menu-settings");
+            pause.Toggle(false);
+            cam.targetTexture = null;
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

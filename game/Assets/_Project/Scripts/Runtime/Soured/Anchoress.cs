@@ -138,9 +138,12 @@ namespace MyGame
         bool InArena(Vector3 p) => rewardSpot == null || Flat(p - rewardSpot.position).magnitude <= arenaRadius;
         protected override bool LosesTarget(float distance) => target == null || !InArena(target.transform.position);
 
+        public string SaveId { get; private set; }
+
         protected override void Awake()
         {
             base.Awake();
+            SaveId = SaveKey.Of(this);
             if (anchorRing != null)
                 lastRing = anchorRing.position;
         }

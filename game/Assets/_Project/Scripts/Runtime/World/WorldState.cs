@@ -36,6 +36,9 @@ namespace MyGame
 
         public static void Unregister(Soured s) => soured.Remove(s);
 
+        // Loading a save: the post they last Rested at (they wake there), without a Rest.
+        public void RestoreRested(MooringPost post) => LastRested = post;
+
         public void OnRest(MooringPost post)
         {
             LastRested = post;

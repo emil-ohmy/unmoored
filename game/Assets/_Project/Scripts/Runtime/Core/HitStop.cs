@@ -47,7 +47,7 @@ namespace MyGame
         {
             clock += Time.captureDeltaTime > 0f ? Time.captureDeltaTime : Time.unscaledDeltaTime;
             float slow = clock < slowUntil ? Mathf.Lerp(slowScale, 1f, Mathf.Pow((clock - slowFrom) / (slowUntil - slowFrom), 3f)) : 1f;
-            Time.timeScale = clock < until ? FrozenScale : slow;
+            Time.timeScale = Pause.IsPaused ? 0f : clock < until ? FrozenScale : slow;
         }
 
         void OnDestroy()

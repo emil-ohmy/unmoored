@@ -220,6 +220,8 @@ namespace MyGame
 
         void Update()
         {
+            if (Pause.IsPaused)
+                return; // (the pause menu has the controls)
             float dt = Time.deltaTime;
             if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free))
                 CloseMenu();
@@ -953,6 +955,15 @@ namespace MyGame
 
         // Something found for good, announced (the HUD's banner): a title and a hint.
         public void AnnounceFind(string title, string hint) => Found?.Invoke(title, hint);
+
+        // Loading a save: the Obols carried, the most Healing charges they can carry, the Hook; health and charges full.
+        public void Restore(int obols, int healingChargeMax, bool hook)
+        {
+            Obols = Mathf.Max(0, obols);
+            maxHealingCharges = Mathf.Max(1, healingChargeMax);
+            HasHook = hook;
+            RestoreFully();
+        }
 
         public void AddHealingCharge()
         {

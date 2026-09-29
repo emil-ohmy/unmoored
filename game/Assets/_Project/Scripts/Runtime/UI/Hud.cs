@@ -254,7 +254,7 @@ namespace MyGame
             Boss.Tick(BossFight.Current);
             Menu.Tick(apprentice.OpenMenu, usingGamepad);
             Death.Tick();
-            hudGroup.alpha = Death.HudAlpha;
+            hudGroup.alpha = Death.HudAlpha * (Pause.IsPaused ? 0.2f : 1f); // (dimmed under the pause menu)
             AreaTitle.Tick();
             LanternBanner.Tick();
             FoundBanner.Tick();

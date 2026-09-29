@@ -156,6 +156,10 @@ public static partial class MainSceneBuilder
         hud.apprentice = apprentice;
         hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");
         hud.textFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
+        systems.AddComponent<SaveSystem>(); // keeps the slot being played (from the title screen) in step with the world
+        var pause = systems.AddComponent<PauseMenu>();
+        pause.titleFont = hud.titleFont;
+        pause.textFont = hud.textFont;
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
