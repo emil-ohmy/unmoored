@@ -410,10 +410,10 @@ namespace MyGame
 
         void UpdateHookMarker()
         {
-            var post = apprentice.CurrentState == Apprentice.State.Free ? apprentice.HookTarget : null;
+            Vector3? mark = apprentice.CurrentState == Apprentice.State.Free ? apprentice.HookMark : null;
             var cam = Camera.main;
-            Vector3 screen = post != null && cam != null ? cam.WorldToScreenPoint(post.RingPosition) : Vector3.zero;
-            bool show = post != null && screen.z > 0f;
+            Vector3 screen = mark.HasValue && cam != null ? cam.WorldToScreenPoint(mark.Value) : Vector3.zero;
+            bool show = mark.HasValue && screen.z > 0f;
             hookMarker.gameObject.SetActive(show);
             if (!show)
                 return;

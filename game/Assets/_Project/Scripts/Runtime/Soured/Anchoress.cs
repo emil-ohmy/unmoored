@@ -133,6 +133,19 @@ namespace MyGame
         protected override float ChaseSpeed(float distance) => Anchor == AnchorMode.Held ? base.ChaseSpeed(distance) : 0f;
         protected override bool BlocksHit(Hit hit) => Anchor == AnchorMode.Held && base.BlocksHit(hit);
 
+        [Header("The Hook: it jerks the anchor in her hands (not while it's out, nor while she rises)")]
+        public float ripCooldown = 12f;
+        float nextRip;
+
+        public override HookResult OnHooked(Apprentice by)
+        {
+            if (!IsAlive || CurrentState == State.Busy || Anchor != AnchorMode.Held || Time.time < nextRip)
+                return HookResult.Shrugged;
+            nextRip = Time.time + ripCooldown;
+            Rip(by, 4f, 0.9f);
+            return HookResult.Ripped;
+        }
+
         // In her chapel, she never loses you: only if you're off its floor (you've left, or fallen in).
         public float arenaRadius = 9f;
         bool InArena(Vector3 p) => rewardSpot == null || Flat(p - rewardSpot.position).magnitude <= arenaRadius;

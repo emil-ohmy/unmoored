@@ -1166,6 +1166,57 @@ namespace MyGame.Tests
 
         // ---- The Hook
 
+        // ---- The Hook in combat
+
+        // A light Soured (the archer) caught on the Hook is yanked over to land in front of you, and reels.
+        [UnityTest]
+        public IEnumerator Hook_YanksALightSoured_OverToYou()
+        {
+            Isolate(archer);
+            archer.aggroRadius = 0f; // (calm: it won't shoot)
+            apprentice.GiveHook();
+            PlaceApprentice(archer.transform.position + archer.transform.forward * 7f, archer.transform.position);
+            yield return new WaitForSeconds(0.2f);
+            float stamina = apprentice.Stamina;
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(archer, apprentice.HookFoe, "a Soured in reach: the Hook aims at it (over any post)");
+            Assert.IsNull(apprentice.HookTarget);
+            input.HookHeld = false;
+            yield return WaitFor(() => archer.CurrentState == Soured.State.Staggered, 2f, "it yanked over, reeling");
+            Assert.Less(FlatDistance(archer.transform.position, apprentice.transform.position), 2.2f, "in front of you");
+            Assert.Less(apprentice.Stamina, stamina, "the throw costs stamina");
+        }
+
+        // A Laden is too heavy to pull: the Hook tears its heap from its grip. It staggers, and for a while it can't raise
+        // its guard: your blows land from the front.
+        [UnityTest]
+        public IEnumerator Hook_TearsALadensGuardAway()
+        {
+            var target = Isolate(laden[0]);
+            target.attackRange = 0f; // (only guarding)
+            apprentice.GiveHook();
+            PlaceApprentice(target.transform.position + target.transform.forward * 3f, target.transform.position);
+            yield return WaitFor(() => target.Guarding, 3f, "its guard up");
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(target, apprentice.HookFoe);
+            input.HookHeld = false;
+            yield return WaitFor(() => target.CurrentState == Soured.State.Staggered, 2f, "it staggering");
+            Assert.IsTrue(target.GuardBroken, "its guard torn away");
+            Assert.Greater(FlatDistance(target.transform.position, apprentice.transform.position), 2f, "too heavy to pull");
+            yield return WaitFor(() => target.CurrentState == Soured.State.Chase, target.ripStagger + 1f, "it recovering");
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsFalse(target.Guarding, "no guard for a while");
+            float health = target.Health;
+            apprentice.transform.rotation = Quaternion.LookRotation(Flat(target.transform.position - apprentice.transform.position));
+            input.PressLight();
+            yield return new WaitForSeconds(0.6f);
+            Assert.Less(target.Health, health, "a frontal blow lands");
+        }
+
         [UnityTest]
         public IEnumerator WithoutTheHook_NothingIsAimed_OrPulled()
         {

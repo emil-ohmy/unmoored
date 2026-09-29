@@ -1040,6 +1040,66 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The Hook in combat: an archer yanked over, a Laden's heap ripped (junk flying).
+        [UnityTest]
+        public IEnumerator Capture_HookCombat()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            apprentice.GiveHook();
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            var archer = UnityEngine.Object.FindObjectsByType<LadenArcher>(FindObjectsSortMode.None).OrderByDescending(a => a.transform.position.z).First();
+            var laden = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).Where(l => !(l is Anchoress)).OrderBy(l => l.transform.position.magnitude).First();
+            foreach (var s in UnityEngine.Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                if (s != archer)
+                    s.gameObject.SetActive(false);
+            archer.aggroRadius = 0f;
+            Vector3 p = archer.transform.position + archer.transform.forward * 7f;
+            apprentice.Teleport(new Vector3(p.x, 0.55f, p.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-archer.transform.forward);
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            input.HookHeld = true;
+            for (int f = 0; f < 12; f++)
+                yield return null;
+            Capture(outDir, "hook-aim");
+            input.HookHeld = false;
+            for (int f = 0; f < 30; f++)
+            {
+                if (f % 3 == 0)
+                    Capture(outDir, $"hook-yank-{f:D2}");
+                yield return null;
+            }
+            archer.gameObject.SetActive(false);
+            laden.gameObject.SetActive(true);
+            laden.attackRange = 0f;
+            p = laden.transform.position + laden.transform.forward * 3.2f;
+            apprentice.Teleport(new Vector3(p.x, 0.55f, p.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-laden.transform.forward);
+            for (int f = 0; f < 45; f++)
+                yield return null;
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            input.HookHeld = false;
+            for (int f = 0; f < 30; f++)
+            {
+                if (f % 3 == 0)
+                    Capture(outDir, $"hook-rip-{f:D2}");
+                yield return null;
+            }
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

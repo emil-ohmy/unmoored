@@ -97,6 +97,8 @@ namespace MyGame
         public float hookThrowTime = 0.15f; // the tether flying out
         public float hookSpeed = 13f;
         public float hookArc = 0.6f;       // the pull lifts you a little, like a leap
+        public float hookFoeStamina = 20f; // thrown at a Soured (yank, rip): it costs, like a heavy blow
+        public float hookFoeCooldown = 0.8f;
 
         [Header("Hook visuals")]
         public GameObject hookHeadModel; // the Hook's head in flight (spawned per throw)
@@ -132,6 +134,10 @@ namespace MyGame
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
         public HookPost HookTarget { get; private set; } // with the Hook: the post it would pull to (ringed; brighter while aiming)
+        public Soured HookFoe { get; private set; }      // ...or the Soured it would catch (a Soured in reach wins over a post)
+        // Where the Hook's marker goes (the HUD): the post's ring, or the Soured's chest; null with nothing to aim at.
+        public Vector3? HookMark => HookFoe != null ? HookFoe.transform.position + Vector3.up * (HookFoe.barHeight * 0.55f)
+                                  : HookTarget != null ? HookTarget.RingPosition : (Vector3?)null;
         public bool HookShown => hookBone != null && hookBone.localScale.x > 0.5f; // at the hip (not before it's found, nor in flight)
         public bool AimingHook { get; private set; }
         public event System.Action<string, string> Found; // something gained for good: a title and a hint (HUD banner)
@@ -143,7 +149,7 @@ namespace MyGame
             CurrentState == State.Dead
             || Time.time < invulnerableUntil
             || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd)
-            || (CurrentState == State.Hooking && stateTime >= hookThrowTime) // pulled clear of harm
+            || (CurrentState == State.Hooking && stateTime >= hookThrowTime && hookFoe == null) // pulled clear of harm (not when it's thrown at a Soured)
             || CurrentState == State.Ceremony
             || CurrentState == State.Sinking;
 
@@ -267,12 +273,19 @@ namespace MyGame
                     }
                     // With the Hook, the post in reach ahead (on other ground) is ringed; hold to aim, let go to throw
                     // (a quick tap too).
+                    if (wasAiming && !AimingHook && HookFoe != null && Time.time >= hookFoeReadyAt && Stamina > 0f)
+                    {
+                        StartHookFoe(HookFoe);
+                        break;
+                    }
                     if (wasAiming && !AimingHook && HookTarget != null)
                     {
                         StartHook(HookTarget);
                         break;
                     }
-                    HookTarget = HasHook ? HookPost.Best(transform.position, move.sqrMagnitude > 0.01f ? move : transform.forward, hookRange, hookAimAngle) : null;
+                    Vector3 aim = move.sqrMagnitude > 0.01f ? move : transform.forward;
+                    HookFoe = HasHook ? FoeInReach(aim) : null;
+                    HookTarget = HasHook && HookFoe == null ? HookPost.Best(transform.position, aim, hookRange, hookAimAngle) : null;
                     if (Input.HealPressed)
                         TryHeal();
                     else if (Input.BlockHeld)
@@ -364,6 +377,7 @@ namespace MyGame
                 if (CurrentState != State.Hooking)
                 {
                     HookTarget = null;
+                    HookFoe = null;
                     AimingHook = false;
                 }
             }
@@ -374,6 +388,7 @@ namespace MyGame
                 if (hookHead != null)
                     Destroy(hookHead); // (a throw cut short by a blow)
                 hookInFlight = false;
+                hookFoe = null;
             }
             UpdateWhirl();
             if (swingTrail != null)
@@ -871,7 +886,7 @@ namespace MyGame
         float hookDuration;
         LineRenderer tether;
 
-        public const string HookHint = "Hold {hook} to aim at a hook post, let go to pull yourself across";
+        public const string HookHint = "Hold {hook} to aim, let go to throw: pull yourself to a hook post, or yank a Soured to you";
 
         public void GrantHook()
         {
@@ -972,8 +987,131 @@ namespace MyGame
             Found?.Invoke("A Healing Charge", "One more flame to heal with");
         }
 
+        // The Soured the Hook would catch: the one locked on to (in reach), or the nearest in reach ahead, in the open.
+        Soured FoeInReach(Vector3 facing)
+        {
+            facing.y = 0f;
+            bool Reachable(Soured s)
+            {
+                if (s == null || !s.IsAlive || !s.isActiveAndEnabled)
+                    return false;
+                Vector3 to = s.transform.position - transform.position;
+                to.y = 0f;
+                return to.magnitude <= hookRange && to.magnitude > 0.8f && ClearTo(s);
+            }
+            if (Reachable(LockTarget))
+                return LockTarget;
+            Soured best = null;
+            float bestScore = float.MaxValue;
+            foreach (var s in WorldState.AllSoured)
+            {
+                if (!Reachable(s))
+                    continue;
+                Vector3 to = s.transform.position - transform.position;
+                to.y = 0f;
+                float angle = Vector3.Angle(facing, to);
+                if (angle > hookAimAngle)
+                    continue;
+                float score = to.magnitude + angle * 0.05f;
+                if (score < bestScore)
+                {
+                    best = s;
+                    bestScore = score;
+                }
+            }
+            return best;
+        }
+
+        // Nothing solid between the Apprentice and it (characters don't count).
+        bool ClearTo(Soured s)
+        {
+            Vector3 from = transform.position + Vector3.up * 1f, to = s.transform.position + Vector3.up * 1f;
+            foreach (var hit in Physics.RaycastAll(from, (to - from).normalized, Vector3.Distance(from, to), ~0, QueryTriggerInteraction.Ignore))
+                if (!(hit.collider is CharacterController))
+                    return false;
+            return true;
+        }
+
+        Soured hookFoe;
+        HookResult hookResult;
+        float hookFoeReadyAt, hookCaughtAt;
+
+        // The Hook thrown at a Soured: it flies out, catches, and yanks it over (or tears its guard away).
+        void StartHookFoe(Soured foe)
+        {
+            hookFoe = foe;
+            hookPost = null;
+            hookFrom = transform.position;
+            hookStep = Vector3.zero;
+            hookCaughtAt = -1f;
+            Vector3 to = foe.transform.position - transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.001f)
+                transform.rotation = Quaternion.LookRotation(to);
+            hookDuration = Mathf.Clamp(to.magnitude / 30f, 0.12f, 0.3f); // (the throw's flight)
+            Stamina = Mathf.Max(0f, Stamina - hookFoeStamina);
+            lastStaminaUse = Time.time;
+            hookFoeReadyAt = Time.time + hookFoeCooldown;
+            buffered = Act.None;
+            Enter(State.Hooking);
+            clips.PlayOnce("HookThrow", hookDuration);
+            Sfx.Instance?.HookThrow(transform.position + Vector3.up);
+            if (tether == null)
+                tether = BuildTether();
+            tether.enabled = true;
+            if (hookHeadModel != null)
+            {
+                hookHead = Instantiate(hookHeadModel);
+                foreach (var c in hookHead.GetComponentsInChildren<Collider>())
+                    Destroy(c);
+                hookHeadRest = hookHeadModel.transform.localRotation;
+            }
+            hookInFlight = true;
+        }
+
+        void UpdateHookFoe()
+        {
+            Vector3 hand = hookBone != null ? hookBone.position : transform.position + Vector3.up * 0.75f + transform.right * 0.3f;
+            Vector3 chest = hookFoe != null ? hookFoe.transform.position + Vector3.up * (hookFoe.barHeight * 0.5f) : hand;
+            if (hookCaughtAt < 0f)
+            {
+                Vector3 end = Vector3.Lerp(hand, chest, Mathf.Clamp01(stateTime / hookDuration));
+                tether.SetPosition(0, hand);
+                tether.SetPosition(1, end);
+                PlaceHookHead(end, chest - hand);
+                if (stateTime < hookDuration)
+                    return;
+                // It catches.
+                hookCaughtAt = stateTime;
+                hookResult = hookFoe != null ? hookFoe.OnHooked(this) : HookResult.Shrugged;
+                if (hookResult == HookResult.Shrugged)
+                {
+                    Sfx.Instance?.BlockClang(chest, 0.7f); // it glances off
+                    Effects.Instance?.BlockSpark(chest, (hand - chest).normalized);
+                }
+                else
+                {
+                    Sfx.Instance?.HookCatch(chest);
+                    clips.Loop("HookPull", 0.05f);
+                    CameraRig.Instance?.Shake(0.12f);
+                }
+            }
+            tether.SetPosition(0, hand);
+            tether.SetPosition(1, chest);
+            PlaceHookHead(chest, chest - hand);
+            // Held on while it's pulled over (a yank), a quick tug for a rip, a moment for a glance.
+            float hold = hookResult == HookResult.Yanked ? 0.6f : hookResult == HookResult.Ripped ? 0.35f : 0.2f;
+            bool done = stateTime - hookCaughtAt >= hold && (hookResult != HookResult.Yanked || hookFoe == null || !hookFoe.Yanked);
+            if (done)
+            {
+                hookFoe = null;
+                ToFreeAndConsume();
+            }
+        }
+
         void StartHook(HookPost post)
         {
+            hookFoe = null;
             hookPost = post;
             hookFrom = transform.position;
             hookDuration = Mathf.Max(0.2f, Vector3.Distance(hookFrom, post.LandingPosition) / hookSpeed);
@@ -1002,6 +1140,11 @@ namespace MyGame
         // The tether flies out to the ring, catches, and pulls the Apprentice along a low arc to the post's platform.
         void UpdateHook()
         {
+            if (hookFoe != null || hookPost == null)
+            {
+                UpdateHookFoe();
+                return;
+            }
             Vector3 hand = hookBone != null ? hookBone.position : transform.position + Vector3.up * 0.75f + transform.right * 0.3f;
             Vector3 ring = hookPost.RingPosition;
             if (stateTime < hookThrowTime)

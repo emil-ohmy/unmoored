@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace MyGame
 {
+    // What the Apprentice's Hook did to a Soured it caught: glanced off, pulled it over, or tore its guard away.
+    public enum HookResult { Shrugged, Yanked, Ripped }
+
     // A Soured: a soul the Ferryman kept too long. Idle -> Chase -> Telegraph (animated wind-up, no ground
     // markers) -> Strike -> Recover (the punish window). A hidden Stagger meter fills with hits and drains
     // when the Apprentice lets up; full = staggered, attack interrupted. Defeat only scatters it: it re-forms
@@ -10,7 +13,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public class Soured : MonoBehaviour
     {
-        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered, Busy, Returning }
+        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered, Busy, Returning, Yanked }
 
         [Header("Health")]
         public float maxHealth = 100f;
@@ -50,6 +53,9 @@ namespace MyGame
         public float waterLevel = -0.35f;
         [Tooltip("How far past its own radius it feels for solid ground before stepping (never walks off an edge)")]
         public float edgeLookahead = 0.35f;
+
+        [Header("The Hook: yanked over to the Apprentice, then reeling")]
+        public float yankStagger = 1.0f;
 
         [Header("Perfect-blocked")]
         public float stunDuration = 1.8f;
@@ -95,7 +101,9 @@ namespace MyGame
         AudioClip tellClip;
         float dissolve;
         int faresReleased;
-        float busyFor;
+        float busyFor, staggerFor;
+        Vector3 yankFrom, yankTo;
+        float yankTime;
 
         protected virtual void Awake()
         {
@@ -238,9 +246,30 @@ namespace MyGame
                     break;
 
                 case State.Staggered:
-                    if (stateTime >= staggerDuration)
+                    if (stateTime >= staggerFor)
                         Enter(State.Chase);
                     break;
+
+                case State.Yanked:
+                {
+                    // Pulled over on the Hook's chain along a low arc, over water if need be, to land in front of the
+                    // Apprentice; then it reels.
+                    float u = Mathf.Clamp01(stateTime / yankTime);
+                    float e = u * u * (3f - 2f * u);
+                    controller.enabled = false;
+                    transform.position = Vector3.Lerp(yankFrom, yankTo, e) + Vector3.up * (0.7f * Mathf.Sin(u * Mathf.PI));
+                    if (target != null)
+                        Face(toTarget, 720f * dt);
+                    if (u >= 1f)
+                    {
+                        controller.enabled = true;
+                        verticalVelocity = 0f;
+                        knockback = Vector3.zero;
+                        StaggerNow(yankStagger);
+                    }
+                    UpdateFlash();
+                    return;
+                }
 
                 case State.Busy:
                     if (stateTime >= busyFor)
@@ -400,9 +429,7 @@ namespace MyGame
                 Die(hit);
             else if (!stunned && Stagger >= staggerCapacity && CurrentState != State.Staggered)
             {
-                Stagger = 0f;
-                Enter(State.Staggered);
-                clips.PlayOnce("Stagger", staggerDuration);
+                StaggerNow();
             }
             else if (CurrentState == State.Idle)
                 Notice(); // hitting a sleeper wakes it
@@ -428,12 +455,34 @@ namespace MyGame
             clips.PlayOnce(clip, duration);
         }
 
-        protected void StaggerNow()
+        protected void StaggerNow() => StaggerNow(staggerDuration);
+
+        protected void StaggerNow(float duration)
         {
             Stagger = 0f;
+            staggerFor = duration;
             Enter(State.Staggered);
-            clips.PlayOnce("Stagger", staggerDuration);
+            clips.PlayOnce("Stagger", duration);
         }
+
+        // Caught by the Apprentice's Hook. A light Soured is yanked over to land in front of them (over water, if need
+        // be), reeling; heavier ones answer otherwise (the Laden: its guard torn away).
+        public virtual HookResult OnHooked(Apprentice by)
+        {
+            if (!IsAlive || CurrentState == State.Busy || CurrentState == State.Yanked)
+                return HookResult.Shrugged;
+            Vector3 away = Flat(transform.position - by.transform.position);
+            float distance = away.magnitude;
+            yankFrom = transform.position;
+            yankTo = by.transform.position + (distance > 0.01f ? away / distance : by.transform.forward) * (radius + 1.0f);
+            yankTo.y = by.transform.position.y;
+            yankTime = Mathf.Clamp(distance / 16f, 0.2f, 0.55f);
+            Enter(State.Yanked);
+            clips.PlayOnce("Stagger", yankTime);
+            return HookResult.Yanked;
+        }
+
+        public bool Yanked => CurrentState == State.Yanked;
 
         protected void LoseHealth(float amount) => Health = Mathf.Max(1f, Health - amount); // (never a kill)
 
