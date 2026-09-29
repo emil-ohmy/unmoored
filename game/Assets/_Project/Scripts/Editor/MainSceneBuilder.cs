@@ -438,8 +438,8 @@ public static class MainSceneBuilder
     }
 
     // Swooshes are white with a cold tint for the Apprentice, sickly green for the Soured (green = danger).
-    static readonly Color ApprenticeSwoosh = new Color(0.92f, 0.96f, 1f, 0.9f);
-    static readonly Color SouredSwoosh = new Color(0.82f, 1f, 0.66f, 0.85f);
+    static readonly Color ApprenticeSwoosh = new Color(0.86f, 0.92f, 1f, 0.65f);
+    static readonly Color SouredSwoosh = new Color(0.78f, 0.96f, 0.62f, 0.6f);
 
     // A swing's smear (SwingTrail), traced by two points on the weapon measured from the model itself (so no
     // guessing at bone axes): the tip is the `tipMaterial` vertex farthest from the bone; the inner edge is the

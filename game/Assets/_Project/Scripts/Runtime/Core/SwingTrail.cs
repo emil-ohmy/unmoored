@@ -95,7 +95,7 @@ namespace MyGame
             Vector3 innerPoint = CatmullRom(a.inner, b.inner, c.inner, d.inner, t);
             float age = Mathf.Lerp(now - b.time, now - c.time, t) / lifetime;
             float alpha = Mathf.Clamp01(1f - age);
-            Color faded = new Color(colour.r, colour.g, colour.b, alpha * alpha);
+            Color faded = new Color(colour.r, colour.g, colour.b, alpha * alpha * alpha); // thins out quickly behind the blade
             vertices.Add(innerPoint);
             colours.Add(faded);
             uvs.Add(new Vector2(1f - alpha, 0f));

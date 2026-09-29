@@ -47,8 +47,10 @@ Shader "MyGame/Swoosh"
 
             half4 frag(Varyings input) : SV_Target
             {
-                // Bright along the tip's edge, fading in towards the inner edge; and fading with age along its length.
-                half a = input.color.a * smoothstep(0.0, 0.55, input.uv.y) * (0.55 + 0.45 * input.uv.y);
+                // Strongest right at the blade: falls off quickly in from the tip's edge (squared), and with age along
+                // its length (the vertex alpha).
+                half across = input.uv.y * input.uv.y;
+                half a = input.color.a * across;
                 half stepped = floor(saturate(a) * _Steps + 0.35) / _Steps; // hard-edged tones, not a gradient
                 clip(stepped - 0.01);
                 half3 colour = MixFog(_Color.rgb * input.color.rgb, input.fogFactor);
