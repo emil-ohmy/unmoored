@@ -44,6 +44,9 @@ namespace MyGame
             baseRotation = shown = transform.rotation;
             if (kept != null)
                 keptIntensity = kept.intensity;
+            renderers = GetComponentsInChildren<Renderer>(true);
+            lights = GetComponentsInChildren<Light>(true);
+            block = new MaterialPropertyBlock();
             Show();
         }
 
@@ -52,7 +55,7 @@ namespace MyGame
 
         public Vector3 InteractPosition => basePosition;
         public float InteractRadius => interactRadius;
-        public bool Available => true;
+        public bool Available => !Drifting;
         public string PromptLabel => "Speak";
 
         public void Interact(Apprentice apprentice)
@@ -114,9 +117,8 @@ namespace MyGame
             // She thanks you, then goes to wait by the boat: a soul thins away and gathers again where it's going.
             apprentice.ShowMenu(new Conversation(displayName, InteractPosition + Vector3.up, paid, null, () =>
             {
-                Drift(basePosition);
-                GoToWait();
-                Drift(basePosition);
+                if (waitAt != null)
+                    StartDrift();
             }));
         }
 
@@ -152,12 +154,75 @@ namespace MyGame
             turnUntil = -1f;
         }
 
-        static void Drift(Vector3 at)
+        // Going to wait by the boat: she thins away into wisps (her light with her), and gathers again there.
+        public const float DriftOut = 1.3f, DriftPause = 0.4f, DriftIn = 1.3f;
+        public bool Drifting => driftStart >= 0f;
+        float driftStart = -1f;
+        bool driftMoved;
+        Renderer[] renderers;
+        Light[] lights;
+        float[] lightBases;
+        MaterialPropertyBlock block;
+
+        void StartDrift()
         {
-            if (Effects.Instance == null)
-                return;
-            for (int i = 0; i < 6; i++)
-                Effects.Instance.Wisp(at + Vector3.up * Random.Range(0.3f, 1.1f) + Random.insideUnitSphere * 0.3f);
+            driftStart = Time.time;
+            driftMoved = false;
+            lightBases = new float[lights.Length];
+            for (int i = 0; i < lights.Length; i++)
+                lightBases[i] = lights[i].TryGetComponent<LightFlicker>(out var f) ? f.BaseIntensity : lights[i].intensity;
+            Sfx.Instance?.SoulAbsorb(basePosition + Vector3.up * 0.6f);
+        }
+
+        void UpdateDrift()
+        {
+            float t = Time.time - driftStart;
+            float fade; // 0: all there, 1: gone
+            if (t < DriftOut)
+                fade = UiKit.Smooth(0f, DriftOut, t);
+            else if (t < DriftOut + DriftPause)
+                fade = 1f;
+            else
+                fade = 1f - UiKit.Smooth(DriftOut + DriftPause, DriftOut + DriftPause + DriftIn, t);
+            if (!driftMoved && t >= DriftOut)
+            {
+                driftMoved = true;
+                GoToWait();
+                Sfx.Instance?.SoulAbsorb(basePosition + Vector3.up * 0.6f);
+            }
+            bool fading = fade > 0.001f && (t < DriftOut || t > DriftOut + DriftPause);
+            if (fading && Effects.Instance != null && Random.value < 0.6f)
+                Effects.Instance.Wisp(basePosition + Vector3.up * Random.Range(0.2f, 1.1f) + Random.insideUnitSphere * 0.35f, new Color(1f, 0.8f, 0.55f, 1f));
+            SetFade(fade);
+            if (t >= DriftOut + DriftPause + DriftIn)
+            {
+                driftStart = -1f;
+                SetFade(0f);
+            }
+        }
+
+        void SetFade(float fade)
+        {
+            for (int i = 0; i < lights.Length; i++) // her light goes with her
+            {
+                float intensity = lightBases[i] * (1f - fade);
+                if (lights[i].TryGetComponent<LightFlicker>(out var flicker))
+                    flicker.BaseIntensity = intensity;
+                else
+                    lights[i].intensity = intensity;
+            }
+            foreach (var r in renderers)
+            {
+                if (fade <= 0f)
+                {
+                    r.SetPropertyBlock(null);
+                    continue;
+                }
+                block.Clear();
+                block.SetFloat("_Dissolve", Mathf.Lerp(0.02f, 1f, fade));
+                block.SetColor("_DissolveEdgeColor", new Color(2.4f, 1.6f, 0.8f)); // a warm edge: her lamplight
+                r.SetPropertyBlock(block);
+            }
         }
 
         // A small turn towards whoever speaks with them (souls are slow to look away from the water), then back.
@@ -179,6 +244,8 @@ namespace MyGame
 
         void Update()
         {
+            if (Drifting)
+                UpdateDrift();
             float t = Time.time;
             shown = Quaternion.Slerp(shown, t < turnUntil ? turnTo : baseRotation, Time.deltaTime * 2f);
             // A soul breathes a little: a slow bob and sway.

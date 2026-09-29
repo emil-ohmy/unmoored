@@ -1168,9 +1168,12 @@ namespace MyGame.Tests
             Shot("hesper-fare");
             talk.Choose(0);
             apprentice.OpenMenu?.Close();
+            for (int f = 0; f < 100; f += 10)
+            {
+                yield return Frames(10);
+                Shot($"hesper-drift-{f:D3}");
+            }
             yield return Frames(20);
-            Shot("hesper-drift");
-            yield return Frames(60);
             Shot("hesper-boat");
             cam.targetTexture = null;
             Time.captureFramerate = 0;

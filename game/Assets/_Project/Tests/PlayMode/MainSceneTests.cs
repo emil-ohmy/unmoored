@@ -1514,8 +1514,17 @@ namespace MyGame.Tests
             talk = apprentice.OpenMenu as Conversation;
             Assert.AreEqual("Thank you, child.", talk.CurrentLine);
             talk.Close();
-            yield return new WaitForSeconds(0.2f);
-            Assert.Less(FlatDistance(hesper.transform.position, hesper.waitAt.position), 0.1f, "she waits by the boat");
+            Vector3 was = hesper.transform.position;
+            yield return new WaitForSeconds(Lingerer.DriftOut * 0.6f);
+            Assert.IsTrue(hesper.Drifting, "she thins away first");
+            Assert.IsFalse(hesper.Available, "(no talking to her while she goes)");
+            Assert.Less(FlatDistance(hesper.transform.position, was), 0.1f, "still where she sat");
+            var block = new MaterialPropertyBlock();
+            hesper.GetComponentInChildren<Renderer>().GetPropertyBlock(block);
+            Assert.Greater(block.GetFloat("_Dissolve"), 0.3f, "dissolving");
+            yield return new WaitForSeconds(Lingerer.DriftOut + Lingerer.DriftPause + Lingerer.DriftIn);
+            Assert.IsFalse(hesper.Drifting);
+            Assert.Less(FlatDistance(hesper.transform.position, hesper.waitAt.position), 0.1f, "and gathers again by the boat");
 
             apprentice.Teleport(hesper.InteractPosition + Vector3.left * 0.9f);
             yield return new WaitForSeconds(0.3f);
