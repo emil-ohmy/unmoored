@@ -142,6 +142,7 @@ namespace MyGame.Tests
             Assert.Greater(Vector3.Dot(apprentice.transform.forward, to.normalized), 0.95f, "locked on, the Apprentice should face its target");
             var hud = Object.FindAnyObjectByType<Hud>();
             Assert.IsTrue(hud.LockBarVisible, "the target's health bar should show");
+            Assert.IsTrue(hud.LockMarkerVisible, "and the lock-on marker over it");
             Vector2 expected = Camera.main.WorldToScreenPoint(target.transform.position + Vector3.up * target.barHeight);
             Vector2 actual = RectTransformUtility.WorldToScreenPoint(null, hud.LockBarRect.position); // overlay: screen pixels
             Assert.Less(Vector2.Distance(expected, actual), 4f, $"the bar should float above its target (expected {expected}, got {actual})");
@@ -151,6 +152,7 @@ namespace MyGame.Tests
             yield return null; // the HUD updates in LateUpdate, after this coroutine resumes: give it that frame
             Assert.IsNull(apprentice.LockTarget, "pressing again should release");
             Assert.IsFalse(Object.FindAnyObjectByType<Hud>().LockBarVisible);
+            Assert.IsFalse(Object.FindAnyObjectByType<Hud>().LockMarkerVisible);
         }
 
         [UnityTest]

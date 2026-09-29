@@ -230,8 +230,15 @@ namespace MyGame.Tests
             var hud = Object.FindAnyObjectByType<Hud>();
             yield return WaitFor(() => boss.FreedHook != null, boss.deathDuration + boss.dissolveDuration, "his hook freed");
             yield return null;
-            Assert.IsTrue(hud.Farewell.Showing, "her farewell");
-            Assert.AreEqual(boss.farewell, hud.Farewell.Text.text);
+            Assert.IsTrue(hud.Farewell.Showing, "her farewell: the game's joke...");
+            Assert.AreEqual("ANCHOR DOWN...", hud.Farewell.Text.text);
+            yield return new WaitForSeconds(1.4f);
+            yield return null;
+            Assert.AreEqual("ANCHOR DOWN...ed", hud.Farewell.Text.text, "...the 'ed' a beat late");
+            yield return new WaitForSeconds(1.2f);
+            yield return null;
+            Assert.IsTrue(hud.FarewellLine.Showing, "...and the truth beneath it");
+            Assert.AreEqual("She let go.", hud.FarewellLine.Text.text);
             var hook = boss.FreedHook;
             yield return WaitFor(() => hook.Landed, hook.flightTime + 0.5f, "the hook coming to rest");
             Assert.Less(Flat(hook.transform.position - boss.rewardSpot.position).magnitude, 0.1f, "on his mark");
@@ -294,6 +301,7 @@ namespace MyGame.Tests
             yield return null;
             Assert.AreEqual(boss, apprentice.LockTarget);
             Assert.IsFalse(hud.LockBarVisible, "no floating bar over a Boss");
+            Assert.IsTrue(hud.LockMarkerVisible, "but you still see who you're locked on to");
 
             apprentice.TakeHit(1000f, Vector3.zero);
             yield return new WaitForSeconds(2f);

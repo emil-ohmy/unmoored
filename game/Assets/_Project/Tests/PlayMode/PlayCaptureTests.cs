@@ -666,7 +666,8 @@ namespace MyGame.Tests
             Time.captureFramerate = 30;
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             var boss = UnityEngine.Object.FindAnyObjectByType<Anchoress>();
-            apprentice.Input = new ScriptedInput();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
             apprentice.postHitInvulnerability = 1000f;
             var cam = Camera.main;
             var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
@@ -702,6 +703,8 @@ namespace MyGame.Tests
                         Shot($"bossui-{f:D3}");
                     if (f == 100)
                         typeof(Soured).GetProperty("Health").SetValue(boss, boss.maxHealth * 0.62f);
+                    if (f == 60)
+                        input.PressLock(); // the lock-on marker over her
                     yield return null;
                 }
             }

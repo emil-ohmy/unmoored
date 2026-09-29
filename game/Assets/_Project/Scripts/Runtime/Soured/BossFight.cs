@@ -11,7 +11,9 @@ namespace MyGame
         float[] PhaseMarks { get; } // health fractions where a new phase begins
         int Phase { get; }          // 1, 2...
         UnityEngine.AudioClip[] Music { get; } // its music, one track per phase (sharing one loop, to crossfade in step)
-        string Farewell { get; }    // the line when it's beaten: "She Let Go"
+        string Farewell { get; }     // its banner when beaten, the game's joke (docs/brief.md, Tone and voice); a "|"
+                                     // is a beat: "ANCHOR DOWN...|ed" shows "ed" a moment late
+        string FarewellLine { get; } // the sincere line beneath it: "She let go."
     }
 
     // The Boss fight going on now, if any (the one the HUD shows).

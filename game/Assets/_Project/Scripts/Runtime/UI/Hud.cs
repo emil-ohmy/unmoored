@@ -17,6 +17,7 @@ namespace MyGame
         public string deathPhrase = "You Sank";
 
         public bool LockBarVisible => lockBar != null && lockBar.gameObject.activeSelf;
+        public bool LockMarkerVisible => lockMarker != null && lockMarker.gameObject.activeSelf;
         public RectTransform LockBarRect => lockBar;
         public Banner AreaTitle { get; private set; }
         public Banner LanternBanner { get; private set; }
@@ -30,7 +31,8 @@ namespace MyGame
         const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
         public BossBar Boss { get; private set; }
-        public Banner Farewell { get; private set; } // a Boss beaten: "She Let Go"
+        public Banner Farewell { get; private set; }     // a Boss beaten: its joke ("ANCHOR DOWN...ed")...
+        public Banner FarewellLine { get; private set; } // ...and the sincere line beneath ("She let go.")
         public string PromptText => promptLabel != null ? promptLabel.text : "";
 
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
@@ -40,7 +42,10 @@ namespace MyGame
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing, ceremonyDim;
         Text glyph, promptLabel, obolText, obolGain;
-        RectTransform hookMarker;
+        RectTransform hookMarker, lockMarker;
+        Image lockMarkerGlow;
+        Soured markerTarget;
+        float lockedAt = -100f;
         Image hookMarkerImage, hookMarkerGlow;
         Banner foundHint;
         float obolsShown, gainAt = -100f, healedAt = -100f;
@@ -103,7 +108,11 @@ namespace MyGame
             Farewell = new Banner(canvasRect, "Boss Farewell", new Banner.Style
             {
                 font = titleFont, size = 80, colour = UiKit.Bone, spacing = 8f, y = 60f, glow = UiKit.Hex(0x9fc4ff, 0.22f),
-                bandAlpha = 0.6f, rule = true, fadeIn = 1.4f, hold = 3.2f, fadeOut = 2.0f, drift = 0.03f,
+                bandAlpha = 0.6f, rule = true, fadeIn = 1.0f, hold = 3.8f, fadeOut = 2.0f, drift = 0.03f,
+            });
+            FarewellLine = new Banner(canvasRect, "Boss Farewell Line", new Banner.Style
+            {
+                font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = -20f, fadeIn = 1.6f, hold = 2.6f, fadeOut = 2.0f, drift = 0.02f,
             });
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
@@ -120,7 +129,35 @@ namespace MyGame
             BossFight.Defeated += OnBossDefeated;
         }
 
-        void OnBossDefeated(IBoss boss) => Farewell.Show(boss.Farewell);
+        // The joke first (up to its beat, then the rest), then the sincere line quietly beneath.
+        void OnBossDefeated(IBoss boss)
+        {
+            string[] parts = (boss.Farewell ?? "").Split('|');
+            Farewell.Show(parts[0]);
+            farewellRest = parts.Length > 1 ? string.Concat(parts) : null;
+            farewellLine = boss.FarewellLine;
+            farewellAt = UiKit.Now;
+        }
+
+        string farewellRest, farewellLine;
+        float farewellAt = -100f;
+
+        void UpdateFarewell()
+        {
+            float age = UiKit.Now - farewellAt;
+            if (farewellRest != null && age >= 1.3f)
+            {
+                Farewell.Text.text = farewellRest; // ...ed
+                farewellRest = null;
+            }
+            if (!string.IsNullOrEmpty(farewellLine) && age >= 2.3f)
+            {
+                FarewellLine.Show(farewellLine);
+                farewellLine = null;
+            }
+            Farewell.Tick();
+            FarewellLine.Tick();
+        }
 
         void OnDestroy()
         {
@@ -207,7 +244,7 @@ namespace MyGame
             AreaTitle.Tick();
             LanternBanner.Tick();
             FoundBanner.Tick();
-            Farewell.Tick();
+            UpdateFarewell();
             foundHint.Tick();
             float dimTarget = apprentice.CurrentState == Apprentice.State.Ceremony ? 0.85f : 0f;
             ceremonyDim.color = Color.black.WithAlpha(Mathf.MoveTowards(ceremonyDim.color.a, dimTarget, UiKit.DeltaTime * 1.2f));
@@ -374,9 +411,16 @@ namespace MyGame
             lockTrail = Fill(lockBar, UiKit.Bone.WithAlpha(0.8f));
             lockFill = Fill(lockBar, HealthRed);
             lockFill.GetComponent<Image>().sprite = UiKit.Sheen;
-            var marker = UiKit.Image(lockBar, "Lock Marker", null, UiKit.Bone, new Vector2(0.5f, 0.5f), new Vector2(0, 17), new Vector2(9, 9));
-            marker.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
             lockBar.gameObject.SetActive(false);
+            // The lock-on marker, on its own (a Boss has no floating bar, but you still see who you're locked on to):
+            // a bone-white diamond over the target, in a soft glow, popping in as you lock and breathing after.
+            lockMarker = UiKit.Rect(root, "Lock Marker", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40, 40));
+            lockMarkerGlow = UiKit.Image(lockMarker, "Glow", UiKit.SoftDot, UiKit.Bone.WithAlpha(0.25f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(44, 44));
+            var diamond = UiKit.Image(lockMarker, "Diamond", null, UiKit.Bone, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(13, 13));
+            diamond.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+            var hollow = UiKit.Image(lockMarker, "Frame", UiKit.Ring, UiKit.Bone.WithAlpha(0.7f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30, 30));
+            hollow.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+            lockMarker.gameObject.SetActive(false);
         }
 
         static RectTransform Fill(RectTransform parent, Color colour)
@@ -389,6 +433,7 @@ namespace MyGame
 
         void UpdateLockBar()
         {
+            UpdateLockMarker();
             var target = apprentice.LockTarget;
             var cam = Camera.main;
             bool show = target != null && target.IsAlive && cam != null
@@ -412,6 +457,37 @@ namespace MyGame
             var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, uiCamera, out var local);
             lockBar.anchoredPosition = local;
+        }
+
+        void UpdateLockMarker()
+        {
+            var target = apprentice.LockTarget;
+            var cam = Camera.main;
+            bool show = target != null && target.IsAlive && cam != null && apprentice.IsAlive;
+            bool boss = show && target is IBoss b && b == BossFight.Current;
+            // Over the target: above its floating bar, or (a Boss, whose bar is along the bottom) where the bar would be.
+            Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * (target.barHeight + (boss ? -0.4f : 0.35f))) : Vector3.zero;
+            show &= screen.z > 0f;
+            lockMarker.gameObject.SetActive(show);
+            if (!show)
+            {
+                markerTarget = null;
+                return;
+            }
+            if (target != markerTarget)
+            {
+                markerTarget = target;
+                lockedAt = UiKit.Now; // a new lock: it pops in
+            }
+            var canvas = canvasRect.GetComponent<Canvas>();
+            var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, uiCamera, out var local);
+            lockMarker.anchoredPosition = local;
+            float age = UiKit.Now - lockedAt;
+            float pop = 1f + 0.6f * (1f - UiKit.Smooth(0f, 0.25f, age));
+            float breathe = 1f + 0.06f * Mathf.Sin(UiKit.Now * 4f);
+            lockMarker.localScale = Vector3.one * pop * breathe;
+            lockMarkerGlow.color = UiKit.Bone.WithAlpha(0.18f + 0.1f * Mathf.Sin(UiKit.Now * 4f) + 0.4f * (1f - UiKit.Smooth(0f, 0.3f, age)));
         }
 
         // A framed bar at the top left: a thin bronze frame with a diamond at its left end, a dark back, a pale
