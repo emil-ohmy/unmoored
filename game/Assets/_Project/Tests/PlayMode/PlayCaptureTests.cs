@@ -228,6 +228,46 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The Apprentice's swings in open air from the game's camera: the light combo and the heavy chop, frame by frame.
+        [UnityTest]
+        public IEnumerator Capture_Swings()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            foreach (var soured in UnityEngine.Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                soured.gameObject.SetActive(false);
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            apprentice.Teleport(new Vector3(0f, 0.55f, -1f)); // the quay, open ground
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            Capture(outDir, "swing-warmup");
+            input.PressLight();
+            for (int f = 0; f < 22; f++)
+            {
+                if (f == 9)
+                    input.PressLight(); // the combo's second swing
+                yield return null;
+                Capture(outDir, $"swing-light-{f:D2}");
+            }
+            for (int f = 0; f < 20; f++)
+                yield return null;
+            input.PressHeavy();
+            for (int f = 0; f < 30; f++)
+            {
+                yield return null;
+                Capture(outDir, $"swing-heavy-{f:D2}");
+            }
+            Time.captureFramerate = 0;
+        }
+
         // The Laden archer: the draw (its arrow glowing on the bow), the glint as the aim is set, the arrow in flight,
         // and a perfect block nullifying one.
         [UnityTest]

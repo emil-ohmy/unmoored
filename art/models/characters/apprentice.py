@@ -23,8 +23,25 @@ BONES = {
 REST = {}
 # Oar: (pitch, 0, yaw). +pitch tips the upright oar forward, +yaw swings it to the Apprentice's right.
 # From the game camera a forward-tipped oar foreshortens and reads as "at the feet", so idle/run/dash carry it tipped back.
-LIGHT_RIGHT = {"Oar": (80, 0, 70), "Body": (4, 0, 20)}
-LIGHT_LEFT = {"Oar": (80, 0, -85), "Body": (6, 0, -25)}
+# The light swings are whole-body swings, not a flick of the wrist: the torso winds up (twisting away), the hand travels
+# an arc across the front (the Oar bone's offset moves the hand; its rotation is the oar about the hand), the root
+# steps into it, and the head counter-turns a little so the mask keeps facing the target. Light1 is a forehand
+# (right to left), Light2 the backhand. Contact is mid-arc (frame ~5-6: windup 0.13 s, active 0.10 s of 0.51 s).
+LIGHT1_WIND = {"Body": (2, 0, 40), "Head": (0, 0, -18), "Oar": ((75, 0, 95), (0.1, 0.18, 0.05)), "Root": ((0, 0, 0), (0, 0.03, 0))}
+LIGHT1_HIT = {"Body": (6, 0, -12), "Head": (0, 0, 6), "Oar": ((86, 0, 0), (-0.04, -0.22, 0.0)), "Root": ((0, 0, 0), (0, -0.08, 0))}
+LIGHT1_FOLLOW = {"Body": (6, 0, -50), "Head": (0, 0, 22), "Oar": ((80, 0, -80), (-0.22, -0.16, 0.0)), "Root": ((0, 0, 0), (0, -0.1, 0))}
+LIGHT2_WIND = {"Body": (2, 0, -40), "Head": (0, 0, 18), "Oar": ((75, 0, -100), (-0.34, 0.1, 0.05)), "Root": ((0, 0, 0), (0, 0.03, 0))}
+LIGHT2_HIT = {"Body": (6, 0, 12), "Head": (0, 0, -6), "Oar": ((86, 0, -5), (-0.08, -0.22, 0.0)), "Root": ((0, 0, 0), (0, -0.08, 0))}
+LIGHT2_FOLLOW = {"Body": (6, 0, 50), "Head": (0, 0, -22), "Oar": ((80, 0, 85), (0.1, -0.12, 0.0)), "Root": ((0, 0, 0), (0, -0.1, 0))}
+# The heavy is a two-handed overhead chop: the oar goes up and back with the hands raised and the body rising, then
+# the hands drive down in front, on the centre line (the attack's own lunge carries it forward; the clip doesn't step
+# again, or the oar would bury itself in whatever it hits). The body only bends a little and the head stays level (it's
+# the oar that lands, not the Apprentice's head). Contact at frame ~19 (windup 0.5 s, active 0.12 s of 1.12 s).
+# It comes down on a slight diagonal (over one shoulder, across the front) and meets its target at chest height, the
+# oar still pointing a little up: a chop that lands on the ground in front foreshortens, from the game's camera, into
+# a stub hidden against the hood. The follow-through carries on down.
+HEAVY_RAISED = {"Oar": ((-78, 0, 30), (-0.22, 0.08, 0.3)), "Body": (-12, 0, 22), "Head": (12, 0, -12), "Root": ((0, 0, 0), (0, 0.04, -0.03))}
+HEAVY_CHOP = {"Oar": ((70, 0, -14), (-0.28, -0.22, 0.02)), "Body": (10, 0, -12), "Head": (-10, 0, 8), "Root": ((0, 0, 0), (0, -0.06, -0.06))}
 ACTIONS = {
     "Idle": ("BEZIER", [
         (1, REST),
@@ -45,24 +62,26 @@ ACTIONS = {
         (8, {"Pivot": (40, 0, 0), "Head": (-28, 0, 0), "Body": (6, 0, 0), "Oar": (-78, 0, -8), "Root": ((0, 0, 0), (0, 0, -0.1))}),
         (12, {"Pivot": (10, 0, 0), "Head": (-6, 0, 0), "Oar": (-15, 0, 0), "Root": ((0, 0, 0), (0, 0, -0.02))}),
     ]),
-    "Light1": ("BEZIER", [(1, REST), (4, LIGHT_RIGHT), (7, LIGHT_LEFT), (15, REST)]),
-    "Light2": ("BEZIER", [(1, REST), (4, LIGHT_LEFT), (7, LIGHT_RIGHT), (15, REST)]),
+    "Light1": ("BEZIER", [(1, REST), (4, LIGHT1_WIND), (6, LIGHT1_HIT), (8, LIGHT1_FOLLOW), (15, REST)]),
+    "Light2": ("BEZIER", [(1, REST), (4, LIGHT2_WIND), (6, LIGHT2_HIT), (8, LIGHT2_FOLLOW), (15, REST)]),
     "Heavy": ("BEZIER", [
         (1, REST),
-        (16, {"Oar": (-35, 0, 0), "Body": (-12, 0, 0), "Head": (-8, 0, 0), "Root": ((0, 0, 0), (0, 0.05, -0.06))}),
-        (20, {"Oar": (100, 0, 0), "Body": (25, 0, 0), "Head": (10, 0, 0), "Root": ((0, 0, 0), (0, -0.2, -0.04))}),
+        (10, {"Oar": ((-55, 0, 20), (-0.15, 0.05, 0.2)), "Body": (-9, 0, 15), "Head": (8, 0, -8), "Root": ((0, 0, 0), (0, 0.03, -0.02))}),
+        (16, HEAVY_RAISED),
+        (19, HEAVY_CHOP),
+        (23, {"Oar": ((100, 0, -28), (-0.32, -0.24, -0.1)), "Body": (15, 0, -18), "Head": (-12, 0, 12), "Root": ((0, 0, 0), (0, -0.08, -0.1))}),
         (35, REST),
     ]),
     # Blocked by a Laden's heap: the oar strikes it and springs back, jarring the Apprentice (the recoil). Each starts
     # from its attack's contact pose, so the blow is seen to land before it bounces.
     "RecoilHeavy": ("BEZIER", [
-        (1, {"Oar": (100, 0, 0), "Body": (25, 0, 0), "Head": (10, 0, 0), "Root": ((0, 0, 0), (0, -0.2, -0.04))}),
+        (1, HEAVY_CHOP),
         (3, {"Oar": (38, 0, 6), "Body": (-12, 0, 0), "Head": (-14, 0, 0), "Root": ((0, 0, 0), (0, 0.1, 0.0))}),
         (6, {"Oar": (18, 0, 4), "Body": (-8, 0, 0), "Head": (-8, 0, 0), "Root": ((0, 0, 0), (0, 0.06, -0.02))}),
         (10, REST),
     ]),
     "RecoilLight": ("BEZIER", [
-        (1, {"Oar": (80, 0, -5), "Body": (5, 0, 0)}),
+        (1, LIGHT1_HIT),
         (3, {"Oar": (55, 0, 50), "Body": (-8, 0, 14), "Head": (-10, 0, 0), "Root": ((0, 0, 0), (0, 0.08, 0))}),
         (6, {"Oar": (30, 0, 25), "Body": (-4, 0, 6), "Head": (-5, 0, 0)}),
         (10, REST),
