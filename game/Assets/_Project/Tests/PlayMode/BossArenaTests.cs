@@ -289,6 +289,39 @@ namespace MyGame.Tests
             Assert.IsFalse(hud.Boss.Reveal.Showing, "the big reveal only the first time");
         }
 
+        // Her music: it takes over from the ambient when she wakes, turns heavier (in step) when she rises, and when
+        // she's beaten it stops, a silence rings, then the ambient comes back.
+        [UnityTest]
+        public IEnumerator Music_HerOwn_HeavierWhenSheRises_SilenceWhenBeaten()
+        {
+            var music = Object.FindAnyObjectByType<MusicPlayer>();
+            Assert.AreEqual(0, music.FightPhase);
+            Assert.Greater(music.AmbientTarget, 0f);
+            FaceTheEntrance();
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 5f);
+            yield return WaitFor(() => boss.Awakened, 1f, "her waking");
+            yield return null;
+            Assert.AreEqual(1, music.FightPhase, "her music");
+            Assert.AreEqual(0f, music.AmbientTarget, "the ambient gives way");
+            SetHealth(boss.maxHealth * boss.phaseTwoAt);
+            yield return WaitFor(() => boss.PhaseTwo, 1f, "her rising");
+            yield return null;
+            Assert.AreEqual(2, music.FightPhase, "heavier in her second phase");
+            yield return WaitFor(() => boss.CurrentState != Soured.State.Busy, boss.riseDuration + 0.5f, "her risen");
+            boss.phaseTwoAt = 0f;
+            SetHealth(1f);
+            boss.turnSpeed = 0f;
+            PlaceApprentice(boss.transform.position - boss.transform.forward * 2.2f);
+            yield return null;
+            input.PressLight();
+            yield return WaitFor(() => !boss.IsAlive, 2f, "her defeat");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, music.FightPhase, "her music stops");
+            Assert.AreEqual(0f, music.AmbientTarget, "a silence");
+            yield return new WaitForSeconds(music.silenceAfterVictory + 0.5f);
+            Assert.Greater(music.AmbientTarget, 0f, "then the ambient comes back");
+        }
+
         // ---- Phase two
 
         // At half health she rises: nothing gets through meanwhile, a ring of water throws you back, and the floor

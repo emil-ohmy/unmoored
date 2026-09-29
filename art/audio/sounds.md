@@ -45,4 +45,14 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Chapel floor cracking (`floor_crack`, 2) | in game | Synth | the warning before a section gives way: a grinding rumble swelling, cracks quickening, grit |
 | Chapel floor giving way (`floor_break`, 2) | in game | Synth | a splitting crack, the deep boom of it dropping, stone grinding and tumbling, rubble plopping into the water |
 | Anchoress's Undertow (`undertow`) | in game | Synth | 4 s: a low drowned murmur of prayer (two muffled voices) over water welling up, deep churning, bubbles thickening; her tell when she kneels |
+| Anchoress: Drop tell (`anchoress_drop_windup`) | in game | Synth | 1.1 s: the chain rattling faster as the anchor climbs, iron groaning, her strained drowned groan; also her sound kit (links, iron, groan, scrape) |
+| Anchoress: Drop lands (`anchoress_drop_impact`) | in game | Synth | a huge dull clank of iron into stone, a deep boom, the chain crashing down, water rushing away (the ring); lower for her Rise's slam |
+| Anchoress: Sweep tell (`anchoress_sweep_windup`) | in game | Synth | 0.85 s: the chain paying out in a fast ratcheting rattle, a low whir as the anchor swings at her side |
+| Anchoress: Sweep (`anchoress_sweep`, 2) | in game | Synth | a huge low whoosh as the anchor whirls past, the chain thrumming taut |
+| Anchoress: Cast tell (`anchoress_cast_windup`) | in game | Synth | 1.0 s: a long iron creak as it's hefted back, the chain gathered in a slow rattle, a deep breath held |
+| Anchoress: Cast (`anchoress_cast`) | in game | Synth | her grunt, a heavy whoosh, the chain paying out behind it |
+| Anchor lands (`anchor_land`, 2) | in game | Synth | a heavy clank on stone, a thud, the chain slapping down |
+| Anchor hauled (`anchor_haul`) | in game | Synth | iron grinding and juddering over stone, faster and louder, the chain rattling in |
+| Anchoress rises (`anchoress_rise`) | in game | Synth | 2.2 s: every link shaking, a swell under the floor, her voice climbing into a drowned many-voiced cry, peaking on the slam |
+| Music: The Anchoress (`Music/music_anchoress_1`, `_2`) | in game | Synth | 64 s loop, D minor, 60 bpm: a slow grinding march (deep drum, chain off-beats, bowed bass, drone, the Drowned Dark's choir); 2 is the same loop heavier (every beat, faster chain, a high wail, water surging) and crossfades in step when she rises |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |

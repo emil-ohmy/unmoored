@@ -9,6 +9,8 @@ namespace MyGame
         bool IsAlive { get; }
         float HealthFraction { get; }
         float[] PhaseMarks { get; } // health fractions where a new phase begins
+        int Phase { get; }          // 1, 2...
+        UnityEngine.AudioClip[] Music { get; } // its music, one track per phase (sharing one loop, to crossfade in step)
     }
 
     // The Boss fight going on now, if any (the one the HUD shows).

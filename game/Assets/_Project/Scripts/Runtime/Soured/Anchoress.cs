@@ -92,6 +92,9 @@ namespace MyGame
         public string Title => title;
         public string Epithet => epithet;
         public float[] PhaseMarks => new[] { phaseTwoAt };
+        public int Phase => PhaseTwo ? 2 : 1;
+        public AudioClip[] Music => music;
+        public AudioClip[] music; // her first phase, her second
 
         [Header("Framing the fight")]
         public float cameraLean = 0.35f;

@@ -121,20 +121,23 @@ public static partial class MainSceneBuilder
             telegraph = 0.85f, strike = 0.45f, recover = 0.9f, impactAt = 0.5f,
             lunge = 0f, maxLunge = 0f, trackUntil = 0.85f, damage = 26f, reach = 4.4f, arc = 120f, knockback = 9f, scripted = true,
         };
-        // Sounds borrowed from the Laden for now (her own come with the Boss's presentation).
-        boss.primary.windupSound = Clips("laden_slam_windup");
+        // Her own sounds: each attack's tell its own, so you can hear which is coming (see art/audio/sounds.md).
+        boss.primary.windupSound = Clips("anchoress_drop_windup");  // the chain rattling up as the anchor climbs
         boss.primary.swingSound = Clips("laden_swing");
-        boss.primary.impactSound = Clips("laden_slam_impact");
-        boss.primary.swingPitch = 0.8f;
-        boss.sweep.windupSound = Clips("laden_sweep_windup");
-        boss.sweep.swingSound = Clips("hook_whirl");
-        boss.sweep.swingPitch = 0.7f;
-        boss.cast.windupSound = Clips("laden_slam_windup");
-        boss.cast.swingSound = Clips("hook_throw");
-        boss.cast.swingPitch = 0.75f;
-        boss.landSound = Clips("laden_slam_impact");
-        boss.haulSound = Clips("gate_rattle");
-        boss.riseSound = Clips("laden_slam_windup");
+        boss.primary.swingPitch = 0.75f;
+        boss.primary.impactSound = Clips("anchoress_drop_impact");
+        boss.sweep.windupSound = Clips("anchoress_sweep_windup");   // the chain paying out
+        boss.sweep.swingSound = Clips("anchoress_sweep");
+        boss.cast.windupSound = Clips("anchoress_cast_windup");     // the heft, a breath held
+        boss.cast.swingSound = Clips("anchoress_cast");
+        boss.landSound = Clips("anchor_land");
+        boss.haulSound = Clips("anchor_haul");
+        boss.riseSound = Clips("anchoress_rise");
+        boss.music = new[]
+        {
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_anchoress_1.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_anchoress_2.wav"),
+        };
         boss.yank.windupSound = Clips("hook_whirl");
         boss.yank.swingSound = Clips("hook_throw");
         boss.hookCatchSound = Clips("hook_catch");

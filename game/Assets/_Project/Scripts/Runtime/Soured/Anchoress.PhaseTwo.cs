@@ -193,7 +193,7 @@ namespace MyGame
             riseSlammed = followUpPending = false;
             nextYank = Time.time + riseDuration + 1f;
             BeBusy("Rise", riseDuration);
-            Sfx.Instance?.Attack(riseSound, transform.position + Vector3.up * 2f, 1f, "rise", 0.8f);
+            Sfx.Instance?.Attack(riseSound, transform.position + Vector3.up * 2f, 1f, "rise");
         }
 
         // The anchor planted with all her weight: a ring of water throws everyone back, and the floor starts to break
