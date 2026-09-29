@@ -2,8 +2,9 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // The Anchoress's Undertow: sour black water welling up from the floor around her while she prays. It spreads out
-    // to its full size, churns (bubbles, a sickly green edge you can read), and recedes when she rises. Inside it the
+    // The Anchoress's Undertow: sour black water welling up from the floor around her while she prays. First it seeps
+    // (the build-up, as she kneels: a small, slowly widening puddle, harmless, a few bubbles); then, as her prayer
+    // begins, it surges out to its full size, churns (bubbles, a sickly green edge you can read), and recedes when she rises. Inside it the
     // Apprentice is slowed and dragged towards her, and hurt a little every tick (no stagger: you can always wade or
     // dash out). A dash through it slips the ticks.
     public sealed class UndertowPool : MonoBehaviour
@@ -14,19 +15,22 @@ namespace MyGame
 
         public float Radius { get; private set; }
         public bool Receding { get; private set; }
+        public bool Active { get; private set; } // surged out: it drags and hurts (not while it only seeps)
         public int Ticks { get; private set; } // times it hurt the Apprentice
 
         Transform centre;
         Apprentice target;
         float maxRadius, spreadTime, tickInterval, tickDamage, wade, drag;
         float bornAt, recedeFrom, recedeAt, nextTick, nextBubble;
+        float seepRadius, seepTime, surgeFrom, surgedAt;
         Transform disc, rim;
         Mesh rimMesh, discMesh;
         Vector3[] rimVertices;
         Color[] rimColours;
 
+        // Starts seeping: out to `seepRadius` over `seepTime`, harmless, until Surge().
         public static UndertowPool Well(Transform centre, Apprentice target, Material water, float radius, float spreadTime,
-                                        float tickInterval, float tickDamage, float wade, float drag)
+                                        float tickInterval, float tickDamage, float wade, float drag, float seepRadius, float seepTime)
         {
             var pool = new GameObject("Undertow").AddComponent<UndertowPool>();
             pool.transform.position = Floor(centre);
@@ -39,9 +43,22 @@ namespace MyGame
             pool.wade = wade;
             pool.drag = drag;
             pool.bornAt = Time.time;
-            pool.nextTick = Time.time + tickInterval * 0.5f;
+            pool.seepRadius = seepRadius;
+            pool.seepTime = Mathf.Max(0.05f, seepTime);
             pool.Build(water);
             return pool;
+        }
+
+        // Her prayer begins: it surges out to its full size, and now it drags and hurts.
+        public void Surge()
+        {
+            if (Active || Receding)
+                return;
+            Active = true;
+            surgeFrom = Radius;
+            surgedAt = Time.time;
+            nextTick = Time.time + tickInterval * 0.5f;
+            CameraRig.Instance?.Shake(0.12f);
         }
 
         public void Recede(float time)
@@ -79,8 +96,10 @@ namespace MyGame
         void Update()
         {
             float t = Time.time;
-            if (!Receding)
-                Radius = maxRadius * UiKit.Smooth(0f, 1f, (t - bornAt) / spreadTime);
+            if (!Receding && !Active)
+                Radius = seepRadius * UiKit.Smooth(0f, 1f, (t - bornAt) / seepTime); // seeping up round her
+            else if (!Receding)
+                Radius = Mathf.Lerp(surgeFrom, maxRadius, UiKit.Smooth(0f, 1f, (t - surgedAt) / spreadTime));
             else
             {
                 Radius = recedeFrom * (1f - UiKit.Smooth(0f, 1f, (t - recedeAt) / spreadTime));
@@ -97,12 +116,12 @@ namespace MyGame
             // Churning: bubbles breaking all over it.
             if (t >= nextBubble && Radius > 0.3f)
             {
-                nextBubble = t + 0.04f;
+                nextBubble = t + (Active ? 0.04f : 0.12f); // a few while it seeps, thick once it surges
                 Vector2 p = Random.insideUnitCircle * Radius * 0.95f;
                 Effects.Instance?.Wisp(transform.position + new Vector3(p.x, 0.08f, p.y), Bubble);
             }
 
-            if (target == null || !target.IsAlive || Receding)
+            if (target == null || !target.IsAlive || Receding || !Active)
                 return;
             Vector3 toHer = transform.position - target.transform.position;
             toHer.y = 0f;
@@ -132,7 +151,7 @@ namespace MyGame
                 rimVertices[i * 3 + 1] = dir * (radius + wobble);
                 rimVertices[i * 3 + 2] = dir * (radius + half * 0.4f + wobble);
                 rimColours[i * 3] = Edge.WithAlpha(0f);
-                rimColours[i * 3 + 1] = Edge.WithAlpha(Edge.a * pulse * (Receding ? 0.5f : 1f));
+                rimColours[i * 3 + 1] = Edge.WithAlpha(Edge.a * pulse * (Receding ? 0.5f : Active ? 1f : 0.45f));
                 rimColours[i * 3 + 2] = Edge.WithAlpha(0f);
             }
             rimMesh.vertices = rimVertices;

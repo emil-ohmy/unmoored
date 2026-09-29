@@ -172,7 +172,11 @@ namespace MyGame.Tests
             PlaceApprentice(boss.transform.position - boss.transform.forward * 1.8f);
             yield return WaitFor(() => boss.CurrentState == Soured.State.Telegraph, boss.undertowAfter + 1.5f, "a wind-up");
             Assert.AreEqual(boss.undertow, boss.CurrentAttack, $"too close, too long (got {boss.CurrentAttack.name} at {boss.StateTime}, close {boss.CloseTime:0.00}, angle {Vector3.Angle(boss.transform.forward, apprentice.transform.position - boss.transform.position):0})");
-            yield return WaitFor(() => boss.Pool != null, boss.undertow.telegraph + 0.5f, "the water rising");
+            yield return WaitFor(() => boss.Pool != null, 0.5f, "the water seeping up as she kneels");
+            yield return new WaitForSeconds(boss.undertow.telegraph * 0.8f);
+            Assert.IsFalse(boss.Pool.Active, "still only seeping: the build-up");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "the seep is harmless");
+            yield return WaitFor(() => boss.Pool.Active, boss.undertow.telegraph, "the water surging out");
             yield return new WaitForSeconds(boss.poolSpread + 0.1f);
             float before = Flat(apprentice.transform.position - boss.transform.position).magnitude;
             yield return new WaitForSeconds(1.2f);

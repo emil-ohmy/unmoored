@@ -70,7 +70,7 @@ namespace MyGame
         public SouredAttack undertow = new SouredAttack
         {
             name = "Undertow", windupClip = "UndertowWindup", strikeClip = "Undertow", recoverClip = "UndertowRecover",
-            telegraph = 0.9f, strike = 2.6f, recover = 1.3f, impactAt = 0f,
+            telegraph = 1.6f, strike = 2.6f, recover = 1.3f, impactAt = 0f,
             lunge = 0f, maxLunge = 0f, trackUntil = 0f, damage = 0f, reach = 3.4f, arc = 180f, knockback = 0f, scripted = true,
         };
         public float closeRadius = 2.8f;     // within this, it counts as close (any side)
@@ -78,6 +78,7 @@ namespace MyGame
         public float undertowCooldown = 9f;
         public float poolRadius = 3.4f;
         public float poolSpread = 0.45f;
+        public float poolSeep = 1.1f;          // how far it seeps out (harmless) while she kneels: the build-up
         public float poolTick = 0.35f;
         public float poolDamage = 5f;
         [Range(0.1f, 1f)] public float poolWade = 0.55f; // your speed in it
@@ -180,8 +181,11 @@ namespace MyGame
                 CloseTime = 0f;
                 nextUndertow = Time.time + undertow.telegraph + undertow.strike + undertow.recover + undertowCooldown;
             }
-            if (state == State.Strike && CurrentAttack == undertow)
-                Pool = UndertowPool.Well(transform, target, poolMaterial, poolRadius, poolSpread, poolTick, poolDamage, poolWade, poolDrag);
+            if (state == State.Telegraph && CurrentAttack == undertow)
+                Pool = UndertowPool.Well(transform, target, poolMaterial, poolRadius, poolSpread, poolTick, poolDamage, poolWade, poolDrag,
+                                         poolSeep, undertow.telegraph); // seeping up round her as she kneels
+            else if (state == State.Strike && CurrentAttack == undertow && Pool != null)
+                Pool.Surge(); // her prayer begins: it surges out
             else if (Pool != null && state != State.Strike)
             {
                 Pool.Recede(state == State.Recover ? 0.7f : 0.35f); // she rises (or is knocked out of her prayer)
