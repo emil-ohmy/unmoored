@@ -9,7 +9,9 @@ Clips: Vigil (kneeling over the anchor, head bowed: before the fight), Idle, Wal
 GuardWalk / Block (the anchor lifted in front of her face), Windup / Strike / Recover (the Anchor Drop: raised high,
 brought down in front), SweepWindup / Sweep / SweepRecover (the Chain Sweep: the anchor let out and swung round),
 CastWindup / Cast / Haul (Cast and Haul: hefted back, thrown, then hauled in hand over hand), Reel (pulling it home),
-Stagger (the anchor slips from her hands), Death.
+Stagger (the anchor slips from her hands), Death. Phase two: Rise (the anchor lifted to the sky and planted: the floor
+starts to break), YankWindup / Yank / YankRecover (the Hook Yank: the anchor planted, the Ferryman's hook whirled on its
+line, thrown, and hauled back with whoever it caught).
 """
 import math
 
@@ -21,6 +23,7 @@ BONES = {
     "Head": ((0, -0.2, 1.5), (0, -0.35, 1.95), "Spine"),
     "Arms": ((0, -0.1, 1.42), (0, -0.62, 1.2), "Spine"),   # both arms, from the shoulders: they carry the anchor
     "Anchor": ((0, -0.8, 1.2), (0, -0.8, 0.3), "Arms"),     # the anchor alone, pivoting at her grip
+    "Hook": ((0, -0.62, 1.0), (0, -0.62, 0.8), "Spine"),    # the Ferryman's hook at her waist (hidden while it's thrown)
 }
 
 # Held low in front, crown on the ground: open (her face shows over the stock).
@@ -44,6 +47,9 @@ HEFTED = {"Spine": (-16, 0, 30), "Head": (-6, 0, 12), "Arms": (-140, 0, 40), "An
           "Root": ((0, 0, 0), (0, 0.12, -0.04))}
 THROWN = {"Spine": (26, 0, -12), "Head": (14, 0, -6), "Arms": (-70, 0, -10), "Anchor": (0, 0, 0),
           "Root": ((0, 0, 0), (0, -0.2, -0.1))}
+# Planted: the anchor stood on its crown right in front of her, both hands on it (phase two's Rise, and the Yank).
+PLANTED = {"Spine": (20, 0, 0), "Head": (10, 0, 0), "Arms": ((10, 0, 0), (0, 0, -0.05)), "Anchor": ((-10, 0, 0), (0, 0, 0.1)),
+           "Root": ((0, 0, 0), (0, 0, -0.1))}
 # Hauling in hand over hand: braced, leaning back, arms low in front.
 HAUL_A = {"Spine": (-14, 0, 6), "Head": (8, 0, 0), "Arms": (-30, 0, 8), "Root": ((0, 0, 0), (0, 0.1, -0.12))}
 HAUL_B = {"Spine": (-20, 0, -6), "Head": (6, 0, 0), "Arms": (-10, 0, -8), "Root": ((0, 0, 0), (0, 0.14, -0.14))}
@@ -157,6 +163,35 @@ ACTIONS = {
         (38, {"Spine": (30, 0, -4), "Head": (28, 0, 0), "Arms": ((32, 0, 0), (0, 0, -0.12)), "Anchor": ((-42, 0, 10), (0, 0, 1.56)), "Root": ((0, 0, 0), (0, -0.05, -0.22))}),
         (52, OPEN),
     ]),
+    # Phase two begins (2.2 s): the anchor raised slowly to the sky, held there trembling, then planted with all her weight
+    # (at 2/3: the floor shudders and breaks), and she straightens.
+    "Rise": ("BEZIER", [
+        (1, GUARD),
+        (20, with_(RAISED, Spine=(-26, 0, 0), Head=(-24, 0, 0))),
+        (34, with_(RAISED, Spine=(-28, 0, 3), Head=(-26, 0, 0), Arms=(-152, 0, 2))),
+        (40, with_(RAISED, Spine=(-30, 0, -3), Head=(-26, 0, 0), Arms=(-148, 0, -2))),
+        (44, PLANTED),
+        (46, with_(PLANTED, Root=((0, 0, 0), (0, 0, -0.16)))),
+        (66, OPEN),
+    ]),
+    # The Hook Yank: the anchor planted, turned to swing the hook's line overhead (the game whirls the hook itself),
+    # the throw, then the haul back.
+    "YankWindup": ("BEZIER", [
+        (1, GUARD),
+        (10, with_(PLANTED, Spine=(-6, 0, 24), Head=(-14, 0, 10))),
+        (20, with_(PLANTED, Spine=(-8, 0, 30), Head=(-16, 0, 12))),
+        (33, with_(PLANTED, Spine=(-8, 0, 34), Head=(-16, 0, 14))),
+    ]),
+    "Yank": ("LINEAR", [
+        (1, with_(PLANTED, Spine=(-8, 0, 34), Head=(-16, 0, 14))),
+        (5, with_(PLANTED, Spine=(24, 0, -14), Head=(6, 0, -6))),
+        (18, with_(PLANTED, Spine=(22, 0, -12), Head=(4, 0, -6))),
+    ]),
+    "YankRecover": ("BEZIER", [
+        (1, with_(PLANTED, Spine=(22, 0, -12), Head=(4, 0, -6))),
+        (8, with_(PLANTED, Spine=(-18, 0, 4), Head=(8, 0, 0), Root=((0, 0, 0), (0, 0.12, -0.12)))),
+        (27, OPEN),
+    ]),
     # Death: a jolt back, down onto her knees, and forward over the anchor.
     "Death": ("BEZIER", [
         (1, GUARD),
@@ -216,10 +251,10 @@ def build():
         return (hook_at[0] + dx * k, hook_at[1] + dy * k, hook_at[2] + dz * k)
 
     parts += [
-        part("FerrymansHookShank", kit.cylinder(5, 0.024 * k, 0.2 * k), hook, M(h(0, 0, -0.1), rot=(0, 0, 0)), group="Spine"),
-        part("FerrymansHookProngL", kit.tube([h(0, 0, -0.2), h(-0.07, 0, -0.23), h(-0.1, -0.02, -0.16)], [0.02 * k, 0.016 * k, 0.01 * k], seg=5), hook, group="Spine"),
-        part("FerrymansHookProngR", kit.tube([h(0, 0, -0.2), h(0.07, 0, -0.23), h(0.1, -0.02, -0.16)], [0.02 * k, 0.016 * k, 0.01 * k], seg=5), hook, group="Spine"),
-        part("FerrymansHookEye", kit.cylinder(6, 0.032 * k, 0.02 * k), hook, M(h(0, 0, 0.0), rot=(90, 0, 0)), group="Spine"),
+        part("FerrymansHookShank", kit.cylinder(5, 0.024 * k, 0.2 * k), hook, M(h(0, 0, -0.1), rot=(0, 0, 0)), group="Hook"),
+        part("FerrymansHookProngL", kit.tube([h(0, 0, -0.2), h(-0.07, 0, -0.23), h(-0.1, -0.02, -0.16)], [0.02 * k, 0.016 * k, 0.01 * k], seg=5), hook, group="Hook"),
+        part("FerrymansHookProngR", kit.tube([h(0, 0, -0.2), h(0.07, 0, -0.23), h(0.1, -0.02, -0.16)], [0.02 * k, 0.016 * k, 0.01 * k], seg=5), hook, group="Hook"),
+        part("FerrymansHookEye", kit.cylinder(6, 0.032 * k, 0.02 * k), hook, M(h(0, 0, 0.0), rot=(90, 0, 0)), group="Hook"),
     ]
 
 

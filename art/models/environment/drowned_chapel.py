@@ -5,6 +5,11 @@ never hide the fight from the camera), a low broken parapet along the far sides,
 water is a danger), the entrance in the middle of the near side. At the far end, the altar where the Anchoress keeps
 her vigil, with a few candle stubs she keeps lit for a ferry that doesn't come.
 
+The floor between the solid middle (his mark) and the solid rim is laid in sections that can break away into the water
+(the Anchoress's phase two): two rings of eight, the inner FloorB0..7 and the outer FloorC0..7 (numbered by the side
+they face, like the parapet), each exported as its own object, a slab of stone with its paving on it. The one under
+the altar (FloorC5) is part of the solid floor.
+
 The altar end is the model's front (-Y), so at yaw 0 it's in the world's +Z (the top of the screen).
 """
 import math
@@ -13,10 +18,37 @@ M, part = kit.M, kit.part  # `kit` is injected by build_model.py
 
 TOP = 0.5
 R = 8.6  # to the corners; the flat sides face the altar, the entrance and either side
+MIDDLE, RING, RIM = 1.9, 4.7, 7.05  # corner radii: the solid middle, between the rings of sections, the solid rim
+SECTION_DEPTH = 0.6
+ALTAR_SIDE = 5
 
 
 def corners(r):
     return [(r * math.cos(math.radians(22.5 + 45 * k)), r * math.sin(math.radians(22.5 + 45 * k))) for k in range(8)]
+
+
+def region(x, y):
+    """Where a point lies: ("M", None) the middle, ("B", k) / ("C", k) a floor section facing side k, ("R", None) the
+    rim. Octagons are nested by their "octagonal radius": the largest projection on a side's normal, as a corner radius."""
+    best, side = -1e9, 0
+    for k in range(8):
+        a = math.radians(45 + 45 * k)
+        d = x * math.cos(a) + y * math.sin(a)
+        if d > best:
+            best, side = d, k
+    r = best / math.cos(math.radians(22.5))
+    if r < MIDDLE:
+        return ("M", None)
+    if r < RING:
+        return ("B", side)
+    if r < RIM:
+        return ("C", side)
+    return ("R", None)
+
+
+def trapezoid(r0, r1, k):
+    a, b = corners(r0), corners(r1)
+    return [a[k], a[(k + 1) % 8], b[(k + 1) % 8], b[k]]
 
 
 def inside(x, y, pts):
@@ -36,16 +68,39 @@ def build():
     altar_stone, wax, flame = kit.mat("AltarStone", "#9a948a"), kit.mat("Wax", "#d8cfb4"), kit.mat("Candle_Glow", "#ffc070")
 
     outline = corners(R)
-    parts = [part("Base", kit.prism(outline, TOP + 1.5), side, M((0, 0, -1.5)))]
+    # The solid floor: the middle, the rim (and the section under the altar), down into the water.
+    parts = [part("Middle", kit.prism(corners(MIDDLE), TOP + 1.5), side, M((0, 0, -1.5)))]
+    for k in range(8):
+        parts.append(part("Rim", kit.prism(trapezoid(RIM, R, k), TOP + 1.5), side, M((0, 0, -1.5))))
+    parts.append(part("AltarFloor", kit.prism(trapezoid(RING, RIM, ALTAR_SIDE), TOP + 1.5), side, M((0, 0, -1.5))))
+    # The sections that can break: slabs of stone, their paving collected onto them below.
+    sections = {}
+    for ring, (r0, r1) in (("B", (MIDDLE, RING)), ("C", (RING, RIM))):
+        for k in range(8):
+            if ring == "C" and k == ALTAR_SIDE:
+                continue
+            sections[(ring, k)] = [part("Section", kit.prism(trapezoid(r0, r1, k), SECTION_DEPTH), side, M((0, 0, TOP - SECTION_DEPTH)))]
+
+    def lay(slab, x, y, half):
+        """Onto the section (or the solid floor) under it; a slab across a seam is left out (the seams show as
+        mortar lines: where the floor can break)."""
+        where = {region(x + dx, y + dy) for dx in (-half, half) for dy in (-half, half)} | {region(x, y)}
+        if len(where) > 1:
+            return
+        ring, k = where.pop()
+        if (ring, k) in sections:
+            sections[(ring, k)].append(slab())
+        else:
+            parts.append(slab())
 
     # Paving: rings of slabs around the mark (the inner disc left for the inlay's ground), kept inside the curb.
     inner = corners(R - 0.55)
     parts.append(part("InlayGround", kit.cylinder(24, 1.35, 0.05), slabs[1], M((0, 0, TOP + 0.02))))
     r0, ring = 1.4, 0
     while r0 < R:
-        width = 1.05 + 0.1 * ring
+        width = 0.62 + 0.05 * ring  # small enough that few are lost to the sections' seams
         mid = r0 + width / 2
-        n = max(8, round(2 * math.pi * mid / 1.15))
+        n = max(8, round(2 * math.pi * mid / 0.72))
         offset = rng.uniform(0, 2 * math.pi)
         for i in range(n):
             a = offset + 2 * math.pi * (i + 0.5) / n
@@ -54,9 +109,9 @@ def build():
             cs = [(x + dx, y + dy) for dx in (-width / 2, width / 2) for dy in (-width / 2, width / 2)]
             if not all(inside(cx, cy, inner) for cx, cy in cs):
                 continue
-            parts.append(part("Slab", kit.cube(), rng.choice(slabs),
-                              M((x, y, TOP + 0.015 + rng.uniform(-0.008, 0.012)), rot=(0, 0, math.degrees(a) + 90 + rng.uniform(-2, 2)),
-                                scale=(arc - 0.07, width - 0.07, 0.05))))
+            material, z, turn = rng.choice(slabs), TOP + 0.015 + rng.uniform(-0.008, 0.012), math.degrees(a) + 90 + rng.uniform(-2, 2)
+            lay(lambda: part("Slab", kit.cube(), material, M((x, y, z), rot=(0, 0, turn), scale=(arc - 0.07, width - 0.07, 0.05))),
+                x, y, min(arc, width) * 0.42)
         r0 += width
         ring += 1
     # Where the rings don't reach the flat sides, a band of long edge slabs.
@@ -137,4 +192,4 @@ def build():
         part("PewLeg", kit.cube(), wood, M((-6.3, -3.4, TOP + 0.2), rot=(0, 0, 68), scale=(0.08, 0.45, 0.4))),
         part("PewLeg", kit.cube(), wood, M((-5.5, -5.4, TOP + 0.2), rot=(0, 0, 68), scale=(0.08, 0.45, 0.4))),
     ]
-    return [kit.join(parts, "DrownedChapel")]
+    return [kit.join(parts, "DrownedChapel")] + [kit.join(pieces, f"Floor{ring}{k}") for (ring, k), pieces in sections.items()]

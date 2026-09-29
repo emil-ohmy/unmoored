@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public class Soured : MonoBehaviour
     {
-        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered }
+        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered, Busy }
 
         [Header("Health")]
         public float maxHealth = 100f;
@@ -93,6 +93,7 @@ namespace MyGame
         AudioClip tellClip;
         float dissolve;
         int faresReleased;
+        float busyFor;
 
         protected virtual void Awake()
         {
@@ -216,6 +217,11 @@ namespace MyGame
                         Enter(State.Chase);
                     break;
 
+                case State.Busy:
+                    if (stateTime >= busyFor)
+                        Enter(State.Chase);
+                    break;
+
                 case State.Dying:
                     // Dissolve from halfway through the fall, releasing its fare as the body goes.
                     dissolve = Mathf.Clamp01((stateTime - deathDuration * 0.45f) / dissolveDuration);
@@ -253,7 +259,7 @@ namespace MyGame
             else
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
             controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
-            if (IsAlive && transform.position.y < waterLevel)
+            if (IsAlive && transform.position.y < waterLevel && !Surface())
                 Drown();
             UpdateFlash();
         }
@@ -336,6 +342,14 @@ namespace MyGame
         {
             if (!IsAlive)
                 return HitResult.Missed;
+            if (Unhittable)
+            {
+                Vector3 towards = Flat(hit.From - transform.position).normalized;
+                Vector3 at = transform.position + towards * (radius + 0.25f) + Vector3.up * 1.1f;
+                Effects.Instance?.BlockSpark(at, towards);
+                Sfx.Instance?.BlockClang(at, 0.8f);
+                return HitResult.Blocked;
+            }
             bool stunned = CurrentState == State.Stunned;
             if (stunned)
                 hit.Damage *= riposteMultiplier; // a riposte: double damage, straight through any guard
@@ -371,6 +385,40 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // Nothing gets through for now (a Boss mid-way between phases).
+        protected virtual bool Unhittable => false;
+
+        // Fallen into the water: true if the subclass deals with it (a Boss climbs out), false to drown.
+        protected virtual bool Surface() => false;
+
+        // A scripted moment of its own (a Boss rising into its second phase): the clip, then back to the chase.
+        protected void BeBusy(string clip, float duration)
+        {
+            Enter(State.Busy);
+            busyFor = duration;
+            clips.PlayOnce(clip, duration);
+        }
+
+        protected void StaggerNow()
+        {
+            Stagger = 0f;
+            Enter(State.Staggered);
+            clips.PlayOnce("Stagger", staggerDuration);
+        }
+
+        protected void LoseHealth(float amount) => Health = Mathf.Max(1f, Health - amount); // (never a kill)
+
+        protected Vector3 SpawnPosition => spawnPosition;
+
+        protected void PlaceAt(Vector3 position)
+        {
+            controller.enabled = false;
+            transform.position = position;
+            controller.enabled = true;
+            knockback = Vector3.zero;
+            verticalVelocity = 0f;
+        }
 
         // It sees ahead (within its field of view, out to aggroRadius) but only senses someone right behind it:
         // sneaking up from behind is how you get a free hit.

@@ -862,6 +862,32 @@ namespace MyGame.Tests
             typeof(Anchoress).GetField("nextCast", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(boss, 0f);
             yield return Stage(5.8f, 0f);
             yield return Film("boss-cast", boss.cast, 120, 4);
+
+            // Phase two: she rises, the floor breaks, the Hook Yank, and a Drop breaking the floor.
+            for (int f = 0; f < 120 && boss.Anchor != Anchoress.AnchorMode.Held; f++)
+                yield return null;
+            typeof(Soured).GetProperty("Health").SetValue(boss, boss.maxHealth * boss.phaseTwoAt);
+            yield return Stage(4.5f, 0f);
+            for (int f = 0; f < 120 && boss.CurrentState != Soured.State.Busy; f++)
+                yield return null;
+            for (int f = 0; f < 110; f++)
+            {
+                if (f % 5 == 0)
+                    Capture(outDir, $"boss-rise-{f:D3}");
+                yield return null;
+            }
+            boss.castMin = 100f;
+            for (int f = 0; f < 40; f++)
+                yield return null;
+            yield return Stage(6f, 0f);
+            yield return Film("boss-yank", boss.yank, 75, 3);
+            boss.yankMin = 100f;
+            boss.sweepChanceInFront = 0f;
+            boss.flankAngle = 180f;
+            for (int f = 0; f < 90 && boss.CurrentState != Soured.State.Chase; f++)
+                yield return null;
+            yield return Stage(2.3f, 0f);
+            yield return Film("boss-break", boss.primary, 110, 5);
             Time.captureFramerate = 0;
         }
 

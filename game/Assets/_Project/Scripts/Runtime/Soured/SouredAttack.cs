@@ -34,5 +34,7 @@ namespace MyGame
         public float swingPitch = 1f;
 
         public float ImpactTime => telegraph + strike * impactAt; // seconds from the start of the wind-up
+
+        public SouredAttack Copy() => (SouredAttack)MemberwiseClone(); // (a variant: shares the sound arrays)
     }
 }

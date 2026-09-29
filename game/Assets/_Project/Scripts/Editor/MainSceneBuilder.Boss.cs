@@ -25,7 +25,10 @@ public static partial class MainSceneBuilder
         var scene = BeginScene();
 
         // The chapel's upper floor (the altar to the north), and the way in from the south.
-        Place("Environment/drowned_chapel", Vector3.zero, 0f);
+        var chapel = Place("Environment/drowned_chapel", Vector3.zero, 0f);
+        var floor = chapel.AddComponent<ChapelFloor>(); // its sections break away in her second phase
+        floor.crackSound = Clips("gate_rattle");
+        floor.breakSound = Clips("laden_slam_impact");
         const float edge = -7.8f; // the chapel's south edge
         Boardwalk(new Vector3(0f, QuayTop - 0.03f, edge), Vector3.back, 2);
         float landing = edge - Segment * 2;
@@ -65,7 +68,8 @@ public static partial class MainSceneBuilder
         Flicker(PointLight(candles.transform, new Vector3(0f, QuayTop + 1.4f, 6.4f), 4.5f, 1.4f, LanternLight), 0.2f, 6f, 0.02f);
 
         var apprentice = Apprentice(start.position);
-        Anchoress("The Antediluvian Anchoress", new Vector3(0f, QuayTop, 1.2f), 0f); // kneeling on his mark, facing the altar, her back to you
+        var boss = Anchoress("The Antediluvian Anchoress", new Vector3(0f, QuayTop, 1.2f), 0f); // kneeling on his mark, facing the altar, her back to you
+        boss.floor = floor;
 
         FinishScene(scene, BossScenePath, start, apprentice, "music_drowned_dark");
     }
@@ -128,18 +132,31 @@ public static partial class MainSceneBuilder
         boss.cast.swingPitch = 0.75f;
         boss.landSound = Clips("laden_slam_impact");
         boss.haulSound = Clips("gate_rattle");
+        boss.riseSound = Clips("laden_slam_windup");
+        boss.yank.windupSound = Clips("hook_whirl");
+        boss.yank.swingSound = Clips("hook_throw");
+        boss.hookCatchSound = Clips("hook_catch");
 
         // The anchor: its bone, and points on it measured from the model (the ring the chain ties to, the crown that
         // hits the floor), and the hook at her waist where the chain starts.
         var skinned = go.GetComponentInChildren<SkinnedMeshRenderer>();
         skinned.updateWhenOffscreen = true; // the anchor flies far from her on its chain
+        // Her attacks land where the anchor really is, so she animates even when she isn't on screen (a cast from off
+        // the edge of it, and headless tests).
+        go.GetComponentInChildren<Animation>().cullingType = AnimationCullingType.AlwaysAnimate;
         boss.anchorBone = Bone(go, "Anchor");
         boss.anchorRing = Marker(go, "Anchor Ring", boss.anchorBone, GlowCentre(go, "AnchorRing"));
-        boss.anchorCrown = Marker(go, "Anchor Crown", boss.anchorBone, LowestPoint(go, "AnchorArms"));
+        boss.anchorCrown = Marker(go, "Anchor Crown", boss.anchorBone, FarthestPoint(go, "AnchorArms", boss.anchorRing.position));
         boss.chainStart = Marker(go, "Chain Start", Bone(go, "Spine"), GlowCentre(go, "HookIron"));
+        // (from the bind pose: in the editor the model stands in its first clip's pose, not upright with the anchor)
         var flatForward = Vector3.ProjectOnPlane(go.transform.forward, Vector3.up).normalized;
-        boss.anchorHeld = Quaternion.Inverse(Quaternion.LookRotation(flatForward, Vector3.up)) * boss.anchorBone.rotation;
+        boss.anchorHeld = Quaternion.Inverse(Quaternion.LookRotation(flatForward, Vector3.up)) * RestRotation(skinned, boss.anchorBone);
         boss.chainMaterial = System.Array.Find(skinned.sharedMaterials, m => m != null && m.name.StartsWith("AnchorIron"));
+
+        // Phase two's Hook Yank: the Ferryman's hook at her waist, and where its line leaves her hands.
+        boss.hookBone = Bone(go, "Hook");
+        boss.hookHand = Marker(go, "Hook Hand", Bone(go, "Arms"), GlowCentre(go, "Claw"));
+        boss.hookModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
 
         BeltLantern(go, boss, "Anchor"); // hung on the anchor: you can follow it in the dark
         Swoosh(go, "Anchor", "AnchorArms", SouredSwoosh, 0.2f, "AnchorRing"); // the whole anchor, ring to crown
@@ -154,21 +171,29 @@ public static partial class MainSceneBuilder
         return marker;
     }
 
-    // The lowest vertex (in the model's rest pose) of the parts with this material: the anchor's crown.
-    static Vector3 LowestPoint(GameObject go, string material)
+    // The vertex of the parts with this material farthest from a point (the anchor's crown, from its ring): the same
+    // whatever pose the model is in.
+    static Vector3 FarthestPoint(GameObject go, string material, Vector3 from)
     {
         var skinned = go.GetComponentInChildren<SkinnedMeshRenderer>();
         var baked = new Mesh();
         skinned.BakeMesh(baked, true);
         int index = System.Array.FindIndex(skinned.sharedMaterials, m => m != null && m.name.StartsWith(material));
         var vertices = baked.vertices;
-        Vector3 lowest = Vector3.positiveInfinity;
+        Vector3 farthest = from;
         foreach (int i in baked.GetTriangles(index))
         {
             Vector3 p = skinned.transform.position + skinned.transform.rotation * vertices[i]; // (baked with its scale)
-            if (p.y < lowest.y)
-                lowest = p;
+            if (Vector3.Distance(p, from) > Vector3.Distance(farthest, from))
+                farthest = p;
         }
-        return lowest;
+        return farthest;
+    }
+
+    // A bone's world rotation in the bind pose (the model as built: the anchor upright in her hands).
+    static Quaternion RestRotation(SkinnedMeshRenderer skinned, Transform bone)
+    {
+        int i = System.Array.IndexOf(skinned.bones, bone);
+        return skinned.transform.rotation * skinned.sharedMesh.bindposes[i].inverse.rotation;
     }
 }

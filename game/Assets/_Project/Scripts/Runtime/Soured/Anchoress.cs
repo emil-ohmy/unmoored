@@ -17,8 +17,9 @@ namespace MyGame
     // A stagger (or a perfect block) makes her drop it; she must reel it in before she can attack again. Her lantern
     // hangs from the anchor's stock (a light for the ferry to see), so in the dark you can follow it: flying, lying,
     // dragged home in a spray of sparks. While she fights, the camera leans towards her and draws back a little.
+    // Phase two (Anchoress.PhaseTwo.cs): at half health she rises; her Drops break the floor; the Hook Yank.
     [DefaultExecutionOrder(-10)] // poses the anchor in LateUpdate before its swoosh samples it
-    public sealed class Anchoress : Laden
+    public sealed partial class Anchoress : Laden
     {
         public enum AnchorMode { Held, Swung, Flying, Lying, Hauled, Reeling }
 
@@ -74,7 +75,6 @@ namespace MyGame
         public AudioClip[] haulSound;
 
         const float AnchorLength = 1.5f; // ring to crown
-        const int MaxLinks = 96;
 
         public AnchorMode Anchor { get; private set; }
         public bool Awakened { get; private set; }
@@ -88,7 +88,7 @@ namespace MyGame
         Quaternion flightFrame, blendFrame;
         Vector3 lastRing;
         Quaternion lastFrame = Quaternion.identity;
-        Transform[] links;
+        LinkChain anchorChain;
 
         protected override string IdleClip => Awakened ? "Idle" : "Vigil";
         protected override string ChaseClip(float distance) => Anchor == AnchorMode.Reeling ? "Reel" : base.ChaseClip(distance);
@@ -107,13 +107,18 @@ namespace MyGame
             if (Anchor != AnchorMode.Held)
                 return null; // she needs it in her hands
             float angle = Vector3.Angle(transform.forward, toTarget);
+            if (FollowUp(distance, angle) is SouredAttack follow)
+                return follow;
             if (angle > backAngle)
                 return null; // behind her: she has to turn first
             if (distance <= sweepRadius + 0.4f && angle > flankAngle)
                 return sweep; // at her side: the chain comes round
             if (distance <= attackRange)
                 return Random.value < sweepChanceInFront ? sweep : primary;
-            if (distance >= castMin && distance <= castMax && Time.time >= nextCast)
+            bool castReady = distance >= castMin && distance <= castMax && Time.time >= nextCast;
+            if (YankReady(distance) && (!castReady || Random.value < 0.5f))
+                return yank;
+            if (castReady)
                 return cast;
             if (distance <= sweepRadius + 0.3f && Time.time >= nextRoll)
             {
@@ -140,6 +145,7 @@ namespace MyGame
                 StartReel();
             if (state == State.Recover && CurrentAttack == cast)
                 nextCast = Time.time + cast.recover + castCooldown;
+            PhaseTwoEntered(state);
         }
 
         // The sweep's reach is set with its aim: as far out as you stood.
@@ -162,7 +168,7 @@ namespace MyGame
         // The Anchor Drop lands: the ring of water spreads from the crown.
         protected override void OnImpact(SouredAttack attack)
         {
-            if (attack != primary)
+            if (!IsDrop(attack))
                 return;
             Vector3 at = anchorCrown != null ? anchorCrown.position : transform.position + transform.forward * attack.reach;
             at.y = transform.position.y;
@@ -170,12 +176,15 @@ namespace MyGame
             Effects.Instance?.Splash(at + Vector3.up * 0.1f);
             if (target != null && Vector3.Distance(target.transform.position, at) < 9f)
                 CameraRig.Instance?.Shake(0.22f);
+            if (PhaseTwo)
+                floor?.BreakAt(at); // the floor gives way where it lands
         }
 
         protected override void Tick(float dt)
         {
             modeTime += dt;
             Frame();
+            PhaseTwoTick(dt);
             var attack = CurrentAttack;
             if (CurrentState == State.Telegraph && attack == sweep && Anchor == AnchorMode.Held && StateTime >= attack.telegraph * 0.55f)
                 SetMode(AnchorMode.Swung); // let out on the chain to her right: the tell
@@ -317,8 +326,10 @@ namespace MyGame
 
         public override void Reform()
         {
+            floor?.Restore();
             if (TimesDefeated > 0)
                 return; // a Boss stays beaten
+            ResetPhaseTwo();
             Awakened = false;
             hitThisMove = false;
             Frame();
@@ -344,6 +355,7 @@ namespace MyGame
             lastRing = anchorRing.position;
             lastFrame = anchorBone.rotation * Quaternion.Inverse(anchorHeld);
             DrawChain();
+            PoseHook();
         }
 
         // Where the anchor's ring is and how it lies (its frame: forward = the way its face looks, up = from crown to
@@ -402,64 +414,21 @@ namespace MyGame
             return Quaternion.LookRotation(Vector3.up, towardsHer.sqrMagnitude > 0.001f ? towardsHer.normalized : -transform.forward);
         }
 
-        // The chain from the hook at her waist to the anchor's ring, link by link: slack in her hands, taut when it's
-        // far out, never through the floor.
+        // The chain from the hook at her waist to the anchor's ring: slack in her hands, taut when it's far out.
         void DrawChain()
         {
             if (chainStart == null)
                 return;
-            if (links == null)
-                BuildLinks();
+            anchorChain ??= new LinkChain("Anchor Chain", chainMaterial, 96, new Vector3(0.05f, 0.1f, 0.18f), 0.15f);
             bool shown = IsAlive || CurrentState == State.Dying && StateTime < deathDuration * 0.45f;
-            Vector3 a = chainStart.position, b = lastRing;
-            float distance = Vector3.Distance(a, b);
-            int count = shown ? Mathf.Clamp(Mathf.CeilToInt(distance / 0.15f), 2, MaxLinks) : 0;
-            float sag = Mathf.Lerp(0.45f, 0.08f, distance / 6f);
-            float floorY = transform.position.y + 0.04f;
-            for (int i = 0; i < MaxLinks; i++)
-            {
-                bool on = i < count;
-                if (links[i].gameObject.activeSelf != on)
-                    links[i].gameObject.SetActive(on);
-                if (!on)
-                    continue;
-                float t = (i + 0.5f) / count;
-                Vector3 p = Point(a, b, sag, t, floorY);
-                Vector3 along = Point(a, b, sag, Mathf.Min(1f, t + 0.02f), floorY) - Point(a, b, sag, Mathf.Max(0f, t - 0.02f), floorY);
-                links[i].SetPositionAndRotation(p, Quaternion.LookRotation(along.sqrMagnitude > 1e-6f ? along : Vector3.forward) * Quaternion.Euler(0f, 0f, i % 2 * 90f));
-            }
-        }
-
-        static Vector3 Point(Vector3 a, Vector3 b, float sag, float t, float floorY)
-        {
-            Vector3 p = Vector3.Lerp(a, b, t) + Vector3.down * (sag * 4f * t * (1f - t));
-            p.y = Mathf.Max(p.y, floorY);
-            return p;
-        }
-
-        void BuildLinks()
-        {
-            var parent = new GameObject("Anchor Chain").transform;
-            links = new Transform[MaxLinks];
-            for (int i = 0; i < MaxLinks; i++)
-            {
-                var link = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Destroy(link.GetComponent<Collider>());
-                link.name = "Link";
-                link.transform.SetParent(parent, false);
-                link.transform.localScale = new Vector3(0.05f, 0.1f, 0.18f);
-                var renderer = link.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = chainMaterial;
-                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                link.SetActive(false);
-                links[i] = link.transform;
-            }
+            float distance = Vector3.Distance(chainStart.position, lastRing);
+            anchorChain.Draw(chainStart.position, lastRing, Mathf.Lerp(0.45f, 0.08f, distance / 6f), transform.position.y + 0.04f, shown);
         }
 
         void OnDestroy()
         {
-            if (links != null && links.Length > 0 && links[0] != null)
-                Destroy(links[0].parent.gameObject);
+            anchorChain?.Destroy();
+            hookLine?.Destroy();
         }
 
         static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);

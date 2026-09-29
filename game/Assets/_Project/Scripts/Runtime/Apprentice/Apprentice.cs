@@ -1072,13 +1072,37 @@ namespace MyGame
             Vector3 surface = new Vector3(transform.position.x, waterLevel + 0.1f, transform.position.z);
             Effects.Instance?.Splash(surface);
             Sfx.Instance?.Splash(surface);
-            Teleport(lastSafeGround);
+            Teleport(SafeGroundNear(lastSafeGround));
             Sfx.Instance?.Hurt(transform.position + Vector3.up);
             Announce("washed ashore");
             if (Health <= 0f)
                 Die();
             else
                 EnterStagger(staggerDuration, "Hit");
+        }
+
+        // The remembered safe ground, if it's still there (a floor can break away under it); otherwise the nearest solid
+        // ground around it, clear of any edge, or the Mooring post.
+        Vector3 SafeGroundNear(Vector3 point)
+        {
+            if (Solid(point))
+                return point;
+            for (float r = 1f; r <= 9f; r += 0.75f)
+                for (int i = 0; i < 16; i++)
+                {
+                    Vector3 p = point + Quaternion.Euler(0f, i * 22.5f, 0f) * Vector3.forward * r;
+                    if (Solid(p))
+                        return p;
+                }
+            return WorldState.Instance != null ? WorldState.Instance.RespawnPosition : point;
+        }
+
+        static bool Solid(Vector3 point)
+        {
+            foreach (var offset in new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right })
+                if (!Physics.Raycast(point + Vector3.up * 0.5f + offset * 0.5f, Vector3.down, 1.5f, ~0, QueryTriggerInteraction.Ignore))
+                    return false;
+            return true;
         }
 
         // Remember solid ground well away from any edge, so washing ashore never lands on the brink.

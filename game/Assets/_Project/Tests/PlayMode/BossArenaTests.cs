@@ -176,7 +176,8 @@ namespace MyGame.Tests
         public IEnumerator Defeated_SheStaysDefeated()
         {
             FaceTheEntrance();
-            typeof(Soured).GetProperty("Health").SetValue(boss, 1f);
+            boss.phaseTwoAt = 0f; // (straight to the end)
+            SetHealth(1f);
             boss.turnSpeed = 0f;
             PlaceApprentice(boss.transform.position - boss.transform.forward * 2.2f);
             yield return null;
@@ -187,6 +188,109 @@ namespace MyGame.Tests
             yield return null;
             Assert.IsFalse(boss.IsAlive, "a Boss doesn't re-form");
             Assert.AreEqual(1, boss.TimesDefeated);
+        }
+
+        // ---- Phase two
+
+        // At half health she rises: nothing gets through meanwhile, a ring of water throws you back, and the floor
+        // starts to break. Resetting the fight (waking at the Mooring post) mends the floor and her.
+        [UnityTest]
+        public IEnumerator PhaseTwo_AtHalfHealth_SheRises_AndTheFloorBreaks()
+        {
+            FaceTheEntrance();
+            var floor = Object.FindAnyObjectByType<ChapelFloor>();
+            Assert.Greater(floor.Sections, 10, "the floor is laid in sections that can break");
+            SetHealth(boss.maxHealth * boss.phaseTwoAt);
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 4f);
+            yield return WaitFor(() => boss.CurrentState == Soured.State.Busy, 1f, "her rising");
+            Assert.IsTrue(boss.PhaseTwo);
+            float health = boss.Health;
+            Assert.AreEqual(HitResult.Blocked, boss.TakeHit(new Hit { Damage = 50f, From = apprentice.transform.position }));
+            Assert.AreEqual(health, boss.Health, "nothing gets through while she rises");
+            yield return WaitFor(() => boss.CurrentState != Soured.State.Busy, boss.riseDuration + 0.5f, "her risen");
+            Assert.AreEqual(apprentice.maxHealth - boss.riseRingDamage, apprentice.Health, 0.01f, "thrown back by the ring of water");
+            Assert.AreEqual(boss.riseBreaks, floor.Broken, "the floor starts to break");
+            WorldState.Instance.ReformAllSoured();
+            yield return null;
+            Assert.AreEqual(0, floor.Broken, "mended when the fight resets");
+            Assert.IsFalse(boss.PhaseTwo);
+        }
+
+        // Her Drops break the floor where they land.
+        [UnityTest]
+        public IEnumerator PhaseTwo_DropBreaksTheFloorWhereItLands()
+        {
+            boss.riseBreaks = 0;
+            yield return IntoPhaseTwo();
+            OnlyTheDrop();
+            boss.yankMin = 100f;
+            var floor = Object.FindAnyObjectByType<ChapelFloor>();
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 2.3f);
+            var before = boss.LastShockwave;
+            yield return WaitFor(() => boss.LastShockwave != before && boss.LastShockwave != null, 4f, "the Drop landing");
+            Vector3 landed = boss.LastShockwave.transform.position;
+            Assert.AreEqual(1, floor.Broken, $"landed at {landed}, she's at {boss.transform.position}");
+            yield return new WaitForSeconds(floor.crumbleTime + 0.2f);
+            Assert.IsFalse(FloorUnder(landed), "the floor gave way where it landed");
+        }
+
+        // The Hook Yank: caught, you're dragged in to land in front of her, and a quick Drop follows.
+        [UnityTest]
+        public IEnumerator PhaseTwo_HookYank_DragsYouIn_AndADropFollows()
+        {
+            boss.riseBreaks = 0;
+            yield return IntoPhaseTwo();
+            boss.castMin = 100f;
+            boss.midRangeSweepChance = 0f;
+            yield return new WaitForSeconds(1.1f); // her first yank is ready a moment after she rises
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 6f);
+            yield return WaitFor(() => boss.CurrentState == Soured.State.Telegraph, 3f, "a wind-up");
+            Assert.AreEqual(boss.yank, boss.CurrentAttack, "at range, in phase two: the hook");
+            yield return WaitFor(() => boss.Hook == Anchoress.HookMode.Caught, 3f, "the hook catching you");
+            yield return new WaitForSeconds(0.6f);
+            Assert.LessOrEqual(Flat(boss.transform.position - apprentice.transform.position).magnitude, boss.yankLandDistance + 0.8f, "dragged in front of her");
+            yield return WaitFor(() => boss.CurrentState == Soured.State.Telegraph, 2f, "the follow-up");
+            Assert.AreEqual(boss.followUpTelegraph, boss.CurrentAttack.telegraph, 0.001f, "a quick Drop follows");
+        }
+
+        // Knocked (or fallen) into the water, a Boss doesn't drown: she hauls herself out onto her middle, hurt and open.
+        [UnityTest]
+        public IEnumerator SheHaulsHerselfOutOfTheWater()
+        {
+            FaceTheEntrance();
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 4f);
+            yield return WaitFor(() => boss.Awakened, 1f, "her waking");
+            var controller = boss.GetComponent<CharacterController>();
+            controller.enabled = false;
+            boss.transform.position = new Vector3(7f, 0.5f, -9f); // over the water, off the chapel's near corner
+            controller.enabled = true;
+            yield return WaitFor(() => boss.Surfaced > 0, 3f, "her falling in");
+            yield return null;
+            Assert.IsTrue(boss.IsAlive, "a Boss doesn't drown");
+            Assert.Less(boss.Health, boss.maxHealth, "it hurt");
+            Assert.AreEqual(Soured.State.Staggered, boss.CurrentState, "open while she recovers");
+            Assert.IsTrue(FloorUnder(boss.transform.position), "back on the chapel floor");
+        }
+
+        IEnumerator IntoPhaseTwo()
+        {
+            FaceTheEntrance();
+            SetHealth(boss.maxHealth * boss.phaseTwoAt);
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 5f);
+            yield return WaitFor(() => boss.CurrentState == Soured.State.Busy, 1f, "her rising");
+            yield return WaitFor(() => boss.CurrentState != Soured.State.Busy, boss.riseDuration + 0.5f, "her risen");
+            apprentice.RestoreFully();
+        }
+
+        void SetHealth(float health) => typeof(Soured).GetProperty("Health").SetValue(boss, health);
+
+        // Solid floor under this point (characters don't count).
+        static bool FloorUnder(Vector3 point)
+        {
+            foreach (var hit in Physics.RaycastAll(new Vector3(point.x, 3f, point.z), Vector3.down, 3.2f, ~0, QueryTriggerInteraction.Ignore))
+                if (!(hit.collider is CharacterController))
+                    return true;
+            return false;
         }
 
         // Turned from the altar to face the way in, so there's chapel floor in front of her to stage the fight on.
