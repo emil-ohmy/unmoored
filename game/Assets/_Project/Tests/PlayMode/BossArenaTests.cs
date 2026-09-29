@@ -245,6 +245,46 @@ namespace MyGame.Tests
             Assert.AreEqual(boss.maxHealth - apprentice.lightDamage * 4f, boss.Health, 0.01f);
         }
 
+        // Her name plate: revealed large the first time she wakes, then a bar along the bottom with her name, and a notch
+        // where she rises. The floating lock-on bar stays hidden (hers is along the bottom). Falling fades it; waking
+        // and coming back brings it back, without the big reveal.
+        [UnityTest]
+        public IEnumerator NamePlate_RevealedWhenSheWakes_ThenHerBar()
+        {
+            var hud = Object.FindAnyObjectByType<Hud>();
+            yield return null;
+            Assert.IsFalse(hud.Boss.Visible, "nothing before the fight");
+            FaceTheEntrance();
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 5f);
+            yield return WaitFor(() => boss.Awakened, 1f, "her waking");
+            yield return new WaitForSeconds(0.3f);
+            yield return null;
+            Assert.IsTrue(hud.Boss.Reveal.Showing, "her name revealed");
+            StringAssert.Contains("Antediluvian Anchoress", hud.Boss.Reveal.Text.text);
+            yield return new WaitForSeconds(1.2f);
+            yield return null;
+            Assert.IsTrue(hud.Boss.Visible, "her bar along the bottom");
+            Assert.AreEqual(boss.title, hud.Boss.Name);
+            Assert.AreEqual(1f, hud.Boss.FillShown, 0.001f);
+            input.PressLock();
+            yield return null;
+            yield return null;
+            Assert.AreEqual(boss, apprentice.LockTarget);
+            Assert.IsFalse(hud.LockBarVisible, "no floating bar over a Boss");
+
+            apprentice.TakeHit(1000f, Vector3.zero);
+            yield return new WaitForSeconds(2f);
+            yield return null;
+            Assert.IsFalse(hud.Boss.Visible, "fallen: the bar fades");
+            yield return new WaitForSeconds(apprentice.respawnDelay);
+            PlaceApprentice(boss.transform.position + boss.transform.forward * 5f);
+            yield return WaitFor(() => boss.Awakened, 1f, "her waking again");
+            yield return new WaitForSeconds(1.2f);
+            yield return null;
+            Assert.IsTrue(hud.Boss.Visible, "back in the fight: her bar again");
+            Assert.IsFalse(hud.Boss.Reveal.Showing, "the big reveal only the first time");
+        }
+
         // ---- Phase two
 
         // At half health she rises: nothing gets through meanwhile, a ring of water throws you back, and the floor

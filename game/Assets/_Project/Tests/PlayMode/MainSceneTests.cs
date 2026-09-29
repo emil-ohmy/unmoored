@@ -579,8 +579,18 @@ namespace MyGame.Tests
             apprentice.Teleport(new Vector3(-12f, 1f, -15f), onSafeGround: false); // drop into open water
             yield return new WaitForSeconds(1f);
             Assert.Greater(apprentice.transform.position.y, 0.3f, "should be back on solid ground");
-            Assert.Less(apprentice.Health, apprentice.maxHealth, "washing ashore should hurt");
+            Assert.AreEqual(apprentice.maxHealth * (1f - apprentice.waterDamage), apprentice.Health, 0.01f, "a third of your health");
             Assert.IsTrue(apprentice.IsAlive);
+        }
+
+        // Low on health, the water finishes you.
+        [UnityTest]
+        public IEnumerator FallingInTheWater_WhenLow_Drowns()
+        {
+            apprentice.TakeTickDamage(apprentice.maxHealth * (1f - apprentice.waterDamage) + 1f);
+            apprentice.Teleport(new Vector3(-12f, 1f, -15f), onSafeGround: false);
+            yield return new WaitForSeconds(1f);
+            Assert.IsFalse(apprentice.IsAlive, "the water should have finished them");
         }
 
         [UnityTest]

@@ -22,7 +22,7 @@ namespace MyGame
     // dragged home in a spray of sparks. While she fights, the camera leans towards her and draws back a little.
     // Phase two (Anchoress.PhaseTwo.cs): at half health she rises; her Drops break the floor; the Hook Yank.
     [DefaultExecutionOrder(-10)] // poses the anchor in LateUpdate before its swoosh samples it
-    public sealed partial class Anchoress : Laden
+    public sealed partial class Anchoress : Laden, IBoss
     {
         public enum AnchorMode { Held, Swung, Flying, Lying, Hauled, Reeling }
 
@@ -83,6 +83,14 @@ namespace MyGame
         [Range(0.1f, 1f)] public float poolWade = 0.55f; // your speed in it
         public float poolDrag = 1.0f;        // m/s towards her
         public Material poolMaterial;
+
+        [Header("Her name plate")]
+        public string title = "The Antediluvian Anchoress";
+        public string epithet = "of the Forsaken Crossing";
+
+        public string Title => title;
+        public string Epithet => epithet;
+        public float[] PhaseMarks => new[] { phaseTwoAt };
 
         [Header("Framing the fight")]
         public float cameraLean = 0.35f;
@@ -386,6 +394,10 @@ namespace MyGame
             if (fighting == framing)
                 return;
             framing = fighting;
+            if (fighting)
+                BossFight.Begin(this); // her name and bar on screen
+            else
+                BossFight.End(this);
             CameraRig.Instance?.SetFightFocus(fighting ? transform : null, cameraLean);
             CameraRig.Instance?.SetZoom(fighting ? cameraZoom : 1f);
         }
@@ -500,6 +512,7 @@ namespace MyGame
 
         void OnDestroy()
         {
+            BossFight.End(this);
             anchorChain?.Destroy();
             hookLine?.Destroy();
         }

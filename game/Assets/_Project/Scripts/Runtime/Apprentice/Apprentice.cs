@@ -109,7 +109,8 @@ namespace MyGame
 
         [Header("Water")]
         public float waterLevel = -0.35f;
-        public float waterDamage = 15f;
+        [Range(0f, 1f)] public float waterDamage = 1f / 3f; // of max health: a hard lesson at full, the end when low
+        public float washAshoreStagger = 0.9f;             // coughing up the river before you can move
 
         public IApprenticeInput Input { get; set; }
         public State CurrentState { get; private set; }
@@ -1120,7 +1121,7 @@ namespace MyGame
 
         void WashAshore()
         {
-            Health = Mathf.Max(0f, Health - waterDamage);
+            Health = Mathf.Max(0f, Health - maxHealth * waterDamage);
             Vector3 surface = new Vector3(transform.position.x, waterLevel + 0.1f, transform.position.z);
             Effects.Instance?.Splash(surface);
             Sfx.Instance?.Splash(surface);
@@ -1130,7 +1131,7 @@ namespace MyGame
             if (Health <= 0f)
                 Die();
             else
-                EnterStagger(staggerDuration, "Hit");
+                EnterStagger(washAshoreStagger, "Hit");
         }
 
         // The remembered safe ground, if it's still there (a floor can break away under it); otherwise the nearest solid

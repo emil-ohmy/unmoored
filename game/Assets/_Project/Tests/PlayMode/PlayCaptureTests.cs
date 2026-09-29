@@ -653,6 +653,65 @@ namespace MyGame.Tests
             Capture(outDir, "map", 1600, 1600);
         }
 
+        // The Boss's name plate: the reveal as she wakes, then her bar along the bottom (with the UI, as Capture_Ui).
+        [UnityTest]
+        public IEnumerator Capture_BossUi()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("BossArena");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var boss = UnityEngine.Object.FindAnyObjectByType<Anchoress>();
+            apprentice.Input = new ScriptedInput();
+            apprentice.postHitInvulnerability = 1000f;
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                for (int f = 0; f < 20; f++)
+                    yield return null;
+                apprentice.TakeHit(0f, Vector3.zero);
+                apprentice.Teleport(new Vector3(0f, 0.55f, -4.2f));
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+                for (int f = 0; f < 120 && !boss.Awakened; f++)
+                    yield return null;
+                for (int f = 0; f < 150; f++)
+                {
+                    if (f == 10 || f == 36 || f == 70 || f == 140)
+                        Shot($"bossui-{f:D3}");
+                    if (f == 100)
+                        typeof(Soured).GetProperty("Health").SetValue(boss, boss.maxHealth * 0.62f);
+                    yield return null;
+                }
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                Time.captureFramerate = 0;
+            }
+        }
+
         // The screen messages and HUD, rendered with the UI (the camera draws into a texture, canvases in camera space).
         [UnityTest]
         public IEnumerator Capture_Ui()

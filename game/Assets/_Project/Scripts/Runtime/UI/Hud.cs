@@ -29,6 +29,7 @@ namespace MyGame
         public float HookMarkerAlpha => hookMarkerImage != null ? hookMarkerImage.color.a : 0f;
         const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
+        public BossBar Boss { get; private set; }
         public string PromptText => promptLabel != null ? promptLabel.text : "";
 
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
@@ -97,6 +98,7 @@ namespace MyGame
                 font = textFont, size = 30, colour = UiKit.Ash, y = -210f, fadeIn = 0.7f, hold = 2.8f, fadeOut = 1.0f,
             });
             BuildHookMarker(hudRoot);
+            Boss = new BossBar(canvasRect, titleFont, textFont);
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
@@ -183,6 +185,12 @@ namespace MyGame
             UpdateLockBar();
             UpdateHookMarker();
 
+            if (BossFight.Current != null)
+            {
+                AreaTitle.Dismiss(); // the Boss's name takes the screen
+                LanternBanner.Dismiss();
+            }
+            Boss.Tick(BossFight.Current);
             Menu.Tick(apprentice.OpenMenu, usingGamepad);
             Death.Tick();
             hudGroup.alpha = Death.HudAlpha;
@@ -372,7 +380,8 @@ namespace MyGame
         {
             var target = apprentice.LockTarget;
             var cam = Camera.main;
-            bool show = target != null && target.IsAlive && cam != null;
+            bool show = target != null && target.IsAlive && cam != null
+                && !(target is IBoss boss && boss == BossFight.Current); // a Boss has its own bar along the bottom
             Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * target.barHeight) : Vector3.zero;
             show &= screen.z > 0f;
             lockBar.gameObject.SetActive(show);

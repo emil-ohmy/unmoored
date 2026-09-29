@@ -57,7 +57,10 @@ business and pay their fare to row them across.
 - **Density:** a few posts per Area, always one before a Boss.
 - **Death:** you wake at the last post and drop **all** Obols with your **Shade**. Touch it to get them back. Die
   again first and they're gone.
-- **Edge cases:** dying in a Boss fight leaves the Shade outside the arena. You can't die on the water.
+- **Edge cases:** dying in a Boss fight leaves the Shade outside the arena. You can't die on the water (rowing).
+- **Falling in:** costs a third of your health and you wash ashore on solid ground nearby, coughing (a long
+  stagger). Never instant death (knockback and breaking floors would make that cheap), but when you're low the
+  water finishes you.
 
 ## Progression
 
