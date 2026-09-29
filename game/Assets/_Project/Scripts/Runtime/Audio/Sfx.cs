@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem, lanternSnuff;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -38,10 +38,36 @@ namespace MyGame
             }
         }
 
+        void OnEnable() => AudioSettings.OnAudioConfigurationChanged += OnAudioConfigurationChanged;
+
+        void OnDisable() => AudioSettings.OnAudioConfigurationChanged -= OnAudioConfigurationChanged;
+
         void OnDestroy()
         {
             if (Instance == this)
                 Instance = null;
+        }
+
+        // The output device changed (headphones plugged in or out, AirPods connecting): Unity's audio doesn't follow on
+        // its own and can go silent, so re-initialise it on the new device, then pick the looping sounds (music,
+        // torches) back up where they were. One-shots in flight are lost.
+        void OnAudioConfigurationChanged(bool deviceWasChanged)
+        {
+            if (!deviceWasChanged)
+                return;
+            var loops = new System.Collections.Generic.List<(AudioSource source, float time)>();
+            foreach (var source in FindObjectsByType<AudioSource>(FindObjectsSortMode.None))
+                if (source.isPlaying && source.loop && source.clip != null)
+                    loops.Add((source, source.time));
+            AudioSettings.Reset(AudioSettings.GetConfiguration());
+            foreach (var (source, time) in loops)
+            {
+                if (source == null)
+                    continue;
+                source.Play();
+                source.time = Mathf.Repeat(time, source.clip.length);
+            }
+            Debug.Log($"[Sfx] audio output device changed: re-initialised, {loops.Count} loops resumed");
         }
 
         public void OarSwing(Vector3 at, bool heavy) => Play(heavy ? oarSwingHeavy : oarSwing, at, heavy ? 0.9f : 0.75f, heavy ? "oar_swing_heavy" : "oar_swing");
@@ -51,7 +77,7 @@ namespace MyGame
         public void SoulAbsorb(Vector3 at) => Play(soulAbsorb, at, 0.9f, "soul_absorb");
         public void DeathToll(Vector3 at) => Play(deathToll, at, 1f, "death_toll");
         public void OarHit(Vector3 at, bool heavy) => Play(oarHit, at, heavy ? 1f : 0.8f, "oar_hit", heavy ? 0.82f : 1f);
-        public void Hurt(Vector3 at) => Play(hurt, at, 0.9f, "apprentice_hurt");
+        public void Hurt(Vector3 at, float volume = 0.9f) => Play(hurt, at, volume, "apprentice_hurt");
         public void Heal(Vector3 at) => Play(heal, at, 0.8f, "heal");
         public void Splash(Vector3 at) => Play(splash, at, 1f, "splash");
         public void ArrowThunk(Vector3 at) => Play(arrowThunk, at, 0.8f, "arrow_thunk");
@@ -61,6 +87,7 @@ namespace MyGame
         public void HookCatch(Vector3 at) => Play(hookCatch, at, 0.9f, "hook_catch");
         public void ItemTake(Vector3 at) => Play(itemTake, at, 0.8f, "item_take");
         public void KeyItem(Vector3 at) => Play(keyItem, at, 1f, "key_item");
+        public void LanternSnuff(Vector3 at) => Play(lanternSnuff, at, 1f, "lantern_snuff");
         public void ObolClink(Vector3 at) => Play(obolClink, at, 0.8f, "obol_clink");
         public void CharmFit(Vector3 at) => Play(charmFit, at, 0.8f, "charm_fit");
         public void UiTick()

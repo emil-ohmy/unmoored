@@ -24,6 +24,22 @@ shore. He stopped letting them cross and started keeping them. The kept souls so
 Boss, and the Apprentice inherits his role. The mystery is told mainly through **Lingerers** (5–7 souls with unfinished
 business) and the environment.
 
+## Tone and voice
+
+**The world is sincere; the game's own voice is allowed to be dry.** The underworld, its souls and its grief are
+played straight. But the game knows what genre it's in, and where it speaks to you directly (its screens, not its
+people) it may wink at being a soulslike. Remember to put the humour in: it's part of the game, not a garnish.
+
+- **Where it jokes:** the game's own screens and descriptions. Boss defeat banners, item and Charm descriptions, the
+  Obol counter, the death screen's rare variants, the merchant's patter, the occasional Lantern Lit.
+  Examples: "Obols (souls, basically)"; the Tester's Knot "for play-testing"; "You Sank (Again)".
+- **Where it never jokes:** Bosses, Lingerers and the lore themselves, their words and their stories. A Boss is
+  never silly in the fight; the joke comes after, from the game.
+- **The pattern for a Boss beaten: the joke big, the sincere line small beneath it.** The laugh lands first, then the
+  quiet line catches you. The Anchoress: **"ANCHOR DOWN"** / *She let go.*
+- **Sparingly:** a joke that's always there wears out. Rare variants (a death screen now and then, not every time),
+  one per Boss, and never over a moment that should hurt.
+
 ## Core loop
 
 Row out to an Area. Fight Soured, find Obols and secrets, light Mooring posts and open shortcuts back to them. Beat the
@@ -57,7 +73,10 @@ business and pay their fare to row them across.
 - **Density:** a few posts per Area, always one before a Boss.
 - **Death:** you wake at the last post and drop **all** Obols with your **Shade**. Touch it to get them back. Die
   again first and they're gone.
-- **Edge cases:** dying in a Boss fight leaves the Shade outside the arena. You can't die on the water.
+- **Edge cases:** dying in a Boss fight leaves the Shade outside the arena. You can't die on the water (rowing).
+- **Falling in:** costs a third of your health and you wash ashore on solid ground nearby, coughing (a long
+  stagger). Never instant death (knockback and breaking floors would make that cheap), but when you're low the
+  water finishes you.
 
 ## Progression
 
@@ -99,7 +118,7 @@ back toward the Hub.
 
 | # | Area | Reached by | Boss | Reward | Introduces |
 |---|---|---|---|---|---|
-| 1 | The Drowned Village | open | The Hoarder | Hook | Laden, Clinger |
+| 1 | The Drowned Village | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
 | 2 | The Orchard of Last Autumn | Hook | The Gardener | Stroke | Moths |
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
@@ -141,7 +160,9 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 - **UI:** sparse and printed. One typeface, IM Fell English (worn old print), its small caps for titles. Bone-white
   text, bronze frames, warm ember for safety, blood red for death. No combat text: hits, blocks and dodges read from
   sparks, flashes and sounds. Messages are few and ceremonial: the Area's name on entering, "Lantern Lit" when a
-  Mooring post is first lit, and on death "You Sank" before the screen sinks to black and you wake at the post.
+  Mooring post is first lit, and on death "You Sank" before the screen sinks to black and you wake at the post. A
+  Boss: its name revealed large the first time its fight begins, its bar along the bottom, and when it's beaten, its
+  own banner (see Tone and voice).
 
 ## Scope
 

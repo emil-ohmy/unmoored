@@ -35,6 +35,8 @@ namespace MyGame
             Apply(0f, 0f);
         }
 
+        public void SetPhrase(string phrase) => message.text = phrase;
+
         public void OnDied(float delayUntilWaking)
         {
             dead = true;
@@ -53,8 +55,9 @@ namespace MyGame
             if (dead)
             {
                 float s = Time.time - diedAt, d = respawnDelay;
-                float dim = 0.5f * UiKit.Smooth(0.3f, 1.3f, s);
-                Apply(Mathf.Lerp(dim, 1f, UiKit.Smooth(d - 0.8f, d - 0.1f, s)), UiKit.Smooth(0.6f, 1.7f, s));
+                // The world dims as the lantern goes out; the phrase comes once the Apprentice lies still.
+                float dim = 0.55f * UiKit.Smooth(0.4f, 2.0f, s);
+                Apply(Mathf.Lerp(dim, 1f, UiKit.Smooth(d - 0.8f, d - 0.1f, s)), UiKit.Smooth(1.8f, 2.7f, s));
                 float grow = 1f - Mathf.Pow(1f - Mathf.Clamp01(s / d), 2f); // ease out
                 messageRoot.localScale = Vector3.one * (0.94f + 0.08f * grow);
                 glow.color = UiKit.Blood.WithAlpha(0.3f + 0.06f * Mathf.Sin(s * 2.4f));

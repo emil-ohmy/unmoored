@@ -17,6 +17,7 @@ namespace MyGame
         public string deathPhrase = "You Sank";
 
         public bool LockBarVisible => lockBar != null && lockBar.gameObject.activeSelf;
+        public bool LockMarkerVisible => lockMarker != null && lockMarker.gameObject.activeSelf;
         public RectTransform LockBarRect => lockBar;
         public Banner AreaTitle { get; private set; }
         public Banner LanternBanner { get; private set; }
@@ -29,6 +30,9 @@ namespace MyGame
         public float HookMarkerAlpha => hookMarkerImage != null ? hookMarkerImage.color.a : 0f;
         const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
+        public BossBar Boss { get; private set; }
+        public Banner Farewell { get; private set; }     // a Boss beaten: its joke ("ANCHOR DOWN")...
+        public Banner FarewellLine { get; private set; } // ...and the sincere line beneath ("She let go.")
         public string PromptText => promptLabel != null ? promptLabel.text : "";
 
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
@@ -37,8 +41,14 @@ namespace MyGame
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing, ceremonyDim;
-        Text glyph, promptLabel, obolText, obolGain;
-        RectTransform hookMarker;
+        Text glyph, promptLabel, obolText, obolGain, obolNote;
+        bool obolsExplained;
+        float obolNoteAt = -100f;
+        public float ObolNoteAlpha => obolNote != null ? obolNote.color.a : 0f;
+        RectTransform hookMarker, lockMarker;
+        Image lockMarkerGlow;
+        Soured markerTarget;
+        float lockedAt = -100f;
         Image hookMarkerImage, hookMarkerGlow;
         Banner foundHint;
         float obolsShown, gainAt = -100f, healedAt = -100f;
@@ -97,6 +107,16 @@ namespace MyGame
                 font = textFont, size = 30, colour = UiKit.Ash, y = -210f, fadeIn = 0.7f, hold = 2.8f, fadeOut = 1.0f,
             });
             BuildHookMarker(hudRoot);
+            Boss = new BossBar(canvasRect, titleFont, textFont);
+            Farewell = new Banner(canvasRect, "Boss Farewell", new Banner.Style
+            {
+                font = titleFont, size = 80, colour = UiKit.Bone, spacing = 8f, y = 60f, glow = UiKit.Hex(0x9fc4ff, 0.22f),
+                bandAlpha = 0.6f, rule = true, fadeIn = 1.0f, hold = 3.8f, fadeOut = 2.0f, drift = 0.03f,
+            });
+            FarewellLine = new Banner(canvasRect, "Boss Farewell Line", new Banner.Style
+            {
+                font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = -52f, fadeIn = 1.6f, hold = 2.6f, fadeOut = 2.0f, drift = 0.02f,
+            });
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
@@ -109,6 +129,37 @@ namespace MyGame
             obolsShown = apprentice.Obols;
             MooringPost.Rested += OnRested;
             AreaEntrance.Entered += OnAreaEntered;
+            BossFight.Defeated += OnBossDefeated;
+        }
+
+        // The joke first (up to its beat, then the rest), then the sincere line quietly beneath.
+        void OnBossDefeated(IBoss boss)
+        {
+            string[] parts = (boss.Farewell ?? "").Split('|');
+            Farewell.Show(parts[0]);
+            farewellRest = parts.Length > 1 ? string.Concat(parts) : null;
+            farewellLine = boss.FarewellLine;
+            farewellAt = UiKit.Now;
+        }
+
+        string farewellRest, farewellLine;
+        float farewellAt = -100f;
+
+        void UpdateFarewell()
+        {
+            float age = UiKit.Now - farewellAt;
+            if (farewellRest != null && age >= 1.3f)
+            {
+                Farewell.Text.text = farewellRest; // ...ed
+                farewellRest = null;
+            }
+            if (!string.IsNullOrEmpty(farewellLine) && age >= 2.3f)
+            {
+                FarewellLine.Show(farewellLine);
+                farewellLine = null;
+            }
+            Farewell.Tick();
+            FarewellLine.Tick();
         }
 
         void OnDestroy()
@@ -123,6 +174,7 @@ namespace MyGame
             }
             MooringPost.Rested -= OnRested;
             AreaEntrance.Entered -= OnAreaEntered;
+            BossFight.Defeated -= OnBossDefeated;
         }
 
         void OnHealed() => healedAt = UiKit.Now;
@@ -145,10 +197,17 @@ namespace MyGame
             gainAt = UiKit.Now;
         }
 
+        // Now and then the game's own voice (docs/brief.md, Tone and voice): never the first time, and rarely.
+        static readonly string[] DeathVariants = { "You Sank (Again)", "Glub.", "Buoyancy Check Failed" };
+        const float VariantChance = 0.15f;
+        int deaths, lanternsLit;
+
         void OnDied()
         {
             AreaTitle.Dismiss();
             LanternBanner.Dismiss();
+            deaths++;
+            Death.SetPhrase(deaths > 1 && Random.value < VariantChance ? DeathVariants[Random.Range(0, DeathVariants.Length)] : deathPhrase);
             Death.OnDied(apprentice.respawnDelay);
         }
 
@@ -163,7 +222,7 @@ namespace MyGame
         {
             restFlashAt = UiKit.Now;
             if (firstLight)
-                LanternBanner.Show("Lantern Lit");
+                LanternBanner.Show(++lanternsLit > 1 && Random.value < VariantChance * 0.6f ? "Lantern Lit (It's a Bonfire)" : "Lantern Lit");
         }
 
         // LateUpdate: after all gameplay has run this frame, so the HUD never shows last frame's state.
@@ -183,12 +242,19 @@ namespace MyGame
             UpdateLockBar();
             UpdateHookMarker();
 
+            if (BossFight.Current != null)
+            {
+                AreaTitle.Dismiss(); // the Boss's name takes the screen
+                LanternBanner.Dismiss();
+            }
+            Boss.Tick(BossFight.Current);
             Menu.Tick(apprentice.OpenMenu, usingGamepad);
             Death.Tick();
             hudGroup.alpha = Death.HudAlpha;
             AreaTitle.Tick();
             LanternBanner.Tick();
             FoundBanner.Tick();
+            UpdateFarewell();
             foundHint.Tick();
             float dimTarget = apprentice.CurrentState == Apprentice.State.Ceremony ? 0.85f : 0f;
             ceremonyDim.color = Color.black.WithAlpha(Mathf.MoveTowards(ceremonyDim.color.a, dimTarget, UiKit.DeltaTime * 1.2f));
@@ -251,6 +317,11 @@ namespace MyGame
             obolGain = UiKit.Text(root, "Obol Gain", textFont, 28, UiKit.Ember, TextAnchor.MiddleRight, corner, new Vector2(-84, 96));
             obolGain.rectTransform.pivot = new Vector2(1f, 0.5f);
             obolGain.rectTransform.sizeDelta = new Vector2(300, 40);
+            obolNote = UiKit.Text(root, "Obol Note", textFont, 26, UiKit.Ash, TextAnchor.MiddleRight, corner, new Vector2(-56, 20));
+            obolNote.rectTransform.pivot = new Vector2(1f, 0.5f);
+            obolNote.rectTransform.sizeDelta = new Vector2(420, 34);
+            obolNote.text = "Obols (souls, basically)";
+            obolNote.color = UiKit.Ash.WithAlpha(0f);
         }
 
         void UpdateObols()
@@ -261,6 +332,14 @@ namespace MyGame
             obolText.text = Mathf.RoundToInt(obolsShown).ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
             float age = UiKit.Now - gainAt;
             obolGain.text = "+" + gainAmount;
+            // The first Obols ever: what they are, in the game's own voice.
+            if (!obolsExplained && gainAt > 0f && apprentice.Obols > 0)
+            {
+                obolsExplained = true;
+                obolNoteAt = UiKit.Now + 0.4f;
+            }
+            float noteAge = UiKit.Now - obolNoteAt;
+            obolNote.color = UiKit.Ash.WithAlpha(UiKit.Smooth(0f, 0.5f, noteAge) * (1f - UiKit.Smooth(3.5f, 4.5f, noteAge)));
             obolGain.color = UiKit.Ember.WithAlpha(UiKit.Smooth(0f, 0.1f, age) * (1f - UiKit.Smooth(1.2f, 2f, age)));
             obolGain.rectTransform.anchoredPosition = new Vector2(-84, 90 + 10f * Mathf.Clamp01(age / 2f));
         }
@@ -355,9 +434,16 @@ namespace MyGame
             lockTrail = Fill(lockBar, UiKit.Bone.WithAlpha(0.8f));
             lockFill = Fill(lockBar, HealthRed);
             lockFill.GetComponent<Image>().sprite = UiKit.Sheen;
-            var marker = UiKit.Image(lockBar, "Lock Marker", null, UiKit.Bone, new Vector2(0.5f, 0.5f), new Vector2(0, 17), new Vector2(9, 9));
-            marker.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
             lockBar.gameObject.SetActive(false);
+            // The lock-on marker, on its own (a Boss has no floating bar, but you still see who you're locked on to):
+            // a bone-white diamond over the target, in a soft glow, popping in as you lock and breathing after.
+            lockMarker = UiKit.Rect(root, "Lock Marker", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40, 40));
+            lockMarkerGlow = UiKit.Image(lockMarker, "Glow", UiKit.SoftDot, UiKit.Bone.WithAlpha(0.25f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(44, 44));
+            var diamond = UiKit.Image(lockMarker, "Diamond", null, UiKit.Bone, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(13, 13));
+            diamond.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+            var hollow = UiKit.Image(lockMarker, "Frame", UiKit.Ring, UiKit.Bone.WithAlpha(0.7f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30, 30));
+            hollow.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+            lockMarker.gameObject.SetActive(false);
         }
 
         static RectTransform Fill(RectTransform parent, Color colour)
@@ -370,9 +456,11 @@ namespace MyGame
 
         void UpdateLockBar()
         {
+            UpdateLockMarker();
             var target = apprentice.LockTarget;
             var cam = Camera.main;
-            bool show = target != null && target.IsAlive && cam != null;
+            bool show = target != null && target.IsAlive && cam != null
+                && !(target is IBoss boss && boss == BossFight.Current); // a Boss has its own bar along the bottom
             Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * target.barHeight) : Vector3.zero;
             show &= screen.z > 0f;
             lockBar.gameObject.SetActive(show);
@@ -392,6 +480,37 @@ namespace MyGame
             var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, uiCamera, out var local);
             lockBar.anchoredPosition = local;
+        }
+
+        void UpdateLockMarker()
+        {
+            var target = apprentice.LockTarget;
+            var cam = Camera.main;
+            bool show = target != null && target.IsAlive && cam != null && apprentice.IsAlive;
+            bool boss = show && target is IBoss b && b == BossFight.Current;
+            // Over the target: above its floating bar, or (a Boss, whose bar is along the bottom) where the bar would be.
+            Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * (target.barHeight + (boss ? -0.4f : 0.35f))) : Vector3.zero;
+            show &= screen.z > 0f;
+            lockMarker.gameObject.SetActive(show);
+            if (!show)
+            {
+                markerTarget = null;
+                return;
+            }
+            if (target != markerTarget)
+            {
+                markerTarget = target;
+                lockedAt = UiKit.Now; // a new lock: it pops in
+            }
+            var canvas = canvasRect.GetComponent<Canvas>();
+            var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, uiCamera, out var local);
+            lockMarker.anchoredPosition = local;
+            float age = UiKit.Now - lockedAt;
+            float pop = 1f + 0.6f * (1f - UiKit.Smooth(0f, 0.25f, age));
+            float breathe = 1f + 0.06f * Mathf.Sin(UiKit.Now * 4f);
+            lockMarker.localScale = Vector3.one * pop * breathe;
+            lockMarkerGlow.color = UiKit.Bone.WithAlpha(0.18f + 0.1f * Mathf.Sin(UiKit.Now * 4f) + 0.4f * (1f - UiKit.Smooth(0f, 0.3f, age)));
         }
 
         // A framed bar at the top left: a thin bronze frame with a diamond at its left end, a dark back, a pale

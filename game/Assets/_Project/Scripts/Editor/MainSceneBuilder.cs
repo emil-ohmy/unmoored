@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using MyGame;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -13,7 +14,7 @@ using Object = UnityEngine.Object;
 //   -executeMethod MainSceneBuilder.BuildFromCommandLine
 //   -executeMethod MainSceneBuilder.BuildAndScreenshot   (env SHOTS = output folder, default builds/shots)
 // Re-running replaces the scene; hand edits to Main.unity are lost, so change the layout here.
-public static class MainSceneBuilder
+public static partial class MainSceneBuilder
 {
     const string ScenePath = "Assets/_Project/Scenes/Main.unity";
     const string Models = "Assets/_Project/Art/Models/";
@@ -48,17 +49,7 @@ public static class MainSceneBuilder
 
     static void Build()
     {
-        AssetDatabase.ImportAsset(Models.TrimEnd('/'), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
-        AssetDatabase.ImportAsset(Audio.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
-        AssetDatabase.ImportAsset(Fonts.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
-        Directory.CreateDirectory(Generated);
-        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        sparkMaterial = ParticleMaterial("M_Spark", RadialTexture("T_SoftDot", ring: false));
-        Lighting();
-
-        var water = new GameObject("Water", typeof(MeshFilter), typeof(MeshRenderer));
-        water.GetComponent<MeshFilter>().sharedMesh = WaterGrid(90f, 1f);
-        water.GetComponent<MeshRenderer>().sharedMaterial = WaterMaterial();
+        var scene = BeginScene();
 
         // The quay and what stands on it.
         Place("Environment/quay", new Vector3(0f, 0f, 0f), 180f);
@@ -128,6 +119,30 @@ public static class MainSceneBuilder
         var crossroadsArcher = LadenArcher("Laden Archer (Crossroads)", new Vector3(-19.5f, QuayTop, -28.5f), -30f); // behind it, covering
         HookRelic(new Vector3(-28.3f, QuayTop, -28.3f), crossroadsLaden, crossroadsArcher);
 
+        FinishScene(scene, ScenePath, start, apprentice, "music_drowned_dark");
+    }
+
+    // A new, empty scene with what every scene has before its layout: the night's lighting and the water.
+    static UnityEngine.SceneManagement.Scene BeginScene()
+    {
+        AssetDatabase.ImportAsset(Models.TrimEnd('/'), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
+        AssetDatabase.ImportAsset(Audio.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
+        AssetDatabase.ImportAsset(Fonts.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
+        Directory.CreateDirectory(Generated);
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        sparkMaterial = ParticleMaterial("M_Spark", RadialTexture("T_SoftDot", ring: false));
+        Lighting();
+
+        var water = new GameObject("Water", typeof(MeshFilter), typeof(MeshRenderer));
+        water.GetComponent<MeshFilter>().sharedMesh = WaterGrid(90f, 1f);
+        water.GetComponent<MeshRenderer>().sharedMaterial = WaterMaterial();
+        return scene;
+    }
+
+    // What every scene has after its layout: the game's systems (world state, effects, HUD, sounds), the music, the
+    // camera and the look; then it's saved (and listed in the build).
+    static void FinishScene(UnityEngine.SceneManagement.Scene scene, string path, Transform start, Apprentice apprentice, string musicName)
+    {
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
         var effects = systems.AddComponent<Effects>();
@@ -161,8 +176,9 @@ public static class MainSceneBuilder
         sfx.hookWhirl = Clips("hook_whirl");
         sfx.itemTake = Clips("item_take");
         sfx.keyItem = Clips("key_item");
+        sfx.lanternSnuff = Clips("lantern_snuff");
         var music = new GameObject("Music", typeof(AudioSource));
-        music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_drowned_dark.wav");
+        music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
 
         var cam = new GameObject("Main Camera", typeof(Camera)).GetComponent<Camera>(); // CameraRig adds the listener
@@ -182,9 +198,11 @@ public static class MainSceneBuilder
         volume.isGlobal = true;
         volume.sharedProfile = VolumeProfileAsset();
 
-        EditorSceneManager.SaveScene(scene, ScenePath);
+        EditorSceneManager.SaveScene(scene, path);
         AssetDatabase.SaveAssets();
-        Debug.Log($"[MainSceneBuilder] Built {ScenePath}");
+        if (!Array.Exists(EditorBuildSettings.scenes, s => s.path == path))
+            EditorBuildSettings.scenes = EditorBuildSettings.scenes.Append(new EditorBuildSettingsScene(path, true)).ToArray();
+        Debug.Log($"[MainSceneBuilder] Built {path}");
     }
 
     // ------------------------------------------------------------ pieces
@@ -495,11 +513,11 @@ public static class MainSceneBuilder
         trail.lifetime = lifetime;
     }
 
-    // Every Soured's belt lantern (sickly green light) and the prop it drops where it falls, glowing there until the
+    // Every Soured's belt lantern (sickly green light; the Anchoress hangs hers on the anchor) and the prop it drops where it falls, glowing there until the
     // Soured re-forms.
-    static void BeltLantern(GameObject go, Soured soured)
+    static void BeltLantern(GameObject go, Soured soured, string bone = "Spine")
     {
-        var lantern = PointLight(Bone(go, "Spine"), GlowCentre(go, "SouredLantern_Glow"), 3.8f, 1.8f, SouredLight);
+        var lantern = PointLight(Bone(go, bone), GlowCentre(go, "SouredLantern_Glow"), 3.8f, 1.8f, SouredLight);
         Flicker(lantern, 0.15f, 5f, 0.02f);
         var dropped = new GameObject("Dropped Lantern (" + go.name + ")").AddComponent<DroppedLantern>();
         var body = Place("Environment/soured_lantern", Vector3.zero, 0f);

@@ -8,6 +8,8 @@ namespace MyGame
     public sealed class Equipment : MonoBehaviour
     {
         public int charmSlots = 1;
+        [Tooltip("Charm ids owned from the start (development: the Tester's Knot)")]
+        public string[] startingCharms = new string[0];
 
         readonly List<Charm> owned = new List<Charm>();
         readonly List<Charm> fitted = new List<Charm>();
@@ -16,6 +18,13 @@ namespace MyGame
         public IReadOnlyList<Charm> Fitted => fitted;
         public bool Owns(Charm charm) => owned.Contains(charm);
         public bool IsFitted(Charm charm) => fitted.Contains(charm);
+
+        void Awake()
+        {
+            foreach (var id in startingCharms)
+                if (Charm.ById(id) is Charm charm)
+                    Own(charm);
+        }
 
         public void Own(Charm charm)
         {

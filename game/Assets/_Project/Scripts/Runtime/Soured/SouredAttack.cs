@@ -25,6 +25,7 @@ namespace MyGame
         public float volleyInterval = 0.2f;
         public float volleyTrack = 6f;      // degrees each later projectile may turn towards the target
         public AudioClip[] releaseSound;    // per projectile loosed
+        public bool scripted;               // the subclass lands this blow itself (no impact at impactAt)
 
         [Header("Sounds: the tell (the wind-up), the swing (every strike) and the impact (when it lands, hit or miss)")]
         public AudioClip[] windupSound;
@@ -33,5 +34,7 @@ namespace MyGame
         public float swingPitch = 1f;
 
         public float ImpactTime => telegraph + strike * impactAt; // seconds from the start of the wind-up
+
+        public SouredAttack Copy() => (SouredAttack)MemberwiseClone(); // (a variant: shares the sound arrays)
     }
 }

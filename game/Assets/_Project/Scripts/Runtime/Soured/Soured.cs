@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public class Soured : MonoBehaviour
     {
-        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered }
+        public enum State { Idle, Chase, Telegraph, Strike, Recover, Staggered, Stunned, Dying, Scattered, Busy }
 
         [Header("Health")]
         public float maxHealth = 100f;
@@ -93,6 +93,7 @@ namespace MyGame
         AudioClip tellClip;
         float dissolve;
         int faresReleased;
+        float busyFor;
 
         protected virtual void Awake()
         {
@@ -186,10 +187,11 @@ namespace MyGame
                         planar = transform.forward * (lungeThisStrike / lungeTime);
                     if (current.ranged)
                         Loose(toTarget, targetAlive);
-                    else if (!struck && stateTime >= current.impactAt * current.strike)
+                    else if (!current.scripted && !struck && stateTime >= current.impactAt * current.strike)
                     {
                         struck = true;
                         Impact();
+                        OnImpact(current);
                         if (targetAlive)
                             StrikeTarget(toTarget);
                     }
@@ -215,6 +217,11 @@ namespace MyGame
                         Enter(State.Chase);
                     break;
 
+                case State.Busy:
+                    if (stateTime >= busyFor)
+                        Enter(State.Chase);
+                    break;
+
                 case State.Dying:
                     // Dissolve from halfway through the fall, releasing its fare as the body goes.
                     dissolve = Mathf.Clamp01((stateTime - deathDuration * 0.45f) / dissolveDuration);
@@ -235,6 +242,7 @@ namespace MyGame
                 case State.Scattered:
                     return;
             }
+            Tick(dt);
 
             if (swingTrail != null) // the smear of a melee blow (a shot has none)
                 swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
@@ -251,7 +259,7 @@ namespace MyGame
             else
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
             controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
-            if (IsAlive && transform.position.y < waterLevel)
+            if (IsAlive && transform.position.y < waterLevel && !Surface())
                 Drown();
             UpdateFlash();
         }
@@ -273,6 +281,16 @@ namespace MyGame
             if (target != null && Vector3.Distance(target.transform.position, at) < 8f)
                 CameraRig.Instance?.Shake(0.12f);
         }
+
+        // Every frame, after the state's own work (a subclass's extra machinery: the Anchoress's anchor).
+        protected virtual void Tick(float dt) { }
+
+        // A melee blow lands (hit or miss), before it's checked against the Apprentice.
+        protected virtual void OnImpact(SouredAttack attack) { }
+
+        // Delivers a blow to the Apprentice (a scripted attack's, landing by its own rules).
+        protected Defence HitTarget(float damage, Vector3 knock) =>
+            target != null ? target.TakeHit(damage, knock, this) : Defence.Dodged;
 
         // The moment an attack stops tracking (a shot's aim is set): subclasses can mark it (the archer's glint).
         protected virtual void OnCommitted(SouredAttack attack) { }
@@ -307,7 +325,7 @@ namespace MyGame
         {
             if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
                 return;
-            if (target.TakeHit(current.damage, toTarget.normalized * current.knockback, this) == Defence.Parried)
+            if (HitTarget(current.damage, toTarget.normalized * current.knockback) == Defence.Parried)
                 Stun();
         }
 
@@ -324,6 +342,14 @@ namespace MyGame
         {
             if (!IsAlive)
                 return HitResult.Missed;
+            if (Unhittable)
+            {
+                Vector3 towards = Flat(hit.From - transform.position).normalized;
+                Vector3 at = transform.position + towards * (radius + 0.25f) + Vector3.up * 1.1f;
+                Effects.Instance?.BlockSpark(at, towards);
+                Sfx.Instance?.BlockClang(at, 0.8f);
+                return HitResult.Blocked;
+            }
             bool stunned = CurrentState == State.Stunned;
             if (stunned)
                 hit.Damage *= riposteMultiplier; // a riposte: double damage, straight through any guard
@@ -359,6 +385,40 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // Nothing gets through for now (a Boss mid-way between phases).
+        protected virtual bool Unhittable => false;
+
+        // Fallen into the water: true if the subclass deals with it (a Boss climbs out), false to drown.
+        protected virtual bool Surface() => false;
+
+        // A scripted moment of its own (a Boss rising into its second phase): the clip, then back to the chase.
+        protected void BeBusy(string clip, float duration)
+        {
+            Enter(State.Busy);
+            busyFor = duration;
+            clips.PlayOnce(clip, duration);
+        }
+
+        protected void StaggerNow()
+        {
+            Stagger = 0f;
+            Enter(State.Staggered);
+            clips.PlayOnce("Stagger", staggerDuration);
+        }
+
+        protected void LoseHealth(float amount) => Health = Mathf.Max(1f, Health - amount); // (never a kill)
+
+        protected Vector3 SpawnPosition => spawnPosition;
+
+        protected void PlaceAt(Vector3 position)
+        {
+            controller.enabled = false;
+            transform.position = position;
+            controller.enabled = true;
+            knockback = Vector3.zero;
+            verticalVelocity = 0f;
+        }
 
         // It sees ahead (within its field of view, out to aggroRadius) but only senses someone right behind it:
         // sneaking up from behind is how you get a free hit.
@@ -467,7 +527,7 @@ namespace MyGame
         }
 
         // Back to its spawn, whole again (the Ferryman's hoard pulls it back).
-        public void Reform()
+        public virtual void Reform()
         {
             controller.enabled = false;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);

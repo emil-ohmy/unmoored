@@ -142,6 +142,7 @@ namespace MyGame.Tests
             Assert.Greater(Vector3.Dot(apprentice.transform.forward, to.normalized), 0.95f, "locked on, the Apprentice should face its target");
             var hud = Object.FindAnyObjectByType<Hud>();
             Assert.IsTrue(hud.LockBarVisible, "the target's health bar should show");
+            Assert.IsTrue(hud.LockMarkerVisible, "and the lock-on marker over it");
             Vector2 expected = Camera.main.WorldToScreenPoint(target.transform.position + Vector3.up * target.barHeight);
             Vector2 actual = RectTransformUtility.WorldToScreenPoint(null, hud.LockBarRect.position); // overlay: screen pixels
             Assert.Less(Vector2.Distance(expected, actual), 4f, $"the bar should float above its target (expected {expected}, got {actual})");
@@ -151,6 +152,7 @@ namespace MyGame.Tests
             yield return null; // the HUD updates in LateUpdate, after this coroutine resumes: give it that frame
             Assert.IsNull(apprentice.LockTarget, "pressing again should release");
             Assert.IsFalse(Object.FindAnyObjectByType<Hud>().LockBarVisible);
+            Assert.IsFalse(Object.FindAnyObjectByType<Hud>().LockMarkerVisible);
         }
 
         [UnityTest]
@@ -579,8 +581,18 @@ namespace MyGame.Tests
             apprentice.Teleport(new Vector3(-12f, 1f, -15f), onSafeGround: false); // drop into open water
             yield return new WaitForSeconds(1f);
             Assert.Greater(apprentice.transform.position.y, 0.3f, "should be back on solid ground");
-            Assert.Less(apprentice.Health, apprentice.maxHealth, "washing ashore should hurt");
+            Assert.AreEqual(apprentice.maxHealth * (1f - apprentice.waterDamage), apprentice.Health, 0.01f, "a third of your health");
             Assert.IsTrue(apprentice.IsAlive);
+        }
+
+        // Low on health, the water finishes you.
+        [UnityTest]
+        public IEnumerator FallingInTheWater_WhenLow_Drowns()
+        {
+            apprentice.TakeTickDamage(apprentice.maxHealth * (1f - apprentice.waterDamage) + 1f);
+            apprentice.Teleport(new Vector3(-12f, 1f, -15f), onSafeGround: false);
+            yield return new WaitForSeconds(1f);
+            Assert.IsFalse(apprentice.IsAlive, "the water should have finished them");
         }
 
         [UnityTest]
@@ -1403,13 +1415,38 @@ namespace MyGame.Tests
             StringAssert.StartsWith("IMFellEnglish-", hud.textFont != null ? hud.textFont.name : "missing");
         }
 
+        // The fall: time slows, the camera closes in, the bow lantern gutters out (its light drifting away as motes),
+        // and the Shade rises out of the body once it lies still. Waking, all of it is undone.
+        [UnityTest]
+        public IEnumerator Dying_TheLanternGoesOut_AndTheShadeRisesFromTheBody()
+        {
+            var lantern = apprentice.GetComponent<BowLantern>();
+            apprentice.GainObols(50);
+            apprentice.TakeHit(1000f, Vector3.zero);
+            yield return null;
+            Assert.IsTrue(CameraRig.Instance.Mourning, "the camera closes in on the fallen");
+            yield return new WaitForSeconds(0.1f);
+            Assert.Less(Time.timeScale, 0.9f, "time slows as they fall");
+            yield return new WaitForSeconds(apprentice.snuffDelay + apprentice.snuffDuration * 0.5f);
+            Assert.Greater(Effects.Instance.LiveWisps, 0, "the lantern's light drifting away");
+            Assert.AreEqual(0f, Shade.Current.GetComponent<MeshRenderer>().GetPropertyBlock_Alpha(), 0.01f, "the Shade hasn't risen yet");
+            yield return new WaitForSeconds(apprentice.snuffDuration * 0.5f + 0.1f);
+            Assert.Less(lantern.Lit, 0.05f, "the bow lantern has gone out");
+            yield return new WaitForSeconds(apprentice.deathDuration - apprentice.snuffDelay - apprentice.snuffDuration + 1.2f);
+            Assert.Greater(Shade.Current.GetComponent<MeshRenderer>().GetPropertyBlock_Alpha(), 0.1f, "the Shade has risen from the body");
+            yield return new WaitForSeconds(apprentice.respawnDelay);
+            Assert.IsTrue(apprentice.IsAlive);
+            Assert.IsFalse(CameraRig.Instance.Mourning);
+            Assert.AreEqual(1f, lantern.Lit, "lit again at the Mooring post");
+        }
+
         [UnityTest]
         public IEnumerator Dying_ShowsTheDeathScreen_WakesBehindBlack_ThenFadesBackIn()
         {
             var hud = Object.FindAnyObjectByType<Hud>();
             apprentice.TakeHit(1000f, Vector3.zero);
             Assert.AreEqual("death_toll", Sfx.Instance.LastPlayed, "falling should toll");
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(2.8f); // (the fall and the lantern going out come first)
             yield return null;
             Assert.Greater(hud.Death.MessageAlpha, 0.9f, "the death phrase should be up");
             Assert.AreEqual(hud.deathPhrase, hud.Death.Message);
@@ -1493,6 +1530,17 @@ namespace MyGame.Tests
             Vector3 to = lookAt - position;
             to.y = 0f;
             apprentice.transform.rotation = Quaternion.LookRotation(to);
+        }
+    }
+
+    static class ShadeTestExtensions
+    {
+        // The Shade's current tint alpha (it's drawn through a property block).
+        public static float GetPropertyBlock_Alpha(this MeshRenderer renderer)
+        {
+            var block = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(block);
+            return block.GetColor("_Color").a;
         }
     }
 }

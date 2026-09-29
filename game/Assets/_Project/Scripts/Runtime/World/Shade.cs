@@ -4,7 +4,7 @@ namespace MyGame
 {
     // The Apprentice's Shade: a pale, breathing ghost left where they died, holding every Obol they carried. Walking
     // into it streams the Obols back into the bow lantern. Dying again before that loses them: there is only ever one
-    // Shade, and a new death replaces it.
+    // Shade, and a new death replaces it. It rises out of the fallen body once the bow lantern has gone out.
     public sealed class Shade : MonoBehaviour
     {
         public static Shade Current { get; private set; }
@@ -21,9 +21,11 @@ namespace MyGame
         MaterialPropertyBlock block;
         Vector3 basePosition;
         float fadeFrom = -1f;
+        float appearAt, appearFrom; // it rises out of the body: hidden until then, then fading in as it lifts
+        const float RiseTime = 1.0f;
 
         // Leaves a Shade holding `obols` in the pose the Apprentice fell in. Any earlier Shade is lost.
-        public static void Leave(Apprentice apprentice, int obols, Material ghostMaterial)
+        public static void Leave(Apprentice apprentice, int obols, Material ghostMaterial, float appearAfter = 0f)
         {
             if (Current != null)
                 Current.Fade();
@@ -52,6 +54,7 @@ namespace MyGame
             light.shadows = LightShadows.None;
 
             var shade = go.AddComponent<Shade>();
+            shade.appearAt = Time.time + appearAfter;
             shade.owner = apprentice;
             shade.Obols = obols;
             shade.body = renderer;
@@ -74,11 +77,19 @@ namespace MyGame
         void Update()
         {
             float t = Time.time;
+            if (t < appearAt)
+            {
+                Tint(0f); // not yet: the Apprentice is still falling
+                return;
+            }
+            if (appearFrom <= 0f)
+                Rise();
+            float risen = UiKit.Smooth(0f, 1f, (t - appearFrom) / RiseTime);
             if (fadeFrom < 0f)
             {
                 // Breathe and bob, a hand's width off the ground.
-                transform.position = basePosition + Vector3.up * (0.08f + 0.04f * Mathf.Sin(t * 1.3f));
-                Tint(0.75f + 0.25f * Mathf.Sin(t * 2.1f));
+                transform.position = basePosition + Vector3.up * (0.08f + 0.04f * Mathf.Sin(t * 1.3f) - 0.3f * (1f - risen));
+                Tint((0.75f + 0.25f * Mathf.Sin(t * 2.1f)) * risen);
                 if (owner != null && owner.IsAlive)
                 {
                     Vector3 to = owner.transform.position - basePosition;
@@ -93,6 +104,24 @@ namespace MyGame
             transform.position += Vector3.up * (0.6f * Time.deltaTime);
             if (f >= 1f)
                 Destroy(gameObject);
+        }
+
+        // Out of the body as it lies now (the pose it fell in), in a breath of pale light.
+        void Rise()
+        {
+            appearFrom = Time.time;
+            if (owner == null)
+                return;
+            var skinned = owner.GetComponentInChildren<SkinnedMeshRenderer>();
+            var filter = GetComponent<MeshFilter>();
+            if (skinned != null && filter != null && filter.sharedMesh != null)
+            {
+                skinned.BakeMesh(filter.sharedMesh, true);
+                transform.SetPositionAndRotation(skinned.transform.position, skinned.transform.rotation);
+                basePosition = transform.position;
+            }
+            for (int i = 0; i < 16; i++)
+                Effects.Instance?.Wisp(body.bounds.center + Vector3.Scale(body.bounds.extents, Random.insideUnitSphere));
         }
 
         // Touched: its Obols stream back into the bow lantern, and it fades.

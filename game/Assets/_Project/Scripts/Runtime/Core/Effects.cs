@@ -10,7 +10,7 @@ namespace MyGame
         public Material sparkMaterial; // MyGame/Particle with a soft dot
         public Material flashMaterial; // MyGame/Particle with a ring
 
-        ParticleSystem sparks, flash, fare, glints;
+        ParticleSystem sparks, flash, fare, glints, wisps;
         ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
         Transform fareTarget;
         BowLantern fareLantern;
@@ -25,6 +25,7 @@ namespace MyGame
             flash = Build("Block Flash", flashMaterial, stretch: false);
             fare = BuildFare();
             glints = BuildGlints();
+            wisps = BuildWisps();
         }
 
         // Where a defeated Soured's fare flies to: the Apprentice's lantern.
@@ -126,6 +127,82 @@ namespace MyGame
             sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
             for (int i = 0; i < 30; i++)
                 sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(0.8f, 0.9f, 1f, 1f), startLifetime = Random.Range(0.4f, 0.8f) }, 1);
+        }
+
+        // A mote of the bow lantern's light drifting away as it goes out: pale, cold, rising slowly and fading.
+        public void Wisp(Vector3 at) => Wisp(at, new Color(0.72f, 0.86f, 1f, 1f));
+
+        public void Wisp(Vector3 at, Color colour)
+        {
+            wisps.Emit(new ParticleSystem.EmitParams
+            {
+                position = at + Random.insideUnitSphere * 0.12f,
+                velocity = new Vector3(Random.Range(-0.25f, 0.25f), Random.Range(0.5f, 1.1f), Random.Range(-0.25f, 0.25f)),
+                startLifetime = Random.Range(1.2f, 2.2f),
+                startSize = Random.Range(0.06f, 0.14f),
+                startColor = colour,
+                applyShapeToPosition = false,
+            }, 1);
+        }
+
+        public int LiveWisps => wisps != null ? wisps.particleCount : 0;
+
+        ParticleSystem BuildWisps()
+        {
+            var ps = Build("Lantern Wisps", sparkMaterial, stretch: false);
+            var main = ps.main;
+            main.maxParticles = 128;
+            main.gravityModifier = 0f;
+            var size = ps.sizeOverLifetime;
+            size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 0.4f)); // dwindling
+            var trail = ps.trails;
+            trail.enabled = false;
+            var colour = ps.colorOverLifetime;
+            colour.enabled = true;
+            var fade = new Gradient();
+            fade.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                         new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.15f), new GradientAlphaKey(0f, 1f) });
+            colour.color = fade;
+            return ps;
+        }
+
+        // Stone breaking: a burst of grey dust and grit thrown up (a floor section giving way).
+        public void Rubble(Vector3 at, float spread)
+        {
+            sparks.transform.SetPositionAndRotation(at, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 40; i++)
+                sparks.Emit(new ParticleSystem.EmitParams
+                {
+                    position = at + new Vector3(Random.Range(-spread, spread), 0f, Random.Range(-spread, spread)),
+                    velocity = new Vector3(Random.Range(-1.5f, 1.5f), Random.Range(2f, 5f), Random.Range(-1.5f, 1.5f)),
+                    startColor = Color.Lerp(new Color(0.55f, 0.52f, 0.48f, 0.9f), new Color(0.8f, 0.76f, 0.7f, 0.9f), Random.value),
+                    startSize = Random.Range(0.05f, 0.14f),
+                    startLifetime = Random.Range(0.4f, 0.9f),
+                    applyShapeToPosition = false,
+                }, 1);
+        }
+
+        // Iron dragged over stone: a few sparks kicked up behind it.
+        public void Scrape(Vector3 position, Vector3 behind)
+        {
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation((behind.normalized + Vector3.up * 0.7f).normalized));
+            sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(1f, 0.82f, 0.55f, 1f), startLifetime = Random.Range(0.15f, 0.35f) }, 3);
+        }
+
+        // Stone grinding: a pinch of grey grit and dust kicked up (a floor section about to give way).
+        public void Grit(Vector3 position)
+        {
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 3; i++)
+                sparks.Emit(new ParticleSystem.EmitParams
+                {
+                    position = position,
+                    velocity = new Vector3(Random.Range(-0.6f, 0.6f), Random.Range(0.8f, 2.2f), Random.Range(-0.6f, 0.6f)),
+                    startColor = Color.Lerp(new Color(0.42f, 0.4f, 0.37f, 0.9f), new Color(0.62f, 0.58f, 0.52f, 0.9f), Random.value),
+                    startSize = Random.Range(0.04f, 0.09f),
+                    startLifetime = Random.Range(0.25f, 0.5f),
+                    applyShapeToPosition = false,
+                }, 1);
         }
 
         // A Healing charge takes hold: a warm ring spreading at the Apprentice's feet.

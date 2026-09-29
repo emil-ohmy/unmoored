@@ -65,7 +65,10 @@ namespace MyGame
         public float recoilDuration = 0.35f; // when a hit bounces off a Laden's heap
         public float recoilPush = 14f; // ~1.4 m shove: knockback decays at 10/s
         public float postHitInvulnerability = 0.5f;
-        public float respawnDelay = 3.2f; // the death screen: the phrase, then the sink to black (Hud)
+        public float respawnDelay = 4.4f; // the fall, the lantern going out, the phrase, then the sink to black (Hud)
+        public float deathDuration = 2.2f; // the Death clip: reel, knees, the oar dropped, the slump
+        public float snuffDelay = 0.8f;    // kneeling: then the bow lantern gutters out
+        public float snuffDuration = 1.1f;
 
         [Header("Block")]
         public float perfectWindow = 0.2f;       // a blow landing this soon after raising the block is perfect-blocked
@@ -106,7 +109,8 @@ namespace MyGame
 
         [Header("Water")]
         public float waterLevel = -0.35f;
-        public float waterDamage = 15f;
+        [Range(0f, 1f)] public float waterDamage = 1f / 3f; // of max health: a hard lesson at full, the end when low
+        public float washAshoreStagger = 0.9f;             // coughing up the river before you can move
 
         public IApprenticeInput Input { get; set; }
         public State CurrentState { get; private set; }
@@ -119,6 +123,7 @@ namespace MyGame
         public Equipment Equipment { get; private set; }
         public Menu OpenMenu { get; private set; } // while open, the Apprentice stands still and input drives the menu
         public float DashCost => dashStaminaCost * (Equipment.IsFitted(Charm.EelSkin) ? 0.5f : 1f);
+        public float DamageFactor => Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f; // (a development Charm)
         public Soured LockTarget { get; private set; }
         public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
@@ -147,6 +152,7 @@ namespace MyGame
         float bufferedAt;
         float stateTime;
         float stateDuration;
+        bool snuffSounded;
         float lastStaminaUse = -10f;
         float invulnerableUntil;
         float verticalVelocity;
@@ -308,6 +314,11 @@ namespace MyGame
                     break;
 
                 case State.Dead:
+                    if (!snuffSounded && stateTime >= snuffDelay)
+                    {
+                        snuffSounded = true;
+                        Sfx.Instance?.LanternSnuff(transform.position + Vector3.up * 0.6f);
+                    }
                     if (stateTime >= respawnDelay)
                         Respawn();
                     break;
@@ -370,6 +381,8 @@ namespace MyGame
             else
             {
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
+                if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead)
+                    planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
                 controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
             TrackSafeGround(dt);
@@ -443,7 +456,7 @@ namespace MyGame
                 bool riposte = soured.CurrentState == Soured.State.Stunned;
                 var result = soured.TakeHit(new Hit
                 {
-                    Damage = isHeavy ? heavyDamage : lightDamage,
+                    Damage = (isHeavy ? heavyDamage : lightDamage) * DamageFactor,
                     Stagger = isHeavy ? heavyStagger : lightStagger,
                     Knockback = to.normalized * (isHeavy ? heavyKnockback : lightKnockback),
                     From = transform.position,
@@ -661,6 +674,35 @@ namespace MyGame
 
         // ------------------------------------------------------------ damage, death, rest
 
+        float wadeFactor = 1f;
+        Vector3 wadeDrift;
+        int wadeFrame = -10;
+        bool Wading => Time.frameCount - wadeFrame <= 1;
+
+        // Wading through something that drags at you (the Anchoress's Undertow), for this frame: slower, and pulled.
+        public void Wade(float factor, Vector3 drift)
+        {
+            wadeFactor = factor;
+            wadeDrift = drift;
+            wadeFrame = Time.frameCount;
+        }
+
+        // Harm over time (standing in something that hurts): no stagger, no knockback, and no blocking it; only a
+        // dash's i-frames slip it. True if it hurt.
+        public bool TakeTickDamage(float damage)
+        {
+            if (!IsAlive || CurrentState == State.Ceremony
+                || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd))
+                return false;
+            Health = Mathf.Max(0f, Health - damage);
+            Sfx.Instance?.Hurt(transform.position + Vector3.up, 0.4f);
+            CameraRig.Instance?.Shake(0.05f);
+            Announce($"-{damage:0} (over time)");
+            if (Health <= 0f)
+                Die();
+            return true;
+        }
+
         public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null)
         {
             if (Invulnerable)
@@ -748,16 +790,25 @@ namespace MyGame
             clips.PlayOnce(clip, duration);
         }
 
+        // The fall: the killing blow freezes, then time slows as the Apprentice reels, drops to their knees and lets the
+        // oar go; the camera closes in on them alone; the bow lantern flares, gutters and goes out, its light drifting
+        // away; they slump, and their Shade rises from the body. Then the phrase, and the dark.
         void Die()
         {
             Enter(State.Dead);
-            clips.PlayOnce("Death", 1.0f);
+            snuffSounded = false;
+            clips.PlayOnce("Death", deathDuration);
             Sfx.Instance?.DeathToll(transform.position);
+            HitStop.Trigger(0.22f);
+            HitStop.Slow(0.3f, 1.6f);
+            CameraRig.Instance?.Mourn(true);
+            CameraRig.Instance?.Shake(0.4f);
+            GetComponent<BowLantern>()?.Snuff(snuffDelay, snuffDuration);
             // Every Obol stays behind with the Shade (and an older Shade, never reached, is lost).
             int carried = Obols;
             Obols = 0;
             var ghosts = GetComponent<DashGhosts>();
-            Shade.Leave(this, carried, ghosts != null ? ghosts.ghostMaterial : null);
+            Shade.Leave(this, carried, ghosts != null ? ghosts.ghostMaterial : null, deathDuration);
             if (carried > 0)
                 ObolsChanged?.Invoke(-carried);
             Announce("the Apprentice fell");
@@ -769,6 +820,8 @@ namespace MyGame
             Vector3 point = WorldState.Instance != null ? WorldState.Instance.RespawnPosition : lastSafeGround;
             Teleport(point);
             RestoreFully();
+            CameraRig.Instance?.Mourn(false);
+            GetComponent<BowLantern>()?.Relight();
             WorldState.Instance?.ReformAllSoured();
             Announce("woke at the Mooring post");
             Woke?.Invoke();
@@ -1068,17 +1121,41 @@ namespace MyGame
 
         void WashAshore()
         {
-            Health = Mathf.Max(0f, Health - waterDamage);
+            Health = Mathf.Max(0f, Health - maxHealth * waterDamage);
             Vector3 surface = new Vector3(transform.position.x, waterLevel + 0.1f, transform.position.z);
             Effects.Instance?.Splash(surface);
             Sfx.Instance?.Splash(surface);
-            Teleport(lastSafeGround);
+            Teleport(SafeGroundNear(lastSafeGround));
             Sfx.Instance?.Hurt(transform.position + Vector3.up);
             Announce("washed ashore");
             if (Health <= 0f)
                 Die();
             else
-                EnterStagger(staggerDuration, "Hit");
+                EnterStagger(washAshoreStagger, "Hit");
+        }
+
+        // The remembered safe ground, if it's still there (a floor can break away under it); otherwise the nearest solid
+        // ground around it, clear of any edge, or the Mooring post.
+        Vector3 SafeGroundNear(Vector3 point)
+        {
+            if (Solid(point))
+                return point;
+            for (float r = 1f; r <= 9f; r += 0.75f)
+                for (int i = 0; i < 16; i++)
+                {
+                    Vector3 p = point + Quaternion.Euler(0f, i * 22.5f, 0f) * Vector3.forward * r;
+                    if (Solid(p))
+                        return p;
+                }
+            return WorldState.Instance != null ? WorldState.Instance.RespawnPosition : point;
+        }
+
+        static bool Solid(Vector3 point)
+        {
+            foreach (var offset in new[] { Vector3.zero, Vector3.forward, Vector3.back, Vector3.left, Vector3.right })
+                if (!Physics.Raycast(point + Vector3.up * 0.5f + offset * 0.5f, Vector3.down, 1.5f, ~0, QueryTriggerInteraction.Ignore))
+                    return false;
+            return true;
         }
 
         // Remember solid ground well away from any edge, so washing ashore never lands on the brink.

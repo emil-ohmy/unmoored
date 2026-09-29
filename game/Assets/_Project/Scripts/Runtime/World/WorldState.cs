@@ -16,7 +16,11 @@ namespace MyGame
         public Vector3 RespawnPosition =>
             LastRested != null ? LastRested.RespawnPoint : (startPoint != null ? startPoint.position : Vector3.zero);
 
-        void Awake() => Instance = this;
+        void Awake()
+        {
+            Instance = this;
+            BossFight.ResetWorld();
+        }
 
         void OnDestroy()
         {
