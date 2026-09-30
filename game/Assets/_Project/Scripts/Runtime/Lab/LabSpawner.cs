@@ -7,6 +7,8 @@ namespace MyGame
     // The lab's spawner: a copy of any kind of Soured, set down a few metres in front of the Apprentice (facing them),
     // as many as asked, aggressive (it knows you're there) or idle (a dummy that never fights back). The kinds are
     // templates kept switched off in the scene (MainSceneBuilder.Lab), so every copy is built exactly as in the world.
+    // Opening a menu here (the Tester's Post, the Mooring post) resets every Soured to where it was set down, and they
+    // leave you be until it's closed.
     public sealed class LabSpawner : MonoBehaviour
     {
         [Serializable]
@@ -17,7 +19,7 @@ namespace MyGame
         }
 
         public Kind[] kinds = new Kind[0];
-        public float ahead = 4f, spacing = 1.8f;
+        public float ahead = 7f, spacing = 1.8f;
 
         public static readonly int[] Counts = { 1, 2, 3, 5 };
         public int Count { get; set; } = 1;
@@ -25,6 +27,24 @@ namespace MyGame
         public IReadOnlyList<Soured> Spawned => spawned;
 
         readonly List<Soured> spawned = new List<Soured>();
+        Apprentice apprentice;
+        bool inMenu;
+
+        void Start() => apprentice = FindAnyObjectByType<Apprentice>();
+
+        void Update()
+        {
+            bool now = apprentice != null && apprentice.OpenMenu != null;
+            if (now == inMenu)
+                return;
+            inMenu = now;
+            foreach (var s in WorldState.AllSoured)
+            {
+                if (now)
+                    s.Reform(); // back where it was set down, whole, calm
+                s.Held = now;
+            }
+        }
 
         public void NextCount() => Count = Counts[(Array.IndexOf(Counts, Count) + 1) % Counts.Length];
 

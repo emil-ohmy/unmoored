@@ -21,6 +21,7 @@ namespace MyGame
         public bool passive;
         [Tooltip("The lab: never dies; a blow that would kill it fills its health again")]
         public bool immortal;
+        public bool Held { get; set; } // (the lab: while the Apprentice is in a menu, nothing notices them)
 
         // Every blow that reaches a Soured, landed or blocked, and the damage it did (the lab's readout listens).
         public static event System.Action<Soured, HitResult, float> Struck;
@@ -533,7 +534,7 @@ namespace MyGame
         // The moment it becomes aware of the Apprentice: its eyes flare, then it gives chase.
         void Notice()
         {
-            if (passive)
+            if (passive || Held)
                 return;
             Effects.Instance?.AlertFlare(transform.position + transform.forward * 0.35f + Vector3.up * eyeHeight);
             Enter(State.Chase);

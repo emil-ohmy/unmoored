@@ -86,11 +86,26 @@ namespace MyGame.Tests
                 Assert.AreNotSame(post.spawner.kinds[0].template.GetComponent<Soured>().droppedLantern, s.droppedLantern, "a lantern of its own");
             }
             Assert.AreNotSame(spawned[0].droppedLantern, spawned[1].droppedLantern);
+            foreach (var s in spawned)
+                Assert.Greater(Vector3.Distance(s.transform.position, apprentice.transform.position), 5f, "set down a little way off");
             apprentice.OpenMenu.Close();
             yield return new WaitForSeconds(1.5f);
             Assert.IsTrue(spawned.Any(s => s.CurrentState != Soured.State.Idle), "aggressive: they come for you");
 
+            // Opening a menu again: they're set back where they were set down, and leave you be meanwhile.
+            var spots = spawned.Select(s => s.transform.position).ToArray();
+            yield return new WaitForSeconds(1f);
             yield return OpenTheMenu();
+            yield return null;
+            for (int i = 0; i < spawned.Length; i++)
+            {
+                Assert.AreEqual(Soured.State.Idle, spawned[i].CurrentState, "reset");
+                Assert.AreEqual(spawned[i].maxHealth, spawned[i].Health);
+            }
+            yield return new WaitForSeconds(2f);
+            Assert.IsTrue(spawned.All(s => s.CurrentState == Soured.State.Idle), "and they leave you be in the menu");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
+
             Menu.Do("Clear them all");
             yield return null;
             Assert.IsTrue(spawned.All(s => s == null), "cleared");
