@@ -16,7 +16,8 @@ namespace MyGame
         bool HookHeld { get; } // hold to aim the Hook, release to throw it
         bool BlockHeld { get; }
         int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
-        int BeltPressed { get; }  // the belt slot pressed this frame (0 up, 1 right, 2 down, 3 left: the d-pad, keys 1-4), or -1
+        int BeltStep { get; }         // the belt: -1 / +1 to choose the one before / after (d-pad or arrow left, right), 0 none
+        bool BeltUsePressed { get; }  // use the chosen one (d-pad or arrow up)
     }
 
     // Keyboard/mouse and gamepad bindings (gamepad-first).
@@ -30,8 +31,7 @@ namespace MyGame
         {
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s").With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
-            move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow").With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
-            move.AddBinding("<Gamepad>/leftStick");
+            move.AddBinding("<Gamepad>/leftStick"); // (not the arrow keys: they're the belt)
             dash = Button("Dash", "<Keyboard>/space", "<Gamepad>/buttonEast");
             lightAttack = Button("Light", "<Keyboard>/j", "<Mouse>/leftButton", "<Gamepad>/buttonWest");
             heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth", "<Gamepad>/rightTrigger");
@@ -44,10 +44,9 @@ namespace MyGame
             switchScroll = new InputAction("SwitchScroll", InputActionType.Value, "<Mouse>/scroll/y");
             beltSlots = new[]
             {
-                Button("Belt Up", "<Keyboard>/1", "<Gamepad>/dpad/up"),
-                Button("Belt Right", "<Keyboard>/2", "<Gamepad>/dpad/right"),
-                Button("Belt Down", "<Keyboard>/3", "<Gamepad>/dpad/down"),
-                Button("Belt Left", "<Keyboard>/4", "<Gamepad>/dpad/left"),
+                Button("Belt Use", "<Keyboard>/upArrow", "<Gamepad>/dpad/up"),
+                Button("Belt Next", "<Keyboard>/rightArrow", "<Gamepad>/dpad/right"),
+                Button("Belt Before", "<Keyboard>/leftArrow", "<Gamepad>/dpad/left"),
             };
             foreach (var action in All)
                 action.Enable();
@@ -71,16 +70,8 @@ namespace MyGame
         public bool BlockHeld => block.IsPressed();
         public bool HookHeld => hook.IsPressed();
 
-        public int BeltPressed
-        {
-            get
-            {
-                for (int i = 0; i < beltSlots.Length; i++)
-                    if (beltSlots[i].WasPressedThisFrame())
-                        return i;
-                return -1;
-            }
-        }
+        public bool BeltUsePressed => beltSlots[0].WasPressedThisFrame();
+        public int BeltStep => beltSlots[1].WasPressedThisFrame() ? 1 : beltSlots[2].WasPressedThisFrame() ? -1 : 0;
 
         public int SwitchTarget
         {
@@ -131,15 +122,18 @@ namespace MyGame
         public void PressInteract() => interact = true;
         public void PressLock() => lockOn = true;
         public void Switch(int direction) => switchTarget = direction;
-        public void PressBelt(int slot) => belt = slot;
-        int belt = -1;
+        public void PressBeltUse() => beltUse = true;
+        public void StepBelt(int by) => beltStep = by;
+        bool beltUse;
+        int beltStep;
 
-        public int BeltPressed
+        public bool BeltUsePressed => Take(ref beltUse);
+        public int BeltStep
         {
             get
             {
-                int value = belt;
-                belt = -1;
+                int value = beltStep;
+                beltStep = 0;
                 return value;
             }
         }

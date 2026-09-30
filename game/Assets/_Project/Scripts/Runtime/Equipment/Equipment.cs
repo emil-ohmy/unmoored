@@ -82,7 +82,8 @@ namespace MyGame
         {
             OarStep = FerryNails = WarmStones = HeldBreaths = 0;
             carried.Clear();
-            System.Array.Clear(belt, 0, belt.Length);
+            belt.Clear();
+            BeltChosen = 0;
             owned.Clear();
             fitted.Clear();
             keepsakes.Clear();
@@ -93,17 +94,22 @@ namespace MyGame
             Changed?.Invoke();
         }
 
-        // ---- the Satchel: Provisions carried (up to each one's cap), and the four belt slots they're used from
+        // ---- the Satchel: Provisions carried (up to each one's cap), and the belt: up to four of them, in order, one
+        // chosen (left/right choose, up uses it). One used up stays on the belt, dim, until more are found or it's
+        // taken off (at the Satchel page).
 
         readonly Dictionary<Provision, int> carried = new Dictionary<Provision, int>();
-        readonly Provision[] belt = new Provision[Provision.BeltSlots];
+        readonly List<Provision> belt = new List<Provision>();
 
         public int Carried(Provision p) => carried.TryGetValue(p, out int n) ? n : 0;
-        public Provision OnBelt(int slot) => slot >= 0 && slot < belt.Length ? belt[slot] : null;
-        public int BeltSlotOf(Provision p) => System.Array.IndexOf(belt, p);
+        public IReadOnlyList<Provision> Belt => belt;
+        public int BeltChosen { get; private set; }
+        public Provision Chosen => belt.Count > 0 ? belt[BeltChosen] : null;
+        public int BeltSlotOf(Provision p) => belt.IndexOf(p);
+        public bool OnBelt(Provision p) => belt.Contains(p);
 
-        // As many as there's room for (its cap); how many were taken. The first of a kind goes on the belt's first
-        // empty slot, if there is one.
+        // As many as there's room for (its cap); how many were taken. The first of a kind goes on the belt, if there's
+        // room on it.
         public int AddProvision(Provision p, int count = 1)
         {
             int room = UnityEngine.Mathf.Max(0, p.Cap - Carried(p));
@@ -111,17 +117,12 @@ namespace MyGame
             if (taken <= 0)
                 return 0;
             carried[p] = Carried(p) + taken;
-            if (BeltSlotOf(p) < 0)
-            {
-                int empty = System.Array.IndexOf(belt, null);
-                if (empty >= 0)
-                    belt[empty] = p;
-            }
+            if (!belt.Contains(p) && belt.Count < Provision.BeltSlots)
+                belt.Add(p);
             Changed?.Invoke();
             return taken;
         }
 
-        // One used up. It stays on the belt, empty, until more are found (so its slot keeps its place).
         public bool SpendProvision(Provision p)
         {
             if (Carried(p) <= 0)
@@ -131,32 +132,50 @@ namespace MyGame
             return true;
         }
 
-        // Puts it on a belt slot (taking it off any other), or clears the slot (null).
-        public void PutOnBelt(int slot, Provision p)
+        // Onto the belt (at its end, if there's room) or off it. False if the belt is full.
+        public bool ToggleOnBelt(Provision p)
         {
-            if (slot < 0 || slot >= belt.Length)
+            int at = belt.IndexOf(p);
+            if (at >= 0)
+            {
+                belt.RemoveAt(at);
+                if (BeltChosen > at || BeltChosen >= belt.Count)
+                    BeltChosen = UnityEngine.Mathf.Max(0, BeltChosen - 1);
+            }
+            else if (belt.Count >= Provision.BeltSlots)
+                return false;
+            else
+                belt.Add(p);
+            Changed?.Invoke();
+            return true;
+        }
+
+        // The next or the one before along the belt (round and round).
+        public void ChooseOnBelt(int by)
+        {
+            if (belt.Count == 0)
                 return;
-            if (p != null)
-                for (int i = 0; i < belt.Length; i++)
-                    if (belt[i] == p)
-                        belt[i] = null;
-            belt[slot] = p;
+            BeltChosen = (BeltChosen + by % belt.Count + belt.Count) % belt.Count;
             Changed?.Invoke();
         }
 
         // Loading a save.
-        public void RestoreSatchel(string[] ids, int[] counts, string[] beltIds)
+        public void RestoreSatchel(string[] ids, int[] counts, string[] beltIds, int chosen)
         {
             carried.Clear();
+            belt.Clear();
             for (int i = 0; ids != null && i < ids.Length && i < counts.Length; i++)
                 if (Provision.ById(ids[i]) is Provision p)
                     carried[p] = UnityEngine.Mathf.Clamp(counts[i], 0, p.Cap);
-            for (int i = 0; i < belt.Length; i++)
-                belt[i] = beltIds != null && i < beltIds.Length ? Provision.ById(beltIds[i]) : null;
+            if (beltIds != null)
+                foreach (var id in beltIds)
+                    if (Provision.ById(id) is Provision p && !belt.Contains(p) && belt.Count < Provision.BeltSlots)
+                        belt.Add(p);
+            BeltChosen = UnityEngine.Mathf.Clamp(chosen, 0, UnityEngine.Mathf.Max(0, belt.Count - 1));
             Changed?.Invoke();
         }
 
-        public (string[] ids, int[] counts, string[] belt) SatchelForSave()
+        public (string[] ids, int[] counts, string[] belt, int chosen) SatchelForSave()
         {
             var ids = new List<string>();
             var counts = new List<int>();
@@ -165,10 +184,7 @@ namespace MyGame
                 ids.Add(kv.Key.Id);
                 counts.Add(kv.Value);
             }
-            var beltIds = new string[belt.Length];
-            for (int i = 0; i < belt.Length; i++)
-                beltIds[i] = belt[i]?.Id ?? "";
-            return (ids.ToArray(), counts.ToArray(), beltIds);
+            return (ids.ToArray(), counts.ToArray(), belt.ConvertAll(p => p.Id).ToArray(), BeltChosen);
         }
 
         public void Own(Charm charm)

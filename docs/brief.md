@@ -77,7 +77,8 @@ business and pay their fare to row them across.
   - **The rest extend what's there,** by context and combination (held or tapped, in the air, while rowing, locked
     on). The Stroke needs no button: the heavy attack while rowing is its wave. The Hook already does this, doing a
     different thing for a post, a Soured and something too heavy.
-  - **The d-pad is for consumables.**
+  - **The d-pad is for Provisions:** left/right choose along the belt, up uses (down is free for now). On a
+    keyboard, the arrow keys; so the arrows don't move the Apprentice (WASD does).
   - **Rebindable before release.** Every binding lives in one place.
 
 ## Death, rest and healing
@@ -126,8 +127,8 @@ business and pay their fare to row them across.
   - **Held Breaths:** more stamina (+10 each).
   - **Embers:** one more Healing charge each.
   The starting health and stamina (100) and the bonus each piece gives are placeholders, to be balanced together.
-- **Provisions:** things used up, carried in **the Satchel**, and used from **the belt**: four slots on the d-pad
-  (keys 1–4), shown at the HUD's bottom left. They're tools, not a second supply of healing (bar one gentle one).
+- **Provisions:** things used up, carried in **the Satchel**, and used from **the belt**: up to four in a row at the
+  HUD's bottom left. Left/right on the d-pad (the arrow keys) choose along it, and up uses the chosen one. They're tools, not a second supply of healing (bar one gentle one).
   - Bought from the merchant soul with Obols, and found in the world. Each kind has a carry cap, and Resting doesn't
     refill them.
   - **Pitch Pot** (5): thrown ahead, or at what you're locked on to. It bursts into a pool of burning pitch, and
@@ -136,7 +137,8 @@ business and pay their fare to row them across.
   - **The Way Back** (3): to black, and back at the last Mooring post you Rested at. Not in a Boss's arena, and not
     on the water.
   - **Warm Broth** (3): mends 30 health over 10 s, and a blow doesn't stop it.
-  - The first of a kind goes on the belt's first empty slot. The Satchel page moves things round the belt.
+  - The first of a kind goes on the belt, if there's room. The Satchel page puts things on the belt or takes them off,
+    and shows the chosen one turning, as the Oar page shows the oar.
 - **The character screen** (I or C; Select on a gamepad) pauses the game. It has six pages:
   - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
   - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.

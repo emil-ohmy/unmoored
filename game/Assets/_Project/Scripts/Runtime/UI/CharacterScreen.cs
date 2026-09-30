@@ -17,7 +17,8 @@ namespace MyGame
         static int Tabs => TabNames.Length;
 
         public Font titleFont, textFont;
-        public GameObject[] oarModels; // the oar at each step, on its own (oar_display): shown turning on the Oar page
+        public GameObject[] oarModels;       // the oar at each step, on its own (oar_display): shown turning on the Oar page
+        public GameObject[] provisionModels; // each Provision (Provision.All's order): shown turning on the Satchel page
 
         public static CharacterScreen Instance { get; private set; }
         // Whether Esc belongs to it this frame (open, or just closed by it): the pause menu leaves it alone.
@@ -57,10 +58,9 @@ namespace MyGame
 
         (Text label, Text value, Text note)[] stats;
         Image oarGlow;
-        RawImage oarView;
-        RenderTexture oarTexture;
-        Camera oarCamera;
-        Transform oarPivot;
+        RawImage oarView, satchelView;
+        ModelStage stage;
+        Image satchelGlow;
         Text oarName, oarDescription, oarNext;
         Image[] pips;
         Image[] slotMarks;
@@ -70,6 +70,7 @@ namespace MyGame
         Text satchelName, satchelDescription, satchelEffect, satchelBeltLine, satchelNone;
         Graphic[] satchelDetail;
         (Image frame, Image icon)[] satchelBelt;
+        public GameObject ShownModel => stage?.Shown; // (tests)
         Text abilityName, abilityDescription, abilityHowHeading, abilityKeys, abilityPad, abilityNone;
         Text[] abilityUses;
         Text charmDetail;
@@ -127,8 +128,7 @@ namespace MyGame
 
         void OnDestroy()
         {
-            if (oarTexture != null)
-                oarTexture.Release();
+            stage?.Release();
             input?.Dispose();
             if (Open)
                 Pause.Set(false);
@@ -171,8 +171,14 @@ namespace MyGame
             oarGlow = UiKit.Image(page, "Glow", UiKit.SoftDot, Cold.WithAlpha(0f), centre, new Vector2(-440, 20), new Vector2(620, 620));
             oarView = UiKit.Rect(page, "Oar", centre, new Vector2(-440, 20), new Vector2(640, 640)).gameObject.AddComponent<RawImage>();
             oarView.raycastTarget = false;
-            BuildOarStage();
-            oarView.texture = oarTexture;
+            stage = new ModelStage(transform, Cold);
+            if (oarModels != null)
+                foreach (var m in oarModels)
+                    stage.Add(m, 2.3f);
+            if (provisionModels != null)
+                foreach (var m in provisionModels)
+                    stage.Add(m, 1.8f);
+            oarView.texture = stage.Texture;
             const float x = 260f;
             oarName = UiKit.Text(page, "Name", titleFont, 54, UiKit.Bone, TextAnchor.MiddleCenter, centre, new Vector2(x, 200), 3f);
             oarDescription = UiKit.Text(page, "Description", textFont, 32, UiKit.Ash, TextAnchor.UpperCenter, centre, new Vector2(x, 140));
@@ -192,50 +198,6 @@ namespace MyGame
             oarNext = UiKit.Text(page, "Next", textFont, 30, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2(x, -140), 1f);
             var how = UiKit.Text(page, "How", textFont, 26, UiKit.Ash.WithAlpha(0.65f), TextAnchor.MiddleCenter, centre, new Vector2(x, -200), 1f);
             how.text = "Strengthened at a Mooring post, a step at a time. No step is skipped.";
-        }
-
-        // Where the oar turns: far below the world, lit by two lamps of its own (warm and cold, for the metal's glints),
-        // seen by a camera that draws only while the page is open.
-        void BuildOarStage()
-        {
-            oarTexture = new RenderTexture(768, 768, 24, RenderTextureFormat.ARGB32) { name = "Oar Page", antiAliasing = 4 };
-            var stage = new GameObject("Oar Stage").transform;
-            stage.SetParent(transform, false);
-            stage.position = new Vector3(0f, -400f, 0f);
-            oarPivot = new GameObject("Oar Pivot").transform;
-            oarPivot.SetParent(stage, false);
-            if (oarModels != null)
-                foreach (var model in oarModels)
-                    if (model != null)
-                    {
-                        model.transform.SetParent(oarPivot, false);
-                        model.transform.localPosition = Vector3.down * 1.15f; // (its middle at the pivot)
-                        model.transform.localRotation = Quaternion.identity;
-                        model.SetActive(false);
-                    }
-            oarCamera = new GameObject("Oar Camera").AddComponent<Camera>();
-            oarCamera.transform.SetParent(stage, false);
-            oarCamera.transform.localPosition = new Vector3(0f, 0f, -3.9f);
-            oarCamera.fieldOfView = 42f;
-            oarCamera.nearClipPlane = 0.5f;
-            oarCamera.farClipPlane = 8f;
-            oarCamera.clearFlags = CameraClearFlags.SolidColor;
-            oarCamera.backgroundColor = new Color(0f, 0f, 0f, 0f);
-            oarCamera.targetTexture = oarTexture;
-            oarCamera.enabled = false;
-            Lamp(new Vector3(1.4f, 1.2f, -1.8f), new Color(1f, 0.85f, 0.65f), 2.6f);
-            Lamp(new Vector3(-1.6f, -0.4f, -1.4f), Cold, 2.5f);
-            void Lamp(Vector3 at, Color colour, float intensity)
-            {
-                var lamp = new GameObject("Oar Lamp").AddComponent<Light>();
-                lamp.transform.SetParent(stage, false);
-                lamp.transform.localPosition = at;
-                lamp.type = LightType.Point;
-                lamp.range = 6f;
-                lamp.color = colour;
-                lamp.intensity = intensity;
-                lamp.shadows = LightShadows.None;
-            }
         }
 
         void BuildCharms(RectTransform page)
@@ -292,34 +254,40 @@ namespace MyGame
         void BuildSatchel(RectTransform page)
         {
             var centre = new Vector2(0.5f, 0.5f);
-            satchelList = new ScrollRows(page, textFont, -470f, 280f, 520f, 9);
+            satchelList = new ScrollRows(page, textFont, -620f, 280f, 540f, 9);
             satchelNone = UiKit.Text(page, "None", textFont, 32, UiKit.Ash.WithAlpha(0.7f), TextAnchor.MiddleCenter, centre, new Vector2(0, 40), 1f);
             satchelNone.text = "Empty. The merchant soul would love to help.";
-            const float x = 290f;
+            // The chosen one itself, turning in the middle (the stage the oar turns on), a warm glow behind it.
+            satchelGlow = UiKit.Image(page, "Glow", UiKit.SoftDot, UiKit.Ember.WithAlpha(0.12f), centre, new Vector2(-90, 70), new Vector2(460, 460));
+            satchelView = UiKit.Rect(page, "Model", centre, new Vector2(-90, 70), new Vector2(460, 460)).gameObject.AddComponent<RawImage>();
+            satchelView.raycastTarget = false;
+            satchelView.texture = stage.Texture;
+            const float x = 470f;
             Text Line(string name, Font font, int size, Color colour, float y, float height)
             {
                 var t = UiKit.Text(page, name, font, size, colour, TextAnchor.UpperLeft, centre, new Vector2(x, y));
                 t.horizontalOverflow = HorizontalWrapMode.Wrap;
                 t.rectTransform.pivot = new Vector2(0.5f, 1f);
-                t.rectTransform.sizeDelta = new Vector2(880, height);
+                t.rectTransform.sizeDelta = new Vector2(600, height);
                 return t;
             }
-            satchelName = Line("Name", titleFont, 48, UiKit.Bone, 300, 70);
-            satchelDescription = Line("Description", textFont, 30, UiKit.Ash, 225, 90);
-            satchelEffect = Line("Effect", textFont, 30, UiKit.Bone, 130, 130);
-            satchelBeltLine = Line("Belt", textFont, 28, UiKit.Ember, -20, 40);
-            // The belt, as the d-pad lies: what's on each slot.
+            satchelName = Line("Name", titleFont, 46, UiKit.Bone, 300, 70);
+            satchelDescription = Line("Description", textFont, 28, UiKit.Ash, 228, 110);
+            satchelEffect = Line("Effect", textFont, 28, UiKit.Bone, 110, 160);
+            satchelBeltLine = Line("Belt", textFont, 26, UiKit.Ember, -70, 70);
+            // The belt, in order, under it: what's on it.
             satchelBelt = new (Image, Image)[Provision.BeltSlots];
-            var offsets = new[] { new Vector2(0, 58), new Vector2(58, 0), new Vector2(0, -58), new Vector2(-58, 0) };
             for (int i = 0; i < satchelBelt.Length; i++)
             {
-                var at = new Vector2(x - 330f, -170f) + offsets[i];
-                var frame = UiKit.Image(page, "Slot", UiKit.KeyCap, UiKit.Bronze, centre, at, new Vector2(58, 58));
+                var at = new Vector2(-90f + (i - 1.5f) * 78f, -230f);
+                var frame = UiKit.Image(page, "Slot", UiKit.KeyCap, UiKit.Bronze, centre, at, new Vector2(60, 60));
                 frame.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
                 var icon = UiKit.Image(page, "Icon", null, Color.white, centre, at, new Vector2(34, 34));
                 satchelBelt[i] = (frame, icon);
             }
-            satchelDetail = new Graphic[] { satchelName, satchelDescription, satchelEffect, satchelBeltLine };
+            var beltLabel = UiKit.Text(page, "Belt Label", titleFont, 26, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2(-90, -290), 2f);
+            beltLabel.text = "The Belt";
+            satchelDetail = new Graphic[] { satchelName, satchelDescription, satchelEffect, satchelBeltLine, satchelView, satchelGlow, beltLabel };
         }
 
         void BuildLantern(RectTransform page)
@@ -372,21 +340,15 @@ namespace MyGame
         public void ChooseCharm(int by) => Choose(charmList, by);
         public void ChooseProvision(int by) => Choose(satchelList, by);
 
-        // The chosen Provision onto the next belt slot round (up, right, down, left, then off the belt).
-        public void MoveOnBelt()
+        // The chosen Provision onto the belt (at its end) or off it. False if the belt's full.
+        public bool ToggleOnBelt()
         {
             if (Current != Tab.Satchel || satchel.Count == 0)
-                return;
-            var p = satchel[satchelList.Selected];
-            var e = apprentice.Equipment;
-            int at = e.BeltSlotOf(p);
-            if (at >= 0)
-                e.PutOnBelt(at, null);
-            int next = at + 1;
-            if (next < Provision.BeltSlots)
-                e.PutOnBelt(next, p);
+                return false;
+            bool done = apprentice.Equipment.ToggleOnBelt(satchel[satchelList.Selected]);
             Sfx.Instance?.UiTick();
             Draw();
+            return done;
         }
         public void ChooseAbility(int by) => Choose(abilityList, by);
 
@@ -420,14 +382,13 @@ namespace MyGame
                 else if (step.y != 0 && Current == Tab.Satchel)
                     ChooseProvision(-step.y);
                 else if (input.Confirm && Current == Tab.Satchel)
-                    MoveOnBelt();
+                    ToggleOnBelt();
             }
             if (group == null)
                 return;
             group.alpha = Mathf.MoveTowards(group.alpha, Open ? 1f : 0f, Time.unscaledDeltaTime * 6f);
             group.gameObject.SetActive(group.alpha > 0.001f || Open);
-            if (oarCamera != null)
-                oarCamera.enabled = group.alpha > 0.001f && Current == Tab.Oar;
+            stage?.Draw(group.alpha > 0.001f && (Current == Tab.Oar || Current == Tab.Satchel && satchel.Count > 0));
             if (Open)
                 Draw();
         }
@@ -482,12 +443,8 @@ namespace MyGame
         {
             var e = apprentice.Equipment;
             int step = e.OarStep;
-            if (oarModels != null)
-                for (int i = 0; i < oarModels.Length; i++)
-                    if (oarModels[i] != null && oarModels[i].activeSelf != (i == step))
-                        oarModels[i].SetActive(i == step);
             // Leaning, blade up and to the right, turning slowly about its length.
-            oarPivot.localRotation = Quaternion.Euler(0f, 0f, -38f) * Quaternion.Euler(0f, UiKit.Now * 40f, 0f);
+            stage.Show(oarModels != null && step < oarModels.Length ? oarModels[step] : null, Quaternion.Euler(0f, 0f, -38f));
             float breathe = 0.5f + 0.5f * Mathf.Sin(UiKit.Now * 1.6f);
             oarGlow.color = (step == Oar.Last ? new Color(1f, 0.8f, 0.4f) : Cold).WithAlpha((step == Oar.Last ? 0.3f : 0.08f + 0.03f * step) + 0.06f * breathe);
             oarName.text = e.Oar.Name;
@@ -546,7 +503,7 @@ namespace MyGame
                     satchel.Add(p);
                     satchelRowText.Add(p.Name);
                     int slot = e.BeltSlotOf(p);
-                    rows.Add(new ScrollRows.Item { Label = p.Name, Value = $"{e.Carried(p)} / {p.Cap}" + (slot >= 0 ? $"   {Provision.SlotNames[slot]}" : ""), Dim = e.Carried(p) == 0 });
+                    rows.Add(new ScrollRows.Item { Label = p.Name, Value = $"{e.Carried(p)}/{p.Cap}" + (slot >= 0 ? "  belt" : ""), Dim = e.Carried(p) == 0 });
                 }
             satchelList.Set(rows);
             bool any = satchel.Count > 0;
@@ -559,11 +516,12 @@ namespace MyGame
             satchelEffect.text = chosen?.Effect ?? "";
             int at = chosen != null ? e.BeltSlotOf(chosen) : -1;
             satchelBeltLine.text = chosen == null ? "" : at >= 0
-                ? $"On the belt: {Provision.SlotNames[at]} (key {at + 1}).   E / A: move it round"
-                : "Not on the belt.   E / A: put it on";
+                ? $"On the belt ({e.Belt.Count} of {Provision.BeltSlots}).   E / A: take it off"
+                : e.Belt.Count >= Provision.BeltSlots ? $"Not on the belt: it's full ({Provision.BeltSlots} of {Provision.BeltSlots})."
+                : $"Not on the belt ({e.Belt.Count} of {Provision.BeltSlots}).   E / A: put it on";
             for (int i = 0; i < satchelBelt.Length; i++)
             {
-                var p = e.OnBelt(i);
+                var p = i < e.Belt.Count ? e.Belt[i] : null;
                 satchelBelt[i].icon.enabled = p != null && any;
                 satchelBelt[i].frame.enabled = any;
                 if (p != null)
@@ -571,8 +529,11 @@ namespace MyGame
                     satchelBelt[i].icon.sprite = Hud.IconOf(p);
                     satchelBelt[i].icon.color = Hud.ColourOf(p).WithAlpha(e.Carried(p) > 0 ? 1f : 0.3f);
                 }
-                satchelBelt[i].frame.color = p != null && p == chosen ? UiKit.Ember : UiKit.Bronze;
+                satchelBelt[i].frame.color = p != null && p == chosen ? UiKit.Ember : UiKit.Bronze.WithAlpha(p != null ? 1f : 0.4f);
             }
+            int kind = chosen != null ? System.Array.IndexOf(Provision.All, chosen) : -1;
+            if (Current == Tab.Satchel)
+                stage.Show(provisionModels != null && kind >= 0 && kind < provisionModels.Length ? provisionModels[kind] : null, Quaternion.Euler(28f, 0f, 0f));
         }
 
         // The charms found (no dev charm unless it's owned), then a dark socket for each still to find.
@@ -625,6 +586,102 @@ namespace MyGame
             lastRing.color = Cold.WithAlpha(level >= Lantern.Levels ? 0.7f + 0.3f * breathe : 0.12f);
             lanternLine.text = Lantern.Line;
         }
+        // Where a model turns for a page (the oar, a Provision): far below the world, lit by two lamps of its own (warm
+        // and cold, for the metal's glints), seen by a camera that draws only while such a page is open. Each model is
+        // fitted to the frame (its longest side made `size` metres, its middle at the pivot) when it's added.
+        public sealed class ModelStage
+        {
+            readonly Transform pivot;
+            readonly Camera camera;
+            readonly List<GameObject> models = new List<GameObject>();
+            Quaternion lean = Quaternion.identity;
+
+            public RenderTexture Texture { get; }
+            public GameObject Shown { get; private set; }
+
+            public ModelStage(Transform parent, Color cold)
+            {
+                Texture = new RenderTexture(768, 768, 24, RenderTextureFormat.ARGB32) { name = "Model Stage", antiAliasing = 4 };
+                var root = new GameObject("Model Stage").transform;
+                root.SetParent(parent, false);
+                root.position = new Vector3(0f, -400f, 0f);
+                pivot = new GameObject("Pivot").transform;
+                pivot.SetParent(root, false);
+                camera = new GameObject("Stage Camera").AddComponent<Camera>();
+                camera.transform.SetParent(root, false);
+                camera.transform.localPosition = new Vector3(0f, 0f, -3.9f);
+                camera.fieldOfView = 42f;
+                camera.nearClipPlane = 0.5f;
+                camera.farClipPlane = 8f;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+                camera.targetTexture = Texture;
+                camera.enabled = false;
+                Lamp(root, new Vector3(1.4f, 1.2f, -1.8f), new Color(1f, 0.85f, 0.65f), 2.6f);
+                Lamp(root, new Vector3(-1.6f, -0.4f, -1.4f), cold, 2.5f);
+            }
+
+            static void Lamp(Transform root, Vector3 at, Color colour, float intensity)
+            {
+                var lamp = new GameObject("Stage Lamp").AddComponent<Light>();
+                lamp.transform.SetParent(root, false);
+                lamp.transform.localPosition = at;
+                lamp.type = LightType.Point;
+                lamp.range = 6f;
+                lamp.color = colour;
+                lamp.intensity = intensity;
+                lamp.shadows = LightShadows.None;
+            }
+
+            // Onto the stage, fitted: its longest side `size` metres, its middle on the pivot. Hidden until shown.
+            public void Add(GameObject model, float size)
+            {
+                if (model == null)
+                    return;
+                var holder = new GameObject(model.name + " (fitted)").transform;
+                holder.SetParent(pivot, false);
+                model.transform.SetParent(holder, false);
+                model.transform.localPosition = Vector3.zero;
+                model.transform.localRotation = Quaternion.identity;
+                model.transform.localScale = Vector3.one;
+                model.SetActive(true);
+                var bounds = new Bounds(holder.position, Vector3.zero);
+                bool first = true;
+                foreach (var r in model.GetComponentsInChildren<Renderer>())
+                {
+                    if (first)
+                        bounds = r.bounds;
+                    else
+                        bounds.Encapsulate(r.bounds);
+                    first = false;
+                }
+                float longest = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+                model.transform.localPosition = -holder.InverseTransformPoint(bounds.center); // (its middle at the pivot)
+                holder.localScale = Vector3.one * (longest > 0.001f ? size / longest : 1f);
+                model.SetActive(false);
+                models.Add(model);
+            }
+
+            // The one to show (null: none), leaning so, turning slowly about its own up.
+            public void Show(GameObject model, Quaternion leanedSo)
+            {
+                lean = leanedSo;
+                if (Shown == model)
+                    return;
+                Shown = model;
+                foreach (var m in models)
+                    m.SetActive(m == model);
+            }
+
+            public void Draw(bool on)
+            {
+                camera.enabled = on && Shown != null;
+                pivot.localRotation = lean * Quaternion.Euler(0f, UiKit.Now * 40f, 0f);
+            }
+
+            public void Release() => Texture.Release();
+        }
+
         // A list of rows that scrolls: as many as fit are shown, the chosen one kept in view, and a caret above or below
         // when there are more that way. For lists whose length isn't known yet (Abilities, Charms).
         public sealed class ScrollRows

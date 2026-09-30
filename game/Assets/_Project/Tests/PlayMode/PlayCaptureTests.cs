@@ -1335,6 +1335,13 @@ namespace MyGame.Tests
             {
                 yield return Frames(15);
                 Shot($"character-{page}-{screen.Current}", cam);
+                if (screen.Current == CharacterScreen.Tab.Satchel)
+                    for (int k = 1; k < Provision.All.Length; k++)
+                    {
+                        screen.ChooseProvision(1);
+                        yield return Frames(15);
+                        Shot($"character-{page}-{screen.Current}-{k}", cam);
+                    }
                 screen.Turn(1);
             }
             screen.Turn(1);
@@ -1354,14 +1361,20 @@ namespace MyGame.Tests
             apprentice.transform.rotation = Quaternion.LookRotation(dummy.transform.position - apprentice.transform.position);
             yield return Frames(20);
             Shot("provisions-0-belt", cam);
-            input.PressBelt(e.BeltSlotOf(Provision.PitchPot));
+            while (e.Chosen != Provision.PitchPot)
+                e.ChooseOnBelt(1);
+            input.PressBeltUse();
             yield return Frames(8);
             Shot("provisions-1-throw", cam);
             yield return Frames(30);
             Shot("provisions-2-pitch", cam);
             yield return Frames(30);
             Shot("provisions-3-burning", cam);
-            input.PressBelt(e.BeltSlotOf(Provision.EmberTar));
+            while (e.Chosen != Provision.EmberTar)
+                e.ChooseOnBelt(1);
+            yield return Frames(10);
+            Shot("provisions-3b-belt-tar", cam);
+            input.PressBeltUse();
             yield return Frames(40);
             Shot("provisions-4-tarred", cam);
             yield return Frames(90);

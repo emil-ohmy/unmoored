@@ -179,6 +179,16 @@ public static partial class MainSceneBuilder
             oar.SetActive(false);
             character.oarModels[step] = oar;
         }
+        character.provisionModels = new GameObject[Provision.All.Length]; // (turning on its Satchel page)
+        for (int i = 0; i < Provision.All.Length; i++)
+        {
+            var model = Place($"Environment/provision_{Provision.All[i].Id}", new Vector3(0f, -400f, 0f), 0f);
+            model.name = $"{Provision.All[i].Name} (character screen)";
+            foreach (var c in model.GetComponentsInChildren<Collider>())
+                UnityEngine.Object.DestroyImmediate(c);
+            model.SetActive(false);
+            character.provisionModels[i] = model;
+        }
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");

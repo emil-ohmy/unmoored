@@ -259,6 +259,12 @@ namespace MyGame
             {
                 ReadInput();
                 UpdateLockOn();
+                int beltStep = IsAlive ? Input.BeltStep : 0; // (choosing along the belt: whenever, even mid-swing)
+                if (beltStep != 0 && Equipment.Belt.Count > 1)
+                {
+                    Equipment.ChooseOnBelt(beltStep);
+                    Sfx.Instance?.UiTick();
+                }
             }
             stateTime += dt;
             Vector3 planar = Vector3.zero;
@@ -310,8 +316,7 @@ namespace MyGame
                     Vector3 aim = move.sqrMagnitude > 0.01f ? move : transform.forward;
                     HookFoe = HasHook ? FoeInReach(aim) : null;
                     HookTarget = HasHook && HookFoe == null ? HookPost.Best(transform.position, aim, hookRange, hookAimAngle) : null;
-                    int beltSlot = Input.BeltPressed;
-                    if (beltSlot >= 0 && TryUseBelt(beltSlot))
+                    if (Input.BeltUsePressed && TryUseBelt())
                         break;
                     if (Input.HealPressed)
                         TryHeal();
@@ -817,14 +822,14 @@ namespace MyGame
         public float TarLeft => Mathf.Max(0f, tarUntil - Time.time);
         public event System.Action<PitchPot> Threw;       // (tests)
 
-        // A belt slot pressed: what's on it, used (one used up); false if there's nothing to use, or it can't be used
-        // here (then a word says why).
-        public bool TryUseBelt(int slot)
+        // The belt's chosen one, used (one used up); false if there's nothing to use, or it can't be used here (then a
+        // word says why).
+        public bool TryUseBelt()
         {
-            var p = Equipment.OnBelt(slot);
+            var p = Equipment.Chosen;
             if (p == null)
             {
-                Announce("nothing on that slot");
+                Announce("nothing on the belt");
                 return false;
             }
             if (Equipment.Carried(p) <= 0)

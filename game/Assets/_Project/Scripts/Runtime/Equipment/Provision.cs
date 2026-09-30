@@ -1,6 +1,7 @@
 namespace MyGame
 {
-    // A Provision: something carried in the Satchel and used up, from one of the four belt slots (the d-pad; keys 1-4).
+    // A Provision: something carried in the Satchel and used up, from the belt (up to four on it: the d-pad or the arrow
+    // keys, left/right to choose, up to use).
     // Bought from the merchant soul with Obols, or found; each kind has a carry cap, and Resting doesn't refill them
     // (docs/brief.md, Progression). What each one does lives in the Apprentice (UseProvision).
     public sealed class Provision
@@ -42,7 +43,6 @@ namespace MyGame
 
         public static Provision ById(string id) => System.Array.Find(All, p => p.Id == id);
 
-        public const int BeltSlots = 4;
-        public static readonly string[] SlotNames = { "Up", "Right", "Down", "Left" }; // the d-pad (keys 1, 2, 3, 4)
+        public const int BeltSlots = 4; // (the most on the belt at once)
     }
 }

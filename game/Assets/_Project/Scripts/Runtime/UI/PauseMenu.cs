@@ -30,7 +30,7 @@ namespace MyGame
         // (keyboard, gamepad) for each action, as GameInput binds them.
         public static readonly (string action, string keys, string pad)[] Controls =
         {
-            ("Move / Row", "W A S D / Arrows", "Left stick"),
+            ("Move / Row", "W A S D", "Left stick"),
             ("Dash", "Space", "B"),
             ("Light attack", "J / Left click", "X"),
             ("Heavy attack", "K / Right click", "Y / RT"),
@@ -39,7 +39,7 @@ namespace MyGame
             ("Interact / Rest / Row", "E", "A"),
             ("Lock on / switch target", "Tab / Middle click, Scroll", "R3, Right stick"),
             ("Hook: hold to aim, let go", "F", "RB"),
-            ("Provisions (the belt)", "1  2  3  4", "D-pad"),
+            ("The belt: choose / use", "Left, Right / Up arrow", "D-pad left, right / up"),
             ("The Apprentice (character)", "I / C", "Select"),
             ("Pause", "Esc", "Start"),
         };

@@ -117,7 +117,7 @@ Where the Apprentice carries Provisions, and the character screen's page for the
 _Avoid_: Inventory, bag
 
 **Belt**:
-The four slots Provisions are used from, one per d-pad direction (keys 1–4).
+The row of up to four Provisions they're used from: left/right choose along it, up uses the chosen one.
 _Avoid_: Quick slots, hotbar
 
 **Obol**:

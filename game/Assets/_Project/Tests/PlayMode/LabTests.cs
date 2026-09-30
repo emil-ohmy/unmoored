@@ -958,7 +958,7 @@ namespace MyGame.Tests
                             Assert.AreEqual(0f, m.GetFloat("_Cutaway"), $"{m.name}: a post isn't cut away");
         }
 
-        // The Satchel: each Provision up to its cap; the first of a kind goes on the belt's first empty slot.
+        // The Satchel: each Provision up to its cap. The belt: up to four, in order; the first of a kind goes on it.
         [Test]
         public void TheSatchel_HoldsUpToACap_AndFillsTheBelt()
         {
@@ -966,20 +966,35 @@ namespace MyGame.Tests
             Assert.AreEqual(Provision.PitchPot.Cap, e.AddProvision(Provision.PitchPot, 99), "no more than it takes");
             Assert.AreEqual(0, e.AddProvision(Provision.PitchPot), "full");
             e.AddProvision(Provision.WarmBroth);
-            Assert.AreEqual(Provision.PitchPot, e.OnBelt(0));
-            Assert.AreEqual(Provision.WarmBroth, e.OnBelt(1));
-            e.PutOnBelt(3, Provision.PitchPot);
-            Assert.IsNull(e.OnBelt(0), "moved, not copied");
-            Assert.AreEqual(3, e.BeltSlotOf(Provision.PitchPot));
+            CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth }, e.Belt);
+            Assert.AreEqual(Provision.PitchPot, e.Chosen);
+            e.ChooseOnBelt(1);
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen);
+            e.ChooseOnBelt(1);
+            Assert.AreEqual(Provision.PitchPot, e.Chosen, "round again");
+            e.ChooseOnBelt(-1);
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "and back");
             Assert.IsTrue(e.SpendProvision(Provision.WarmBroth));
             Assert.IsFalse(e.SpendProvision(Provision.WarmBroth), "none left");
-            Assert.AreEqual(Provision.WarmBroth, e.OnBelt(1), "an empty one keeps its slot");
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "an empty one stays on the belt");
+            Assert.IsTrue(e.ToggleOnBelt(Provision.WarmBroth), "taken off");
+            CollectionAssert.AreEqual(new[] { Provision.PitchPot }, e.Belt);
+            Assert.AreEqual(Provision.PitchPot, e.Chosen);
+            foreach (var p in Provision.All)
+                e.AddProvision(p);
+            Assert.AreEqual(Provision.BeltSlots, e.Belt.Count, "four at most");
         }
 
         IEnumerator UseFromTheBelt(Provision p)
         {
             apprentice.Equipment.AddProvision(p);
-            input.PressBelt(apprentice.Equipment.BeltSlotOf(p));
+            for (int i = 0; i < Provision.BeltSlots && apprentice.Equipment.Chosen != p; i++)
+            {
+                input.StepBelt(1); // (right along the belt)
+                yield return null;
+            }
+            Assert.AreEqual(p, apprentice.Equipment.Chosen);
+            input.PressBeltUse();
             yield return null;
             Assert.AreEqual(Apprentice.State.Provision, apprentice.CurrentState, $"{p.Name}: used");
         }
@@ -1065,7 +1080,7 @@ namespace MyGame.Tests
             Assert.AreEqual(0, apprentice.Equipment.Carried(Provision.WayBack), "used up");
         }
 
-        // The Satchel page: what's carried, and confirm moves the chosen one round the belt.
+        // The Satchel page: what's carried, the chosen one turning beside it, and confirm puts it on the belt or off.
         [UnityTest]
         public IEnumerator TheSatchelPage_PutsProvisionsOnTheBelt()
         {
@@ -1078,17 +1093,18 @@ namespace MyGame.Tests
             yield return null;
             Assert.AreEqual(Provision.PitchPot.Name, screen.SatchelRows[0]);
             StringAssert.Contains("burning pitch", screen.SatchelDetail);
-            Assert.AreEqual(0, apprentice.Equipment.BeltSlotOf(Provision.PitchPot));
-            screen.MoveOnBelt();
-            Assert.AreEqual(1, apprentice.Equipment.BeltSlotOf(Provision.PitchPot), "round: to the right");
-            for (int i = 0; i < 3; i++)
-                screen.MoveOnBelt();
-            Assert.AreEqual(-1, apprentice.Equipment.BeltSlotOf(Provision.PitchPot), "and off");
-            screen.MoveOnBelt();
-            Assert.AreEqual(0, apprentice.Equipment.BeltSlotOf(Provision.PitchPot), "and on again, at the top");
+            Assert.IsNotNull(screen.ShownModel, "the pot itself, turning");
+            StringAssert.Contains("Pitch Pot", screen.ShownModel.name);
+            Assert.IsTrue(apprentice.Equipment.OnBelt(Provision.PitchPot));
+            Assert.IsTrue(screen.ToggleOnBelt());
+            Assert.IsFalse(apprentice.Equipment.OnBelt(Provision.PitchPot), "off");
+            Assert.IsTrue(screen.ToggleOnBelt());
+            Assert.IsTrue(apprentice.Equipment.OnBelt(Provision.PitchPot), "and on again");
             screen.Toggle(false);
             yield return null;
-            StringAssert.Contains("Pitch Pot 2", Object.FindAnyObjectByType<Hud>().BeltText(0), "the belt shows it, and how many");
+            var hud = Object.FindAnyObjectByType<Hud>();
+            StringAssert.Contains("Pitch Pot 2", hud.BeltText(0), "the belt shows it, and how many");
+            Assert.AreEqual("Pitch Pot", hud.BeltChosenName);
         }
 
         // A long list keeps its chosen row in view, moving as little as it can.
