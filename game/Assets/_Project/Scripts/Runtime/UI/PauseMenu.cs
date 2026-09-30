@@ -37,9 +37,9 @@ namespace MyGame
             ("Block (on time: perfect)", "L", "LT"),
             ("Heal", "Q", "LB"),
             ("Interact / Rest / Row", "E", "A"),
-            ("Lock on", "Tab / Middle click", "R3"),
-            ("Switch target", "Scroll", "Right stick"),
+            ("Lock on / switch target", "Tab / Middle click, Scroll", "R3, Right stick"),
             ("Hook: hold to aim, let go", "F", "RB"),
+            ("Provisions (the belt)", "1  2  3  4", "D-pad"),
             ("The Apprentice (character)", "I / C", "Select"),
             ("Pause", "Esc", "Start"),
         };

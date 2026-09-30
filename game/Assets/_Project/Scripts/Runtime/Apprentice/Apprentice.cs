@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -105,6 +105,13 @@ namespace MyGame
         [Header("Hook visuals")]
         public GameObject hookHeadModel; // the Hook's head in flight (spawned per throw)
 
+        [Header("Provisions (the belt: d-pad / 1-4)")]
+        public GameObject pitchPotModel;      // a Pitch Pot in flight
+        public float throwRange = 5.5f;       // a Pitch Pot lands this far ahead (or on what's locked on to, if nearer)
+        public float throwTime = 0.4f, drinkTime = 0.7f, wayBackTime = 1.4f;
+        public float tarDuration = 30f, tarDamage = 1.3f, tarBurnSeconds = 2.5f, tarBurnPerSecond = 5f;
+        public float brothAmount = 30f, brothDuration = 10f;
+
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
         public float ceremonyDuration = 2.4f; // a key item held up
@@ -135,7 +142,7 @@ namespace MyGame
         public Menu OpenMenu { get; private set; } // while open, the Apprentice stands still and input drives the menu
         public float DashCost => dashStaminaCost * (Equipment.IsFitted(Charm.EelSkin) ? 0.5f : 1f);
         // Its blows: the oar's strength (its step), and the Tester's Knot (a development Charm).
-        public float DamageFactor => Equipment.Oar.Strength * (Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f);
+        public float DamageFactor => Equipment.Oar.Strength * (Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f) * (Tarred ? tarDamage : 1f);
         public Soured LockTarget { get; private set; }
         public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
@@ -165,6 +172,8 @@ namespace MyGame
         // How dark the screen dips around washing ashore: to black as you go under, back as you come up (the HUD).
         public float Dip => CurrentState == State.Sinking
             ? UiKit.Smooth(0.05f, sinkTime * 0.9f, stateTime)
+            : CurrentState == State.Provision && usingProvision == MyGame.Provision.WayBack
+            ? UiKit.Smooth(0.35f, wayBackTime * 0.95f, stateTime) // (the cord pulled: to black, and back at the post)
             : 1f - UiKit.Smooth(0.1f, 0.7f, Time.time - washedAt);
 
         CharacterController controller;
@@ -242,6 +251,7 @@ namespace MyGame
             if (Pause.IsPaused)
                 return; // (the pause menu has the controls)
             float dt = Time.deltaTime;
+            UpdateProvisionEffects(dt);
             if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free && CurrentState != State.Rowing))
                 CloseMenu(); // (a talk on the water stays open)
             bool inMenu = OpenMenu != null;
@@ -300,6 +310,9 @@ namespace MyGame
                     Vector3 aim = move.sqrMagnitude > 0.01f ? move : transform.forward;
                     HookFoe = HasHook ? FoeInReach(aim) : null;
                     HookTarget = HasHook && HookFoe == null ? HookPost.Best(transform.position, aim, hookRange, hookAimAngle) : null;
+                    int beltSlot = Input.BeltPressed;
+                    if (beltSlot >= 0 && TryUseBelt(beltSlot))
+                        break;
                     if (Input.HealPressed)
                         TryHeal();
                     else if (Input.BlockHeld)
@@ -343,6 +356,10 @@ namespace MyGame
                         Healed?.Invoke();
                         ToFreeAndConsume();
                     }
+                    break;
+
+                case State.Provision:
+                    UpdateProvision();
                     break;
 
                 case State.Staggered:
@@ -531,6 +548,8 @@ namespace MyGame
                     Recoil(to.normalized);
                 else
                 {
+                    if (Tarred)
+                        Burning.Set(soured, tarBurnSeconds, tarBurnPerSecond); // (the tar's flames catch)
                     HitStop.Trigger(riposte ? 0.16f : isHeavy ? heavyHitStop : lightHitStop);
                     CameraRig.Instance?.Shake(riposte || isHeavy ? 0.25f : 0.1f);
                     Announce(riposte ? "RIPOSTE" : isHeavy ? "HEAVY HIT" : "hit");
@@ -785,6 +804,142 @@ namespace MyGame
             CameraRig.Instance?.Shake(0.15f);
             Announce("threw them off");
         }
+
+        // ------------------------------------------------------------ Provisions (the belt)
+
+        MyGame.Provision usingProvision;
+        bool provisionDone;
+        float tarUntil = -1f, brothUntil = -1f, nextMote;
+
+        public MyGame.Provision UsingProvision => CurrentState == State.Provision ? usingProvision : null;
+        public bool Tarred => Time.time < tarUntil;       // the oar burning (Ember Tar)
+        public bool Mending => Time.time < brothUntil;    // mending slowly (Warm Broth)
+        public float TarLeft => Mathf.Max(0f, tarUntil - Time.time);
+        public event System.Action<PitchPot> Threw;       // (tests)
+
+        // A belt slot pressed: what's on it, used (one used up); false if there's nothing to use, or it can't be used
+        // here (then a word says why).
+        public bool TryUseBelt(int slot)
+        {
+            var p = Equipment.OnBelt(slot);
+            if (p == null)
+            {
+                Announce("nothing on that slot");
+                return false;
+            }
+            if (Equipment.Carried(p) <= 0)
+            {
+                Announce($"no {p.Name} left");
+                return false;
+            }
+            if (p == MyGame.Provision.WayBack && (BossFight.Current != null || WorldState.Instance == null))
+            {
+                Found?.Invoke(p.Name, "It won't take you back from here");
+                return false;
+            }
+            Equipment.SpendProvision(p);
+            usingProvision = p;
+            provisionDone = false;
+            buffered = Act.None;
+            Enter(State.Provision);
+            if (p == MyGame.Provision.PitchPot)
+            {
+                Vector3 aim = LockTarget != null ? ToLockTarget() : MoveDirection().sqrMagnitude > 0.01f ? MoveDirection() : transform.forward;
+                aim.y = 0f;
+                if (aim.sqrMagnitude > 0.001f)
+                    transform.rotation = Quaternion.LookRotation(aim);
+                clips.PlayOnce("Toss", throwTime);
+                Sfx.Instance?.HookThrow(transform.position + Vector3.up);
+            }
+            else
+            {
+                clips.PlayOnce("Heal", p == MyGame.Provision.WayBack ? wayBackTime * 0.6f : drinkTime);
+                if (p == MyGame.Provision.WarmBroth)
+                    Sfx.Instance?.Drink(transform.position + Vector3.up * 0.8f);
+                else if (p == MyGame.Provision.EmberTar)
+                    Sfx.Instance?.TarSizzle(transform.position + Vector3.up);
+                else
+                    Sfx.Instance?.WayBack(transform.position + Vector3.up);
+            }
+            return true;
+        }
+
+        float ProvisionTime => usingProvision == MyGame.Provision.PitchPot ? throwTime
+            : usingProvision == MyGame.Provision.WayBack ? wayBackTime : drinkTime;
+
+        void UpdateProvision()
+        {
+            float time = ProvisionTime;
+            if (!provisionDone && stateTime >= time * (usingProvision == MyGame.Provision.PitchPot ? 0.45f : 0.7f))
+            {
+                provisionDone = true;
+                if (usingProvision == MyGame.Provision.PitchPot)
+                {
+                    float range = throwRange;
+                    if (LockTarget != null)
+                        range = Mathf.Min(range, Vector3.Distance(Flat(LockTarget.transform.position), Flat(transform.position)));
+                    var pot = PitchPot.Throw(pitchPotModel, transform.position + Vector3.up * 1.2f + transform.forward * 0.3f,
+                        transform.position + transform.forward * Mathf.Max(1.5f, range));
+                    Threw?.Invoke(pot);
+                }
+                else if (usingProvision == MyGame.Provision.EmberTar)
+                {
+                    tarUntil = Time.time + tarDuration;
+                    BurstAlongOar(24);
+                }
+                else if (usingProvision == MyGame.Provision.WarmBroth)
+                    brothUntil = Time.time + brothDuration;
+            }
+            if (stateTime < time)
+                return;
+            if (usingProvision == MyGame.Provision.WayBack && WorldState.Instance != null)
+            {
+                SetLockTarget(null);
+                Teleport(WorldState.Instance.RespawnPosition, true, true);
+                washedAt = Time.time; // (and up out of the black)
+                Found?.Invoke(usingProvision.Name, "Back where you last Rested");
+            }
+            ToFreeAndConsume();
+        }
+
+        // What lasts after a Provision: the tar's flames along the blade, the broth's slow mending.
+        void UpdateProvisionEffects(float dt)
+        {
+            if (!IsAlive)
+            {
+                tarUntil = brothUntil = -1f;
+                return;
+            }
+            if (Mending)
+            {
+                Health = Mathf.Min(maxHealth, Health + brothAmount / brothDuration * dt);
+                if (Time.time >= nextMote)
+                {
+                    nextMote = Time.time + 0.2f;
+                    Effects.Instance?.Wisp(transform.position + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(0.3f, 0.9f), Random.Range(-0.3f, 0.3f)),
+                        new Color(1f, 0.72f, 0.4f), Vector3.up * 0.8f, 0.8f);
+                }
+            }
+            if (Tarred)
+                BurstAlongOar(Time.deltaTime * 22f);
+        }
+
+        float oarEmitDebt;
+
+        // Flames licking along the oar's blade (and up its neck).
+        void BurstAlongOar(float count)
+        {
+            if (swingTrail == null || swingTrail.tip == null || swingTrail.inner == null)
+                return;
+            oarEmitDebt += count;
+            for (; oarEmitDebt >= 1f; oarEmitDebt -= 1f)
+            {
+                Vector3 at = Vector3.Lerp(swingTrail.inner.position, swingTrail.tip.position, Random.Range(0.35f, 1f));
+                Effects.Instance?.Flame(at, Vector3.up * Random.Range(0.6f, 1.4f), Random.Range(0.2f, 0.4f), Random.Range(0.08f, 0.16f));
+            }
+        }
+
+        static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
 
         void TryHeal()
         {

@@ -481,6 +481,25 @@ namespace MyGame
             return HitResult.Landed;
         }
 
+        // Burning (burning pitch underfoot, the flames of an Ember-tarred oar): harm no guard stops, a little at a time;
+        // no stagger, no knockback. False if there's nothing to burn.
+        public bool TakeBurn(float damage, Vector3 from)
+        {
+            if (!IsAlive || Unhittable || damage <= 0f)
+                return false;
+            Health -= damage;
+            dealt = damage;
+            if (immortal && Health <= 0f)
+                Health = maxHealth;
+            flashUntil = Time.time + 0.05f;
+            Struck?.Invoke(this, HitResult.Landed, damage);
+            if (Health <= 0f)
+                Die(new Hit { Damage = damage, From = from });
+            else if (CurrentState == State.Idle)
+                Notice();
+            return true;
+        }
+
         protected virtual bool BlocksHit(Hit hit) => false;
 
         // Whether the Apprentice is too far away to keep after (then it goes back to its post).

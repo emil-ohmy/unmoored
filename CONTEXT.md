@@ -105,8 +105,20 @@ How far the Bow lantern has grown, 1 to 5, from the Mooring posts lit across the
 _Avoid_: Lamp level, light level
 
 **Character screen**:
-The paused screen with five pages: the Apprentice, the Oar, Abilities, Charms and the Lantern.
+The paused screen with six pages: the Apprentice, the Oar, Abilities, the Satchel, Charms and the Lantern.
 _Avoid_: Inventory, status menu
+
+**Provision**:
+Something carried and used up: a Pitch Pot, Ember Tar, the Way Back, Warm Broth. Bought or found, each kind up to a cap; Resting doesn't refill them.
+_Avoid_: Consumable, item, potion
+
+**Satchel**:
+Where the Apprentice carries Provisions, and the character screen's page for them.
+_Avoid_: Inventory, bag
+
+**Belt**:
+The four slots Provisions are used from, one per d-pad direction (keys 1–4).
+_Avoid_: Quick slots, hotbar
 
 **Obol**:
 The currency: the fare the dead carry to pay for crossing.

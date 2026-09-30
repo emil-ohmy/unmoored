@@ -115,10 +115,12 @@ namespace MyGame
             d.ferryNails = apprentice.Equipment.FerryNails;
             d.warmStones = apprentice.Equipment.WarmStones;
             d.heldBreaths = apprentice.Equipment.HeldBreaths;
+            (d.provisions, d.provisionCounts, d.belt) = apprentice.Equipment.SatchelForSave();
             d.taken = FindObjectsByType<ObolCache>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(c => c.Taken).Select(c => c.SaveId)
                 .Concat(FindObjectsByType<ChargePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(c => c.Taken).Select(c => c.SaveId))
                 .Concat(FindObjectsByType<Keepsake>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(k => k.Taken).Select(k => k.SaveId))
-                .Concat(FindObjectsByType<UpgradePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(u => u.Taken).Select(u => u.SaveId)).ToArray();
+                .Concat(FindObjectsByType<UpgradePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(u => u.Taken).Select(u => u.SaveId))
+                .Concat(FindObjectsByType<ProvisionFind>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(p => p.Taken).Select(p => p.SaveId)).ToArray();
             d.keepsakes = apprentice.Equipment.Keepsakes.ToArray();
             d.lingerers = FindObjectsByType<Lingerer>(FindObjectsSortMode.None).Where(l => l.State != Lingerer.Business.Unmet)
                 .Select(l => $"{l.SaveId}={l.State}").ToArray();
@@ -144,7 +146,11 @@ namespace MyGame
             foreach (var piece in FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None))
                 if (d.taken.Contains(piece.SaveId))
                     piece.RestoreTaken();
+            foreach (var find in FindObjectsByType<ProvisionFind>(FindObjectsSortMode.None))
+                if (d.taken.Contains(find.SaveId))
+                    find.RestoreTaken();
             apprentice.Equipment.Restore(d.oarStep, d.ferryNails, d.warmStones, d.heldBreaths);
+            apprentice.Equipment.RestoreSatchel(d.provisions, d.provisionCounts, d.belt);
             foreach (var keepsake in FindObjectsByType<Keepsake>(FindObjectsSortMode.None))
                 if (d.taken.Contains(keepsake.SaveId))
                     keepsake.RestoreTaken();

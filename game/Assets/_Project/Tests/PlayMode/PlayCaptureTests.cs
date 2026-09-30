@@ -1318,6 +1318,8 @@ namespace MyGame.Tests
             e.Strengthen();
             Lantern.DevLevels = 1;
             apprentice.GiveHook();
+            foreach (var p in Provision.All)
+                e.AddProvision(p, 2);
             yield return Frames(30);
             var screen = UnityEngine.Object.FindAnyObjectByType<CharacterScreen>();
             screen.Toggle(true);
@@ -1337,6 +1339,24 @@ namespace MyGame.Tests
             screen.Toggle(false);
             Lantern.DevLevels = 0;
             yield return Frames(15);
+
+            // A Pitch Pot thrown at the training Laden, and the oar tarred.
+            var dummy = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).First(l => l.immortal);
+            apprentice.Teleport(dummy.transform.position - dummy.transform.forward * 4f);
+            apprentice.transform.rotation = Quaternion.LookRotation(dummy.transform.position - apprentice.transform.position);
+            yield return Frames(20);
+            Shot("provisions-0-belt", cam);
+            input.PressBelt(e.BeltSlotOf(Provision.PitchPot));
+            yield return Frames(8);
+            Shot("provisions-1-throw", cam);
+            yield return Frames(30);
+            Shot("provisions-2-pitch", cam);
+            yield return Frames(30);
+            Shot("provisions-3-burning", cam);
+            input.PressBelt(e.BeltSlotOf(Provision.EmberTar));
+            yield return Frames(40);
+            Shot("provisions-4-tarred", cam);
+            yield return Frames(90);
 
             // Strengthening it: held up high, changing in the flash.
             e.Restore(2, 3, 1, 1);

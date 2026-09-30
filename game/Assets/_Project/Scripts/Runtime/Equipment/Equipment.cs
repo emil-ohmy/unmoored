@@ -81,6 +81,8 @@ namespace MyGame
         public void ResetToStart()
         {
             OarStep = FerryNails = WarmStones = HeldBreaths = 0;
+            carried.Clear();
+            System.Array.Clear(belt, 0, belt.Length);
             owned.Clear();
             fitted.Clear();
             keepsakes.Clear();
@@ -89,6 +91,84 @@ namespace MyGame
                 if (Charm.ById(id) is Charm charm)
                     Own(charm);
             Changed?.Invoke();
+        }
+
+        // ---- the Satchel: Provisions carried (up to each one's cap), and the four belt slots they're used from
+
+        readonly Dictionary<Provision, int> carried = new Dictionary<Provision, int>();
+        readonly Provision[] belt = new Provision[Provision.BeltSlots];
+
+        public int Carried(Provision p) => carried.TryGetValue(p, out int n) ? n : 0;
+        public Provision OnBelt(int slot) => slot >= 0 && slot < belt.Length ? belt[slot] : null;
+        public int BeltSlotOf(Provision p) => System.Array.IndexOf(belt, p);
+
+        // As many as there's room for (its cap); how many were taken. The first of a kind goes on the belt's first
+        // empty slot, if there is one.
+        public int AddProvision(Provision p, int count = 1)
+        {
+            int room = UnityEngine.Mathf.Max(0, p.Cap - Carried(p));
+            int taken = UnityEngine.Mathf.Min(room, count);
+            if (taken <= 0)
+                return 0;
+            carried[p] = Carried(p) + taken;
+            if (BeltSlotOf(p) < 0)
+            {
+                int empty = System.Array.IndexOf(belt, null);
+                if (empty >= 0)
+                    belt[empty] = p;
+            }
+            Changed?.Invoke();
+            return taken;
+        }
+
+        // One used up. It stays on the belt, empty, until more are found (so its slot keeps its place).
+        public bool SpendProvision(Provision p)
+        {
+            if (Carried(p) <= 0)
+                return false;
+            carried[p] = Carried(p) - 1;
+            Changed?.Invoke();
+            return true;
+        }
+
+        // Puts it on a belt slot (taking it off any other), or clears the slot (null).
+        public void PutOnBelt(int slot, Provision p)
+        {
+            if (slot < 0 || slot >= belt.Length)
+                return;
+            if (p != null)
+                for (int i = 0; i < belt.Length; i++)
+                    if (belt[i] == p)
+                        belt[i] = null;
+            belt[slot] = p;
+            Changed?.Invoke();
+        }
+
+        // Loading a save.
+        public void RestoreSatchel(string[] ids, int[] counts, string[] beltIds)
+        {
+            carried.Clear();
+            for (int i = 0; ids != null && i < ids.Length && i < counts.Length; i++)
+                if (Provision.ById(ids[i]) is Provision p)
+                    carried[p] = UnityEngine.Mathf.Clamp(counts[i], 0, p.Cap);
+            for (int i = 0; i < belt.Length; i++)
+                belt[i] = beltIds != null && i < beltIds.Length ? Provision.ById(beltIds[i]) : null;
+            Changed?.Invoke();
+        }
+
+        public (string[] ids, int[] counts, string[] belt) SatchelForSave()
+        {
+            var ids = new List<string>();
+            var counts = new List<int>();
+            foreach (var kv in carried)
+            {
+                ids.Add(kv.Key.Id);
+                counts.Add(kv.Value);
+            }
+            var beltIds = new string[belt.Length];
+            for (int i = 0; i < belt.Length; i++)
+                beltIds[i] = belt[i]?.Id ?? "";
+            return (ids.ToArray(), counts.ToArray(), beltIds);
         }
 
         public void Own(Charm charm)

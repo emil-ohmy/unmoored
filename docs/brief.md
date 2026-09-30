@@ -126,11 +126,23 @@ business and pay their fare to row them across.
   - **Held Breaths:** more stamina (+10 each).
   - **Embers:** one more Healing charge each.
   The starting health and stamina (100) and the bonus each piece gives are placeholders, to be balanced together.
-- **The character screen** (I or C; Select on a gamepad) pauses the game. It has five pages:
+- **Provisions:** things used up, carried in **the Satchel**, and used from **the belt**: four slots on the d-pad
+  (keys 1–4), shown at the HUD's bottom left. They're tools, not a second supply of healing (bar one gentle one).
+  - Bought from the merchant soul with Obols, and found in the world. Each kind has a carry cap, and Resting doesn't
+    refill them.
+  - **Pitch Pot** (5): thrown ahead, or at what you're locked on to. It bursts into a pool of burning pitch, and
+    whatever stands in it burns; no guard stops fire.
+  - **Ember Tar** (3): the oar burns for 30 s. Blows land harder (×1.3) and set the Soured alight.
+  - **The Way Back** (3): to black, and back at the last Mooring post you Rested at. Not in a Boss's arena, and not
+    on the water.
+  - **Warm Broth** (3): mends 30 health over 10 s, and a blow doesn't stop it.
+  - The first of a kind goes on the belt's first empty slot. The Satchel page moves things round the belt.
+- **The character screen** (I or C; Select on a gamepad) pauses the game. It has six pages:
   - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
   - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.
   - **Abilities:** each one found, with what it is, how it's used (keyboard and gamepad) and what it's for. The list
     scrolls, since how many there will be isn't settled.
+  - **The Satchel:** the Provisions carried, how many of each, what they do, and which go on the belt.
   - **Charms:** those found and those fitted, the slots, and a dark socket for each still to find.
   - **The Lantern:** a glow, five flames and one line. It says as little as it can.
 - **Obols**, the fare of the dead, buy:

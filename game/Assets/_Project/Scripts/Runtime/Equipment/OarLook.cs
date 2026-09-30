@@ -10,7 +10,8 @@ namespace MyGame
     {
         Apprentice apprentice;
         SkinnedMeshRenderer body;
-        MaterialPropertyBlock hidden;
+        MaterialPropertyBlock hidden, burning;
+        bool glowing;
         int[] slotSteps; // each material slot's step (-1: not the oar's)
 
         public int ShownStep { get; private set; } = -1;
@@ -30,6 +31,7 @@ namespace MyGame
             body = GetComponentInChildren<SkinnedMeshRenderer>();
             hidden = new MaterialPropertyBlock();
             hidden.SetFloat("_Dissolve", 1.5f); // past the noise's top: nothing left
+            burning = new MaterialPropertyBlock();
             if (body == null)
                 return;
             var materials = body.sharedMaterials;
@@ -49,6 +51,22 @@ namespace MyGame
         {
             if (apprentice != null && apprentice.Equipment != null)
                 apprentice.Equipment.Changed -= Show;
+        }
+
+        // Ember Tar: the oar it's on smoulders, a warm flicker in the wood and the metal.
+        void Update()
+        {
+            if (body == null || slotSteps == null)
+                return;
+            bool tarred = apprentice.Tarred;
+            if (!tarred && !glowing)
+                return;
+            glowing = tarred;
+            float heat = tarred ? 0.55f + 0.3f * Mathf.PerlinNoise(Time.time * 6f, 0.2f) : 0f;
+            burning.SetColor("_EmissionColor", new Color(1f, 0.42f, 0.12f) * heat);
+            for (int i = 0; i < slotSteps.Length; i++)
+                if (slotSteps[i] >= 0 && slotSteps[i] == ShownStep)
+                    body.SetPropertyBlock(tarred ? burning : null, i);
         }
 
         // How many of the body's material slots are this step's (tests: every step is in the model).

@@ -9,6 +9,17 @@ namespace MyGame
     {
         public float interactRadius = 1.5f;
         public string[] stockIds = { "eel_skin" };
+        public string[] provisionIds = { "pitch_pot", "ember_tar", "way_back", "warm_broth" }; // (as many as the Satchel takes)
+
+        public IEnumerable<Provision> Provisions
+        {
+            get
+            {
+                foreach (var id in provisionIds)
+                    if (Provision.ById(id) is Provision p)
+                        yield return p;
+            }
+        }
 
         public IEnumerable<Charm> Stock
         {
@@ -49,12 +60,14 @@ namespace MyGame
         public Menu Open(Apprentice apprentice) => new ShopMenu(this, apprentice);
     }
 
-    // The merchant's wares: buy with Interact. Bought Charms still have to be fitted at a Mooring post.
+    // The merchant's wares: buy with Interact. Bought Charms still have to be fitted at a Mooring post; Provisions go
+    // in the Satchel, one at a time, up to each one's cap.
     public sealed class ShopMenu : Menu
     {
         readonly Merchant merchant;
         readonly Apprentice apprentice;
         readonly List<Charm> wares;
+        readonly List<Provision> provisions;
         readonly List<Row> rows = new List<Row>();
 
         public ShopMenu(Merchant merchant, Apprentice apprentice)
@@ -62,6 +75,7 @@ namespace MyGame
             this.merchant = merchant;
             this.apprentice = apprentice;
             wares = new List<Charm>(merchant.Stock);
+            provisions = new List<Provision>(merchant.Provisions);
             // Its patter (the game's own voice: docs/brief.md, Tone and voice).
             Say(BossFight.Beaten > 0 ? "Everything must go. Unlike some people." : "Wares for the crossing. Such as it is.");
         }
@@ -80,16 +94,38 @@ namespace MyGame
                     rows.Add(new Row { Label = charm.Name, Detail = owned ? "Owned" : $"{charm.Price} Obols",
                                        Dim = owned || apprentice.Obols < charm.Price });
                 }
+                foreach (var p in provisions)
+                {
+                    int carried = apprentice.Equipment.Carried(p);
+                    rows.Add(new Row { Label = $"{p.Name}  ({carried}/{p.Cap})", Detail = carried >= p.Cap ? "Full" : $"{p.Price} Obols",
+                                       Dim = carried >= p.Cap || apprentice.Obols < p.Price });
+                }
                 return rows;
             }
         }
 
-        public override string Description => wares.Count > 0
+        public override string Description => Selected < wares.Count
             ? wares[Selected].Description + (apprentice.Equipment.Owns(wares[Selected]) ? "" : "\nFit it at a Mooring post.")
+            : Selected - wares.Count < provisions.Count ? $"{provisions[Selected - wares.Count].Description}\n{provisions[Selected - wares.Count].Effect}"
             : "Nothing left to sell.";
 
         protected override void Confirm(Row row)
         {
+            if (Selected >= wares.Count)
+            {
+                var p = provisions[Selected - wares.Count];
+                if (apprentice.Equipment.Carried(p) >= p.Cap)
+                    Say("You can't carry more of those.");
+                else if (!apprentice.SpendObols(p.Price))
+                    Say("Not enough Obols.");
+                else
+                {
+                    apprentice.Equipment.AddProvision(p);
+                    Sfx.Instance?.ObolClink(merchant.transform.position + Vector3.up);
+                    Say(p == Provision.WayBack ? "Use it wisely. Or at all." : $"{p.Name}. Into the Satchel.");
+                }
+                return;
+            }
             var charm = wares[Selected];
             if (apprentice.Equipment.Owns(charm))
                 Say("You already carry it.");

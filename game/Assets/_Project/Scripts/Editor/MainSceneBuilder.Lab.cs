@@ -40,6 +40,13 @@ public static partial class MainSceneBuilder
         StreetLantern(new Vector3(15.5f, QuayTop, -4.8f), 0f);
         StreetLantern(new Vector3(15.5f, QuayTop, 4.6f), 180f);
 
+        // Provisions to find, along the quay's north edge: two Pitch Pots, Ember Tar, Warm Broth, the Way Back (the
+        // Tester's Post fills the Satchel too).
+        ProvisionAt("pitch_pot", 2, new Vector3(-1.2f, QuayTop, 4.3f), 20f);
+        ProvisionAt("ember_tar", 1, new Vector3(1.4f, QuayTop, 4.4f), -30f);
+        ProvisionAt("warm_broth", 1, new Vector3(4.0f, QuayTop, 4.3f), 10f);
+        ProvisionAt("way_back", 1, new Vector3(9.8f, QuayTop, 4.2f), 60f);
+
         // The Mooring post and the Tester's Post, side by side at the west end.
         MooringPostAt(new Vector3(-6.0f, QuayTop, -3.4f), 0f);
         TesterPost TesterPostAt(Vector3 at, float yaw)
@@ -227,6 +234,23 @@ public static partial class MainSceneBuilder
         UpgradePieceAt(UpgradePiece.Kind.FerryNail, new Vector3(46.6f, highTop, -0.5f), 60f);
         UpgradePieceAt(UpgradePiece.Kind.HeldBreath, tower + new Vector3(-2.4f, storey, 1.1f), 0f).transform.SetParent(middle.transform, true);
         UpgradePieceAt(UpgradePiece.Kind.WarmStone, new Vector3(50.4f, QuayTop + 1.4f, 1.3f), 0f);
+    }
+
+    // Provisions lying about, glowing where they lie (an item).
+    static ProvisionFind ProvisionAt(string id, int count, Vector3 at, float yaw)
+    {
+        var go = Place("Environment/provision_" + id, at, yaw);
+        go.name = Provision.ById(id).Name;
+        foreach (var c in go.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c); // (small: nothing to walk into)
+        var find = go.AddComponent<ProvisionFind>();
+        find.provision = id;
+        find.count = count;
+        var glow = go.AddComponent<PickupGlow>();
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = LanternLight;
+        glow.height = 0.4f;
+        return find;
     }
 
     // A piece that makes the Apprentice stronger for good, glowing where it lies (an item).

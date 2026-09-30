@@ -90,6 +90,7 @@ namespace MyGame
             BuildCharges(hudRoot);
             BuildPrompt(hudRoot);
             BuildObols(hudRoot);
+            BuildBelt(hudRoot);
 
             // Washing ashore: a quick dip to black and back.
             dip = UiKit.Image(canvasRect, "Dip", null, Color.black.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -254,6 +255,7 @@ namespace MyGame
             Grow(hpFrame, HealthWidth * apprentice.maxHealth / apprentice.BaseHealth);
             Grow(staminaFrame, StaminaWidth * apprentice.maxStamina / apprentice.BaseStamina);
             barsSized = true; // (from the first frame on, they grow; before it, a loaded journey's are simply that long)
+            UpdateBelt(now);
             UpdateCharges(now);
             UpdatePrompt();
             UpdateObols();
@@ -546,6 +548,75 @@ namespace MyGame
             var size = frame.sizeDelta;
             size.x = !barsSized || Mathf.Abs(size.x - target) < 0.5f ? target : Mathf.Lerp(size.x, target, 1f - Mathf.Exp(-8f * UiKit.DeltaTime));
             frame.sizeDelta = size;
+        }
+
+        // ---- the belt: the four Provision slots (the d-pad; keys 1-4), bottom left, as the d-pad lies
+
+        (RectTransform slot, Image frame, Image icon, Text count, Text key)[] belt;
+        CanvasGroup beltGroup;
+        readonly float[] beltFlash = new float[Provision.BeltSlots];
+        public string BeltText(int slot) => belt[slot].icon.enabled ? $"{apprentice.Equipment.OnBelt(slot)?.Name} {belt[slot].count.text}" : "";
+
+        void BuildBelt(Transform root)
+        {
+            var corner = new Vector2(0f, 0f);
+            var centre = UiKit.Rect(root, "Belt", corner, new Vector2(118, 132), new Vector2(10, 10));
+            beltGroup = centre.gameObject.AddComponent<CanvasGroup>();
+            beltGroup.alpha = 0f;
+            var offsets = new[] { new Vector2(0, 54), new Vector2(54, 0), new Vector2(0, -54), new Vector2(-54, 0) };
+            belt = new (RectTransform, Image, Image, Text, Text)[Provision.BeltSlots];
+            for (int i = 0; i < belt.Length; i++)
+            {
+                var slot = UiKit.Rect(centre, "Slot", new Vector2(0.5f, 0.5f), offsets[i], new Vector2(64, 64));
+                UiKit.Image(slot, "Back", null, UiKit.Hex(0x0b0a0e, 0.7f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(46, 46))
+                    .rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                var frame = UiKit.Image(slot, "Frame", UiKit.KeyCap, UiKit.Bronze, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(66, 66));
+                frame.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                var icon = UiKit.Image(slot, "Icon", null, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0, 2), new Vector2(38, 38));
+                var count = UiKit.Text(slot, "Count", textFont, 22, UiKit.Bone, TextAnchor.LowerRight, new Vector2(0.5f, 0.5f), new Vector2(24, -18));
+                count.rectTransform.sizeDelta = new Vector2(40, 30);
+                count.rectTransform.pivot = new Vector2(1f, 0f);
+                var key = UiKit.Text(slot, "Key", textFont, 18, UiKit.Ash.WithAlpha(0.7f), TextAnchor.UpperLeft, new Vector2(0.5f, 0.5f), new Vector2(-26, 26));
+                key.rectTransform.sizeDelta = new Vector2(30, 24);
+                key.rectTransform.pivot = new Vector2(0f, 1f);
+                key.text = $"{i + 1}";
+                belt[i] = (slot, frame, icon, count, key);
+            }
+        }
+
+        public static Sprite IconOf(Provision p) =>
+            p == Provision.PitchPot ? UiKit.PotIcon : p == Provision.EmberTar ? UiKit.TinIcon : p == Provision.WayBack ? UiKit.CordIcon : UiKit.FlaskIcon;
+
+        public static Color ColourOf(Provision p) =>
+            p == Provision.PitchPot ? UiKit.Hex(0xc07a4e) : p == Provision.EmberTar ? UiKit.Hex(0xff8a3a) : p == Provision.WayBack ? UiKit.Hex(0xe0d4b6) : UiKit.Hex(0xffc47a);
+
+        void UpdateBelt(float now)
+        {
+            var e = apprentice.Equipment;
+            bool any = false;
+            for (int i = 0; i < belt.Length; i++)
+            {
+                var p = e.OnBelt(i);
+                var (slot, frame, icon, count, key) = belt[i];
+                any |= p != null;
+                icon.enabled = p != null;
+                count.text = p != null ? $"{e.Carried(p)}" : "";
+                if (p == null)
+                {
+                    frame.color = UiKit.Bronze.WithAlpha(0.5f);
+                    continue;
+                }
+                bool empty = e.Carried(p) <= 0;
+                icon.sprite = IconOf(p);
+                icon.color = ColourOf(p).WithAlpha(empty ? 0.25f : 1f);
+                count.color = empty ? UiKit.Ash.WithAlpha(0.5f) : UiKit.Bone;
+                if (apprentice.UsingProvision == p && apprentice.StateTime < 0.05f)
+                    beltFlash[i] = now;
+                float flash = 1f - UiKit.Smooth(0f, 0.4f, now - beltFlash[i]);
+                frame.color = Color.Lerp(UiKit.Bronze, UiKit.Ember, flash);
+                slot.localScale = Vector3.one * (1f + 0.15f * flash);
+            }
+            beltGroup.alpha = Mathf.MoveTowards(beltGroup.alpha, any ? 1f : 0f, UiKit.DeltaTime * 4f);
         }
 
         static RectTransform Bar(Transform parent, string name, Vector2 position, float width, float height, Color colour, out RectTransform trail)

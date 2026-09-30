@@ -4,15 +4,16 @@ using UnityEngine.UI;
 
 namespace MyGame
 {
-    // The character screen (I or C; Select on a gamepad): the world pauses behind five pages, left/right between them.
+    // The character screen (I or C; Select on a gamepad): the world pauses behind six pages, left/right between them.
     // The Apprentice (health, stamina, healing, what's carried), The Oar (its step: its name, what it is, how strong,
-    // what the next step asks), Abilities (each found: what it is, how it's used, what it's for), Charms (those found,
+    // what the next step asks), Abilities (each found: what it is, how it's used, what it's for), The Satchel (the
+    // Provisions carried, and which of them go on the belt's four slots: confirm moves one round), Charms (those found,
     // those fitted, the slots, and dark sockets for the rest) and The Lantern, which says as little as it can. Long lists
     // scroll. Closed with the same key, Esc or B. Drawn in real time.
     public sealed class CharacterScreen : MonoBehaviour
     {
-        public enum Tab { Apprentice, Oar, Abilities, Charms, Lantern }
-        public static readonly string[] TabNames = { "The Apprentice", "The Oar", "Abilities", "Charms", "The Lantern" };
+        public enum Tab { Apprentice, Oar, Abilities, Satchel, Charms, Lantern }
+        public static readonly string[] TabNames = { "The Apprentice", "The Oar", "Abilities", "The Satchel", "Charms", "The Lantern" };
         static int Tabs => TabNames.Length;
 
         public Font titleFont, textFont;
@@ -26,6 +27,9 @@ namespace MyGame
         public Tab Current { get; private set; }
         public int SelectedCharm => charmList.Selected;
         public int SelectedAbility => abilityList.Selected;
+        public int SelectedProvision => satchelList.Selected;
+        public IReadOnlyList<string> SatchelRows => satchelRowText;
+        public string SatchelDetail => satchelEffect.text;
 
         // What each page says (tests, and the capture).
         public string OarName => oarName.text;
@@ -60,8 +64,12 @@ namespace MyGame
         Text oarName, oarDescription, oarNext;
         Image[] pips;
         Image[] slotMarks;
-        ScrollRows charmList, abilityList;
-        readonly List<string> charmRowText = new List<string>(), abilityRowText = new List<string>();
+        ScrollRows charmList, abilityList, satchelList;
+        readonly List<string> charmRowText = new List<string>(), abilityRowText = new List<string>(), satchelRowText = new List<string>();
+        readonly List<Provision> satchel = new List<Provision>();
+        Text satchelName, satchelDescription, satchelEffect, satchelBeltLine, satchelNone;
+        Graphic[] satchelDetail;
+        (Image frame, Image icon)[] satchelBelt;
         Text abilityName, abilityDescription, abilityHowHeading, abilityKeys, abilityPad, abilityNone;
         Text[] abilityUses;
         Text charmDetail;
@@ -98,19 +106,20 @@ namespace MyGame
 
             // The tabs, across the top.
             for (int i = 0; i < Tabs; i++)
-                tabs[i] = UiKit.Text(root, "Tab", titleFont, 38, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2((i - (Tabs - 1) / 2f) * 345f, 400), 3f);
+                tabs[i] = UiKit.Text(root, "Tab", titleFont, 32, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2((i - (Tabs - 1) / 2f) * 300f, 400), 2f);
             tabLeft = Diamond(root, UiKit.Ember, 10f);
             tabRight = Diamond(root, UiKit.Ember, 10f);
             UiKit.Image(root, "Rule", UiKit.Rule, UiKit.Bone.WithAlpha(0.55f), centre, new Vector2(0, 360), new Vector2(1600, 3));
             var hintBand = UiKit.Image(root, "Hint Band", UiKit.Band, Color.black.WithAlpha(0.55f), new Vector2(0.5f, 0f), new Vector2(0, 70), new Vector2(1500, 70));
             var hints = UiKit.Text(root, "Hints", textFont, 26, UiKit.Bone.WithAlpha(0.75f), TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0, 70), 1f);
-            hints.text = "Left / Right: page     Up / Down: choose     I / Select, Esc / B: close";
+            hints.text = "Left / Right: page     Up / Down: choose     E / A: on the belt     I / Select, Esc / B: close";
 
             for (int i = 0; i < Tabs; i++)
                 pages[i] = UiKit.Stretch(UiKit.Rect(root, TabNames[i], centre, Vector2.zero, Vector2.zero));
             BuildApprentice(pages[(int)Tab.Apprentice]);
             BuildOar(pages[(int)Tab.Oar]);
             BuildAbilities(pages[(int)Tab.Abilities]);
+            BuildSatchel(pages[(int)Tab.Satchel]);
             BuildCharms(pages[(int)Tab.Charms]);
             BuildLantern(pages[(int)Tab.Lantern]);
             root.gameObject.SetActive(false);
@@ -280,6 +289,39 @@ namespace MyGame
 
         Graphic[] abilityDetail;
 
+        void BuildSatchel(RectTransform page)
+        {
+            var centre = new Vector2(0.5f, 0.5f);
+            satchelList = new ScrollRows(page, textFont, -470f, 280f, 520f, 9);
+            satchelNone = UiKit.Text(page, "None", textFont, 32, UiKit.Ash.WithAlpha(0.7f), TextAnchor.MiddleCenter, centre, new Vector2(0, 40), 1f);
+            satchelNone.text = "Empty. The merchant soul would love to help.";
+            const float x = 290f;
+            Text Line(string name, Font font, int size, Color colour, float y, float height)
+            {
+                var t = UiKit.Text(page, name, font, size, colour, TextAnchor.UpperLeft, centre, new Vector2(x, y));
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                t.rectTransform.pivot = new Vector2(0.5f, 1f);
+                t.rectTransform.sizeDelta = new Vector2(880, height);
+                return t;
+            }
+            satchelName = Line("Name", titleFont, 48, UiKit.Bone, 300, 70);
+            satchelDescription = Line("Description", textFont, 30, UiKit.Ash, 225, 90);
+            satchelEffect = Line("Effect", textFont, 30, UiKit.Bone, 130, 130);
+            satchelBeltLine = Line("Belt", textFont, 28, UiKit.Ember, -20, 40);
+            // The belt, as the d-pad lies: what's on each slot.
+            satchelBelt = new (Image, Image)[Provision.BeltSlots];
+            var offsets = new[] { new Vector2(0, 58), new Vector2(58, 0), new Vector2(0, -58), new Vector2(-58, 0) };
+            for (int i = 0; i < satchelBelt.Length; i++)
+            {
+                var at = new Vector2(x - 330f, -170f) + offsets[i];
+                var frame = UiKit.Image(page, "Slot", UiKit.KeyCap, UiKit.Bronze, centre, at, new Vector2(58, 58));
+                frame.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                var icon = UiKit.Image(page, "Icon", null, Color.white, centre, at, new Vector2(34, 34));
+                satchelBelt[i] = (frame, icon);
+            }
+            satchelDetail = new Graphic[] { satchelName, satchelDescription, satchelEffect, satchelBeltLine };
+        }
+
         void BuildLantern(RectTransform page)
         {
             var centre = new Vector2(0.5f, 0.5f);
@@ -328,6 +370,24 @@ namespace MyGame
         }
 
         public void ChooseCharm(int by) => Choose(charmList, by);
+        public void ChooseProvision(int by) => Choose(satchelList, by);
+
+        // The chosen Provision onto the next belt slot round (up, right, down, left, then off the belt).
+        public void MoveOnBelt()
+        {
+            if (Current != Tab.Satchel || satchel.Count == 0)
+                return;
+            var p = satchel[satchelList.Selected];
+            var e = apprentice.Equipment;
+            int at = e.BeltSlotOf(p);
+            if (at >= 0)
+                e.PutOnBelt(at, null);
+            int next = at + 1;
+            if (next < Provision.BeltSlots)
+                e.PutOnBelt(next, p);
+            Sfx.Instance?.UiTick();
+            Draw();
+        }
         public void ChooseAbility(int by) => Choose(abilityList, by);
 
         void Choose(ScrollRows list, int by)
@@ -357,6 +417,10 @@ namespace MyGame
                     ChooseCharm(-step.y);
                 else if (step.y != 0 && Current == Tab.Abilities)
                     ChooseAbility(-step.y);
+                else if (step.y != 0 && Current == Tab.Satchel)
+                    ChooseProvision(-step.y);
+                else if (input.Confirm && Current == Tab.Satchel)
+                    MoveOnBelt();
             }
             if (group == null)
                 return;
@@ -390,6 +454,7 @@ namespace MyGame
                 case Tab.Apprentice: DrawApprentice(); break;
                 case Tab.Oar: DrawOar(); break;
                 case Tab.Abilities: DrawAbilities(); break;
+                case Tab.Satchel: DrawSatchel(); break;
                 case Tab.Charms: DrawCharms(); break;
                 default: DrawLantern(); break;
             }
@@ -465,6 +530,48 @@ namespace MyGame
                 bool on = chosen != null && i < chosen.Uses.Length;
                 abilityUses[i].enabled = on;
                 abilityUses[i].text = on ? "·  " + chosen.Uses[i] : "";
+            }
+        }
+
+        // Every Provision carried (or on the belt, used up), how many of its cap; the chosen one beside them, and the belt.
+        void DrawSatchel()
+        {
+            var e = apprentice.Equipment;
+            satchel.Clear();
+            satchelRowText.Clear();
+            var rows = new List<ScrollRows.Item>();
+            foreach (var p in Provision.All)
+                if (e.Carried(p) > 0 || e.BeltSlotOf(p) >= 0)
+                {
+                    satchel.Add(p);
+                    satchelRowText.Add(p.Name);
+                    int slot = e.BeltSlotOf(p);
+                    rows.Add(new ScrollRows.Item { Label = p.Name, Value = $"{e.Carried(p)} / {p.Cap}" + (slot >= 0 ? $"   {Provision.SlotNames[slot]}" : ""), Dim = e.Carried(p) == 0 });
+                }
+            satchelList.Set(rows);
+            bool any = satchel.Count > 0;
+            satchelNone.enabled = !any;
+            foreach (var g in satchelDetail)
+                g.enabled = any;
+            var chosen = any ? satchel[satchelList.Selected] : null;
+            satchelName.text = chosen?.Name ?? "";
+            satchelDescription.text = chosen?.Description ?? "";
+            satchelEffect.text = chosen?.Effect ?? "";
+            int at = chosen != null ? e.BeltSlotOf(chosen) : -1;
+            satchelBeltLine.text = chosen == null ? "" : at >= 0
+                ? $"On the belt: {Provision.SlotNames[at]} (key {at + 1}).   E / A: move it round"
+                : "Not on the belt.   E / A: put it on";
+            for (int i = 0; i < satchelBelt.Length; i++)
+            {
+                var p = e.OnBelt(i);
+                satchelBelt[i].icon.enabled = p != null && any;
+                satchelBelt[i].frame.enabled = any;
+                if (p != null)
+                {
+                    satchelBelt[i].icon.sprite = Hud.IconOf(p);
+                    satchelBelt[i].icon.color = Hud.ColourOf(p).WithAlpha(e.Carried(p) > 0 ? 1f : 0.3f);
+                }
+                satchelBelt[i].frame.color = p != null && p == chosen ? UiKit.Ember : UiKit.Bronze;
             }
         }
 

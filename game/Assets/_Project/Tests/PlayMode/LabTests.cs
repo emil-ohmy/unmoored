@@ -918,6 +918,139 @@ namespace MyGame.Tests
                             Assert.AreEqual(0f, m.GetFloat("_Cutaway"), $"{m.name}: a post isn't cut away");
         }
 
+        // The Satchel: each Provision up to its cap; the first of a kind goes on the belt's first empty slot.
+        [Test]
+        public void TheSatchel_HoldsUpToACap_AndFillsTheBelt()
+        {
+            var e = apprentice.Equipment;
+            Assert.AreEqual(Provision.PitchPot.Cap, e.AddProvision(Provision.PitchPot, 99), "no more than it takes");
+            Assert.AreEqual(0, e.AddProvision(Provision.PitchPot), "full");
+            e.AddProvision(Provision.WarmBroth);
+            Assert.AreEqual(Provision.PitchPot, e.OnBelt(0));
+            Assert.AreEqual(Provision.WarmBroth, e.OnBelt(1));
+            e.PutOnBelt(3, Provision.PitchPot);
+            Assert.IsNull(e.OnBelt(0), "moved, not copied");
+            Assert.AreEqual(3, e.BeltSlotOf(Provision.PitchPot));
+            Assert.IsTrue(e.SpendProvision(Provision.WarmBroth));
+            Assert.IsFalse(e.SpendProvision(Provision.WarmBroth), "none left");
+            Assert.AreEqual(Provision.WarmBroth, e.OnBelt(1), "an empty one keeps its slot");
+        }
+
+        IEnumerator UseFromTheBelt(Provision p)
+        {
+            apprentice.Equipment.AddProvision(p);
+            input.PressBelt(apprentice.Equipment.BeltSlotOf(p));
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Provision, apprentice.CurrentState, $"{p.Name}: used");
+        }
+
+        // A Pitch Pot, thrown at a Laden behind its heap: fire goes round a guard. It burns, and burns on a while.
+        [UnityTest]
+        public IEnumerator APitchPot_BurnsASouredThroughItsGuard()
+        {
+            float burnt = 0f;
+            System.Action<Soured, HitResult, float> count = (s, r, d) => { if (s == dummy) burnt += d; };
+            Soured.Struck += count;
+            try
+            {
+                apprentice.Teleport(dummy.transform.position - dummy.transform.forward * 4f);
+                apprentice.transform.rotation = Quaternion.LookRotation(dummy.transform.position - apprentice.transform.position);
+                yield return new WaitForSeconds(0.2f);
+                PitchPot pot = null;
+                apprentice.Threw += p => pot = p;
+                yield return UseFromTheBelt(Provision.PitchPot);
+                yield return new WaitForSeconds(1.2f);
+                Assert.IsNotNull(pot, "thrown");
+                Assert.IsTrue(pot.Burst, "and burst");
+                Assert.IsTrue(dummy.GetComponent<Burning>() != null && dummy.GetComponent<Burning>().Alight, "the Laden's alight");
+                float soon = burnt;
+                Assert.Greater(soon, 0f, "and hurt, heap or no heap");
+                yield return new WaitForSeconds(2f);
+                Assert.Greater(burnt, soon, "and burning on");
+                Assert.Greater(Effects.Instance.LiveFlames, 0, "flames to see");
+            }
+            finally { Soured.Struck -= count; }
+        }
+
+        // Ember Tar: for a while the oar hits harder, and what it hits catches fire.
+        [UnityTest]
+        public IEnumerator EmberTar_MakesTheOarBurn()
+        {
+            float plain = apprentice.DamageFactor;
+            yield return UseFromTheBelt(Provision.EmberTar);
+            yield return new WaitForSeconds(apprentice.drinkTime + 0.1f);
+            Assert.IsTrue(apprentice.Tarred);
+            Assert.AreEqual(plain * apprentice.tarDamage, apprentice.DamageFactor, 0.001f);
+            apprentice.Teleport(dummy.transform.position + dummy.transform.forward * 1.2f);
+            apprentice.transform.rotation = Quaternion.LookRotation(dummy.transform.position - apprentice.transform.position);
+            yield return new WaitForSeconds(0.2f);
+            input.PressLight();
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsTrue(dummy.GetComponent<Burning>() != null && dummy.GetComponent<Burning>().Alight, "it caught");
+        }
+
+        // Warm Broth: health mended slowly, a little at a time.
+        [UnityTest]
+        public IEnumerator WarmBroth_MendsSlowly()
+        {
+            apprentice.TakeTickDamage(60f);
+            float hurt = apprentice.Health;
+            yield return UseFromTheBelt(Provision.WarmBroth);
+            yield return new WaitForSeconds(apprentice.drinkTime + 1f);
+            Assert.Less(apprentice.Health, hurt + apprentice.brothAmount * 0.5f, "not all at once");
+            Assert.Greater(apprentice.Health, hurt, "but mending");
+            yield return new WaitForSeconds(apprentice.brothDuration);
+            Assert.AreEqual(hurt + apprentice.brothAmount, apprentice.Health, 1f, "all of it, in the end");
+        }
+
+        // The Way Back: to black, and back at the last Mooring post Rested at.
+        [UnityTest]
+        public IEnumerator TheWayBack_TakesYouToThePost()
+        {
+            var mooring = Object.FindAnyObjectByType<MooringPost>();
+            apprentice.Teleport(mooring.RespawnPoint);
+            yield return new WaitForSeconds(0.2f);
+            input.PressInteract();
+            yield return null;
+            input.PressDash(); // (stand up)
+            yield return new WaitForSeconds(0.3f);
+            apprentice.Teleport(new Vector3(30f, apprentice.transform.position.y, 0f));
+            yield return new WaitForSeconds(0.2f);
+            yield return UseFromTheBelt(Provision.WayBack);
+            yield return new WaitForSeconds(apprentice.wayBackTime * 0.8f);
+            Assert.Greater(apprentice.Dip, 0.5f, "going dark");
+            yield return new WaitForSeconds(apprentice.wayBackTime * 0.2f + 0.2f);
+            Assert.Less(Vector3.Distance(apprentice.transform.position, mooring.RespawnPoint), 1f, "at the post");
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+            Assert.AreEqual(0, apprentice.Equipment.Carried(Provision.WayBack), "used up");
+        }
+
+        // The Satchel page: what's carried, and confirm moves the chosen one round the belt.
+        [UnityTest]
+        public IEnumerator TheSatchelPage_PutsProvisionsOnTheBelt()
+        {
+            var screen = Object.FindAnyObjectByType<CharacterScreen>();
+            yield return null;
+            apprentice.Equipment.AddProvision(Provision.PitchPot, 2);
+            screen.Toggle(true);
+            while (screen.Current != CharacterScreen.Tab.Satchel)
+                screen.Turn(1);
+            yield return null;
+            Assert.AreEqual(Provision.PitchPot.Name, screen.SatchelRows[0]);
+            StringAssert.Contains("burning pitch", screen.SatchelDetail);
+            Assert.AreEqual(0, apprentice.Equipment.BeltSlotOf(Provision.PitchPot));
+            screen.MoveOnBelt();
+            Assert.AreEqual(1, apprentice.Equipment.BeltSlotOf(Provision.PitchPot), "round: to the right");
+            for (int i = 0; i < 3; i++)
+                screen.MoveOnBelt();
+            Assert.AreEqual(-1, apprentice.Equipment.BeltSlotOf(Provision.PitchPot), "and off");
+            screen.MoveOnBelt();
+            Assert.AreEqual(0, apprentice.Equipment.BeltSlotOf(Provision.PitchPot), "and on again, at the top");
+            screen.Toggle(false);
+            yield return null;
+            StringAssert.Contains("Pitch Pot 2", Object.FindAnyObjectByType<Hud>().BeltText(0), "the belt shows it, and how many");
+        }
+
         // A long list keeps its chosen row in view, moving as little as it can.
         [Test]
         public void ScrollRows_KeepTheChosenOneInView()
@@ -961,6 +1094,10 @@ namespace MyGame.Tests
             StringAssert.Contains("Hold F", screen.AbilityHow, "how it's used");
             StringAssert.Contains("RB", screen.AbilityHow);
             StringAssert.Contains("hook post", screen.AbilityHow, "and what for");
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Satchel, screen.Current);
+            Assert.AreEqual(0, screen.SatchelRows.Count, "nothing carried yet");
 
             screen.Turn(1);
             Assert.AreEqual(CharacterScreen.Tab.Charms, screen.Current);

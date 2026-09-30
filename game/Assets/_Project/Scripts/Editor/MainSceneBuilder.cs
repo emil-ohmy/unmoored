@@ -207,6 +207,10 @@ public static partial class MainSceneBuilder
         sfx.murmur = Clips("lingerer_murmur");
         sfx.oarStroke = Clips("oar_stroke");
         sfx.bossFarewell = Clips("boss_farewell");
+        sfx.pitchBurst = Clips("pitch_burst");
+        sfx.drink = Clips("drink");
+        sfx.tarSizzle = Clips("tar_sizzle");
+        sfx.wayBack = Clips("way_back");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
@@ -268,6 +272,7 @@ public static partial class MainSceneBuilder
         go.AddComponent<OarLook>(); // the oar's step: its trims and its wood
         Swoosh(go, "Oar", "Oar0Blade", ApprenticeSwoosh, 0.16f, towardsPivot: 0.55f); // from the tip to half-way down the shaft: a wide crescent
         apprentice.hookHeadModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
+        apprentice.pitchPotModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/provision_pitch_pot.fbx");
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
         Flicker(lantern, 0.06f, 2f, 0.01f); // a slow, steady pulse, not a flame
         go.AddComponent<BowLantern>().lanternLight = lantern;

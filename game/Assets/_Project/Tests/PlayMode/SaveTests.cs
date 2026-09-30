@@ -103,7 +103,7 @@ namespace MyGame.Tests
 
         // The oar's step, the Ferry Nails carried, and the Warm Stones and Held Breaths found are kept.
         [UnityTest]
-        public IEnumerator TheOar_AndWhatsFound_AreKept()
+        public IEnumerator TheOar_WhatsFound_AndTheSatchel_AreKept()
         {
             SaveSlots.Current = 0;
             yield return SceneManager.LoadSceneAsync("Main");
@@ -116,6 +116,9 @@ namespace MyGame.Tests
             apprentice.AddWarmStone();
             apprentice.AddHeldBreath();
             apprentice.AddHeldBreath();
+            apprentice.Equipment.AddProvision(Provision.PitchPot, 3);
+            apprentice.Equipment.AddProvision(Provision.WarmBroth, 1);
+            apprentice.Equipment.PutOnBelt(3, Provision.WarmBroth);
             float health = apprentice.maxHealth, stamina = apprentice.maxStamina;
             SaveSystem.Instance.SaveNow();
 
@@ -130,6 +133,10 @@ namespace MyGame.Tests
             Assert.AreEqual(health, apprentice.maxHealth);
             Assert.AreEqual(stamina, apprentice.maxStamina);
             Assert.AreEqual(2, apprentice.GetComponent<OarLook>().ShownStep, "and it looks it");
+            Assert.AreEqual(3, e.Carried(Provision.PitchPot), "the Satchel as it was");
+            Assert.AreEqual(1, e.Carried(Provision.WarmBroth));
+            Assert.AreEqual(Provision.PitchPot, e.OnBelt(0));
+            Assert.AreEqual(Provision.WarmBroth, e.OnBelt(3), "and the belt");
         }
 
         // A Lingerer's business is kept: the keepsake carried (and taken from where it lay), then where she stands with

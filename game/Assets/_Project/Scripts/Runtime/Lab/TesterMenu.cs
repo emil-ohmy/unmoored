@@ -132,6 +132,12 @@ namespace MyGame
                 }, equipment.charmSlots >= 3);
                 Add("The Hook", apprentice.HasHook ? "Owned" : "Take", "Pull to hook posts, yank Soured.", apprentice.GiveHook, apprentice.HasHook);
                 Add("500 Obols", $"{apprentice.Obols}", "Obols (souls, basically).", () => apprentice.GainObols(500));
+                Add("A full Satchel", $"{Provision.All.Length} kinds", "Every Provision, as many as the Satchel takes of each (and on the belt).", () =>
+                {
+                    foreach (var p in Provision.All)
+                        equipment.AddProvision(p, p.Cap);
+                    Say("Packed. Use them all, nobody's counting.");
+                });
                 Add("Strength...", "", "Ferry Nails for the oar, Warm Stones, Held Breaths, Healing charges, the lantern.", () => Go(Page.Strength));
                 Add("Back", "", "", () => Go(Page.Spawn));
             }
@@ -157,6 +163,8 @@ namespace MyGame
             Lantern.DevLevels = 0;
             foreach (var piece in Object.FindObjectsByType<UpgradePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 piece.PutBack();
+            foreach (var find in Object.FindObjectsByType<ProvisionFind>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                find.PutBack();
             Say("As new. Or as new as anyone gets down here.");
         }
 

@@ -16,12 +16,14 @@ namespace MyGame
         bool HookHeld { get; } // hold to aim the Hook, release to throw it
         bool BlockHeld { get; }
         int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
+        int BeltPressed { get; }  // the belt slot pressed this frame (0 up, 1 right, 2 down, 3 left: the d-pad, keys 1-4), or -1
     }
 
     // Keyboard/mouse and gamepad bindings (gamepad-first).
     public sealed class GameInput : IApprenticeInput, System.IDisposable
     {
         readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll;
+        readonly InputAction[] beltSlots;
         bool stickArmed = true;
 
         public GameInput()
@@ -40,6 +42,13 @@ namespace MyGame
             hook = Button("Hook", "<Keyboard>/f", "<Gamepad>/rightShoulder");
             switchStick = new InputAction("SwitchStick", InputActionType.Value, "<Gamepad>/rightStick/x");
             switchScroll = new InputAction("SwitchScroll", InputActionType.Value, "<Mouse>/scroll/y");
+            beltSlots = new[]
+            {
+                Button("Belt Up", "<Keyboard>/1", "<Gamepad>/dpad/up"),
+                Button("Belt Right", "<Keyboard>/2", "<Gamepad>/dpad/right"),
+                Button("Belt Down", "<Keyboard>/3", "<Gamepad>/dpad/down"),
+                Button("Belt Left", "<Keyboard>/4", "<Gamepad>/dpad/left"),
+            };
             foreach (var action in All)
                 action.Enable();
         }
@@ -62,6 +71,17 @@ namespace MyGame
         public bool BlockHeld => block.IsPressed();
         public bool HookHeld => hook.IsPressed();
 
+        public int BeltPressed
+        {
+            get
+            {
+                for (int i = 0; i < beltSlots.Length; i++)
+                    if (beltSlots[i].WasPressedThisFrame())
+                        return i;
+                return -1;
+            }
+        }
+
         public int SwitchTarget
         {
             get
@@ -80,7 +100,15 @@ namespace MyGame
             }
         }
 
-        InputAction[] All => new[] { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll };
+        InputAction[] All
+        {
+            get
+            {
+                var list = new System.Collections.Generic.List<InputAction> { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll };
+                list.AddRange(beltSlots);
+                return list.ToArray();
+            }
+        }
 
         public void Dispose()
         {
@@ -103,6 +131,18 @@ namespace MyGame
         public void PressInteract() => interact = true;
         public void PressLock() => lockOn = true;
         public void Switch(int direction) => switchTarget = direction;
+        public void PressBelt(int slot) => belt = slot;
+        int belt = -1;
+
+        public int BeltPressed
+        {
+            get
+            {
+                int value = belt;
+                belt = -1;
+                return value;
+            }
+        }
 
         public bool DashPressed => Take(ref dash);
         public bool LightPressed => Take(ref lightAttack);

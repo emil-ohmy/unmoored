@@ -179,6 +179,15 @@ ACTIONS = {
         (46, RAISED),
         (58, REST),
     ]),
+    # A Pitch Pot tossed (0.4 s): a wind back, the body swung forward and round as it lets go (at ~45%), the oar
+    # held back out of the way, then settled.
+    "Toss": ("BEZIER", [
+        (1, REST),
+        (3, {"Pivot": (-6, 0, 0), "Body": (-14, 0, -24), "Head": (6, 0, 16), "Oar": (-10, 0, 10), "Root": ((0, 0, 0), (0, 0.04, -0.02))}),
+        (5, {"Pivot": (10, 0, 0), "Body": (18, 0, 20), "Head": (-10, 0, -14), "Oar": (-14, 0, 14), "Root": ((0, 0, 0), (0, -0.06, -0.02))}),
+        (7, {"Pivot": (8, 0, 0), "Body": (12, 0, 12), "Head": (-6, 0, -8), "Oar": (-10, 0, 8), "Root": ((0, 0, 0), (0, -0.04, -0.01))}),
+        (10, REST),
+    ]),
     # The oar strengthened (2.4 s): a crouch, then the oar hoisted straight up high beside the head, blade to the sky,
     # the head tipped back to look up at it; a small pump at the top (its new look arrives there), then lowered.
     "RaiseOar": ("BEZIER", [
