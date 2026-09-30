@@ -23,6 +23,7 @@ namespace MyGame
 
         public Kind[] kinds = new Kind[0];
         public float ahead = 7f, spacing = 1.8f;
+        public float followRange = 80f; // set down here, a Soured follows you anywhere in the lab (up the heights too)
 
         public static readonly int[] Counts = { 1, 2, 3, 5 };
         public int Count { get; set; } = 1;
@@ -117,6 +118,15 @@ namespace MyGame
                 SpawnOne(kind, FreeSpot(origin, forward), forward);
         }
 
+        // (tests) One of a kind, set down right here, facing `facing`.
+        public Soured SpawnAt(string kindName, Vector3 at, Vector3 facing)
+        {
+            int kind = Array.FindIndex(kinds, k => k.name == kindName);
+            int before = spawned.Count;
+            SpawnOne(kind, at, -Flat(facing).normalized);
+            return spawned[before];
+        }
+
         public void SpawnFormation(int formation, Apprentice near)
         {
             Frame(near, out Vector3 origin, out Vector3 forward);
@@ -178,6 +188,8 @@ namespace MyGame
                 soured.passive = !Aggressive;
                 if (Aggressive)
                     soured.aggroRadius = Mathf.Max(soured.aggroRadius, ahead + 8f); // it knows you're there
+                soured.leashRadius = Mathf.Max(soured.leashRadius, followRange);
+                soured.giveUpRange = followRange;
                 spawned.Add(soured);
             }
             go.SetActive(true);

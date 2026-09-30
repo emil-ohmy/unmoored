@@ -161,6 +161,7 @@ public static partial class MainSceneBuilder
         hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");
         hud.textFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
         systems.AddComponent<Cutaway>(); // architecture between the camera and the Apprentice opens up
+        systems.AddComponent<NavMeshBaker>(); // the ways the Soured can walk, built as the scene loads
         systems.AddComponent<SaveSystem>(); // keeps the slot being played (from the title screen) in step with the world
         var pause = systems.AddComponent<PauseMenu>();
         pause.titleFont = hud.titleFont;

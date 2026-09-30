@@ -1,10 +1,10 @@
-"""A flight of stone steps, rising towards the game's north from its origin (the foot of the first step), 1.6 m
-wide: "storey" (2.4 m: 12 steps) and "low" (1.4 m: 7 steps). Each step a block with a pale worn tread edge; coursed
-cheeks either side. Game directions (see masonry.py)."""
+"""A flight of stone steps, rising towards the game's north from its origin (the foot of the first step), 2 m wide
+(broad enough for a Laden): "storey" (2.4 m: 12 steps) and "low" (1.4 m: 7 steps). Each step a block with a pale worn
+tread edge; coursed cheeks either side. Game directions (see masonry.py)."""
 import masonry as m
 
 VARIANTS = ["storey", "low"]
-RISE, RUN, WIDTH = 0.2, 0.333, 1.6
+RISE, RUN, WIDTH = 0.2, 0.333, 2.0
 
 
 def build(variant):
