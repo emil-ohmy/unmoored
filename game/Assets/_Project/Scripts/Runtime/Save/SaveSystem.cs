@@ -112,7 +112,11 @@ namespace MyGame
             d.healingCharges = apprentice.maxHealingCharges;
             d.hasHook = apprentice.HasHook;
             d.taken = FindObjectsByType<ObolCache>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(c => c.Taken).Select(c => c.SaveId)
-                .Concat(FindObjectsByType<ChargePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(c => c.Taken).Select(c => c.SaveId)).ToArray();
+                .Concat(FindObjectsByType<ChargePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(c => c.Taken).Select(c => c.SaveId))
+                .Concat(FindObjectsByType<Keepsake>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(k => k.Taken).Select(k => k.SaveId)).ToArray();
+            d.keepsakes = apprentice.Equipment.Keepsakes.ToArray();
+            d.lingerers = FindObjectsByType<Lingerer>(FindObjectsSortMode.None).Where(l => l.State != Lingerer.Business.Unmet)
+                .Select(l => $"{l.SaveId}={l.State}").ToArray();
             d.opened = FindObjectsByType<ShortcutGate>(FindObjectsSortMode.None).Where(g => g.IsOpen).Select(g => g.SaveId).ToArray();
             d.beaten = FindObjectsByType<Anchoress>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(b => b.TimesDefeated > 0).Select(b => b.SaveId).ToArray();
             return d;
@@ -132,6 +136,15 @@ namespace MyGame
             foreach (var piece in FindObjectsByType<ChargePiece>(FindObjectsSortMode.None))
                 if (d.taken.Contains(piece.SaveId))
                     piece.RestoreTaken();
+            foreach (var keepsake in FindObjectsByType<Keepsake>(FindObjectsSortMode.None))
+                if (d.taken.Contains(keepsake.SaveId))
+                    keepsake.RestoreTaken();
+            foreach (var id in d.keepsakes)
+                apprentice.Equipment.Carry(id);
+            foreach (var lingerer in FindObjectsByType<Lingerer>(FindObjectsSortMode.None))
+                foreach (var entry in d.lingerers)
+                    if (entry.StartsWith(lingerer.SaveId + "=") && System.Enum.TryParse(entry.Substring(lingerer.SaveId.Length + 1), out Lingerer.Business state))
+                        lingerer.Restore(state);
             foreach (var gate in FindObjectsByType<ShortcutGate>(FindObjectsSortMode.None))
                 if (d.opened.Contains(gate.SaveId))
                     gate.RestoreOpen();

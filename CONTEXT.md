@@ -23,6 +23,14 @@ _Avoid_: Spirit, ghost
 A soul held back by unfinished business, who can cross once it's resolved and their fare is paid.
 _Avoid_: NPC, lost soul, quest giver
 
+**Keepsake**:
+Something a Lingerer lost, found out in the world and carried back to them; bringing it resolves their business. Not Equipment, never sold.
+_Avoid_: Quest item, key item (that's an Ability's)
+
+**Fare**:
+The coin a Lingerer's Crossing costs, paid by the Apprentice in Obols once their business is resolved. Always optional.
+_Avoid_: Toll, fee, price
+
 **Soured**:
 A soul the Ferryman kept too long, turned hostile; the game's enemies. Defeat scatters them, it doesn't free them.
 _Avoid_: Enemy, monster, hollow
@@ -112,6 +120,9 @@ _Avoid_: Corpse, ghost, bloodstain, echo
 
 **Boss**:
 The unique, tough enemy at the climax of an Area.
+
+**Old Hesper**:
+The Drowned Village's Lingerer, in full "Old Hesper, who keeps a light": an old woman on the landing keeping a lamp lit for her son, who went out the night the water came up. Her keepsake is his boat-lantern, still burning out on the islet north of the yard (reached with the Hook); brought it, she can let him go. Her fare paid, she waits by the boat for her Crossing.
 
 **The Antediluvian Anchoress**:
 The Drowned Village's Boss: a Laden who would not let the Ferryman go. She chained his ferry's anchor to herself (fastened with his stolen hook) and keeps vigil in the drowned chapel; beaten, she gives up the Hook. "Antediluvian": from before the flood. Her full title, revealed as her fight first begins: the Antediluvian Anchoress, of Fleeting Memories.

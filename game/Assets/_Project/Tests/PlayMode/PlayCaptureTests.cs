@@ -1100,6 +1100,85 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // Old Hesper on the landing: met, the talk band; his lantern on the islet; then held in her lap, and by the boat.
+        [UnityTest]
+        public IEnumerator Capture_Hesper()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var hesper = UnityEngine.Object.FindAnyObjectByType<Lingerer>();
+            var keepsake = UnityEngine.Object.FindAnyObjectByType<Keepsake>();
+            yield return Frames(40);
+            Shot("hesper-start");
+            apprentice.Teleport(hesper.InteractPosition + Vector3.right * 0.9f);
+            yield return Frames(20);
+            Shot("hesper-near");
+            input.PressInteract();
+            yield return Frames(12);
+            Shot("hesper-typing");
+            yield return Frames(40);
+            Shot("hesper-line");
+            input.PressInteract();
+            yield return Frames(2);
+            input.PressInteract();
+            yield return Frames(90);
+            Shot("hesper-line2");
+            apprentice.OpenMenu?.Close();
+            apprentice.Teleport(keepsake.transform.position + new Vector3(0.8f, 0f, -1.2f));
+            yield return Frames(30);
+            Shot("hesper-keepsake");
+            apprentice.Equipment.Carry(keepsake.id);
+            apprentice.GainObols(100);
+            apprentice.Teleport(hesper.InteractPosition + Vector3.right * 0.9f);
+            yield return Frames(20);
+            input.PressInteract();
+            yield return Frames(60);
+            Shot("hesper-given");
+            var talk = (Conversation)apprentice.OpenMenu;
+            talk.Skip();
+            yield return Frames(10);
+            Shot("hesper-fare");
+            talk.Choose(0);
+            apprentice.OpenMenu?.Close();
+            for (int f = 0; f < 100; f += 10)
+            {
+                yield return Frames(10);
+                Shot($"hesper-drift-{f:D3}");
+            }
+            yield return Frames(20);
+            Shot("hesper-boat");
+            cam.targetTexture = null;
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

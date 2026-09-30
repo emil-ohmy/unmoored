@@ -30,6 +30,7 @@ namespace MyGame
         public float HookMarkerAlpha => hookMarkerImage != null ? hookMarkerImage.color.a : 0f;
         const int MaxChargeSlots = 8;
         public MenuPanel Menu { get; private set; }
+        public DialogueBox Dialogue { get; private set; }
         public BossBar Boss { get; private set; }
         public Banner Farewell { get; private set; }     // a Boss beaten: its joke ("ANCHOR DOWN")...
         public Banner FarewellLine { get; private set; } // ...and the sincere line beneath ("She let go.")
@@ -122,6 +123,7 @@ namespace MyGame
                 font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = -52f, fadeIn = 1.6f, hold = 2.6f, fadeOut = 2.0f, drift = 0.02f,
             });
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
+            Dialogue = new DialogueBox(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
             usingGamepad = Gamepad.current != null;
@@ -252,7 +254,9 @@ namespace MyGame
                 LanternBanner.Dismiss();
             }
             Boss.Tick(BossFight.Current);
-            Menu.Tick(apprentice.OpenMenu, usingGamepad);
+            var talk = apprentice.OpenMenu as Conversation; // (a soul speaking has its own look)
+            Menu.Tick(talk == null ? apprentice.OpenMenu : null, usingGamepad);
+            Dialogue.Tick(talk, usingGamepad);
             Death.Tick();
             hudGroup.alpha = Death.HudAlpha * (Pause.IsPaused ? 0.2f : 1f); // (dimmed under the pause menu)
             AreaTitle.Tick();
@@ -375,7 +379,7 @@ namespace MyGame
             glyph.text = usingGamepad ? "A" : "E";
             if (apprentice.Nearby != null)
                 promptLabel.text = apprentice.Nearby.PromptLabel;
-            float target = apprentice.Nearby != null && apprentice.IsAlive ? 1f : 0f;
+            float target = apprentice.Nearby != null && apprentice.IsAlive && apprentice.OpenMenu == null ? 1f : 0f; // (not over a menu or a talk)
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, target, UiKit.DeltaTime * 5f);
         }
 

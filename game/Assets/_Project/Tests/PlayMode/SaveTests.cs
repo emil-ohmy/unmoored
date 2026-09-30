@@ -101,6 +101,56 @@ namespace MyGame.Tests
             Assert.AreEqual(0, apprentice.Obols);
         }
 
+        // A Lingerer's business is kept: the keepsake carried (and taken from where it lay), then where she stands with
+        // it: given, her fare paid, waiting by the boat.
+        [UnityTest]
+        public IEnumerator ALingerersBusiness_IsKept()
+        {
+            SaveSlots.Current = 0;
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            var apprentice = Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            var hesper = Object.FindAnyObjectByType<Lingerer>();
+            var keepsake = Object.FindAnyObjectByType<Keepsake>();
+            hesper.Interact(apprentice);
+            apprentice.OpenMenu.Close();
+            apprentice.Teleport(keepsake.transform.position + Vector3.right * 0.6f);
+            yield return null;
+            keepsake.Interact(apprentice);
+            yield return new WaitForSeconds(1f);
+            SaveSystem.Instance.SaveNow();
+
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            apprentice = Object.FindAnyObjectByType<Apprentice>();
+            hesper = Object.FindAnyObjectByType<Lingerer>();
+            Assert.AreEqual(Lingerer.Business.Waiting, hesper.State, "met");
+            Assert.IsTrue(apprentice.Equipment.Carries(keepsake.id), "still carried");
+            Assert.IsTrue(Object.FindObjectsByType<Keepsake>(FindObjectsInactive.Include, FindObjectsSortMode.None).All(k => k.Taken && !k.gameObject.activeSelf),
+                "not lying there again");
+
+            apprentice.GainObols(100);
+            hesper.Interact(apprentice);
+            var talk = (Conversation)apprentice.OpenMenu;
+            talk.Skip();
+            talk.Choose(0);
+            apprentice.OpenMenu.Close();
+            yield return null;
+            Assert.AreEqual(Lingerer.Business.Paid, hesper.State);
+            SaveSystem.Instance.SaveNow();
+
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            apprentice = Object.FindAnyObjectByType<Apprentice>();
+            hesper = Object.FindAnyObjectByType<Lingerer>();
+            Assert.AreEqual(Lingerer.Business.Paid, hesper.State);
+            Assert.IsFalse(apprentice.Equipment.Carries(keepsake.id), "given");
+            Assert.IsTrue(hesper.heldKeepsake.activeSelf, "she holds it");
+            Assert.Less(Vector3.Distance(hesper.transform.position, hesper.waitAt.position), 0.1f, "waiting by the boat");
+            Assert.AreEqual(0, apprentice.Obols);
+        }
+
         // Playing a scene straight from the editor (no slot chosen) keeps nothing.
         [UnityTest]
         public IEnumerator PlayingWithoutASlot_SavesNothing()

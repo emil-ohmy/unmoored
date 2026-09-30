@@ -74,6 +74,7 @@ public static partial class MainSceneBuilder
         Place("Environment/jetty_landing", new Vector3(walkX, QuayTop - 0.03f, -5.0f - Segment * 4), 0f);
         MooringPostAt(new Vector3(walkX + 1.25f, QuayTop, -26.7f), 180f);
         MerchantAt(new Vector3(walkX - 1.25f, QuayTop, -24.35f), 127f); // the landing's north-west corner, clear of the gate
+        HesperAt(new Vector3(walkX - 1.3f, QuayTop, -26.9f), 180f, new Vector3(walkX + 1.45f, QuayTop, -25.0f), 90f); // the south-west corner, looking out
         Place("Environment/boat", new Vector3(walkX + 2.55f, -0.12f, -25.6f), 186f);
         StreetLantern(new Vector3(walkX + 0.75f, QuayTop, -11.8f), -90f, 2.2f);
         // The title card comes up as the torchlit quay swims into view, before anything there notices you.
@@ -185,6 +186,7 @@ public static partial class MainSceneBuilder
         sfx.itemTake = Clips("item_take");
         sfx.keyItem = Clips("key_item");
         sfx.lanternSnuff = Clips("lantern_snuff");
+        sfx.murmur = Clips("lingerer_murmur");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
@@ -315,6 +317,18 @@ public static partial class MainSceneBuilder
         glow.tier = PickupGlow.Tier.Item;
         glow.colour = LanternLight;
         glow.height = 1.0f;
+        // Beside it, a little lantern still burning: Hesper's son's (she saw its light from the landing).
+        var lantern = Place("Environment/boat_lantern", new Vector3(-30.1f, QuayTop, 10.7f), 200f);
+        lantern.name = "Boat-Lantern (Keepsake)";
+        var keepsake = lantern.AddComponent<Keepsake>();
+        keepsake.id = HesperKeepsake;
+        keepsake.title = "A Boat-Lantern";
+        keepsake.hint = "Its glass is painted, crookedly. It's still burning. Old Hesper will know it.";
+        keepsake.interactRadius = 1.2f;
+        var lanternGlow = lantern.AddComponent<PickupGlow>();
+        lanternGlow.tier = PickupGlow.Tier.Item;
+        lanternGlow.colour = LanternLight;
+        lanternGlow.height = 0.6f;
     }
 
     // Seen on the way in, long before the Hook: beside the half-sunken house west of the boardwalk, a little deck with
@@ -536,6 +550,83 @@ public static partial class MainSceneBuilder
         dropped.carried = lantern;
         dropped.body = body.transform;
         soured.droppedLantern = dropped;
+    }
+
+    const string HesperKeepsake = "hesper-boat-lantern";
+
+    // Old Hesper, a Lingerer: an old soul on a crate at the landing's edge, keeping a lamp lit for her son, who went out
+    // the night the water came up. Bring her his boat-lantern (on the islet north of the yard) and she can let him go;
+    // pay her fare and she waits by the boat for the Crossing (`waitAt`, `waitYaw`). She never jokes.
+    static void HesperAt(Vector3 position, float yaw, Vector3 waitAt, float waitYaw)
+    {
+        var go = Place("Environment/hesper", position, yaw);
+        go.name = "Old Hesper";
+        var hesper = go.AddComponent<Lingerer>();
+        hesper.id = "hesper";
+        hesper.displayName = "Old Hesper, who keeps a light";
+        hesper.keepsake = HesperKeepsake;
+        hesper.fare = 100;
+        hesper.interactRadius = 1.0f; // short: the landing is crowded (the gate home comes in just north of her)
+        hesper.payLabel = "Pay her fare";
+        var wait = new GameObject("Hesper Waits Here").transform;
+        wait.SetPositionAndRotation(waitAt, Quaternion.Euler(0f, waitYaw - yaw, 0f) * go.transform.rotation);
+        hesper.waitAt = wait;
+        hesper.kept = PointLight(go.transform, GlowCentre(go, "HesperLamp_Glow"), 3.0f, 1.3f, LanternLight);
+        Flicker(hesper.kept, 0.14f, 4f, 0.01f);
+        // His lantern, in her lap once it's brought to her (hidden until then).
+        var held = Place("Environment/boat_lantern", GlowCentre(go, "HesperEyes_Glow") + Vector3.down * 0.45f, yaw);
+        foreach (var c in held.GetComponentsInChildren<Collider>())
+            UnityEngine.Object.DestroyImmediate(c);
+        held.name = "Boat-Lantern (Held)";
+        held.transform.SetParent(go.transform, true);
+        Flicker(PointLight(held.transform, GlowCentre(held, "BoatLantern_Glow"), 2.6f, 1.4f, LanternLight), 0.1f, 5f, 0.01f);
+        held.SetActive(false);
+        hesper.heldKeepsake = held;
+
+        hesper.meeting = new[]
+        {
+            "Oh. You're not him.",
+            "Forgive me. I keep a lamp here for my boy. He went out the night the water came up, and he hasn't found his way back.",
+            "I saw his light, though. Out on the water, on the little deck north of the yard. Burning, all this time.",
+            "I can't reach it. My old legs were never for water. Nor for all that rolling about you young ones do.",
+            "But you... you carry the Ferryman's things, don't you?",
+            "If you could bring it to me. I'd know him by it.",
+        };
+        hesper.waiting = new[] { "His light's still out there. On the little deck, north of the yard." };
+        // Her own dry asides, one a visit. She's wry, never about his loss: the grief lines stay straight.
+        hesper.waitingAsides = new[]
+        {
+            "You're back. In one piece, mostly. That's more than most who go past the quay.",
+            "That post of yours. You sit at it, and every one of those poor things out there gets back up. Did you notice? I'd find another post.",
+            "I watched you fall in the water, earlier. And then you were back on the landing, dripping. You do that a lot, don't you, child?",
+            "You needn't keep coming to tell me you haven't found it. But it's nice. Nobody visits.",
+        };
+        hesper.waitingWithoutHook = new[] { "There's no bridge. There never was. The Ferryman used to cross with a hook, you know. Not by jumping. Please don't jump." };
+        hesper.given = new[]
+        {
+            "That's it. That's his.",
+            "He painted the glass himself. Crooked, see? He never could hold a brush still.",
+            "It's still warm.",
+            "Then he didn't go astray. He went across. He must have. The light's still burning.",
+            "I can let him go now. I can go too.",
+        };
+        hesper.fareAsked = new[] { "They say the crossing costs a coin. I have none. I spent them all on oil." };
+        hesper.fareAgain = new[] { "The crossing costs a coin, they say. I've nothing left but oil. And you're not having the oil." };
+        hesper.declined = new[] { "Take your time. I've waited this long. I'm very good at it." };
+        hesper.paid = new[]
+        {
+            "Thank you, child.",
+            "A hundred Obols. You carried all that about? Past those things on the quay? Well. Young people.",
+            "I remember the Ferryman slowing, every night, to wave at my lamp. Then one night he didn't. Not a wave. Not a look.",
+            "I'll wait by the boat. When you're ready to row, I'll be there.",
+        };
+        hesper.ready = new[] { "The boat's there, and I'm ready. Whenever you are." };
+        hesper.readyAsides = new[]
+        {
+            "You keep coming to check on me. I'm not going anywhere, child. That was rather the trouble.",
+            "Don't hurry on my account. I've been dead for years. A few more minutes won't hurt.",
+            "I've never been in a boat. I spent my whole life by the water and never once. Isn't that silly.",
+        };
     }
 
     // The merchant soul (standing in for the Hub's), with the warm lantern on its staff: warm light is safety.

@@ -42,6 +42,7 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Menu tick (`ui_tick`) | in game | Synth | a tiny soft wooden tick, moving through a menu |
 | Apprentice death (`death_toll`) | in game | Synth | one deep bell toll that sinks under water (highs close off), thump, sinking whoosh, bubbles; the music ducks under it |
 | Bow lantern snuffed (`lantern_snuff`) | in game | Synth | the Apprentice falls: a flare, the flame fluttering faster and fainter, a last puff, a deep cold swell sinking under it |
+| A soul murmurs (`lingerer_murmur`) | in game | Synth | a Lingerer beginning a line: a soft, wordless, breathy hum, low and old, in a little hall (4 contours) |
 | Chapel floor cracking (`floor_crack`, 2) | in game | Synth | the warning before a section gives way: a grinding rumble swelling, cracks quickening, grit |
 | Chapel floor giving way (`floor_break`, 2) | in game | Synth | a splitting crack, the deep boom of it dropping, stone grinding and tumbling, rubble plopping into the water |
 | Anchoress's Undertow (`undertow`) | in game | Synth | 4 s: a low drowned murmur of prayer (two muffled voices) over water welling up, deep churning, bubbles thickening; her tell when she kneels |

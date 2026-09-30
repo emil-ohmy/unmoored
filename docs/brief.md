@@ -33,8 +33,13 @@ people) it may wink at being a soulslike. Remember to put the humour in: it's pa
 - **Where it jokes:** the game's own screens and descriptions. Boss defeat banners, item and Charm descriptions, the
   Obol counter, the death screen's rare variants, the merchant's patter, the occasional Lantern Lit.
   Examples: "Obols (souls, basically)"; the Tester's Knot "for play-testing"; "You Sank (Again)".
-- **Where it never jokes:** Bosses, Lingerers and the lore themselves, their words and their stories. A Boss is
-  never silly in the fight; the joke comes after, from the game.
+- **Where it never jokes:** Bosses and the lore themselves, their words and their stories. A Boss is never silly in
+  the fight; the joke comes after, from the game.
+- **Lingerers may be wry, in character.** A soul can have a dry wit of their own, and may notice, from inside the
+  world, the things a soulslike does (the Apprentice rolling about, dying and walking back dripping, Resting and every
+  Soured getting back up, carrying a fortune past monsters), without ever naming the genre. Their grief is played
+  straight: the joke never lands on the line that should hurt. Old Hesper: *"That post of yours. You sit at it, and
+  every one of those poor things out there gets back up. Did you notice? I'd find another post."*
 - **The pattern for a Boss beaten: the joke big, the sincere line small beneath it.** The laugh lands first, then the
   quiet line catches you. The Anchoress: **"ANCHOR DOWN"** / *She let go.*
 - **Sparingly:** a joke that's always there wears out. Rare variants (a death screen now and then, not every time),

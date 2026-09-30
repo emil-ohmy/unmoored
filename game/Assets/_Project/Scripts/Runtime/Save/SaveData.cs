@@ -5,7 +5,7 @@ namespace MyGame
 {
     // One save slot's progress. Only what lasts: where the Apprentice last Rested (they wake there on loading), the
     // Mooring posts lit, the Obols carried and the Shade left (where, with how many), Equipment, Healing charges,
-    // Abilities, items taken, gates opened, Bosses beaten. Not enemies (they re-form on Rest), nor health (a Rest fills
+    // Abilities, items taken, keepsakes carried, where each Lingerer's business stands, gates opened, Bosses beaten. Not enemies (they re-form on Rest), nor health (a Rest fills
     // it), nor where the Apprentice stands. World things are named by SaveKey.
     [Serializable]
     public sealed class SaveData
@@ -26,7 +26,9 @@ namespace MyGame
         public string[] charmsFitted = new string[0];
         public int healingCharges = 3;              // the most they can carry
         public bool hasHook;
-        public string[] taken = new string[0];      // items picked up (Obol caches, Healing charge pieces)
+        public string[] taken = new string[0];      // items picked up (Obol caches, Healing charge pieces, keepsakes)
+        public string[] keepsakes = new string[0];  // keepsakes carried (not yet given)
+        public string[] lingerers = new string[0];  // each Lingerer's business: "id=State" (Waiting, Given, Paid)
         public string[] opened = new string[0];     // gates opened (shortcuts)
         public string[] beaten = new string[0];     // Bosses beaten
     }
