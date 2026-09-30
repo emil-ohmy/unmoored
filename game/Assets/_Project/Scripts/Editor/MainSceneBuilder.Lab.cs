@@ -68,10 +68,12 @@ public static partial class MainSceneBuilder
         }
         var laden = Template(Laden("Laden", new Vector3(0f, QuayTop, 0f), 0f));
         var archer = Template(LadenArcher("Laden archer", new Vector3(0f, QuayTop, 0f), 0f));
+        var clinger = Template(Clinger("Clinger", new Vector3(0f, QuayTop, 0f), 0f));
         spawner.kinds = new[]
         {
             new LabSpawner.Kind { name = "Laden", template = laden.gameObject },
             new LabSpawner.Kind { name = "Laden archer", template = archer.gameObject },
+            new LabSpawner.Kind { name = "Clinger", template = clinger.gameObject }, // (two near each other pair up)
         };
         tester.spawner = spawner;
 

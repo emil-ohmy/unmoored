@@ -174,5 +174,202 @@ namespace MyGame.Tests
             Assert.AreEqual(Soured.State.Idle, dummy.CurrentState, "it never fights back");
             Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
         }
+
+        // ---- The Clinger
+
+        Clinger[] SpawnClingers()
+        {
+            var spawner = post.spawner;
+            int kind = System.Array.FindIndex(spawner.kinds, k => k.name == "Clinger");
+            Assert.GreaterOrEqual(kind, 0, "the lab can set down Clingers");
+            spawner.Count = 2; // (a pair)
+            spawner.Spawn(kind, apprentice);
+            return spawner.Spawned.OfType<Clinger>().ToArray();
+        }
+
+        [UnityTest]
+        public IEnumerator Clingers_ComeInPairs_CircleYou_ThenOneLeaps()
+        {
+            var pair = SpawnClingers();
+            Assert.AreEqual(2, pair.Length, "a pair");
+            yield return null;
+            yield return null;
+            Assert.AreSame(pair[1], pair[0].partner, "each the other's other half");
+            Assert.AreSame(pair[0], pair[1].partner);
+            bool leapt = false, together = false;
+            float nearest = 99f;
+            for (float t = 0f; t < 8f && !leapt; t += Time.deltaTime)
+            {
+                foreach (var c in pair)
+                    if (c.CurrentState == Soured.State.Telegraph)
+                        leapt = true;
+                together |= pair.All(c => c.CurrentState == Soured.State.Telegraph);
+                if (pair.All(c => c.CurrentState == Soured.State.Chase))
+                    nearest = Mathf.Min(nearest, pair.Min(c => Vector3.Distance(c.transform.position, apprentice.transform.position)));
+                yield return null;
+            }
+            Assert.IsTrue(leapt, "one crouches to leap");
+            Assert.IsFalse(together, "one at a time: the other watches");
+            Assert.Greater(nearest, 1.2f, "they circle at a distance, they don't walk into you");
+        }
+
+        [UnityTest]
+        public IEnumerator Clinger_ClingsToYourBack_DrainsYou_AndADashThrowsItOff()
+        {
+            var pair = SpawnClingers();
+            pair[1].gameObject.SetActive(false); // (one, for a clean look)
+            var clinger = pair[0];
+            for (float t = 0f; t < 10f && apprentice.ClungBy == 0; t += Time.deltaTime)
+                yield return null; // standing still: it catches you
+            Assert.AreEqual(1, apprentice.ClungBy, "it caught hold");
+            Assert.IsTrue(clinger.Clinging);
+            yield return new WaitForSeconds(0.5f); // (the grab's own jolt passes)
+            Vector3 back = apprentice.transform.position - apprentice.transform.forward * clinger.backOffset;
+            Assert.Less(Vector3.Distance(new Vector3(clinger.transform.position.x, 0f, clinger.transform.position.z), new Vector3(back.x, 0f, back.z)), 0.1f, "on your back");
+            float stamina = apprentice.Stamina, health = apprentice.Health;
+            yield return new WaitForSeconds(1f);
+            Assert.Less(apprentice.Stamina, stamina - 15f, "your stamina drains away");
+            Assert.Less(apprentice.Health, health - 1.5f, "and your health a little");
+            yield return new WaitForSeconds(4f);
+            Assert.AreEqual(0f, apprentice.Stamina, 0.01f, "none left");
+            Assert.Greater(clinger.Whispers, 0, "it whispers");
+
+            input.Move = Vector2.right;
+            input.PressDash(); // even spent, a dash throws it off
+            yield return null;
+            input.Move = Vector2.zero;
+            Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
+            Assert.AreEqual(0, apprentice.ClungBy);
+            Assert.IsTrue(clinger.BeingThrown, "flung off");
+            yield return new WaitForSeconds(clinger.throwTime + 0.1f);
+            Assert.AreEqual(Soured.State.Staggered, clinger.CurrentState, "it lands staggered: your window");
+            Assert.Greater(Vector3.Distance(clinger.transform.position, apprentice.transform.position), 1.5f);
+            Assert.Greater(clinger.transform.position.y, 0.3f, "on the quay");
+        }
+
+        [UnityTest]
+        public IEnumerator Clinger_PerfectBlocked_IsKnockedDown()
+        {
+            var pair = SpawnClingers();
+            pair[1].gameObject.SetActive(false);
+            var clinger = pair[0];
+            for (float t = 0f; t < 10f && clinger.CurrentState != Soured.State.Telegraph; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(Soured.State.Telegraph, clinger.CurrentState);
+            // Raise the block facing it just before it lands (the perfect window).
+            float landsIn = clinger.leap.telegraph + clinger.leap.strike * clinger.leap.impactAt - clinger.StateTime;
+            yield return new WaitForSeconds(landsIn - 0.12f);
+            Vector3 to = clinger.transform.position - apprentice.transform.position;
+            to.y = 0f;
+            apprentice.transform.rotation = Quaternion.LookRotation(to);
+            input.BlockHeld = true;
+            yield return new WaitForSeconds(0.3f);
+            input.BlockHeld = false;
+            Assert.AreEqual(Soured.State.Stunned, clinger.CurrentState, "knocked down, open to a riposte");
+            Assert.AreEqual(0, apprentice.ClungBy);
+        }
+
+        [UnityTest]
+        public IEnumerator Clinger_ItsOtherHalfScattered_Keens_AndTurnsFrantic()
+        {
+            var pair = SpawnClingers();
+            yield return null;
+            yield return null;
+            pair[0].TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+            yield return new WaitForSeconds(0.2f);
+            Assert.IsFalse(pair[0].IsAlive);
+            Assert.IsTrue(pair[1].Frantic, "the other keens, and turns frantic");
+            Assert.IsFalse(pair[0].Frantic);
+        }
+
+        // (a probe: which Clinger sounds actually play in a fight, and at what volume)
+        [UnityTest]
+        public IEnumerator Clinger_Sounds_Play()
+        {
+            var played = new System.Collections.Generic.List<string>();
+            void OnPlayed(AudioClip clip, AudioSource source)
+            {
+                if (clip.name.StartsWith("clinger") || clip.name.StartsWith("dash"))
+                    played.Add($"{clip.name} vol {source.volume:0.00} at {Vector3.Distance(source.transform.position, apprentice.transform.position):0.0} m");
+            }
+            Sfx.Played += OnPlayed;
+            try
+            {
+                var pair = SpawnClingers();
+                for (float t = 0f; t < 12f && apprentice.ClungBy < 2; t += Time.deltaTime)
+                    yield return null;
+                yield return new WaitForSeconds(3f);
+                input.Move = Vector2.left;
+                input.PressDash();
+                yield return new WaitForSeconds(0.6f);
+                input.Move = Vector2.zero;
+                pair[0].TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+                yield return new WaitForSeconds(0.5f);
+            }
+            finally
+            {
+                Sfx.Played -= OnPlayed;
+            }
+            Debug.Log("[probe] Clinger sounds:\n" + string.Join("\n", played));
+            foreach (var kind in new[] { "clinger_skitter", "clinger_hiss", "clinger_grab", "clinger_whisper", "clinger_throw", "clinger_keen" })
+                Assert.IsTrue(played.Any(p => p.StartsWith(kind)), $"{kind} played");
+        }
+
+        // Dying in the lab: everything set down is back where it was set down, whole and calm, when you wake.
+        [UnityTest]
+        public IEnumerator Dying_ResetsEverySoured()
+        {
+            var pair = SpawnClingers();
+            for (float t = 0f; t < 12f && apprentice.ClungBy == 0; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(apprentice.TakeTickDamage(10000f));
+            Assert.IsFalse(apprentice.IsAlive);
+            yield return new WaitForSeconds(apprentice.respawnDelay + 0.2f);
+            Assert.IsTrue(apprentice.IsAlive, "woken");
+            yield return new WaitForSeconds(1.5f);
+            foreach (var c in pair)
+            {
+                Assert.IsFalse(c.Clinging);
+                Assert.AreEqual(c.maxHealth, c.Health);
+                Assert.AreEqual(Soured.State.Idle, c.CurrentState, "reset: calm, where it was set down");
+            }
+            Assert.AreEqual(0, apprentice.ClungBy);
+            // Step off the spot: they come again.
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(0.6f);
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(pair.Any(c => c.CurrentState != Soured.State.Idle), "then they come for you");
+        }
+
+        // Different kinds, one after another, each on a spot of its own; and the ready-made formations.
+        [UnityTest]
+        public IEnumerator TestersPost_MixesKinds_AndFormations()
+        {
+            yield return OpenTheMenu();
+            Menu.Do("Laden");
+            Menu.Do("Clinger");
+            Menu.Do("Laden archer");
+            Menu.Do("Clinger");
+            var all = post.spawner.Spawned.ToArray();
+            Assert.AreEqual(4, all.Length);
+            for (int i = 0; i < all.Length; i++)
+                for (int j = i + 1; j < all.Length; j++)
+                    Assert.Greater(Vector3.Distance(all[i].transform.position, all[j].transform.position), 1.5f, "each on a spot of its own");
+            Assert.AreEqual(2, all.OfType<Clinger>().Count(), "Clingers one at a time");
+            Menu.Do("Clear them all");
+            Menu.Do("Formations...");
+            Assert.AreEqual("Formations", Menu.PageName);
+            Menu.Do("Everything");
+            var formed = post.spawner.Spawned.ToArray();
+            Assert.AreEqual(4, formed.Length);
+            Assert.AreEqual(1, formed.OfType<LadenArcher>().Count());
+            Assert.AreEqual(2, formed.OfType<Clinger>().Count());
+            Assert.AreEqual(1, formed.Count(s => s.GetType() == typeof(Laden)));
+            apprentice.OpenMenu.Close();
+            yield return new WaitForSeconds(0.2f);
+            var clingers = formed.OfType<Clinger>().ToArray();
+            Assert.AreSame(clingers[1], clingers[0].partner, "the two Clingers pair up");
+        }
     }
 }

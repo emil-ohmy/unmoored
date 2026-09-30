@@ -1340,6 +1340,60 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The Clinger: a pair circling, the crouch and leap, one on the Apprentice's back, thrown off.
+        [UnityTest]
+        public IEnumerator Capture_Clinger()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            apprentice.postHitInvulnerability = 0.2f;
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            apprentice.Teleport(new Vector3(4f, 0.55f, 0f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+            yield return Frames(10);
+            int kind = Array.FindIndex(post.spawner.kinds, k => k.name == "Clingers");
+            post.spawner.Spawn(kind, apprentice);
+            var pair = post.spawner.Spawned.OfType<Clinger>().ToArray();
+            yield return Frames(10);
+            Capture(outDir, "clinger-0-spawned");
+            yield return Frames(30);
+            Capture(outDir, "clinger-1-circling");
+            int shots = 0;
+            for (int f = 0; f < 600 && apprentice.ClungBy == 0; f++)
+            {
+                var leaping = pair.FirstOrDefault(c => c.CurrentState == Soured.State.Telegraph || c.CurrentState == Soured.State.Strike);
+                if (leaping != null && shots < 6 && f % 3 == 0)
+                    Capture(outDir, $"clinger-2-leap-{shots++}");
+                yield return null;
+            }
+            yield return Frames(30);
+            Capture(outDir, "clinger-3-clinging");
+            for (int f = 0; f < 150 && apprentice.ClungBy < 2; f++)
+                yield return null;
+            yield return Frames(20);
+            Capture(outDir, "clinger-4-both");
+            input.Move = Vector2.left;
+            input.PressDash();
+            for (int f = 0; f < 15; f += 3)
+            {
+                yield return Frames(3);
+                Capture(outDir, $"clinger-5-thrown-{f:D2}");
+            }
+            input.Move = Vector2.zero;
+            yield return Frames(15);
+            Capture(outDir, "clinger-6-staggered");
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()
