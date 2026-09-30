@@ -9,6 +9,8 @@ using UnityEngine;
 //  - Unity does the axis conversion (bakeAxisConversion): rigged FBX are exported without Blender's
 //    bake_space_transform, which Blender flags as broken with armatures.
 //  - Smoothed normals are baked into the tangents for the Toon shader's outline pass.
+//  - Architecture (Cutaway below) gets the Toon shader's cutaway: it opens up when it stands between the camera and
+//    the Apprentice. Characters and props (souls, lanterns, the boat, pickups) never do.
 public class ModelImportRules : AssetPostprocessor
 {
     const string Root = "Assets/_Project/Art/Models/";
@@ -16,6 +18,13 @@ public class ModelImportRules : AssetPostprocessor
 
     bool InScope => assetPath.StartsWith(Root) && assetPath.EndsWith(".fbx");
     bool IsCharacter => assetPath.StartsWith(Root + "Characters/");
+
+    static readonly string[] Cutaway = { "house", "ruined_wall", "tower", "stone_block", "stone_stairs", "railing",
+                                         "drowned_chapel", "street_lantern", "far_light", "islet", "rock", "quay", "jetty",
+                                         "mooring_post", "hook_post", "shortcut_gate", "crate", "barrel" };
+    bool IsArchitecture => !IsCharacter && System.Array.Exists(Cutaway, c => System.IO.Path.GetFileName(assetPath).StartsWith(c));
+
+    public override uint GetVersion() => 2; // (2: the cutaway flag; bumping it re-imports every model)
 
     void OnPreprocessModel()
     {
@@ -39,6 +48,7 @@ public class ModelImportRules : AssetPostprocessor
         Vector4 colour = description.TryGetProperty("DiffuseColor", out Vector4 c) ? c : Vector4.one;
         colour.w = 1f;
         material.SetVector("_BaseColor", colour);
+        material.SetFloat("_Cutaway", IsArchitecture ? 1f : 0f);
         if (description.materialName.StartsWith("Torch") && description.materialName.EndsWith("_Glow"))
         {
             // Torch flames: the animated flame shader (sways, stretches, flickers; hot core, dark red tip).

@@ -371,5 +371,106 @@ namespace MyGame.Tests
             var clingers = formed.OfType<Clinger>().ToArray();
             Assert.AreSame(clingers[1], clingers[0].partner, "the two Clingers pair up");
         }
+
+        // ---- The heights
+
+        static float FlatDistance(Vector3 a, Vector3 b) => Vector2.Distance(new Vector2(a.x, a.z), new Vector2(b.x, b.z));
+
+        IEnumerator WalkTowards(Vector3 point, float timeout, float within = 0.4f)
+        {
+            for (float t = 0f; t < timeout && FlatDistance(apprentice.transform.position, point) > within; t += Time.deltaTime)
+            {
+                Vector3 to = point - apprentice.transform.position;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+        }
+
+        // The pieces face the way they should: the tower's door south, the stair along its east wall, the walkway's door west.
+        [Test]
+        public void Tower_IsBuiltTheRightWayRound()
+        {
+            var tower = Object.FindAnyObjectByType<Storeys>().transform.position;
+            Assert.IsTrue(Physics.Raycast(tower + new Vector3(0f, 0.8f, -6f), Vector3.forward, out var door, 12f));
+            Assert.Greater(door.point.z, tower.z, "through the south door, into the tower");
+            Assert.IsTrue(Physics.Raycast(tower + new Vector3(-2f, 0.8f, -6f), Vector3.forward, out var wall, 12f));
+            Assert.Less(wall.point.z, tower.z - 2.9f, "beside it, the south wall");
+            Assert.IsTrue(Physics.Raycast(tower + new Vector3(2.6f, 1.9f, 0f), Vector3.down, out var step, 3f));
+            Assert.Greater(step.point.y, tower.y + 0.5f, "a step of the stair, along the east wall");
+            Assert.IsTrue(Physics.Raycast(tower + new Vector3(-6f, 3.4f, 0f), Vector3.right, out var inside, 12f));
+            Assert.Greater(inside.point.x, tower.x - 3f, "from the walkway through the first floor's west door");
+        }
+
+        [UnityTest]
+        public IEnumerator Heights_UpTheStairs_AlongTheWalkway_IntoTheTower_TheStoreysAboveFade()
+        {
+            var storeys = Object.FindAnyObjectByType<Storeys>();
+            apprentice.Teleport(new Vector3(21.2f, 0.55f, 0.5f));
+            yield return new WaitForSeconds(0.2f);
+            Assert.AreEqual(-1, storeys.Level, "outside, the tower is whole");
+            yield return WalkTowards(new Vector3(29.5f, 0f, 0.5f), 6f);
+            Assert.Greater(apprentice.transform.position.y, 2.7f, "up the stair, on the walkway");
+            // The railings hold: push north off the walkway.
+            input.Move = Vector2.up;
+            yield return new WaitForSeconds(1f);
+            input.Move = Vector2.zero;
+            Assert.Greater(apprentice.transform.position.y, 2.7f, "the railing holds");
+            Assert.Less(apprentice.transform.position.z, 2f);
+            yield return WalkTowards(new Vector3(34.5f, 0f, 0.5f), 6f);
+            Assert.Greater(apprentice.transform.position.y, 2.7f, "through the door, on the first floor");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(1, storeys.Level);
+            Assert.IsTrue(storeys.Shown(1));
+            Assert.IsFalse(storeys.Shown(2), "the roof above is hidden");
+            // Down on the ground floor: both storeys above gone.
+            apprentice.Teleport(storeys.transform.position + new Vector3(-1f, 0.05f, 0f));
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, storeys.Level);
+            Assert.IsFalse(storeys.Shown(1));
+            Assert.IsFalse(storeys.Shown(2));
+            Assert.Greater(Shader.GetGlobalVector("_CutawayCentre").w, 0f, "the cutaway follows the Apprentice");
+            Assert.AreEqual(1f, storeys.storeys[0].parts[0].GetComponentInChildren<Renderer>().sharedMaterial.GetFloat("_Cutaway"), "architecture opens up");
+            Assert.AreEqual(0f, apprentice.GetComponentInChildren<Renderer>().sharedMaterial.GetFloat("_Cutaway"), "characters never do");
+        }
+
+        [UnityTest]
+        public IEnumerator Heights_FromTheRoof_TheHookAcross_ThenDropsDown()
+        {
+            var storeys = Object.FindAnyObjectByType<Storeys>();
+            Vector3 roof = storeys.transform.position + new Vector3(2.2f, 4.85f, -0.9f);
+            apprentice.GiveHook();
+            apprentice.Teleport(roof);
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(storeys.Shown(0) && storeys.Shown(1) && storeys.Shown(2));
+            // The chained gap holds you on the roof.
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(1f);
+            input.Move = Vector2.zero;
+            Assert.Greater(apprentice.transform.position.y, 5f, "the chain holds");
+            input.HookHeld = true;
+            yield return new WaitForSeconds(0.2f);
+            Assert.IsNotNull(apprentice.HookTarget, "the high platform's post, across");
+            input.HookHeld = false;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Hooking, apprentice.CurrentState);
+            for (float t = 0f; t < 3f && apprentice.CurrentState != Apprentice.State.Free; t += Time.deltaTime)
+                yield return null;
+            yield return new WaitForSeconds(0.1f);
+            Assert.Less(FlatDistance(apprentice.transform.position, new Vector3(44.8f, 0f, 0.5f)), 0.6f, "pulled over the railing onto the platform");
+            Assert.Greater(apprentice.transform.position.y, 3.1f);
+            float health = apprentice.Health;
+            // Off its open (east) side onto the low platform, and off that to the ground: no harm.
+            yield return WalkTowards(new Vector3(49.5f, 0f, 0.5f), 4f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(1.9f, apprentice.transform.position.y, 0.2f, "dropped onto the low platform");
+            yield return WalkTowards(new Vector3(53f, 0f, 0.5f), 4f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(0.5f, apprentice.transform.position.y, 0.2f, "and down to the ground");
+            Assert.AreEqual(health, apprentice.Health, "no falling damage");
+            Assert.AreNotEqual(Apprentice.State.Sinking, apprentice.CurrentState);
+        }
     }
 }

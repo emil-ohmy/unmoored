@@ -5,6 +5,9 @@
 // meshes keep it while animating. Meshes without baked tangents (e.g. Unity primitives) get no outline.
 // _Dissolve (0..1, set per renderer with a MaterialPropertyBlock) eats the surface away in a noise pattern with a
 // glowing edge, in every pass, so shadow, outline and depth vanish with it (a defeated Soured).
+// _Cutaway (1 on architecture: set on import) opens a soft-edged hole in a surface that stands between the camera and
+// the Apprentice (_CutawayCentre, set every frame by Cutaway.cs: xyz their chest, w the hole's radius), so walls,
+// houses and floors never hide them. Only surfaces a metre or more nearer the camera than them, and above their feet.
 Shader "MyGame/Toon"
 {
     Properties
@@ -22,6 +25,7 @@ Shader "MyGame/Toon"
         _Dissolve("Dissolve", Range(0, 1)) = 0
         [HDR] _DissolveEdgeColor("Dissolve Edge", Color) = (1.4, 3.0, 0.8, 1)
         _DissolveScale("Dissolve Noise Scale", Float) = 7
+        _Cutaway("Cutaway (opens between camera and Apprentice)", Float) = 0
     }
 
     SubShader
@@ -45,7 +49,10 @@ Shader "MyGame/Toon"
             half _Dissolve;
             half4 _DissolveEdgeColor;
             float _DissolveScale;
+            half _Cutaway;
         CBUFFER_END
+
+        float4 _CutawayCentre;
 
         float DissolveHash(float3 p)
         {
@@ -74,6 +81,23 @@ Shader "MyGame/Toon"
             float n = DissolveNoise(positionWS * _DissolveScale) * 0.75 + DissolveNoise(positionWS * _DissolveScale * 3.1) * 0.25;
             clip(n - _Dissolve);
             return 1.0 - saturate((n - _Dissolve) / 0.08);
+        }
+
+        // Discards this fragment if it's architecture standing between the camera and the Apprentice.
+        void CutawayClip(float3 positionWS)
+        {
+            if (_Cutaway < 0.5 || _CutawayCentre.w <= 0.0)
+                return;
+            float3 toCentre = _CutawayCentre.xyz - _WorldSpaceCameraPos;
+            float reach = length(toCentre);
+            float3 dir = toCentre / reach;
+            float3 toPixel = positionWS - _WorldSpaceCameraPos;
+            float along = dot(toPixel, dir);
+            if (along > reach - 1.0 || positionWS.y < _CutawayCentre.y - 0.4)
+                return; // behind them, beside them, or at their feet (the floor they stand on)
+            float away = length(toPixel - dir * along);
+            float n = DissolveNoise(positionWS * 2.2);
+            clip(away - _CutawayCentre.w * (0.9 + 0.2 * n)); // (a softly irregular edge, not a perfect circle)
         }
         ENDHLSL
 
@@ -123,6 +147,7 @@ Shader "MyGame/Toon"
             half4 frag(Varyings input) : SV_Target
             {
                 half edge = DissolveClip(input.positionWS);
+                CutawayClip(input.positionWS);
                 float3 normalWS = normalize(input.normalWS);
                 Light light = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
 
@@ -209,6 +234,7 @@ Shader "MyGame/Toon"
             half4 frag(Varyings input) : SV_Target
             {
                 DissolveClip(input.positionWS);
+                CutawayClip(input.positionWS);
                 return half4(MixFog(_OutlineColor.rgb, input.fogFactor), 1.0);
             }
             ENDHLSL
@@ -312,6 +338,7 @@ Shader "MyGame/Toon"
             half4 frag(Varyings input) : SV_Target
             {
                 DissolveClip(input.positionWS);
+                CutawayClip(input.positionWS);
                 return 0;
             }
             ENDHLSL
@@ -355,6 +382,7 @@ Shader "MyGame/Toon"
             half4 frag(Varyings input) : SV_Target
             {
                 DissolveClip(input.positionWS);
+                CutawayClip(input.positionWS);
                 return half4(normalize(input.normalWS), 0.0);
             }
             ENDHLSL

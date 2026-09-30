@@ -1394,6 +1394,48 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The heights in the lab: the stair and walkway, inside the tower (the storeys above hidden), behind it (the
+        // cutaway), the roof, the Hook across, the high platform.
+        [UnityTest]
+        public IEnumerator Capture_Heights()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            apprentice.GiveHook();
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var tower = UnityEngine.Object.FindAnyObjectByType<Storeys>().transform.position;
+            IEnumerator At(string name, Vector3 where, Vector3 facing)
+            {
+                apprentice.Teleport(where);
+                apprentice.transform.rotation = Quaternion.LookRotation(facing);
+                yield return Frames(30);
+                Capture(outDir, name);
+            }
+            yield return Frames(40);
+            yield return At("heights-0-stairs", new Vector3(21.5f, 0.55f, 0.5f), Vector3.right);
+            yield return At("heights-1-walkway", new Vector3(29.5f, 2.95f, 0.5f), Vector3.right);
+            yield return At("heights-2-first-floor", tower + new Vector3(-1f, 2.45f, 0f), Vector3.right);
+            yield return At("heights-3-ground-floor", tower + new Vector3(-1f, 0.05f, -1f), Vector3.right);
+            yield return At("heights-4-behind", tower + new Vector3(0f, 0.05f, 4.6f), Vector3.right);
+            yield return At("heights-5-roof", tower + new Vector3(1.5f, 4.85f, -0.9f), Vector3.right);
+            input.HookHeld = true;
+            yield return Frames(8);
+            input.HookHeld = false;
+            yield return Frames(14);
+            Capture(outDir, "heights-6-hook");
+            yield return Frames(30);
+            Capture(outDir, "heights-7-high-platform");
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

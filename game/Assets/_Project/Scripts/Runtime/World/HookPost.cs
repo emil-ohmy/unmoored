@@ -9,6 +9,8 @@ namespace MyGame
     // then while you're near and it's on screen, so it gets noticed and remembered.
     public sealed class HookPost : MonoBehaviour
     {
+        [Tooltip("How high the pull to this post arcs (m); below 0: the Apprentice's own (over railings and parapets: more)")]
+        public float arc = -1f;
         static readonly List<HookPost> all = new List<HookPost>();
 
         public Transform ring;    // what the tether catches

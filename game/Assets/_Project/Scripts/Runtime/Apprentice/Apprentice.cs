@@ -421,7 +421,16 @@ namespace MyGame
             else if (CurrentState == State.Hooking)
             {
                 verticalVelocity = 0f;
-                controller.Move(hookStep); // the pull sets the path; collisions still apply
+                if (hookFoe == null && hookPost != null)
+                {
+                    // Pulled to a post: along its path, clear of whatever's under it (railings, a parapet's chain). The
+                    // line to the post was checked clear before the throw.
+                    controller.enabled = false;
+                    transform.position += hookStep;
+                    controller.enabled = true;
+                }
+                else
+                    controller.Move(hookStep); // (yanking a Soured: collisions apply)
                 hookStep = Vector3.zero;
             }
             else
@@ -1225,7 +1234,8 @@ namespace MyGame
             PlaceHookHead(ring, ring - hand);
             float u = Mathf.Clamp01((stateTime - hookThrowTime) / hookDuration);
             float eased = u * u * (3f - 2f * u);
-            Vector3 target = Vector3.Lerp(hookFrom, hookPost.LandingPosition, eased) + Vector3.up * (hookArc * Mathf.Sin(u * Mathf.PI));
+            float arc = hookPost.arc >= 0f ? hookPost.arc : hookArc; // (a post can ask for a higher arc: over a railing)
+            Vector3 target = Vector3.Lerp(hookFrom, hookPost.LandingPosition, eased) + Vector3.up * (arc * Mathf.Sin(u * Mathf.PI));
             hookStep = target - transform.position;
             tether.SetPosition(0, hand);
             tether.SetPosition(1, ring);

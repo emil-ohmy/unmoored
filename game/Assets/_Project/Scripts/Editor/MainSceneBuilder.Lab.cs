@@ -24,11 +24,14 @@ public static partial class MainSceneBuilder
 
     static void BuildLab()
     {
-        var scene = BeginScene(new Vector3(8f, 0f, 0f));
+        var scene = BeginScene(new Vector3(22f, 0f, 0f));
 
-        // The floor: two quays side by side (x -8 .. 24, z -5.5 .. 5.5), lit all round.
+        // The floor: four quays side by side (x -8 .. 55, z -5.5 .. 5.5), lit all round; the heights to the east.
         Place("Environment/quay", Vector3.zero, 0f);
         Place("Environment/quay", new Vector3(15.5f, 0f, 0f), 0f);
+        Place("Environment/quay", new Vector3(31f, 0f, 0f), 0f);
+        Place("Environment/quay", new Vector3(46.5f, 0f, 0f), 0f);
+        Heights();
         foreach (var p in new[] { new Vector3(-7.2f, 0f, -4.3f), new Vector3(-7.3f, 0f, 3.6f), new Vector3(7.6f, 0f, -4.8f), new Vector3(7.8f, 0f, 4.4f),
                                   new Vector3(22.6f, 0f, -4.3f), new Vector3(22.8f, 0f, 3.8f) })
             Torch(new Vector3(p.x, QuayTop, p.z));
@@ -87,5 +90,73 @@ public static partial class MainSceneBuilder
         tester.readout = readout;
 
         FinishScene(scene, LabScenePath, start, apprentice, "music_drowned_dark");
+    }
+
+    // The heights: stairs up to a walkway a storey high, into a tower's first floor. Inside, a stair down to the ground
+    // floor (its door south) and one up to the roof; a balcony. From the roof, the Hook across to a high platform
+    // (too high to drop from: railed), a drop onto a low one, and a drop to the ground: back where you started.
+    static void Heights()
+    {
+        const float storey = 2.4f;
+        Vector3 tower = new Vector3(36f, QuayTop, 0.5f);
+        var towerRoot = new GameObject("Tower");
+        towerRoot.transform.position = tower;
+        var storeys = towerRoot.AddComponent<Storeys>();
+        GameObject Storey(string model)
+        {
+            var go = Place("Environment/" + model, tower, 0f);
+            go.transform.SetParent(towerRoot.transform, true);
+            return go;
+        }
+        var ground = Storey("tower_ground");
+        var middle = Storey("tower_middle");
+        var top = Storey("tower_top");
+        // Light inside each storey (hidden with it), and on the roof.
+        var t1 = Torch(tower + new Vector3(-2.6f, 0f, 2.6f));
+        var t2 = Torch(tower + new Vector3(-2.6f, 0f, -2.6f));
+        var t3 = Torch(tower + new Vector3(-2.6f, storey, 2.6f));
+        var t4 = Torch(tower + new Vector3(0.9f, storey, -2.6f));
+        var t5 = Torch(tower + new Vector3(-2.7f, 2 * storey, -2.7f));
+        foreach (var t in new[] { t1, t2 }) t.transform.SetParent(ground.transform, true);
+        foreach (var t in new[] { t3, t4 }) t.transform.SetParent(middle.transform, true);
+        t5.transform.SetParent(top.transform, true);
+        storeys.storeys = new[]
+        {
+            new Storeys.Storey { floor = tower.y, parts = new[] { ground } },
+            new Storeys.Storey { floor = tower.y + storey, parts = new[] { middle } },
+            new Storeys.Storey { floor = tower.y + 2 * storey, parts = new[] { top } },
+        };
+
+        // The walkway into the first floor's west door, and the stair up to it from the west. Railed along both sides
+        // and across its west end (but for the stair).
+        float walkTop = QuayTop + storey;
+        Place("Environment/stone_block_walkway", new Vector3(29.5f, QuayTop, 0.5f), 0f);
+        Place("Environment/stone_stairs_storey", new Vector3(22.5f, QuayTop, 0.5f), 90f);
+        for (float x = 26.5f; x < 32.4f; x += 2f)
+        {
+            Place("Environment/railing_long", new Vector3(x, walkTop, 1.94f), 0f);
+            Place("Environment/railing_long", new Vector3(x, walkTop, -0.94f), 0f);
+        }
+        Place("Environment/railing_short", new Vector3(26.56f, walkTop, -1f), -90f);
+        Place("Environment/railing_short", new Vector3(26.56f, walkTop, 1.2f), -90f);
+
+        // The high platform (railed on three sides: its east side drops onto the low one) and the low one.
+        Vector3 high = new Vector3(45.5f, QuayTop, 0.5f), low = new Vector3(49.5f, QuayTop, 0.5f);
+        Place("Environment/stone_block_high", high, 0f);
+        Place("Environment/stone_block_low", low, 0f);
+        float highTop = QuayTop + 2.8f;
+        Place("Environment/railing_long", new Vector3(43.56f, highTop, -1.5f), -90f);
+        Place("Environment/railing_long", new Vector3(43.56f, highTop, 0.5f), -90f);
+        Place("Environment/railing_long", new Vector3(43.5f, highTop, 2.44f), 0f);
+        Place("Environment/railing_long", new Vector3(45.5f, highTop, 2.44f), 0f);
+        Place("Environment/railing_long", new Vector3(43.5f, highTop, -1.44f), 0f);
+        Place("Environment/railing_long", new Vector3(45.5f, highTop, -1.44f), 0f);
+        StreetLantern(new Vector3(47f, highTop, 2.1f), 180f, 2.2f);
+
+        // The Hook between the roof (through the chained gap in its parapet) and the high platform.
+        float roofTop = QuayTop + 2 * storey;
+        Vector3 roofPost = new Vector3(38.2f, roofTop, 0.5f), highPost = new Vector3(44.3f, highTop, 1.6f);
+        HookPostAt(roofPost, new Vector3(38.2f, roofTop, -0.4f), highPost).arc = 1.6f;
+        HookPostAt(highPost, new Vector3(44.8f, highTop, 0.5f), roofPost).arc = 1.6f;
     }
 }
