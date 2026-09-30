@@ -135,7 +135,7 @@ namespace MyGame.Tests
             Assert.AreEqual(2, apprentice.GetComponent<OarLook>().ShownStep, "and it looks it");
             Assert.AreEqual(3, e.Carried(Provision.PitchPot), "the Satchel as it was");
             Assert.AreEqual(1, e.Carried(Provision.WarmBroth));
-            CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth }, e.Belt, "and the belt");
+            CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth, null, null }, e.Belt, "and the belt");
             Assert.AreEqual(Provision.WarmBroth, e.Chosen, "the same one chosen");
         }
 

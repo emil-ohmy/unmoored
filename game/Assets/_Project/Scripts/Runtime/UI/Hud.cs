@@ -64,7 +64,7 @@ namespace MyGame
         (RectTransform flame, Image outer, Image core, Image glow)[] charges;
         float hpTrailValue = 1f, hpLast = 1f, hpTrailHold, lockTrailValue, lockLast, lockTrailHold, restFlashAt = -100f;
         Soured barTarget;
-        bool usingGamepad;
+        static bool usingGamepad => InputDevice.Gamepad; // (the controls last touched)
 
         void Start()
         {
@@ -135,7 +135,6 @@ namespace MyGame
             Dialogue = new DialogueBox(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
-            usingGamepad = Gamepad.current != null;
             apprentice.Died += OnDied;
             apprentice.Woke += OnWoke;
             apprentice.ObolsChanged += OnObolsChanged;
@@ -398,23 +397,7 @@ namespace MyGame
         }
 
         // Show the keys of whichever device was touched last.
-        void TrackDevice()
-        {
-            var pad = Gamepad.current;
-            if (pad != null && (pad.leftStick.ReadValue().sqrMagnitude > 0.25f || AnyButtonPressed(pad)))
-                usingGamepad = true;
-            else if ((Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
-                     || (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
-                usingGamepad = false;
-        }
-
-        static bool AnyButtonPressed(Gamepad pad)
-        {
-            foreach (var control in pad.allControls)
-                if (control is ButtonControl button && button.wasPressedThisFrame)
-                    return true;
-            return false;
-        }
+        static void TrackDevice() => InputDevice.Track();
 
         // With the Hook: a pale blue ring on the post it would pull to, dim; bright and pulsing while aiming.
         void BuildHookMarker(Transform root)
@@ -558,7 +541,7 @@ namespace MyGame
         Text beltName;
         Image beltCaret;
         float beltUsedAt = -10f;
-        public string BeltText(int slot) => slot < apprentice.Equipment.Belt.Count ? $"{apprentice.Equipment.Belt[slot].Name} {belt[slot].count.text}" : "";
+        public string BeltText(int slot) => apprentice.Equipment.Belt[slot] is Provision p ? $"{p.Name} {belt[slot].count.text}" : "";
         public string BeltChosenName => beltName.text;
 
         void BuildBelt(Transform root)
@@ -607,11 +590,15 @@ namespace MyGame
             for (int i = 0; i < belt.Length; i++)
             {
                 var (slot, frame, icon, count) = belt[i];
-                bool on = i < e.Belt.Count;
-                slot.gameObject.SetActive(on);
-                if (!on)
-                    continue;
                 var p = e.Belt[i];
+                icon.enabled = p != null;
+                if (p == null)
+                {
+                    count.text = "";
+                    frame.color = UiKit.Bronze.WithAlpha(0.35f); // (an empty slot: left/right pass it by)
+                    slot.localScale = Vector3.one * 0.8f;
+                    continue;
+                }
                 bool chosen = i == e.BeltChosen, empty = e.Carried(p) <= 0;
                 icon.sprite = IconOf(p);
                 icon.color = ColourOf(p).WithAlpha(empty ? 0.25f : chosen ? 1f : 0.6f);
@@ -629,7 +616,7 @@ namespace MyGame
                 beltCaret.rectTransform.anchoredPosition = new Vector2(34 + e.BeltChosen * 78, 60 + 4f * Mathf.Sin(now * 3f));
             beltName.text = c != null ? c.Name : "";
             beltName.color = c != null && e.Carried(c) > 0 ? UiKit.Bone.WithAlpha(0.85f) : UiKit.Ash.WithAlpha(0.6f);
-            beltGroup.alpha = Mathf.MoveTowards(beltGroup.alpha, e.Belt.Count > 0 ? 1f : 0f, UiKit.DeltaTime * 4f);
+            beltGroup.alpha = Mathf.MoveTowards(beltGroup.alpha, e.BeltEmpty ? 0f : 1f, UiKit.DeltaTime * 4f);
         }
 
         static RectTransform Bar(Transform parent, string name, Vector2 position, float width, float height, Color colour, out RectTransform trail)

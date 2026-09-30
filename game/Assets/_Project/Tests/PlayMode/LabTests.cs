@@ -958,7 +958,8 @@ namespace MyGame.Tests
                             Assert.AreEqual(0f, m.GetFloat("_Cutaway"), $"{m.name}: a post isn't cut away");
         }
 
-        // The Satchel: each Provision up to its cap. The belt: up to four, in order; the first of a kind goes on it.
+        // The Satchel: each Provision up to its cap. The belt: four slots; the first of a kind goes in the first empty
+        // one; putting one in another's slot swaps them; left/right pass the empty slots by.
         [Test]
         public void TheSatchel_HoldsUpToACap_AndFillsTheBelt()
         {
@@ -966,23 +967,21 @@ namespace MyGame.Tests
             Assert.AreEqual(Provision.PitchPot.Cap, e.AddProvision(Provision.PitchPot, 99), "no more than it takes");
             Assert.AreEqual(0, e.AddProvision(Provision.PitchPot), "full");
             e.AddProvision(Provision.WarmBroth);
-            CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth }, e.Belt);
+            CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth, null, null }, e.Belt);
             Assert.AreEqual(Provision.PitchPot, e.Chosen);
+            e.SetBeltSlot(3, Provision.PitchPot);
+            CollectionAssert.AreEqual(new[] { null, Provision.WarmBroth, null, Provision.PitchPot }, e.Belt, "moved (into an empty slot)");
+            e.SetBeltSlot(1, Provision.PitchPot);
+            CollectionAssert.AreEqual(new[] { null, Provision.PitchPot, null, Provision.WarmBroth }, e.Belt, "swapped");
             e.ChooseOnBelt(1);
-            Assert.AreEqual(Provision.WarmBroth, e.Chosen);
+            Assert.AreEqual(3, e.BeltChosen, "past the empty slot");
             e.ChooseOnBelt(1);
-            Assert.AreEqual(Provision.PitchPot, e.Chosen, "round again");
-            e.ChooseOnBelt(-1);
-            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "and back");
+            Assert.AreEqual(1, e.BeltChosen, "round again, past the empty first");
+            e.SetBeltSlot(1, null);
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "an emptied slot passes the choice on");
             Assert.IsTrue(e.SpendProvision(Provision.WarmBroth));
             Assert.IsFalse(e.SpendProvision(Provision.WarmBroth), "none left");
-            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "an empty one stays on the belt");
-            Assert.IsTrue(e.ToggleOnBelt(Provision.WarmBroth), "taken off");
-            CollectionAssert.AreEqual(new[] { Provision.PitchPot }, e.Belt);
-            Assert.AreEqual(Provision.PitchPot, e.Chosen);
-            foreach (var p in Provision.All)
-                e.AddProvision(p);
-            Assert.AreEqual(Provision.BeltSlots, e.Belt.Count, "four at most");
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "an empty one stays in its slot");
         }
 
         IEnumerator UseFromTheBelt(Provision p)
@@ -1080,31 +1079,54 @@ namespace MyGame.Tests
             Assert.AreEqual(0, apprentice.Equipment.Carried(Provision.WayBack), "used up");
         }
 
-        // The Satchel page: what's carried, the chosen one turning beside it, and confirm puts it on the belt or off.
+        // The Satchel page: pick a belt slot (left/right), confirm, choose what goes in it (up/down), confirm; back
+        // leaves the slot as it was. The one in question turns beside it.
         [UnityTest]
-        public IEnumerator TheSatchelPage_PutsProvisionsOnTheBelt()
+        public IEnumerator TheSatchelPage_FillsABeltSlot()
         {
             var screen = Object.FindAnyObjectByType<CharacterScreen>();
             yield return null;
-            apprentice.Equipment.AddProvision(Provision.PitchPot, 2);
+            var e = apprentice.Equipment;
+            e.AddProvision(Provision.PitchPot, 2);
+            e.AddProvision(Provision.WarmBroth, 1);
             screen.Toggle(true);
             while (screen.Current != CharacterScreen.Tab.Satchel)
                 screen.Turn(1);
             yield return null;
-            Assert.AreEqual(Provision.PitchPot.Name, screen.SatchelRows[0]);
-            StringAssert.Contains("burning pitch", screen.SatchelDetail);
-            Assert.IsNotNull(screen.ShownModel, "the pot itself, turning");
-            StringAssert.Contains("Pitch Pot", screen.ShownModel.name);
-            Assert.IsTrue(apprentice.Equipment.OnBelt(Provision.PitchPot));
-            Assert.IsTrue(screen.ToggleOnBelt());
-            Assert.IsFalse(apprentice.Equipment.OnBelt(Provision.PitchPot), "off");
-            Assert.IsTrue(screen.ToggleOnBelt());
-            Assert.IsTrue(apprentice.Equipment.OnBelt(Provision.PitchPot), "and on again");
+            Assert.AreEqual(0, screen.SatchelSlot);
+            StringAssert.Contains("Pitch Pot", screen.ShownModel.name, "the pot in the first slot, turning");
+            screen.MoveSlot(1);
+            screen.MoveSlot(1);
+            Assert.AreEqual(2, screen.SatchelSlot);
+            Assert.IsNull(screen.ShownModel, "an empty slot: nothing to show");
+            screen.SatchelConfirm();
+            Assert.IsTrue(screen.SatchelPicking, "choosing what goes in it");
+            Assert.AreEqual("(empty)", screen.SatchelRows[0]);
+            Assert.AreEqual(Provision.PitchPot.Name, screen.SatchelRows[1]);
+            screen.ChooseProvision(1);
+            StringAssert.Contains("burning pitch", screen.SatchelDetail, "the pot, as it's chosen");
+            screen.SatchelConfirm();
+            Assert.IsFalse(screen.SatchelPicking);
+            CollectionAssert.AreEqual(new[] { null, Provision.WarmBroth, Provision.PitchPot, null }, e.Belt, "the pot moved into slot 3 (it was empty)");
+            screen.SatchelConfirm();
+            screen.ChooseProvision(-1);
+            Assert.IsTrue(screen.SatchelBack(), "back: nothing changed");
+            CollectionAssert.AreEqual(new[] { null, Provision.WarmBroth, Provision.PitchPot, null }, e.Belt);
+            screen.MoveSlot(-1);
+            screen.SatchelConfirm();
+            screen.ChooseProvision(-1); // (up from the broth: the pot)
+            screen.SatchelConfirm();
+            CollectionAssert.AreEqual(new[] { null, Provision.PitchPot, Provision.WarmBroth, null }, e.Belt, "put in the broth's slot: they swap");
+            InputDevice.Set(true);
+            yield return null;
+            StringAssert.Contains("LB / RB", screen.Hints, "the gamepad's buttons");
+            InputDevice.Set(false);
+            yield return null;
+            StringAssert.Contains("Q / R", screen.Hints, "or the keyboard's");
             screen.Toggle(false);
             yield return null;
             var hud = Object.FindAnyObjectByType<Hud>();
-            StringAssert.Contains("Pitch Pot 2", hud.BeltText(0), "the belt shows it, and how many");
-            Assert.AreEqual("Pitch Pot", hud.BeltChosenName);
+            StringAssert.Contains("Pitch Pot 2", hud.BeltText(1), "the belt shows it, and how many");
         }
 
         // A long list keeps its chosen row in view, moving as little as it can.
@@ -1147,13 +1169,17 @@ namespace MyGame.Tests
             yield return null;
             Assert.AreEqual("The Hook", screen.AbilityRows[0]);
             Assert.AreEqual("The Hook", screen.AbilityName);
-            StringAssert.Contains("Hold F", screen.AbilityHow, "how it's used");
-            StringAssert.Contains("RB", screen.AbilityHow);
+            InputDevice.Set(false);
+            yield return null;
+            StringAssert.Contains("Hold F", screen.AbilityHow, "how it's used, on the keyboard");
+            InputDevice.Set(true);
+            yield return null;
+            StringAssert.Contains("Hold RB", screen.AbilityHow, "and on a gamepad: only the controls in use");
             StringAssert.Contains("hook post", screen.AbilityHow, "and what for");
 
             screen.Turn(1);
             Assert.AreEqual(CharacterScreen.Tab.Satchel, screen.Current);
-            Assert.AreEqual(0, screen.SatchelRows.Count, "nothing carried yet");
+            Assert.AreEqual(1, screen.SatchelRows.Count, "nothing carried yet (only \"empty\")");
 
             screen.Turn(1);
             Assert.AreEqual(CharacterScreen.Tab.Charms, screen.Current);

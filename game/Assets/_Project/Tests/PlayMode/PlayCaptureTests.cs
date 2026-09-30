@@ -1336,12 +1336,16 @@ namespace MyGame.Tests
                 yield return Frames(15);
                 Shot($"character-{page}-{screen.Current}", cam);
                 if (screen.Current == CharacterScreen.Tab.Satchel)
-                    for (int k = 1; k < Provision.All.Length; k++)
-                    {
-                        screen.ChooseProvision(1);
-                        yield return Frames(15);
-                        Shot($"character-{page}-{screen.Current}-{k}", cam);
-                    }
+                {
+                    screen.MoveSlot(1);
+                    yield return Frames(15);
+                    Shot($"character-{page}-{screen.Current}-1-slot2", cam);
+                    screen.SatchelConfirm();
+                    screen.ChooseProvision(1);
+                    yield return Frames(15);
+                    Shot($"character-{page}-{screen.Current}-2-choosing", cam);
+                    screen.SatchelBack();
+                }
                 screen.Turn(1);
             }
             screen.Turn(1);

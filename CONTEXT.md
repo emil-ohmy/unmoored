@@ -117,7 +117,7 @@ Where the Apprentice carries Provisions, and the character screen's page for the
 _Avoid_: Inventory, bag
 
 **Belt**:
-The row of up to four Provisions they're used from: left/right choose along it, up uses the chosen one.
+The four slots Provisions are used from, each holding one kind (or none): left/right choose along it, passing empty slots, up uses the chosen one.
 _Avoid_: Quick slots, hotbar
 
 **Obol**:

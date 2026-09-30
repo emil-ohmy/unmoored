@@ -260,7 +260,7 @@ namespace MyGame
                 ReadInput();
                 UpdateLockOn();
                 int beltStep = IsAlive ? Input.BeltStep : 0; // (choosing along the belt: whenever, even mid-swing)
-                if (beltStep != 0 && Equipment.Belt.Count > 1)
+                if (beltStep != 0 && !Equipment.BeltEmpty)
                 {
                     Equipment.ChooseOnBelt(beltStep);
                     Sfx.Instance?.UiTick();

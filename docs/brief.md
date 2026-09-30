@@ -80,6 +80,7 @@ business and pay their fare to row them across.
   - **The d-pad is for Provisions:** left/right choose along the belt, up uses (down is free for now). On a
     keyboard, the arrow keys; so the arrows don't move the Apprentice (WASD does).
   - **Rebindable before release.** Every binding lives in one place.
+  - **Hints show the controls last used:** a gamepad's buttons or the keyboard's keys, never both.
 
 ## Death, rest and healing
 
@@ -137,9 +138,12 @@ business and pay their fare to row them across.
   - **The Way Back** (3): to black, and back at the last Mooring post you Rested at. Not in a Boss's arena, and not
     on the water.
   - **Warm Broth** (3): mends 30 health over 10 s, and a blow doesn't stop it.
-  - The first of a kind goes on the belt, if there's room. The Satchel page puts things on the belt or takes them off,
-    and shows the chosen one turning, as the Oar page shows the oar.
-- **The character screen** (I or C; Select on a gamepad) pauses the game. It has six pages:
+  - The belt has four slots that keep their places; an empty one is passed by. The first of a kind goes in the first
+    empty slot. The Satchel page works slot-first: pick a slot (left/right), then choose what goes in it (up/down,
+    with the chosen one turning, as the Oar page shows the oar). One put in another's slot swaps with it, and "empty"
+    clears a slot.
+- **The character screen** (I or C; Select on a gamepad) pauses the game. LB / RB (Q / R) turn its pages, which leaves
+  left/right for moving within a page. It has six pages:
   - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
   - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.
   - **Abilities:** each one found, with what it is, how it's used (keyboard and gamepad) and what it's for. The list

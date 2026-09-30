@@ -4,10 +4,11 @@ using UnityEngine.UI;
 
 namespace MyGame
 {
-    // The character screen (I or C; Select on a gamepad): the world pauses behind six pages, left/right between them.
+    // The character screen (I or C; Select on a gamepad): the world pauses behind six pages, LB / RB (Q / R) between
+    // them (left/right are for moving within a page).
     // The Apprentice (health, stamina, healing, what's carried), The Oar (its step: its name, what it is, how strong,
     // what the next step asks), Abilities (each found: what it is, how it's used, what it's for), The Satchel (the
-    // Provisions carried, and which of them go on the belt's four slots: confirm moves one round), Charms (those found,
+    // Provisions carried, and the belt: pick a slot, then what goes in it), Charms (those found,
     // those fitted, the slots, and dark sockets for the rest) and The Lantern, which says as little as it can. Long lists
     // scroll. Closed with the same key, Esc or B. Drawn in real time.
     public sealed class CharacterScreen : MonoBehaviour
@@ -40,7 +41,10 @@ namespace MyGame
         public IReadOnlyList<string> CharmRows => charmRowText;
         public IReadOnlyList<string> AbilityRows => abilityRowText;
         public string AbilityName => abilityName.text;
-        public string AbilityHow => abilityKeys.text + "\n" + abilityPad.text + "\n" + string.Join("\n", System.Array.ConvertAll(abilityUses, u => u.text));
+        public string AbilityHow => abilityKeys.text + "\n" + string.Join("\n", System.Array.ConvertAll(abilityUses, u => u.text));
+        public string Hints => hints.text;
+        public int SatchelSlot => satchelSlot;          // the belt slot picked (the Satchel page)
+        public bool SatchelPicking => satchelPicking;   // choosing what goes in it
         public string StatValue(int row) => stats[row].value.text;
 
         static readonly Color Cold = new Color(0.78f, 0.88f, 1f);
@@ -67,7 +71,10 @@ namespace MyGame
         ScrollRows charmList, abilityList, satchelList;
         readonly List<string> charmRowText = new List<string>(), abilityRowText = new List<string>(), satchelRowText = new List<string>();
         readonly List<Provision> satchel = new List<Provision>();
-        Text satchelName, satchelDescription, satchelEffect, satchelBeltLine, satchelNone;
+        Text satchelName, satchelDescription, satchelEffect, satchelBeltLine, satchelNone, hints;
+        int satchelSlot;
+        bool satchelPicking;
+        (Image frame, Image icon, Text count, Text empty)[] beltSlots;
         Graphic[] satchelDetail;
         (Image frame, Image icon)[] satchelBelt;
         public GameObject ShownModel => stage?.Shown; // (tests)
@@ -112,8 +119,7 @@ namespace MyGame
             tabRight = Diamond(root, UiKit.Ember, 10f);
             UiKit.Image(root, "Rule", UiKit.Rule, UiKit.Bone.WithAlpha(0.55f), centre, new Vector2(0, 360), new Vector2(1600, 3));
             var hintBand = UiKit.Image(root, "Hint Band", UiKit.Band, Color.black.WithAlpha(0.55f), new Vector2(0.5f, 0f), new Vector2(0, 70), new Vector2(1500, 70));
-            var hints = UiKit.Text(root, "Hints", textFont, 26, UiKit.Bone.WithAlpha(0.75f), TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0, 70), 1f);
-            hints.text = "Left / Right: page     Up / Down: choose     E / A: on the belt     I / Select, Esc / B: close";
+            hints = UiKit.Text(root, "Hints", textFont, 26, UiKit.Bone.WithAlpha(0.75f), TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0, 70), 1f);
 
             for (int i = 0; i < Tabs; i++)
                 pages[i] = UiKit.Stretch(UiKit.Rect(root, TabNames[i], centre, Vector2.zero, Vector2.zero));
@@ -251,43 +257,51 @@ namespace MyGame
 
         Graphic[] abilityDetail;
 
+        // The belt across the top: four slots, left/right to pick one, confirm to choose what goes in it from the list
+        // below (the chosen one turning beside it, what it is on the right).
         void BuildSatchel(RectTransform page)
         {
             var centre = new Vector2(0.5f, 0.5f);
-            satchelList = new ScrollRows(page, textFont, -620f, 280f, 540f, 9);
-            satchelNone = UiKit.Text(page, "None", textFont, 32, UiKit.Ash.WithAlpha(0.7f), TextAnchor.MiddleCenter, centre, new Vector2(0, 40), 1f);
-            satchelNone.text = "Empty. The merchant soul would love to help.";
-            // The chosen one itself, turning in the middle (the stage the oar turns on), a warm glow behind it.
-            satchelGlow = UiKit.Image(page, "Glow", UiKit.SoftDot, UiKit.Ember.WithAlpha(0.12f), centre, new Vector2(-90, 70), new Vector2(460, 460));
-            satchelView = UiKit.Rect(page, "Model", centre, new Vector2(-90, 70), new Vector2(460, 460)).gameObject.AddComponent<RawImage>();
+            var beltLabel = UiKit.Text(page, "Belt Label", titleFont, 28, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2(0, 318), 2f);
+            beltLabel.text = "The Belt";
+            beltSlots = new (Image, Image, Text, Text)[Provision.BeltSlots];
+            for (int i = 0; i < beltSlots.Length; i++)
+            {
+                var at = new Vector2((i - 1.5f) * 150f, 230f);
+                UiKit.Image(page, "Back", null, UiKit.Hex(0x0b0a0e, 0.75f), centre, at, new Vector2(64, 64)).rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                var frame = UiKit.Image(page, "Slot", UiKit.KeyCap, UiKit.Bronze, centre, at, new Vector2(96, 96));
+                frame.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                var icon = UiKit.Image(page, "Icon", null, Color.white, centre, at + new Vector2(0, 2), new Vector2(50, 50));
+                var count = UiKit.Text(page, "Count", textFont, 26, UiKit.Bone, TextAnchor.LowerRight, centre, at + new Vector2(38, -30));
+                count.rectTransform.pivot = new Vector2(1f, 0f);
+                count.rectTransform.sizeDelta = new Vector2(50, 34);
+                var empty = UiKit.Text(page, "Empty", textFont, 22, UiKit.Ash.WithAlpha(0.5f), TextAnchor.MiddleCenter, centre, at);
+                empty.rectTransform.sizeDelta = new Vector2(100, 30);
+                empty.text = "empty";
+                beltSlots[i] = (frame, icon, count, empty);
+            }
+            UiKit.Image(page, "Rule", UiKit.Rule, UiKit.Bone.WithAlpha(0.25f), centre, new Vector2(0, 150), new Vector2(1300, 2));
+            satchelList = new ScrollRows(page, textFont, -560f, 100f, 520f, 6);
+            satchelNone = UiKit.Text(page, "None", textFont, 30, UiKit.Ash.WithAlpha(0.7f), TextAnchor.MiddleCenter, centre, new Vector2(0, -40), 1f);
+            satchelNone.text = "The Satchel's empty. The merchant soul would love to help.";
+            satchelGlow = UiKit.Image(page, "Glow", UiKit.SoftDot, UiKit.Ember.WithAlpha(0.12f), centre, new Vector2(10, -70), new Vector2(380, 380));
+            satchelView = UiKit.Rect(page, "Model", centre, new Vector2(10, -70), new Vector2(380, 380)).gameObject.AddComponent<RawImage>();
             satchelView.raycastTarget = false;
             satchelView.texture = stage.Texture;
-            const float x = 470f;
+            const float x = 520f;
             Text Line(string name, Font font, int size, Color colour, float y, float height)
             {
                 var t = UiKit.Text(page, name, font, size, colour, TextAnchor.UpperLeft, centre, new Vector2(x, y));
                 t.horizontalOverflow = HorizontalWrapMode.Wrap;
                 t.rectTransform.pivot = new Vector2(0.5f, 1f);
-                t.rectTransform.sizeDelta = new Vector2(600, height);
+                t.rectTransform.sizeDelta = new Vector2(560, height);
                 return t;
             }
-            satchelName = Line("Name", titleFont, 46, UiKit.Bone, 300, 70);
-            satchelDescription = Line("Description", textFont, 28, UiKit.Ash, 228, 110);
-            satchelEffect = Line("Effect", textFont, 28, UiKit.Bone, 110, 160);
-            satchelBeltLine = Line("Belt", textFont, 26, UiKit.Ember, -70, 70);
-            // The belt, in order, under it: what's on it.
-            satchelBelt = new (Image, Image)[Provision.BeltSlots];
-            for (int i = 0; i < satchelBelt.Length; i++)
-            {
-                var at = new Vector2(-90f + (i - 1.5f) * 78f, -230f);
-                var frame = UiKit.Image(page, "Slot", UiKit.KeyCap, UiKit.Bronze, centre, at, new Vector2(60, 60));
-                frame.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
-                var icon = UiKit.Image(page, "Icon", null, Color.white, centre, at, new Vector2(34, 34));
-                satchelBelt[i] = (frame, icon);
-            }
-            var beltLabel = UiKit.Text(page, "Belt Label", titleFont, 26, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2(-90, -290), 2f);
-            beltLabel.text = "The Belt";
-            satchelDetail = new Graphic[] { satchelName, satchelDescription, satchelEffect, satchelBeltLine, satchelView, satchelGlow, beltLabel };
+            satchelName = Line("Name", titleFont, 42, UiKit.Bone, 118, 60);
+            satchelDescription = Line("Description", textFont, 27, UiKit.Ash, 58, 90);
+            satchelEffect = Line("Effect", textFont, 27, UiKit.Bone, -40, 140);
+            satchelBeltLine = Line("Belt", textFont, 26, UiKit.Ember, -190, 60);
+            satchelDetail = new Graphic[] { satchelName, satchelDescription, satchelEffect, satchelView, satchelGlow };
         }
 
         void BuildLantern(RectTransform page)
@@ -333,23 +347,13 @@ namespace MyGame
         public void Turn(int by)
         {
             Current = (Tab)(((int)Current + by + Tabs) % Tabs);
+            satchelPicking = false;
             Sfx.Instance?.UiTick();
             Draw();
         }
 
         public void ChooseCharm(int by) => Choose(charmList, by);
         public void ChooseProvision(int by) => Choose(satchelList, by);
-
-        // The chosen Provision onto the belt (at its end) or off it. False if the belt's full.
-        public bool ToggleOnBelt()
-        {
-            if (Current != Tab.Satchel || satchel.Count == 0)
-                return false;
-            bool done = apprentice.Equipment.ToggleOnBelt(satchel[satchelList.Selected]);
-            Sfx.Instance?.UiTick();
-            Draw();
-            return done;
-        }
         public void ChooseAbility(int by) => Choose(abilityList, by);
 
         void Choose(ScrollRows list, int by)
@@ -360,35 +364,91 @@ namespace MyGame
             Draw();
         }
 
+        // ---- the Satchel page: a belt slot picked, then what goes in it
+
+        // The slot to the left or right (on the belt), or up/down the list (choosing what goes in it).
+        public void MoveSlot(int by)
+        {
+            if (satchelPicking)
+                return;
+            satchelSlot = (satchelSlot + by + Provision.BeltSlots) % Provision.BeltSlots;
+            Sfx.Instance?.UiTick();
+            Draw();
+        }
+
+        // Confirm: on the belt, choose what goes in the slot (the list, starting at what's in it); in the list, put the
+        // chosen one in the slot (swapping with its own slot, if it had one; "empty" takes the slot's out).
+        public void SatchelConfirm()
+        {
+            var e = apprentice.Equipment;
+            if (!satchelPicking)
+            {
+                satchelPicking = true;
+                DrawSatchel();
+                var inSlot = e.Belt[satchelSlot];
+                int row = inSlot != null ? satchel.IndexOf(inSlot) : 0;
+                satchelList.Select(Mathf.Max(0, row));
+            }
+            else
+            {
+                var chosen = satchel[satchelList.Selected];
+                e.SetBeltSlot(satchelSlot, chosen);
+                satchelPicking = false;
+            }
+            Sfx.Instance?.UiTick();
+            Draw();
+        }
+
+        // Back: from the list to the belt (nothing changed); from the belt, false (the screen closes).
+        public bool SatchelBack()
+        {
+            if (!satchelPicking)
+                return false;
+            satchelPicking = false;
+            Sfx.Instance?.UiTick();
+            Draw();
+            return true;
+        }
+
         void Update()
         {
+            InputDevice.Track();
             input.Tick();
             if (!Open)
             {
                 if (input.CharacterPressed)
                     Toggle(true);
             }
+            else if (input.Back && Current == Tab.Satchel && SatchelBack())
+            {
+            }
             else if (input.CharacterPressed || input.Back || input.PausePressed)
                 Toggle(false);
             else
             {
                 var step = input.Step;
-                if (step.x != 0)
-                    Turn(step.x);
+                int page = input.PageStep;
+                if (page != 0)
+                    Turn(page);
+                else if (Current == Tab.Satchel)
+                {
+                    if (step.x != 0)
+                        MoveSlot(step.x);
+                    else if (step.y != 0 && satchelPicking)
+                        ChooseProvision(-step.y);
+                    else if (input.Confirm && apprentice.Equipment != null)
+                        SatchelConfirm();
+                }
                 else if (step.y != 0 && Current == Tab.Charms)
                     ChooseCharm(-step.y);
                 else if (step.y != 0 && Current == Tab.Abilities)
                     ChooseAbility(-step.y);
-                else if (step.y != 0 && Current == Tab.Satchel)
-                    ChooseProvision(-step.y);
-                else if (input.Confirm && Current == Tab.Satchel)
-                    ToggleOnBelt();
             }
             if (group == null)
                 return;
             group.alpha = Mathf.MoveTowards(group.alpha, Open ? 1f : 0f, Time.unscaledDeltaTime * 6f);
             group.gameObject.SetActive(group.alpha > 0.001f || Open);
-            stage?.Draw(group.alpha > 0.001f && (Current == Tab.Oar || Current == Tab.Satchel && satchel.Count > 0));
+            stage?.Draw(group.alpha > 0.001f && (Current == Tab.Oar || Current == Tab.Satchel));
             if (Open)
                 Draw();
         }
@@ -410,6 +470,7 @@ namespace MyGame
             float half = tabs[(int)Current].preferredWidth / 2f + 30f;
             tabLeft.rectTransform.anchoredPosition = chosen.anchoredPosition + new Vector2(-half, 0);
             tabRight.rectTransform.anchoredPosition = chosen.anchoredPosition + new Vector2(half, 0);
+            hints.text = HintLine();
             switch (Current)
             {
                 case Tab.Apprentice: DrawApprentice(); break;
@@ -418,6 +479,27 @@ namespace MyGame
                 case Tab.Satchel: DrawSatchel(); break;
                 case Tab.Charms: DrawCharms(); break;
                 default: DrawLantern(); break;
+            }
+        }
+
+        // The keys for what can be done on this page, for the controls in use.
+        string HintLine()
+        {
+            bool pad = InputDevice.Gamepad;
+            string pages = pad ? "LB / RB: page" : "Q / R: page";
+            string close = pad ? "B: close" : "Esc: close";
+            string gap = "     ";
+            switch (Current)
+            {
+                case Tab.Satchel:
+                    return satchelPicking
+                        ? $"Up / Down: choose{gap}{(pad ? "A" : "E")}: put it in the slot{gap}{(pad ? "B" : "Esc")}: back"
+                        : $"{pages}{gap}Left / Right: a slot{gap}{(pad ? "A" : "E")}: choose what goes in it{gap}{close}";
+                case Tab.Abilities:
+                case Tab.Charms:
+                    return $"{pages}{gap}Up / Down: choose{gap}{close}";
+                default:
+                    return $"{pages}{gap}{close}";
             }
         }
 
@@ -480,8 +562,8 @@ namespace MyGame
             var chosen = any ? found[abilityList.Selected] : null;
             abilityName.text = chosen?.Name ?? "";
             abilityDescription.text = chosen?.Description ?? "";
-            abilityKeys.text = chosen != null ? $"Keyboard:  {chosen.Keys}" : "";
-            abilityPad.text = chosen != null ? $"Gamepad:  {chosen.Pad}" : "";
+            abilityKeys.text = chosen != null ? InputDevice.Pick(chosen.Keys, chosen.Pad) : "";
+            abilityPad.text = "";
             for (int i = 0; i < abilityUses.Length; i++)
             {
                 bool on = chosen != null && i < chosen.Uses.Length;
@@ -490,48 +572,56 @@ namespace MyGame
             }
         }
 
-        // Every Provision carried (or on the belt, used up), how many of its cap; the chosen one beside them, and the belt.
+        // The belt's four slots (the picked one lit); below, while choosing, every Provision carried (and "empty"); the
+        // one in question turning, and what it is.
         void DrawSatchel()
         {
             var e = apprentice.Equipment;
             satchel.Clear();
             satchelRowText.Clear();
             var rows = new List<ScrollRows.Item>();
+            satchel.Add(null);
+            satchelRowText.Add("(empty)");
+            rows.Add(new ScrollRows.Item { Label = "(empty)", Dim = true });
             foreach (var p in Provision.All)
-                if (e.Carried(p) > 0 || e.BeltSlotOf(p) >= 0)
+                if (e.Carried(p) > 0 || e.OnBelt(p))
                 {
                     satchel.Add(p);
                     satchelRowText.Add(p.Name);
                     int slot = e.BeltSlotOf(p);
-                    rows.Add(new ScrollRows.Item { Label = p.Name, Value = $"{e.Carried(p)}/{p.Cap}" + (slot >= 0 ? "  belt" : ""), Dim = e.Carried(p) == 0 });
+                    rows.Add(new ScrollRows.Item { Label = p.Name, Value = $"{e.Carried(p)}/{p.Cap}" + (slot >= 0 ? $"  slot {slot + 1}" : ""), Dim = e.Carried(p) == 0 });
                 }
-            satchelList.Set(rows);
-            bool any = satchel.Count > 0;
+            satchelList.Set(rows, satchelPicking);
+            bool any = satchel.Count > 1;
             satchelNone.enabled = !any;
-            foreach (var g in satchelDetail)
-                g.enabled = any;
-            var chosen = any ? satchel[satchelList.Selected] : null;
-            satchelName.text = chosen?.Name ?? "";
-            satchelDescription.text = chosen?.Description ?? "";
-            satchelEffect.text = chosen?.Effect ?? "";
-            int at = chosen != null ? e.BeltSlotOf(chosen) : -1;
-            satchelBeltLine.text = chosen == null ? "" : at >= 0
-                ? $"On the belt ({e.Belt.Count} of {Provision.BeltSlots}).   E / A: take it off"
-                : e.Belt.Count >= Provision.BeltSlots ? $"Not on the belt: it's full ({Provision.BeltSlots} of {Provision.BeltSlots})."
-                : $"Not on the belt ({e.Belt.Count} of {Provision.BeltSlots}).   E / A: put it on";
-            for (int i = 0; i < satchelBelt.Length; i++)
+            for (int i = 0; i < beltSlots.Length; i++)
             {
-                var p = i < e.Belt.Count ? e.Belt[i] : null;
-                satchelBelt[i].icon.enabled = p != null && any;
-                satchelBelt[i].frame.enabled = any;
+                var p = e.Belt[i];
+                var (frame, icon, count, empty) = beltSlots[i];
+                bool picked = i == satchelSlot;
+                icon.enabled = p != null;
+                empty.enabled = p == null;
+                count.text = p != null ? $"{e.Carried(p)}" : "";
                 if (p != null)
                 {
-                    satchelBelt[i].icon.sprite = Hud.IconOf(p);
-                    satchelBelt[i].icon.color = Hud.ColourOf(p).WithAlpha(e.Carried(p) > 0 ? 1f : 0.3f);
+                    icon.sprite = Hud.IconOf(p);
+                    icon.color = Hud.ColourOf(p).WithAlpha(e.Carried(p) > 0 ? 1f : 0.3f);
                 }
-                satchelBelt[i].frame.color = p != null && p == chosen ? UiKit.Ember : UiKit.Bronze.WithAlpha(p != null ? 1f : 0.4f);
+                float pulse = 0.5f + 0.5f * Mathf.Sin(UiKit.Now * 5f);
+                frame.color = picked ? Color.Lerp(UiKit.Ember, Color.white, satchelPicking ? 0.15f : 0.3f * pulse) : UiKit.Bronze.WithAlpha(p != null ? 1f : 0.45f);
+                frame.rectTransform.localScale = Vector3.one * (picked ? 1.12f : 1f);
             }
-            int kind = chosen != null ? System.Array.IndexOf(Provision.All, chosen) : -1;
+            // What's in question: the list's choice while choosing, else what's in the picked slot.
+            var shown = satchelPicking ? satchel[satchelList.Selected] : e.Belt[satchelSlot];
+            foreach (var g in satchelDetail)
+                g.enabled = shown != null;
+            satchelName.text = shown?.Name ?? "";
+            satchelDescription.text = shown?.Description ?? "";
+            satchelEffect.text = shown?.Effect ?? "";
+            satchelBeltLine.text = satchelPicking
+                ? $"For slot {satchelSlot + 1}."
+                : e.Belt[satchelSlot] == null ? $"Slot {satchelSlot + 1} is empty." : $"Slot {satchelSlot + 1}.";
+            int kind = shown != null ? System.Array.IndexOf(Provision.All, shown) : -1;
             if (Current == Tab.Satchel)
                 stage.Show(provisionModels != null && kind >= 0 && kind < provisionModels.Length ? provisionModels[kind] : null, Quaternion.Euler(28f, 0f, 0f));
         }
@@ -752,7 +842,15 @@ namespace MyGame
                 return Mathf.Clamp(first, 0, Mathf.Max(0, count - visible));
             }
 
-            public void Set(IReadOnlyList<Item> items)
+            // Chooses a row (the window follows).
+            public void Select(int item)
+            {
+                Selected = Mathf.Clamp(item, 0, Mathf.Max(0, count - 1));
+                first = Window(first, Selected, count, rows.Length);
+            }
+
+            // (`active` false: shown, but nothing chosen: no band, all dim, as a list waiting its turn)
+            public void Set(IReadOnlyList<Item> items, bool active = true)
             {
                 count = items.Count;
                 Selected = Mathf.Clamp(Selected, 0, Mathf.Max(0, count - 1));
@@ -764,11 +862,11 @@ namespace MyGame
                     bool on = item < count;
                     label.gameObject.SetActive(on);
                     value.gameObject.SetActive(on);
-                    band.enabled = on && item == Selected;
+                    band.enabled = on && item == Selected && active;
                     if (!on)
                         continue;
                     label.text = items[item].Label;
-                    label.color = items[item].Dim ? UiKit.Ash.WithAlpha(0.35f) : item == Selected ? UiKit.Bone : UiKit.Ash;
+                    label.color = items[item].Dim ? UiKit.Ash.WithAlpha(0.35f) : item == Selected && active ? UiKit.Bone : UiKit.Ash.WithAlpha(active ? 1f : 0.7f);
                     value.text = items[item].Value ?? "";
                 }
                 up.gameObject.SetActive(first > 0);
