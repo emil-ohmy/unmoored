@@ -17,6 +17,13 @@ namespace MyGame
 
         [Header("Health")]
         public float maxHealth = 100f;
+        [Tooltip("The lab: never notices anyone (a training dummy that won't fight back)")]
+        public bool passive;
+        [Tooltip("The lab: never dies; a blow that would kill it fills its health again")]
+        public bool immortal;
+
+        // Every blow that reaches a Soured, landed or blocked, and the damage it did (the lab's readout listens).
+        public static event System.Action<Soured, HitResult, float> Struck;
         public float radius = 0.6f;
         [Range(0f, 1f)] public float knockbackResistance = 0f;
 
@@ -394,6 +401,16 @@ namespace MyGame
 
         public HitResult TakeHit(Hit hit)
         {
+            var result = Resolve(hit);
+            if (result != HitResult.Missed)
+                Struck?.Invoke(this, result, result == HitResult.Landed ? dealt : 0f);
+            return result;
+        }
+
+        float dealt;
+
+        HitResult Resolve(Hit hit)
+        {
             if (!IsAlive)
                 return HitResult.Missed;
             if (Unhittable)
@@ -419,6 +436,9 @@ namespace MyGame
             }
 
             Health -= hit.Damage;
+            dealt = hit.Damage;
+            if (immortal && Health <= 0f)
+                Health = maxHealth; // (a dummy: a full bar again)
             Sfx.Instance?.OarHit(transform.position + Vector3.up * 1.1f, hit.Heavy || stunned);
             knockback = hit.Knockback * (1f - knockbackResistance);
             Stagger += hit.Stagger;
@@ -513,6 +533,8 @@ namespace MyGame
         // The moment it becomes aware of the Apprentice: its eyes flare, then it gives chase.
         void Notice()
         {
+            if (passive)
+                return;
             Effects.Instance?.AlertFlare(transform.position + transform.forward * 0.35f + Vector3.up * eyeHeight);
             Enter(State.Chase);
         }

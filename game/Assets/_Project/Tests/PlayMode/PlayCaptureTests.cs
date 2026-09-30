@@ -1271,6 +1271,75 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The lab: the floor, the Tester's Post and its menu, a pair of Laden set down, the readout.
+        [UnityTest]
+        public IEnumerator Capture_Lab()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            yield return Frames(60);
+            Shot("lab-0-start");
+            apprentice.Teleport(post.InteractPosition + Vector3.forward);
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+            yield return Frames(10);
+            input.PressInteract();
+            yield return Frames(20);
+            Shot("lab-1-menu");
+            var menu = (TesterMenu)apprentice.OpenMenu;
+            menu.Do("How many");
+            menu.Do("Laden");
+            yield return Frames(10);
+            Shot("lab-2-spawned");
+            menu.Do("Give the Apprentice...");
+            yield return Frames(10);
+            Shot("lab-3-give");
+            apprentice.OpenMenu.Close();
+            var dummy = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).First(l => l.immortal);
+            post.spawner.ClearSpawned();
+            Vector3 front = dummy.transform.position + dummy.transform.forward * 1.6f;
+            apprentice.Teleport(new Vector3(front.x, apprentice.transform.position.y, front.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-dummy.transform.forward);
+            yield return Frames(20);
+            for (int i = 0; i < 4; i++)
+            {
+                input.PressLight();
+                yield return Frames(14);
+            }
+            yield return Frames(10);
+            Shot("lab-4-dummy");
+            cam.targetTexture = null;
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

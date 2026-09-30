@@ -36,6 +36,18 @@ namespace MyGame
                     Own(charm);
         }
 
+        // (the lab) Back to how the Apprentice started: the starting Charms owned, nothing fitted, one slot.
+        public void ResetToStart()
+        {
+            owned.Clear();
+            fitted.Clear();
+            keepsakes.Clear();
+            charmSlots = 1;
+            foreach (var id in startingCharms)
+                if (Charm.ById(id) is Charm charm)
+                    Own(charm);
+        }
+
         public void Own(Charm charm)
         {
             if (!owned.Contains(charm))
