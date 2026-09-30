@@ -16,6 +16,13 @@ namespace MyGame
         string FarewellLine { get; } // the sincere line beneath it: "She let go."
     }
 
+    // A Boss made of parts that each have a bar of their own (the Unparted: Hold and Fast), shown side by side.
+    public interface IBossParts
+    {
+        System.Collections.Generic.IReadOnlyList<(string name, float fraction)> Parts { get; }
+        bool Owns(Soured soured); // (its parts have no floating bars of their own)
+    }
+
     // The Boss fight going on now, if any (the one the HUD shows).
     public static class BossFight
     {

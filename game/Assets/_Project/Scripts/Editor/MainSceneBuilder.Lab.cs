@@ -2,17 +2,18 @@ using MyGame;
 using UnityEditor;
 using UnityEngine;
 
-// Assets/_Project/Scenes/Lab.unity: the sandbox for trying every kind of Soured and every upgrade side by side. Two
+// Assets/_Project/Scenes/Lab_DrownedCity.unity: the Drowned City's lab, the sandbox for trying its Soured, its
+// miniboss, its architecture and every upgrade side by side (each Area gets a lab of its own). Two
 // quays joined into one open floor, a Mooring post (Rest to re-form everything; fit Charms) and beside it the Tester's
 // Post: spawn any Soured in front of you (a count, aggressive or idle), give the Apprentice anything, reset. A training
 // Laden stands on the east quay (idle and immortal: it never fights back and never dies), and a readout top right shows
 // the numbers. Nothing here is saved.
-//   Assets menu > MyGame > Build Lab, or headless: -executeMethod MainSceneBuilder.BuildLabFromCommandLine
+//   Assets menu > MyGame > Build Lab (Drowned City), or headless: -executeMethod MainSceneBuilder.BuildLabFromCommandLine
 public static partial class MainSceneBuilder
 {
-    const string LabScenePath = "Assets/_Project/Scenes/Lab.unity";
+    const string LabScenePath = "Assets/_Project/Scenes/Lab_DrownedCity.unity";
 
-    [MenuItem("Assets/MyGame/Build Lab")]
+    [MenuItem("Assets/MyGame/Build Lab (Drowned City)")]
     static void BuildLabFromMenu()
     {
         if (!UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
@@ -51,32 +52,35 @@ public static partial class MainSceneBuilder
         start.position = new Vector3(-4.6f, QuayTop, -1.6f);
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
         entrance.transform.position = start.position + Vector3.up;
-        entrance.areaName = "The Lab";
+        entrance.areaName = "The Drowned City (Lab)";
         var apprentice = Apprentice(start.position);
         apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
 
         // The kinds the Tester's Post can set down: switched-off templates, built exactly as in the world.
         var templates = new GameObject("Lab Templates");
         var spawner = templates.AddComponent<LabSpawner>();
-        Soured Template(Soured soured)
+        GameObject Template(GameObject go)
         {
-            soured.transform.SetParent(templates.transform, true);
-            if (soured.droppedLantern != null)
-            {
-                soured.droppedLantern.transform.SetParent(templates.transform, true);
-                soured.droppedLantern.gameObject.SetActive(false);
-            }
-            soured.gameObject.SetActive(false);
-            return soured;
+            go.transform.SetParent(templates.transform, true);
+            foreach (var soured in go.GetComponentsInChildren<Soured>(true))
+                if (soured.droppedLantern != null)
+                {
+                    soured.droppedLantern.transform.SetParent(templates.transform, true);
+                    soured.droppedLantern.gameObject.SetActive(false);
+                }
+            go.SetActive(false);
+            return go;
         }
-        var laden = Template(Laden("Laden", new Vector3(0f, QuayTop, 0f), 0f));
-        var archer = Template(LadenArcher("Laden archer", new Vector3(0f, QuayTop, 0f), 0f));
-        var clinger = Template(Clinger("Clinger", new Vector3(0f, QuayTop, 0f), 0f));
+        var laden = Template(Laden("Laden", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var archer = Template(LadenArcher("Laden archer", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var clinger = Template(Clinger("Clinger", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var unparted = Template(TheUnparted("The Unparted", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         spawner.kinds = new[]
         {
-            new LabSpawner.Kind { name = "Laden", template = laden.gameObject },
-            new LabSpawner.Kind { name = "Laden archer", template = archer.gameObject },
-            new LabSpawner.Kind { name = "Clinger", template = clinger.gameObject }, // (two near each other pair up)
+            new LabSpawner.Kind { name = "Laden", template = laden },
+            new LabSpawner.Kind { name = "Laden archer", template = archer },
+            new LabSpawner.Kind { name = "Clinger", template = clinger }, // (two near each other pair up)
+            new LabSpawner.Kind { name = "The Unparted", template = unparted, listed = false }, // (the miniboss: Formations)
         };
         tester.spawner = spawner;
 

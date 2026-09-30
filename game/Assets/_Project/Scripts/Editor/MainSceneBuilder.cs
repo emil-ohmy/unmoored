@@ -10,7 +10,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Object = UnityEngine.Object;
 
-// Builds Assets/_Project/Scenes/Main.unity: the first playable slice, a corner of the Drowned Village.
+// Builds Assets/_Project/Scenes/Main.unity: the first playable slice, a corner of the Drowned City.
 // Assets menu > MyGame > Build Main Scene, or headless:
 //   -executeMethod MainSceneBuilder.BuildFromCommandLine
 //   -executeMethod MainSceneBuilder.BuildAndScreenshot   (env SHOTS = output folder, default builds/shots)
@@ -83,7 +83,7 @@ public static partial class MainSceneBuilder
         // The title card comes up as the torchlit quay swims into view, before anything there notices you.
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
         entrance.transform.position = new Vector3(walkX, QuayTop + 1f, -10.5f);
-        entrance.areaName = "The Drowned Village";
+        entrance.areaName = "The Drowned City";
         StreetLantern(new Vector3(walkX - 0.75f, QuayTop, -19.4f), 90f, 2.2f);
         Place("Environment/house_b", new Vector3(-2.8f, 0f, -14.5f), 240f);
         Place("Environment/house_a", new Vector3(8.4f, 0f, -19.5f), 70f);
@@ -192,6 +192,7 @@ public static partial class MainSceneBuilder
         sfx.lanternSnuff = Clips("lantern_snuff");
         sfx.murmur = Clips("lingerer_murmur");
         sfx.oarStroke = Clips("oar_stroke");
+        sfx.bossFarewell = Clips("boss_farewell");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
@@ -215,8 +216,11 @@ public static partial class MainSceneBuilder
 
         EditorSceneManager.SaveScene(scene, path);
         AssetDatabase.SaveAssets();
-        if (!Array.Exists(EditorBuildSettings.scenes, s => s.path == path))
-            EditorBuildSettings.scenes = EditorBuildSettings.scenes.Append(new EditorBuildSettingsScene(path, true)).ToArray();
+        // Listed in the build (and any scene since removed or renamed dropped from the list).
+        var listed = EditorBuildSettings.scenes.Where(s => File.Exists(s.path)).ToList();
+        if (!listed.Exists(s => s.path == path))
+            listed.Add(new EditorBuildSettingsScene(path, true));
+        EditorBuildSettings.scenes = listed.ToArray();
         Debug.Log($"[MainSceneBuilder] Built {path}");
     }
 
@@ -478,6 +482,70 @@ public static partial class MainSceneBuilder
         clinger.whisperSound = Clips("clinger_whisper");
         BeltLantern(go, clinger, "Spine");
         return clinger;
+    }
+
+    // The Unparted, of the Last Embrace (the Drowned City's miniboss): Hold, vast and slow, and Fast, a Clinger riding
+    // its back. One fight (the Unparted: its name plate and two bars), two souls.
+    static Unparted TheUnparted(string name, Vector3 position, float yaw)
+    {
+        var root = new GameObject(name);
+        root.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+        var go = Place("Characters/unparted", position, yaw);
+        go.name = "Hold";
+        go.transform.SetParent(root.transform, true);
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 1.0f, 0f);
+        controller.height = 2.0f;
+        controller.radius = 0.75f;
+        controller.minMoveDistance = 0f;
+        var hold = go.AddComponent<UnpartedHold>();
+        hold.maxHealth = 420f;
+        hold.radius = 0.8f;
+        hold.knockbackResistance = 0.85f;
+        hold.staggerCapacity = 220f;
+        hold.staggerDrainDelay = 1.5f;
+        hold.staggerDrainPerSecond = 25f;
+        hold.staggerDuration = 1.4f;
+        hold.aggroRadius = 9f;
+        hold.attackRange = 3.0f;
+        hold.chaseSpeed = 1.8f;
+        hold.turnSpeed = 240f;
+        hold.obols = 250;
+        hold.eyeHeight = 1.7f;
+        hold.barHeight = 2.8f;
+        hold.deathDuration = 1.1f;
+        hold.primary = new SouredAttack
+        {
+            name = "Slam", windupClip = "SlamWindup", strikeClip = "Slam", recoverClip = "SlamRecover",
+            telegraph = 1.1f, strike = 0.25f, recover = 1.2f, impactAt = 0.7f,
+            lunge = 0.6f, maxLunge = 2.0f, trackUntil = 0.75f, damage = 32f, reach = 2.6f, arc = 40f, knockback = 10f,
+        };
+        hold.primary.windupSound = Clips("unparted_groan");
+        hold.primary.swingSound = Clips("laden_swing");
+        hold.primary.swingPitch = 0.75f;
+        hold.primary.impactSound = Clips("laden_slam_impact");
+        hold.sweep.windupSound = Clips("unparted_groan");
+        hold.sweep.swingSound = Clips("laden_swing");
+        hold.sweep.swingPitch = 0.85f;
+        hold.howlSound = Clips("unparted_howl");
+        BeltLantern(go, hold, "Spine");
+        var fast = Clinger("Fast", position + Quaternion.Euler(0f, yaw, 0f) * Vector3.back * 0.3f, yaw);
+        fast.transform.SetParent(root.transform, true);
+        fast.mount = Bone(go, "Back");
+        fast.other = hold;
+        fast.maxHealth = 110f;
+        fast.staggerCapacity = 45f;
+        fast.obols = 80;
+        hold.fast = fast;
+        var unparted = root.AddComponent<Unparted>();
+        unparted.hold = hold;
+        unparted.fast = fast;
+        unparted.music = new[]
+        {
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_unparted_1.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_unparted_2.wav"),
+        };
+        return unparted;
     }
 
     // The Laden archer: keeps its distance and shoots.

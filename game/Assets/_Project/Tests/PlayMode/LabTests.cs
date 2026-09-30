@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 
 namespace MyGame.Tests
 {
-    // The lab (Scenes/Lab.unity): the Tester's Post spawns any Soured and gives the Apprentice anything; the training
+    // The Drowned City's lab (Scenes/Lab_DrownedCity.unity): the Tester's Post spawns any Soured and gives the Apprentice anything; the training
     // Laden never fights back and never dies; the readout counts.
     public class LabTests
     {
@@ -22,7 +22,7 @@ namespace MyGame.Tests
         {
             Application.targetFrameRate = -1;
             Time.captureDeltaTime = 1f / 60f;
-            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
             yield return null;
             apprentice = Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
@@ -62,7 +62,7 @@ namespace MyGame.Tests
             Assert.AreEqual(0, Object.FindObjectsByType<LadenArcher>(FindObjectsSortMode.None).Length, "the kinds are templates, switched off");
             Assert.IsTrue(apprentice.Equipment.Owns(Charm.TestersKnot));
             yield return null;
-            StringAssert.Contains("THE LAB", readout.Text);
+            StringAssert.Contains("LAB", readout.Text);
         }
 
         [UnityTest]
@@ -471,6 +471,174 @@ namespace MyGame.Tests
             Assert.AreEqual(0.5f, apprentice.transform.position.y, 0.2f, "and down to the ground");
             Assert.AreEqual(health, apprentice.Health, "no falling damage");
             Assert.AreNotEqual(Apprentice.State.Sinking, apprentice.CurrentState);
+        }
+
+        // ---- The Unparted (the miniboss)
+
+        Unparted SpawnTheUnparted()
+        {
+            int f = System.Array.FindIndex(LabSpawner.Formations, x => x.name.StartsWith("The Unparted"));
+            Assert.GreaterOrEqual(f, 0, "the lab can set down the Unparted");
+            post.spawner.SpawnFormation(f, apprentice);
+            return Object.FindObjectsByType<Unparted>(FindObjectsSortMode.None).Single();
+        }
+
+        [UnityTest]
+        public IEnumerator Unparted_FastRidesHold_IsShieldedThere_LeapsDown_AndClimbsBackUp()
+        {
+            var u = SpawnTheUnparted();
+            var hud = Object.FindAnyObjectByType<Hud>();
+            yield return null;
+            yield return null;
+            Assert.IsTrue(u.fast.Mounted, "Fast rides Hold's back");
+            Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
+            Assert.AreEqual(HitResult.Blocked, u.fast.TakeHit(new Hit { Damage = 50f, From = apprentice.transform.position }), "Hold's shoulders take the blow");
+            for (float t = 0f; t < 6f && BossFight.Current == null; t += Time.deltaTime)
+                yield return null;
+            Assert.AreSame(u, BossFight.Current, "the fight: its name plate and bars");
+            yield return null;
+            Assert.AreEqual("The Unparted", hud.Boss.Name);
+            Assert.IsTrue(hud.Boss.Parted, "two bars");
+            Assert.AreEqual("Hold", hud.Boss.PartName(0));
+            Assert.AreEqual("Fast", hud.Boss.PartName(1));
+            // Keep clear of Hold's blows (it wouldn't be a fair look otherwise): it hits hard.
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            for (float t = 0f; t < 10f && u.fast.Mounted; t += Time.deltaTime)
+                yield return null;
+            Assert.IsFalse(u.fast.Mounted, "it leaps down at you");
+            yield return new WaitForSeconds(0.1f);
+            Assert.AreEqual(HitResult.Landed, u.fast.TakeHit(new Hit { Damage = 1f, From = apprentice.transform.position }), "down, it can be hit");
+            apprentice.postHitInvulnerability = 0.5f;
+            // Let it catch hold (or not), throw it off, and it goes back up.
+            for (float t = 0f; t < 8f && !u.fast.Clinging && u.fast.Mounted == false && !u.fast.CurrentState.Equals(Soured.State.Recover); t += Time.deltaTime)
+                yield return null;
+            input.Move = Vector2.left;
+            input.PressDash();
+            yield return null;
+            input.Move = Vector2.zero;
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            for (float t = 0f; t < 12f && !u.fast.Mounted; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(u.fast.Mounted, "and climbs back up");
+        }
+
+        [UnityTest]
+        public IEnumerator Unparted_TheHookPullsFastOffHoldsBack()
+        {
+            var u = SpawnTheUnparted();
+            yield return null;
+            yield return null;
+            Assert.IsTrue(u.fast.Mounted);
+            Assert.AreEqual(HookResult.Yanked, u.hold.OnHooked(apprentice), "hooking Hold pulls Fast off");
+            Assert.IsFalse(u.fast.Mounted);
+            Assert.AreEqual(Soured.State.Yanked, u.fast.CurrentState);
+        }
+
+        [UnityTest]
+        public IEnumerator Unparted_FastScatteredFirst_HoldHowls_AndGoesBerserk()
+        {
+            var u = SpawnTheUnparted();
+            yield return null;
+            yield return null;
+            u.hold.OnHooked(apprentice); // (Fast off Hold's back, to be struck)
+            yield return new WaitForSeconds(0.8f);
+            u.fast.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsFalse(u.fast.IsAlive);
+            Assert.IsTrue(u.hold.Berserk, "Hold howls, and goes berserk");
+            Assert.AreEqual(Soured.State.Busy, u.hold.CurrentState, "(the howl)");
+            Assert.AreEqual(2, u.Phase);
+        }
+
+        [UnityTest]
+        public IEnumerator Unparted_HoldScatteredFirst_FastKeens_AndWeepsWhereItFell()
+        {
+            var u = SpawnTheUnparted();
+            yield return null;
+            yield return null;
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            u.hold.TakeHit(new Hit { Damage = 10000f, From = apprentice.transform.position });
+            yield return new WaitForSeconds(0.2f);
+            Assert.IsFalse(u.hold.IsAlive);
+            Assert.IsTrue(u.fast.Frantic, "Fast keens, and turns frantic");
+            Assert.IsTrue(u.fast.Mourning);
+            Assert.IsFalse(u.fast.Mounted, "off the back of what's gone");
+            bool wept = false;
+            for (float t = 0f; t < 8f && !wept; t += Time.deltaTime)
+            {
+                wept |= u.fast.Weeping;
+                yield return null;
+            }
+            Assert.IsTrue(wept, "and weeps where Hold fell");
+        }
+
+        [UnityTest]
+        public IEnumerator Unparted_BothScattered_TillDeathDidTheyPart()
+        {
+            var u = SpawnTheUnparted();
+            IBoss farewell = null;
+            string sound = "";
+            void OnDefeated(IBoss b)
+            {
+                farewell = b;
+                sound = Sfx.Instance.LastPlayed; // (the HUD's own handler, first: the bell)
+            }
+            BossFight.Defeated += OnDefeated;
+            try
+            {
+                yield return null;
+                yield return null;
+                u.hold.OnHooked(apprentice);
+                yield return new WaitForSeconds(0.8f);
+                int obols = apprentice.Obols;
+                u.fast.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+                u.hold.TakeHit(new Hit { Damage = 10000f, From = apprentice.transform.position });
+                yield return new WaitForSeconds(0.5f);
+                Assert.AreSame(u, farewell, "its farewell, once both are scattered");
+                Assert.AreEqual("boss_farewell", sound, "a great bell as its farewell comes up");
+                Assert.AreEqual(2, u.Music.Length, "its own music, a track per phase");
+                Assert.AreEqual(obols + u.hold.obols + u.fast.obols, apprentice.Obols);
+                yield return new WaitForSeconds(0.2f);
+                var hud = Object.FindAnyObjectByType<Hud>();
+                StringAssert.Contains("TILL DEATH", hud.Farewell.Text.text);
+            }
+            finally
+            {
+                BossFight.Defeated -= OnDefeated;
+            }
+        }
+
+        // Left behind (the fight broken off, Hold wandered off from where Fast was set down): Fast goes back to Hold and
+        // climbs up, it doesn't walk off to where it first stood.
+        [UnityTest]
+        public IEnumerator Unparted_FastBelongsWithHold_NotWhereItWasSetDown()
+        {
+            var u = SpawnTheUnparted();
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            for (float t = 0f; t < 10f && u.fast.Mounted; t += Time.deltaTime)
+                yield return null;
+            Assert.IsFalse(u.fast.Mounted, "(it leapt down)");
+            // Hold, dragged far from where they were set down; then the Apprentice goes away.
+            Vector3 far = u.hold.transform.position + Vector3.right * 18f;
+            u.hold.SetSpawn(far, u.hold.transform.rotation);
+            u.hold.Reform();
+            apprentice.Teleport(new Vector3(-6f, 0.55f, -2f));
+            for (float t = 0f; t < 15f && !u.fast.Mounted; t += Time.deltaTime)
+            {
+                if (u.fast.Clinging)
+                {
+                    input.Move = Vector2.left;
+                    input.PressDash();
+                }
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.IsTrue(u.fast.Mounted, "back up on Hold");
+            Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
         }
     }
 }

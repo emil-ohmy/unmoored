@@ -1990,7 +1990,7 @@ namespace MyGame.Tests
             input.Move = Vector2.zero;
             yield return null;
             Assert.IsTrue(hud.AreaTitle.Showing, "the area's name should come up on the way in");
-            Assert.AreEqual("The Drowned Village", hud.AreaTitle.Text.text);
+            Assert.AreEqual("The Drowned City", hud.AreaTitle.Text.text);
         }
 
         // Keep only one Laden active so the other doesn't join in. `frozen` stops it moving, turning and

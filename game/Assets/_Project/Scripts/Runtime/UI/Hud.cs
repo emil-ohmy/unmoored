@@ -120,7 +120,8 @@ namespace MyGame
             });
             FarewellLine = new Banner(canvasRect, "Boss Farewell Line", new Banner.Style
             {
-                font = textFont, size = 38, colour = UiKit.Ash, spacing = 3f, y = -52f, fadeIn = 1.6f, hold = 2.6f, fadeOut = 2.0f, drift = 0.02f,
+                font = textFont, size = 38, colour = UiKit.Bone, spacing = 3f, y = -52f, fadeIn = 1.6f, hold = 2.6f, fadeOut = 2.0f, drift = 0.02f,
+                glow = Color.black.WithAlpha(0.8f), bandAlpha = 0.5f, // (a dark band and glow of its own: it reads over anything)
             });
             Menu = new MenuPanel(canvasRect, titleFont, textFont);
             Dialogue = new DialogueBox(canvasRect, titleFont, textFont);
@@ -141,6 +142,7 @@ namespace MyGame
         // The joke first (up to its beat, then the rest), then the sincere line quietly beneath.
         void OnBossDefeated(IBoss boss)
         {
+            Sfx.Instance?.BossFarewell(); // a great bell, as its farewell comes up
             string[] parts = (boss.Farewell ?? "").Split('|');
             Farewell.Show(parts[0]);
             farewellRest = parts.Length > 1 ? string.Concat(parts) : null;
@@ -470,7 +472,8 @@ namespace MyGame
             var target = apprentice.LockTarget;
             var cam = Camera.main;
             bool show = target != null && target.IsAlive && cam != null
-                && !(target is IBoss boss && boss == BossFight.Current); // a Boss has its own bar along the bottom
+                && !(target is IBoss boss && boss == BossFight.Current) // a Boss has its own bar along the bottom
+                && !(BossFight.Current is IBossParts parted && parted.Owns(target)); // (and so do its parts)
             Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * target.barHeight) : Vector3.zero;
             show &= screen.z > 0f;
             lockBar.gameObject.SetActive(show);
@@ -497,7 +500,7 @@ namespace MyGame
             var target = apprentice.LockTarget;
             var cam = Camera.main;
             bool show = target != null && target.IsAlive && cam != null && apprentice.IsAlive;
-            bool boss = show && target is IBoss b && b == BossFight.Current;
+            bool boss = show && (target is IBoss b && b == BossFight.Current || BossFight.Current is IBossParts parted && parted.Owns(target));
             // Over the target: above its floating bar, or (a Boss, whose bar is along the bottom) where the bar would be.
             Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * (target.barHeight + (boss ? -0.4f : 0.35f))) : Vector3.zero;
             show &= screen.z > 0f;

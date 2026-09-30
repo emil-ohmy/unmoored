@@ -1,4 +1,4 @@
-"""The Drowned Dark: ambient music for the Drowned Village. An 80 s seamless loop in D minor.
+"""The Drowned Dark: ambient music for the Drowned City. An 80 s seamless loop in D minor.
 
 Layers: wind (a howl whose resonances wander and swell in gusts, plus a thin cold hiss), a low beating drone,
 a wordless ghost choir drifting through Dm - Bb - Gm - A (the A's C# pulls back to D, so the loop resolves),

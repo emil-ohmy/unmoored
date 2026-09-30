@@ -1279,7 +1279,7 @@ namespace MyGame.Tests
             if (string.IsNullOrEmpty(outDir))
                 Assert.Ignore("set SHOTS to capture");
             Directory.CreateDirectory(outDir);
-            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
             yield return null;
             Time.captureFramerate = 30;
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
@@ -1348,7 +1348,7 @@ namespace MyGame.Tests
             if (string.IsNullOrEmpty(outDir))
                 Assert.Ignore("set SHOTS to capture");
             Directory.CreateDirectory(outDir);
-            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
             yield return null;
             Time.captureFramerate = 30;
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
@@ -1403,7 +1403,7 @@ namespace MyGame.Tests
             if (string.IsNullOrEmpty(outDir))
                 Assert.Ignore("set SHOTS to capture");
             Directory.CreateDirectory(outDir);
-            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
             yield return null;
             Time.captureFramerate = 30;
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
@@ -1445,7 +1445,7 @@ namespace MyGame.Tests
             if (string.IsNullOrEmpty(outDir))
                 Assert.Ignore("set SHOTS to capture");
             Directory.CreateDirectory(outDir);
-            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
             yield return null;
             Time.captureFramerate = 30;
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
@@ -1495,7 +1495,7 @@ namespace MyGame.Tests
             if (string.IsNullOrEmpty(outDir))
                 Assert.Ignore("set SHOTS to capture");
             Directory.CreateDirectory(outDir);
-            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
             yield return null;
             Time.captureFramerate = 30;
             var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
@@ -1512,6 +1512,85 @@ namespace MyGame.Tests
                 }
             }
             Debug.Log($"[probe] camera at {Camera.main.transform.position} looking {Camera.main.transform.forward}, apprentice at {apprentice.transform.position}");
+            Time.captureFramerate = 0;
+        }
+
+        // The Unparted in the lab: Fast on Hold's back, the name plate and its two bars, the blows, Fast leaping down,
+        // Hold's howl once Fast is gone, and the farewell. (With the UI.)
+        [UnityTest]
+        public IEnumerator Capture_Unparted()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            apprentice.postHitInvulnerability = 1000f;
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            yield return Frames(90);
+            apprentice.Teleport(new Vector3(8f, 0.55f, -1f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+            yield return Frames(10);
+            apprentice.TakeHit(0f, Vector3.zero);
+            var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            int f = Array.FindIndex(LabSpawner.Formations, x => x.name.StartsWith("The Unparted"));
+            post.spawner.SpawnFormation(f, apprentice);
+            var u = UnityEngine.Object.FindAnyObjectByType<Unparted>();
+            yield return Frames(20);
+            Shot("unparted-0-set-down");
+            yield return Frames(40);
+            Shot("unparted-1-reveal");
+            int shots = 0;
+            for (int k = 0; k < 400 && shots < 8; k++)
+            {
+                var s = u.hold.CurrentState;
+                if ((s == Soured.State.Telegraph || s == Soured.State.Strike || !u.fast.Mounted) && k % 8 == 0)
+                    Shot($"unparted-2-fight-{shots++}");
+                yield return null;
+            }
+            for (int k = 0; k < 200 && u.fast.IsAlive; k++)
+            {
+                if (u.fast.Mounted)
+                    u.hold.OnHooked(apprentice);
+                else if (!u.fast.Clinging)
+                    u.fast.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+                yield return null;
+            }
+            yield return Frames(20);
+            Shot("unparted-3-howl");
+            yield return Frames(40);
+            u.hold.TakeHit(new Hit { Damage = 10000f, From = apprentice.transform.position });
+            yield return Frames(45);
+            Shot("unparted-4-farewell");
+            yield return Frames(45);
+            Shot("unparted-5-farewell-line");
+            yield return Frames(40);
+            Shot("unparted-6-farewell-line-later");
+            cam.targetTexture = null;
             Time.captureFramerate = 0;
         }
 

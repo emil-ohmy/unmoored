@@ -50,6 +50,10 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Clinger keens (`clinger_keen`) | in game | Synth | its other half scattered: a thin, rising, wavering wordless cry, cut off short |
 | Clinger whispers (`clinger_whisper`) | in game | Synth | on your back, barely there: "don't go", "stay", "please" (breath shaped into the words) |
 | Clinger skitters (`clinger_skitter`) | in game | Synth | darting over stone: a quick scrabble of dry taps and clicks |
+| Hold groans (`unparted_groan`) | in game | Synth | the Unparted's Hold winding up: a deep, hollow groan sliding down and up, effort and grief |
+| Hold howls (`unparted_howl`) | in game | Synth | Fast gone: a long anguished howl cracking into a higher cry, then Hold is berserk |
+| The Unparted's music (`music_unparted`) | in game | Synth | a grieving 3/4 waltz in F minor: a low voice and a thin high one circling, a heartbeat drum; variant 2 (one scattered) torn, with a keening wail |
+| A Boss's farewell (`boss_farewell`) | in game | Synth | a great bronze bell struck once as a beaten Boss's farewell comes up, a long cathedral tail |
 | Chapel floor cracking (`floor_crack`, 2) | in game | Synth | the warning before a section gives way: a grinding rumble swelling, cracks quickening, grit |
 | Chapel floor giving way (`floor_break`, 2) | in game | Synth | a splitting crack, the deep boom of it dropping, stone grinding and tumbling, rubble plopping into the water |
 | Anchoress's Undertow (`undertow`) | in game | Synth | 4 s: a low drowned murmur of prayer (two muffled voices) over water welling up, deep churning, bubbles thickening; her tell when she kneels |

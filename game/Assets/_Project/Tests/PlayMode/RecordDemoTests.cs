@@ -10,7 +10,7 @@ using UnityEngine.TestTools;
 
 namespace MyGame.Tests
 {
-    // Not a check: records a scripted demo session (a small bot plays the Drowned Village) as JPEG frames at a fixed
+    // Not a check: records a scripted demo session (a small bot plays the Drowned City) as JPEG frames at a fixed
     // frame rate, plus a log of every sound (clip, time, position) and the listener's path. tools/record-demo.sh
     // mixes the audio offline from that log and muxes an MP4 (real-time audio can't keep in step with frame capture).
     // Runs only when RECORD is set:  RECORD=<dir> Unity -batchmode -runTests -testFilter RecordDemoTests ...

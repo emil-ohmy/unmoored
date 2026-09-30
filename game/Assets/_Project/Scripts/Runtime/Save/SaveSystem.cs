@@ -17,7 +17,7 @@ namespace MyGame
 
         Apprentice apprentice;
         float playTime, nextCheck;
-        string area = "The Drowned Village", lastWritten;
+        string area = "The Drowned City", lastWritten;
         bool ready;
 
         void Awake() => Instance = this;

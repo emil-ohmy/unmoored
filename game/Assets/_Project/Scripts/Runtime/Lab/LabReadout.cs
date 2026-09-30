@@ -74,7 +74,7 @@ namespace MyGame
             foreach (var r in recent)
                 sum += r.damage;
             RecentDamage = sum;
-            var lines = new List<string> { "THE LAB  (nothing here is kept)" };
+            var lines = new List<string> { "THE DROWNED CITY: LAB  (nothing here is kept)" };
             if (Last != null)
                 lines.Add($"{Last.name}:  health {Mathf.Max(0f, Last.Health):0} / {Last.maxHealth:0}   stagger {Last.Stagger:0} / {Last.staggerCapacity:0}");
             else

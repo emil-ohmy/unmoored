@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static event System.Action<string> Entered;
 
-        public string areaName = "The Drowned Village";
+        public string areaName = "The Drowned City";
         public Vector3 size = new Vector3(6f, 4f, 1.5f);
 
         public bool Announced { get; private set; }

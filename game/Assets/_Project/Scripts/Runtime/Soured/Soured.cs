@@ -154,7 +154,7 @@ namespace MyGame
                     break;
 
                 case State.Chase:
-                    if (!targetAlive || LosesTarget(toTarget.magnitude) || Flat(transform.position - spawnPosition).magnitude > leashRadius)
+                    if (!targetAlive || LosesTarget(toTarget.magnitude) || Flat(transform.position - Home).magnitude > leashRadius)
                     {
                         Enter(State.Returning);
                         break;
@@ -230,12 +230,14 @@ namespace MyGame
                 case State.Returning:
                 {
                     // Back to its post; noticing the Apprentice again on the way, if they're close (not the leash).
-                    Vector3 home = Flat(spawnPosition - transform.position);
+                    Vector3 home = Flat(Home - transform.position);
                     if (targetAlive && CanSense(toTarget) && home.magnitude < leashRadius * 0.6f && !LosesTarget(toTarget.magnitude))
                     {
                         Notice();
                         break;
                     }
+                    if (home.magnitude < 0.3f && ArrivedHome())
+                        break;
                     if (home.magnitude < 0.3f)
                     {
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, spawnRotation, turnSpeed * dt);
@@ -515,6 +517,12 @@ namespace MyGame
         protected void LoseHealth(float amount) => Health = Mathf.Max(1f, Health - amount); // (never a kill)
 
         protected Vector3 SpawnPosition => spawnPosition;
+
+        // Where it keeps to (its leash is measured from here) and walks back to: where it stood, unless it belongs with
+        // something that moves (the Unparted's Fast: its other half).
+        protected virtual Vector3 Home => spawnPosition;
+        // Back home: what then (the default: stand there, facing the way it stood).
+        protected virtual bool ArrivedHome() => false;
 
         // Loading a save: beaten before, gone (it doesn't re-form either, if it's a Boss).
         protected void RestoreDefeated()
