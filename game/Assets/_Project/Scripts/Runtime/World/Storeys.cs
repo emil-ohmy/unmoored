@@ -3,8 +3,8 @@ using UnityEngine;
 namespace MyGame
 {
     // A building of several storeys (the tower). While the Apprentice is inside it, every storey above the one
-    // they're on fades away (dissolving, quickly), so the camera looks down into the room they're in; outside, it's
-    // whole. Their colliders stay. `footprint`: the building's half-size (x, z) around this object.
+    // they're on fades away (dissolving, quickly), lamps and all, so the camera looks down into the room they're in;
+    // outside, it's whole. Their colliders stay. `footprint`: the building's half-size (x, z) around this object.
     public sealed class Storeys : MonoBehaviour
     {
         [System.Serializable]
@@ -13,6 +13,7 @@ namespace MyGame
             public float floor;          // the height of its floor (world)
             public GameObject[] parts;   // its models, torches and all
             [HideInInspector] public Renderer[] renderers;
+            [HideInInspector] public Light[] lights;
             [HideInInspector] public float shown = 1f;
         }
 
@@ -37,6 +38,11 @@ namespace MyGame
                     if (p != null)
                         list.AddRange(p.GetComponentsInChildren<Renderer>(true));
                 s.renderers = list.ToArray();
+                var lights = new System.Collections.Generic.List<Light>();
+                foreach (var p in s.parts)
+                    if (p != null)
+                        lights.AddRange(p.GetComponentsInChildren<Light>(true));
+                s.lights = lights.ToArray();
             }
         }
 
@@ -58,6 +64,9 @@ namespace MyGame
                 if (Mathf.Approximately(s.shown, target))
                     continue;
                 s.shown = Mathf.MoveTowards(s.shown, target, Time.deltaTime / Mathf.Max(0.01f, fadeTime));
+                foreach (var l in s.lights)
+                    if (l != null)
+                        l.enabled = s.shown > 0.5f; // (its lamps and glows go with it: nothing shines through the floor)
                 foreach (var r in s.renderers)
                 {
                     if (r == null)

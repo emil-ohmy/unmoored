@@ -895,6 +895,29 @@ namespace MyGame.Tests
             Assert.IsTrue(Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Length == pieces.Length, "back where they were");
         }
 
+        // Nothing is reached through a floor: under the Held Breath, on the storey below, it's neither in reach nor
+        // shining (its storey, lamps and all, is hidden). And thin posts never open up for the camera, as walls do.
+        [UnityTest]
+        public IEnumerator ThingsOnAnotherStorey_AreOutOfReach_AndThinPostsStayWhole()
+        {
+            var breath = Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).First(p => p.kind == UpgradePiece.Kind.HeldBreath);
+            var below = breath.transform.position;
+            below.y = Object.FindAnyObjectByType<Storeys>().transform.position.y + 0.08f; // the ground floor's flagstones
+            apprentice.Teleport(below);
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreNotEqual(breath, apprentice.Nearby, "not through the ceiling");
+            Assert.IsFalse(breath.GetComponentInChildren<Light>().enabled, "and its glow is hidden with its storey");
+            apprentice.Teleport(breath.transform.position + Vector3.right * 0.6f);
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(breath, apprentice.Nearby, "on its own floor, it's there");
+
+            foreach (var post in Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None))
+                foreach (var r in post.GetComponentsInChildren<Renderer>())
+                    foreach (var m in r.sharedMaterials)
+                        if (m != null && m.HasProperty("_Cutaway"))
+                            Assert.AreEqual(0f, m.GetFloat("_Cutaway"), $"{m.name}: a post isn't cut away");
+        }
+
         // A long list keeps its chosen row in view, moving as little as it can.
         [Test]
         public void ScrollRows_KeepTheChosenOneInView()

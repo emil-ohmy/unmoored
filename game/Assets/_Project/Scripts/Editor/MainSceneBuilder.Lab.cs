@@ -223,7 +223,7 @@ public static partial class MainSceneBuilder
         // Ferry Nails at the tower's foot, on its roof and on the high platform; a Held Breath in the middle storey; a
         // Warm Stone on the low platform.
         UpgradePieceAt(UpgradePiece.Kind.FerryNail, tower + new Vector3(3.9f, 0f, -2.2f), 30f);
-        UpgradePieceAt(UpgradePiece.Kind.FerryNail, tower + new Vector3(-2.2f, 2 * storey, 1.8f), -20f);
+        UpgradePieceAt(UpgradePiece.Kind.FerryNail, tower + new Vector3(-2.2f, 2 * storey, 1.8f), -20f).transform.SetParent(top.transform, true);
         UpgradePieceAt(UpgradePiece.Kind.FerryNail, new Vector3(46.6f, highTop, -0.5f), 60f);
         UpgradePieceAt(UpgradePiece.Kind.HeldBreath, tower + new Vector3(-2.4f, storey, 1.1f), 0f).transform.SetParent(middle.transform, true);
         UpgradePieceAt(UpgradePiece.Kind.WarmStone, new Vector3(50.4f, QuayTop + 1.4f, 1.3f), 0f);

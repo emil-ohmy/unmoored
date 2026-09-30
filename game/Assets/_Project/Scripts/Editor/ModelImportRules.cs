@@ -20,12 +20,13 @@ public class ModelImportRules : AssetPostprocessor
     bool InScope => assetPath.StartsWith(Root) && assetPath.EndsWith(".fbx");
     bool IsCharacter => assetPath.StartsWith(Root + "Characters/");
 
+    // (Not thin posts: a Mooring post, a street lantern, a hook post, the far light. They hide nothing worth opening,
+    // and a hole in one just looks broken.)
     static readonly string[] Cutaway = { "house", "ruined_wall", "tower", "stone_block", "stone_stairs", "railing",
-                                         "drowned_chapel", "street_lantern", "far_light", "islet", "rock", "quay", "jetty",
-                                         "mooring_post", "hook_post", "shortcut_gate", "crate", "barrel" };
+                                         "drowned_chapel", "islet", "rock", "quay", "jetty", "shortcut_gate", "crate", "barrel" };
     bool IsArchitecture => !IsCharacter && System.Array.Exists(Cutaway, c => System.IO.Path.GetFileName(assetPath).StartsWith(c));
 
-    public override uint GetVersion() => 4; // (2: the cutaway flag; 3: environment meshes readable; 4: metal. Bumping re-imports every model)
+    public override uint GetVersion() => 5; // (2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts. Bumping re-imports every model)
 
     void OnPreprocessModel()
     {
