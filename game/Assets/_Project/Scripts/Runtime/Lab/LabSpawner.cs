@@ -8,7 +8,8 @@ namespace MyGame
     // as many as asked, aggressive (it knows you're there) or idle (a dummy that never fights back). The kinds are
     // templates kept switched off in the scene (MainSceneBuilder.Lab), so every copy is built exactly as in the world.
     // Opening a menu here (the Tester's Post, the Mooring post) resets every Soured to where it was set down, and they
-    // leave you be until it's closed.
+    // leave you be until it's closed. Waking after dying, the same: they leave you be until you step off the spot (or
+    // a few seconds pass).
     public sealed class LabSpawner : MonoBehaviour
     {
         [Serializable]
@@ -28,14 +29,51 @@ namespace MyGame
         public IReadOnlyList<Soured> Spawned => spawned;
 
         readonly List<Soured> spawned = new List<Soured>();
+        public float wakeGrace = 3f, wakeStep = 1.5f;
+        public bool Holding => inMenu || wokeAt >= 0f;
+
         Apprentice apprentice;
         bool inMenu;
+        float wokeAt = -1f;
+        Vector3 wokeWhere;
 
-        void Start() => apprentice = FindAnyObjectByType<Apprentice>();
+        void Start()
+        {
+            apprentice = FindAnyObjectByType<Apprentice>();
+            if (apprentice != null)
+                apprentice.Woke += OnWoke;
+        }
+
+        void OnDestroy()
+        {
+            if (apprentice != null)
+                apprentice.Woke -= OnWoke;
+        }
+
+        // Woken at the post: everything set down is back where it was (the waking re-forms them), and calm for now.
+        void OnWoke()
+        {
+            wokeAt = Time.time;
+            wokeWhere = apprentice.transform.position;
+            foreach (var s in WorldState.AllSoured)
+            {
+                s.Reform();
+                s.Held = true;
+            }
+        }
 
         void Update()
         {
-            bool now = apprentice != null && apprentice.OpenMenu != null;
+            if (apprentice == null)
+                return;
+            if (wokeAt >= 0f && (Time.time - wokeAt > wakeGrace || Vector3.Distance(apprentice.transform.position, wokeWhere) > wakeStep))
+            {
+                wokeAt = -1f;
+                if (!inMenu)
+                    foreach (var s in WorldState.AllSoured)
+                        s.Held = false;
+            }
+            bool now = apprentice.OpenMenu != null;
             if (now == inMenu)
                 return;
             inMenu = now;
@@ -43,7 +81,7 @@ namespace MyGame
             {
                 if (now)
                     s.Reform(); // back where it was set down, whole, calm
-                s.Held = now;
+                s.Held = now || wokeAt >= 0f;
             }
         }
 

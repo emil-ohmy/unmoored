@@ -280,5 +280,65 @@ namespace MyGame.Tests
             Assert.IsTrue(pair[1].Frantic, "the other keens, and turns frantic");
             Assert.IsFalse(pair[0].Frantic);
         }
+
+        // (a probe: which Clinger sounds actually play in a fight, and at what volume)
+        [UnityTest]
+        public IEnumerator Clinger_Sounds_Play()
+        {
+            var played = new System.Collections.Generic.List<string>();
+            void OnPlayed(AudioClip clip, AudioSource source)
+            {
+                if (clip.name.StartsWith("clinger") || clip.name.StartsWith("dash"))
+                    played.Add($"{clip.name} vol {source.volume:0.00} at {Vector3.Distance(source.transform.position, apprentice.transform.position):0.0} m");
+            }
+            Sfx.Played += OnPlayed;
+            try
+            {
+                var pair = SpawnClingers();
+                for (float t = 0f; t < 12f && apprentice.ClungBy < 2; t += Time.deltaTime)
+                    yield return null;
+                yield return new WaitForSeconds(3f);
+                input.Move = Vector2.left;
+                input.PressDash();
+                yield return new WaitForSeconds(0.6f);
+                input.Move = Vector2.zero;
+                pair[0].TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+                yield return new WaitForSeconds(0.5f);
+            }
+            finally
+            {
+                Sfx.Played -= OnPlayed;
+            }
+            Debug.Log("[probe] Clinger sounds:\n" + string.Join("\n", played));
+            foreach (var kind in new[] { "clinger_skitter", "clinger_hiss", "clinger_grab", "clinger_whisper", "clinger_throw", "clinger_keen" })
+                Assert.IsTrue(played.Any(p => p.StartsWith(kind)), $"{kind} played");
+        }
+
+        // Dying in the lab: everything set down is back where it was set down, whole and calm, when you wake.
+        [UnityTest]
+        public IEnumerator Dying_ResetsEverySoured()
+        {
+            var pair = SpawnClingers();
+            for (float t = 0f; t < 12f && apprentice.ClungBy == 0; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(apprentice.TakeTickDamage(10000f));
+            Assert.IsFalse(apprentice.IsAlive);
+            yield return new WaitForSeconds(apprentice.respawnDelay + 0.2f);
+            Assert.IsTrue(apprentice.IsAlive, "woken");
+            yield return new WaitForSeconds(1.5f);
+            foreach (var c in pair)
+            {
+                Assert.IsFalse(c.Clinging);
+                Assert.AreEqual(c.maxHealth, c.Health);
+                Assert.AreEqual(Soured.State.Idle, c.CurrentState, "reset: calm, where it was set down");
+            }
+            Assert.AreEqual(0, apprentice.ClungBy);
+            // Step off the spot: they come again.
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(0.6f);
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(pair.Any(c => c.CurrentState != Soured.State.Idle), "then they come for you");
+        }
     }
 }
