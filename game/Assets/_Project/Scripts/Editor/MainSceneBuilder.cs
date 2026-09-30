@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using MyGame;
@@ -612,6 +613,7 @@ public static partial class MainSceneBuilder
         wake.sharedMaterial = wakeMaterial;
         wake.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         wake.emitting = false;
+        WaterMask(root.transform, model.transform);
         // The bow lantern, hung from the bow pole while rowing (the Apprentice's own light moves into it).
         var lantern = Place("Environment/bow_lantern", GlowCentre(model, "BowHook"), bowYaw);
         foreach (var c in lantern.GetComponentsInChildren<Collider>())
@@ -625,6 +627,56 @@ public static partial class MainSceneBuilder
         boat.home = DockAt("the landing", at, bowYaw, ashore, false);
         boat.docks = new[] { boat.home };
         return boat;
+    }
+
+    // The boat's hull, as boat.py lofts it: sections along it (0 stern .. 1 bow), their half-widths at the rim, depth
+    // and rim height. Used for the lid that keeps the water out of it.
+    static readonly float[] HullT = { 0f, 0.15f, 0.35f, 0.55f, 0.75f, 0.9f, 1f };
+    static readonly float[] HullHalfWidth = { 0.5f, 0.6f, 0.63f, 0.6f, 0.48f, 0.27f, 0.03f };
+    static readonly float[] HullDepth = { 0.34f, 0.4f, 0.42f, 0.42f, 0.39f, 0.34f, 0.3f };
+    static readonly float[] HullRim = { 0.42f, 0.4f, 0.39f, 0.4f, 0.43f, 0.5f, 0.6f };
+
+    // An invisible lid across the inside of the hull just above the waves (MyGame/WaterMask): without it the water's
+    // surface shows through the boat's floor, which sits below the waterline. It rides the hull's bob.
+    static void WaterMask(Transform root, Transform hull)
+    {
+        const float height = 0.22f; // above the keel: the waves (up to ~8 cm) never reach it, the seats (0.28) are above
+        var verts = new List<Vector3>();
+        var tris = new List<int>();
+        for (int i = 0; i < HullT.Length; i++)
+        {
+            // The hull's inner half-width at `height`: along its profile, keel (0, rim - depth) -> (0.82 w, rim - 0.6 depth)
+            // -> (w, rim), less the planking's thickness and a little more.
+            float w = HullHalfWidth[i], d = HullDepth[i], r = HullRim[i];
+            float keel = r - d, knee = r - 0.6f * d;
+            float x = height <= keel ? 0f
+                : height <= knee ? Mathf.Lerp(0f, 0.82f * w, Mathf.InverseLerp(keel, knee, height))
+                : Mathf.Lerp(0.82f * w, w, Mathf.InverseLerp(knee, r, height));
+            x = Mathf.Max(0f, x - 0.06f);
+            float z = -1.3f + HullT[i] * 2.7f;
+            verts.Add(new Vector3(-x, height, z));
+            verts.Add(new Vector3(x, height, z));
+            if (i > 0)
+            {
+                int a = 2 * (i - 1);
+                tris.AddRange(new[] { a, a + 2, a + 1, a + 1, a + 2, a + 3 });
+            }
+        }
+        var mesh = new Mesh { name = "BoatWaterMask" };
+        mesh.SetVertices(verts);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateBounds();
+        string path = $"{Generated}/BoatWaterMask.asset";
+        AssetDatabase.DeleteAsset(path);
+        AssetDatabase.CreateAsset(mesh, path);
+        var lid = new GameObject("Water Mask", typeof(MeshFilter), typeof(MeshRenderer));
+        lid.transform.SetParent(root, false); // (laid out in the root's frame: bow +Z, up +Y)
+        lid.GetComponent<MeshFilter>().sharedMesh = mesh;
+        var renderer = lid.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = GeneratedMaterial("M_WaterMask", "MyGame/WaterMask");
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        lid.transform.SetParent(hull, true);
     }
 
     struct FarShoreParts
