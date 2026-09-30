@@ -42,11 +42,16 @@ public static partial class MainSceneBuilder
 
         // The Mooring post and the Tester's Post, side by side at the west end.
         MooringPostAt(new Vector3(-6.0f, QuayTop, -3.4f), 0f);
-        var testerGo = Place("Environment/mooring_post", new Vector3(-3.4f, QuayTop, -4.1f), 20f);
-        testerGo.name = "Tester's Post";
-        var tester = testerGo.AddComponent<TesterPost>();
-        var testerLight = PointLight(testerGo.transform, GlowCentre(testerGo, "Lantern_Glow"), 4f, 2.4f, Hex("#e8f0ff"));
-        Flicker(testerLight, 0.05f, 2f, 0.005f);
+        TesterPost TesterPostAt(Vector3 at, float yaw)
+        {
+            var go = Place("Environment/mooring_post", at, yaw);
+            go.name = "Tester's Post";
+            var post = go.AddComponent<TesterPost>();
+            Flicker(PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 4f, 2.4f, Hex("#e8f0ff")), 0.05f, 2f, 0.005f);
+            return post;
+        }
+        var tester = TesterPostAt(new Vector3(-3.4f, QuayTop, -4.1f), 20f);
+        var heightsTester = TesterPostAt(new Vector3(20.6f, QuayTop, -3.6f), 0f); // a second, by the heights (the walkway's stair)
 
         var start = new GameObject("Start Point").transform;
         start.position = new Vector3(-4.6f, QuayTop, -1.6f);
@@ -82,7 +87,7 @@ public static partial class MainSceneBuilder
             new LabSpawner.Kind { name = "Clinger", template = clinger }, // (two near each other pair up)
             new LabSpawner.Kind { name = "The Unparted", template = unparted, listed = false }, // (the miniboss: Formations)
         };
-        tester.spawner = spawner;
+        tester.spawner = heightsTester.spawner = spawner;
 
         // The training Laden: idle and immortal, facing the way in.
         var dummy = Laden("Training Laden", new Vector3(18f, QuayTop, 0f), -90f);
@@ -91,9 +96,23 @@ public static partial class MainSceneBuilder
 
         var readout = new GameObject("Lab Readout").AddComponent<LabReadout>();
         readout.font = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
-        tester.readout = readout;
+        tester.readout = heightsTester.readout = readout;
 
         FinishScene(scene, LabScenePath, start, apprentice, "music_drowned_dark");
+    }
+
+    // An invisible ramp over a flight of steps, its top along their nosings from `bottom` (the first step's front edge)
+    // to `top` (the last's), `width` across: a smooth slope to walk and find the way on.
+    static void Ramp(Transform parent, Vector3 bottom, Vector3 top, float width)
+    {
+        var ramp = new GameObject("Stair Ramp").transform;
+        ramp.SetParent(parent, true);
+        Vector3 along = top - bottom;
+        ramp.rotation = Quaternion.LookRotation(along, Vector3.up);
+        const float thickness = 0.1f;
+        ramp.position = (bottom + top) / 2f - ramp.up * (thickness / 2f);
+        var box = ramp.gameObject.AddComponent<BoxCollider>();
+        box.size = new Vector3(width, thickness, along.magnitude);
     }
 
     // The heights: stairs up to a walkway a storey high, into a tower's first floor. Inside, a stair down to the ground
@@ -142,8 +161,8 @@ public static partial class MainSceneBuilder
         Prop(middle, "tower_props_stool", 0.05f, storey, -1.3f, 70f);
         Prop(middle, "tower_props_cot", -2.6f, storey, -2.1f, 0f);
         Prop(middle, "tower_props_shelf", -3.15f, storey, 2.0f, -90f);
-        Prop(middle, "tower_props_sacks", -2.5f, storey, 0.9f, 40f);
-        Glow(Prop(middle, "tower_props_lantern", -3.15f, storey, -0.95f, -90f), "HangingLantern_Glow", 6f, 2.4f, LanternLight, 0.12f);
+        Prop(middle, "tower_props_sacks", 2.4f, storey, -2.7f, 40f); // (south of the stair's opening: clear of the doors)
+        Glow(Prop(middle, "tower_props_lantern", -1.9f, storey, -3.15f, 180f), "HangingLantern_Glow", 6f, 2.4f, LanternLight, 0.12f); // over the cot
         Glow(Prop(top, "tower_props_brazier", -2.1f, 2 * storey, -2.0f, 0f), "Coals_Glow", 7f, 3f, TorchLight, 0.25f);
         Prop(top, "tower_props_rope", 2.3f, 2 * storey, -2.1f, 180f);
         // Warm lanterns by its doors, outside (the village marks its ways in with warm light), and one at the stair.
@@ -154,6 +173,12 @@ public static partial class MainSceneBuilder
         Place("Environment/crate", tower + new Vector3(-4.1f, 0f, -2.6f), 200f);
         Place("Environment/barrel", tower + new Vector3(-4.2f, 0f, -1.7f), 0f);
         Place("Environment/barrel", tower + new Vector3(4.1f, 0f, 2.8f), 60f);
+        // Invisible ramps along the stairs' nosings (the Soured's ways follow a slope where they'd trip on steps; and
+        // everyone climbs smoothly): the ground floor's, up the east wall rising north; the first floor's, up the north
+        // wall rising west. (Tower-local, as tower.py lays them out.)
+        Vector3 T(float e, float u, float n) => tower + new Vector3(e, u, n);
+        Ramp(ground.transform, T(2.375f, 0.08f + 0.211f, -1.3f), T(2.375f, storey, 1.7f), 1.55f);
+        Ramp(middle.transform, T(1.55f, storey + 0.2f, 2.575f), T(-1.75f, 2 * storey, 2.575f), 1.15f);
         storeys.storeys = new[]
         {
             new Storeys.Storey { floor = tower.y, parts = new[] { ground } },
@@ -165,7 +190,8 @@ public static partial class MainSceneBuilder
         // and across its west end (but for the stair).
         float walkTop = QuayTop + storey;
         Place("Environment/stone_block_walkway", new Vector3(29.5f, QuayTop, 0.5f), 0f);
-        Place("Environment/stone_stairs_storey", new Vector3(22.5f, QuayTop, 0.5f), 90f);
+        var walkStair = Place("Environment/stone_stairs_storey", new Vector3(22.5f, QuayTop, 0.5f), 90f);
+        Ramp(walkStair.transform, new Vector3(22.5f, QuayTop + 0.2f, 0.5f), new Vector3(22.5f + 11 * 0.333f, walkTop, 0.5f), 2.0f);
         for (float x = 26.5f; x < 32.4f; x += 2f)
         {
             Place("Environment/railing_long", new Vector3(x, walkTop, 1.94f), 0f);

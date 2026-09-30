@@ -1305,7 +1305,7 @@ namespace MyGame.Tests
                 RenderTexture.active = previous;
                 File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
             }
-            var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            var post = UnityEngine.Object.FindObjectsByType<TesterPost>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).First();
             yield return Frames(60);
             Shot("lab-0-start");
             apprentice.Teleport(post.InteractPosition + Vector3.forward);
@@ -1356,7 +1356,7 @@ namespace MyGame.Tests
             apprentice.Input = input;
             apprentice.postHitInvulnerability = 0.2f;
             IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
-            var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            var post = UnityEngine.Object.FindObjectsByType<TesterPost>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).First();
             apprentice.Teleport(new Vector3(4f, 0.55f, 0f));
             apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
             yield return Frames(10);
@@ -1556,7 +1556,7 @@ namespace MyGame.Tests
             apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
             yield return Frames(10);
             apprentice.TakeHit(0f, Vector3.zero);
-            var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            var post = UnityEngine.Object.FindObjectsByType<TesterPost>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).First();
             int f = Array.FindIndex(LabSpawner.Formations, x => x.name.StartsWith("The Unparted"));
             post.spawner.SpawnFormation(f, apprentice);
             var u = UnityEngine.Object.FindAnyObjectByType<Unparted>();

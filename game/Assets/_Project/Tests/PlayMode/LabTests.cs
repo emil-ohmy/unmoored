@@ -26,7 +26,7 @@ namespace MyGame.Tests
             yield return null;
             apprentice = Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
-            post = Object.FindAnyObjectByType<TesterPost>();
+            post = Object.FindObjectsByType<TesterPost>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).First(); // (the west one)
             readout = Object.FindAnyObjectByType<LabReadout>();
             dummy = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).First(l => l.immortal);
             yield return new WaitForSeconds(0.3f);
@@ -668,27 +668,29 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator Pathfinding_AnArcherTakesTheTowersNarrowStair_ALadenWaitsBelow_NeitherStrikesThroughTheFloor()
+        public IEnumerator Pathfinding_UpTheTowersStair_AndNoBlowThroughTheFloor()
         {
             var tower = Object.FindAnyObjectByType<Storeys>().transform.position;
             apprentice.postHitInvulnerability = 1000f;
             apprentice.TakeHit(0f, Vector3.zero);
             apprentice.Teleport(tower + new Vector3(-1.5f, 2.45f, 1.2f)); // the first floor
             var laden = SetDown("Laden", tower + new Vector3(-1.5f, 0.1f, 1.2f)); // right under the Apprentice
-            yield return new WaitForSeconds(4f);
-            Assert.Less(laden.transform.position.y, tower.y + 1f, "too broad for the narrow stair: it stays below");
-            Assert.AreNotEqual(Soured.State.Telegraph, laden.CurrentState);
-            Assert.AreNotEqual(Soured.State.Strike, laden.CurrentState);
-            post.spawner.ClearSpawned();
-            var archer = SetDown("Laden archer", tower + new Vector3(-1.5f, 0.1f, -1.5f));
-            ((LadenArcher)archer).shootRange = 0f; // (only to see it walk)
+            for (float t = 0f; t < 1.5f; t += Time.deltaTime)
+            {
+                Assert.AreNotEqual(Soured.State.Telegraph, laden.CurrentState, "no blow up through the floor");
+                yield return null;
+            }
+            // Then it finds the stair up (along the east wall) and comes across the first floor to you.
             float highest = 0f;
             for (float t = 0f; t < 20f && highest < tower.y + 2.2f; t += Time.deltaTime)
             {
-                highest = Mathf.Max(highest, archer.transform.position.y);
+                highest = Mathf.Max(highest, laden.transform.position.y);
                 yield return null;
             }
-            Assert.Greater(highest, tower.y + 2.2f, "a slim one finds the stair up");
+            Assert.Greater(highest, tower.y + 2.2f, $"it finds the stair up (it got to {laden.transform.position}, {laden.CurrentState})");
+            for (float t = 0f; t < 6f && FlatDistance(laden.transform.position, apprentice.transform.position) > 2.5f; t += Time.deltaTime)
+                yield return null;
+            Assert.Less(FlatDistance(laden.transform.position, apprentice.transform.position), 2.5f, "and across the first floor to you");
         }
 
         [UnityTest]
@@ -731,5 +733,34 @@ namespace MyGame.Tests
             Assert.Greater(rise, 0.5f, "its arrows fly up at the walkway");
             Assert.AreEqual(Defence.Taken, result, "and hit you up there");
         }
+
+        // A Laden set down by the west post follows you all the way east to the tower; and there's a post by the heights.
+        [UnityTest]
+        public IEnumerator Lab_SouredFollowYouAllTheWayToTheHeights()
+        {
+            var posts = Object.FindObjectsByType<TesterPost>(FindObjectsSortMode.None);
+            Assert.AreEqual(2, posts.Length, "a second Tester's Post");
+            Assert.IsTrue(posts.Any(p => p.transform.position.x > 18f && p.transform.position.x < 24f), "by the heights");
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            apprentice.Teleport(new Vector3(-1f, 0.55f, -1f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+            yield return null;
+            post.spawner.Spawn(System.Array.FindIndex(post.spawner.kinds, k => k.name == "Laden"), apprentice);
+            var laden = post.spawner.Spawned.Last();
+            yield return new WaitForSeconds(1.5f);
+            Assert.AreNotEqual(Soured.State.Idle, laden.CurrentState, "(it's seen you)");
+            var tower = Object.FindAnyObjectByType<Storeys>().transform.position;
+            yield return WalkTowards(new Vector3(tower.x, 0f, tower.z - 5f), 12f);
+            yield return WalkTowards(new Vector3(tower.x, 0f, tower.z), 3f); // in through the south door
+            float nearest = 99f;
+            for (float t = 0f; t < 25f && nearest > 2.5f; t += Time.deltaTime)
+            {
+                nearest = Mathf.Min(nearest, FlatDistance(laden.transform.position, apprentice.transform.position));
+                yield return null;
+            }
+            Assert.Less(nearest, 2.5f, $"it followed you all the way into the tower (it got to {laden.transform.position}, {laden.CurrentState}; you're at {apprentice.transform.position})");
+        }
+
     }
 }

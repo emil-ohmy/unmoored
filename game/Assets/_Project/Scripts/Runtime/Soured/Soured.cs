@@ -45,6 +45,8 @@ namespace MyGame
         public float chaseSpeed = 2.4f;
         public float turnSpeed = 360f;
         public float leashRadius = 14f;          // drawn further than this from its post, it gives up and goes back
+        [Tooltip("Further from it than this and it gives up the chase (0: one and a half times how far it sees)")]
+        public float giveUpRange = 0f;
 
         [Header("Attacks (durations match the model's clips)")]
         public SouredAttack primary = new SouredAttack();
@@ -482,7 +484,7 @@ namespace MyGame
         protected virtual bool BlocksHit(Hit hit) => false;
 
         // Whether the Apprentice is too far away to keep after (then it goes back to its post).
-        protected virtual bool LosesTarget(float distance) => distance > aggroRadius * 1.5f;
+        protected virtual bool LosesTarget(float distance) => distance > (giveUpRange > 0f ? giveUpRange : aggroRadius * 1.5f);
 
         // Nothing gets through for now (a Boss mid-way between phases).
         protected virtual bool Unhittable => false;
@@ -685,15 +687,28 @@ namespace MyGame
             pathGoal = goal;
             var filter = baker.Filter(radius);
             path ??= new NavMeshPath();
-            if (!NavMesh.SamplePosition(transform.position, out var from, 1.2f, filter)
-                || !NavMesh.SamplePosition(goal, out var to, 2.5f, filter)
-                || !NavMesh.CalculatePath(from.position, to.position, filter, path))
+            if (!Nearest(transform.position, 1.2f, filter, out var from) || !Nearest(goal, 2.5f, filter, out var to)
+                || !NavMesh.CalculatePath(from, to, filter, path))
             {
                 cornerCount = -1;
                 return;
             }
             cornerCount = path.GetCornersNonAlloc(corners);
             pathComplete = path.status == NavMeshPathStatus.PathComplete;
+        }
+
+        // The walkable point nearest `at`, looking close first (asked for far at once, the search can prefer another level:
+        // the floor below someone standing near a wall).
+        static bool Nearest(Vector3 at, float reach, NavMeshQueryFilter filter, out Vector3 point)
+        {
+            foreach (float r in new[] { 0.5f, 1.0f, reach })
+                if (r <= reach && NavMesh.SamplePosition(at, out var hit, r, filter))
+                {
+                    point = hit.position;
+                    return true;
+                }
+            point = at;
+            return false;
         }
 
         // The Apprentice on its own level (not a floor above or below, not down off a ledge).

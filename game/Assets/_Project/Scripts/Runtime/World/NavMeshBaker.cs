@@ -12,7 +12,7 @@ namespace MyGame
     {
         public static NavMeshBaker Instance { get; private set; }
 
-        public float slimRadius = 0.4f, broadRadius = 0.65f;
+        public float slimRadius = 0.4f, broadRadius = 0.6f; // (broad: a Laden's own width)
         public float agentHeight = 1.8f, agentClimb = 0.32f, agentSlope = 50f;
         public Vector3 extent = new Vector3(220f, 60f, 220f);
 
@@ -49,6 +49,8 @@ namespace MyGame
             s.agentClimb = agentClimb;
             s.agentSlope = agentSlope;
             s.minRegionArea = 1f;
+            s.overrideVoxelSize = true;
+            s.voxelSize = radius / 4f; // (fine enough to find a way through a doorway just wide enough)
             return s;
         }
 
