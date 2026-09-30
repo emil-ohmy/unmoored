@@ -17,7 +17,8 @@ namespace MyGame
         {
             public string name;
             public GameObject template; // inactive; its dropped lantern (if any) inactive too
-            public int group = 1;       // set down this many at a time (Clingers: a pair)
+            public int group = 1;       // set down this many at a time
+            public bool listed = true;  // a row of its own on the Spawn page (a miniboss is on the Formations page)
         }
 
         public Kind[] kinds = new Kind[0];
@@ -29,6 +30,7 @@ namespace MyGame
         public IReadOnlyList<Soured> Spawned => spawned;
 
         readonly List<Soured> spawned = new List<Soured>();
+        readonly List<GameObject> roots = new List<GameObject>();
         public float wakeGrace = 3f, wakeStep = 1.5f;
         public bool Holding => inMenu || wokeAt >= 0f;
 
@@ -90,6 +92,8 @@ namespace MyGame
         // Ready-made mixes (the Tester's Formations page): kinds by name, set down at (right, ahead) of the Apprentice.
         public static readonly (string name, string description, (string kind, float right, float ahead)[] places)[] Formations =
         {
+            ("The Unparted (miniboss)", "Hold, and Fast on its back. Scatter one first: the other won't take it well.",
+                new[] { ("The Unparted", 0f, 8f) }),
             ("Shield and bow", "A Laden up front, an archer behind it: the quay's lesson.",
                 new[] { ("Laden", 0f, 6f), ("Laden archer", 0f, 11f) }),
             ("The crossroads, doubled", "Two Laden holding the front, two archers covering them.",
@@ -157,24 +161,27 @@ namespace MyGame
         {
             var template = kinds[kind].template;
             var go = Instantiate(template, spot, template.transform.rotation);
-            go.name = $"{kinds[kind].name} {spawned.Count + 1}";
+            go.name = $"{kinds[kind].name} {roots.Count + 1}";
             // Face the Apprentice (turning about the vertical only: a rigged model's root keeps its own rotation).
             float yaw = Vector3.SignedAngle(Flat(go.transform.forward), -forward, Vector3.up);
             go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation;
-            var soured = go.GetComponent<Soured>();
-            // Its dropped lantern lives outside it: a copy of its own, carrying this one's light.
-            if (soured.droppedLantern != null)
+            foreach (var soured in go.GetComponentsInChildren<Soured>(true)) // (one, or a miniboss's two)
             {
-                var lantern = Instantiate(soured.droppedLantern);
-                lantern.carried = go.GetComponentInChildren<Light>(true);
-                lantern.gameObject.SetActive(true);
-                soured.droppedLantern = lantern;
+                // Its dropped lantern lives outside it: a copy of its own, carrying this one's light.
+                if (soured.droppedLantern != null)
+                {
+                    var lantern = Instantiate(soured.droppedLantern);
+                    lantern.carried = soured.GetComponentInChildren<Light>(true);
+                    lantern.gameObject.SetActive(true);
+                    soured.droppedLantern = lantern;
+                }
+                soured.passive = !Aggressive;
+                if (Aggressive)
+                    soured.aggroRadius = Mathf.Max(soured.aggroRadius, ahead + 8f); // it knows you're there
+                spawned.Add(soured);
             }
-            soured.passive = !Aggressive;
-            if (Aggressive)
-                soured.aggroRadius = Mathf.Max(soured.aggroRadius, ahead + 8f); // it knows you're there
             go.SetActive(true);
-            spawned.Add(soured);
+            roots.Add(go);
         }
 
         public void ClearSpawned()
@@ -187,7 +194,11 @@ namespace MyGame
                     Destroy(s.droppedLantern.gameObject);
                 Destroy(s.gameObject);
             }
+            foreach (var root in roots)
+                if (root != null)
+                    Destroy(root);
             spawned.Clear();
+            roots.Clear();
         }
 
         // Standing ground where asked, or back towards the Apprentice until there is some (never in the water).

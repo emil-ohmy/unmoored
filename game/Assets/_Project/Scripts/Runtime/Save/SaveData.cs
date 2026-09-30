@@ -11,7 +11,7 @@ namespace MyGame
     public sealed class SaveData
     {
         public int version = 1;
-        public string area = "The Drowned Village"; // for the slot's summary
+        public string area = "The Drowned City"; // for the slot's summary
         public float playTime;                      // seconds
         public string lastSaved;                    // when, as text (the slot's summary)
 

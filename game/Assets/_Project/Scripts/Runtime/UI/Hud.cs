@@ -470,7 +470,8 @@ namespace MyGame
             var target = apprentice.LockTarget;
             var cam = Camera.main;
             bool show = target != null && target.IsAlive && cam != null
-                && !(target is IBoss boss && boss == BossFight.Current); // a Boss has its own bar along the bottom
+                && !(target is IBoss boss && boss == BossFight.Current) // a Boss has its own bar along the bottom
+                && !(BossFight.Current is IBossParts parted && parted.Owns(target)); // (and so do its parts)
             Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * target.barHeight) : Vector3.zero;
             show &= screen.z > 0f;
             lockBar.gameObject.SetActive(show);
@@ -497,7 +498,7 @@ namespace MyGame
             var target = apprentice.LockTarget;
             var cam = Camera.main;
             bool show = target != null && target.IsAlive && cam != null && apprentice.IsAlive;
-            bool boss = show && target is IBoss b && b == BossFight.Current;
+            bool boss = show && (target is IBoss b && b == BossFight.Current || BossFight.Current is IBossParts parted && parted.Owns(target));
             // Over the target: above its floating bar, or (a Boss, whose bar is along the bottom) where the bar would be.
             Vector3 screen = show ? cam.WorldToScreenPoint(target.transform.position + Vector3.up * (target.barHeight + (boss ? -0.4f : 0.35f))) : Vector3.zero;
             show &= screen.z > 0f;

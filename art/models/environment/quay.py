@@ -1,4 +1,4 @@
-"""The Drowned Village quay: an irregular stone platform (top at z=0.5, sides down into the water),
+"""The Drowned City quay: an irregular stone platform (top at z=0.5, sides down into the water),
 paved with slightly raised slabs and edged with curb stones so the water's edge reads clearly."""
 import math
 

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // The Antediluvian Anchoress, the Drowned Village's Boss: a Laden who would not let the Ferryman go. She keeps
+    // The Antediluvian Anchoress, the Drowned City's Boss: a Laden who would not let the Ferryman go. She keeps
     // vigil at the chapel's altar, kneeling over his ferry's anchor, until the Apprentice comes near. Like a Laden she
     // guards with what she holds (the anchor, upright in front of her: frontal hits bounce off) and is open from behind,
     // where she's slow to turn. Phase one, three attacks:

@@ -123,10 +123,14 @@ back toward the Hub.
 
 | # | Area | Reached by | Boss | Reward | Introduces |
 |---|---|---|---|---|---|
-| 1 | The Drowned Village | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
+| 1 | The Drowned City | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
 | 2 | The Orchard of Last Autumn | Hook | The Gardener | Stroke | Moths |
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
+
+**Minibosses:** each Area has one, met on the way (a name plate, a bar and a farewell, but no Ability). The Drowned
+City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused into one great Clinger. Its farewell:
+**"TILL DEATH DID THEY PART"** / *Again.*
 
 The **Drowned** appear at water edges everywhere.
 

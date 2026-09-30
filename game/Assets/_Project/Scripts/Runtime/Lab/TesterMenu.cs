@@ -52,6 +52,8 @@ namespace MyGame
             {
                 for (int i = 0; i < Spawner.kinds.Length; i++)
                 {
+                    if (!Spawner.kinds[i].listed)
+                        continue;
                     int kind = i;
                     string name = Spawner.kinds[i].name;
                     int group = Mathf.Max(1, Spawner.kinds[i].group);
@@ -65,7 +67,7 @@ namespace MyGame
                 Add("How many", Spawner.Count.ToString(), "How many to set down at once.", Spawner.NextCount);
                 Add("They start", Spawner.Aggressive ? "aggressive" : "idle", "Aggressive: they know you're there. Idle: they never notice you, and never fight back.",
                     () => Spawner.Aggressive = !Spawner.Aggressive);
-                Add("Formations...", "", "Ready-made mixes: shield and bow, Clingers with a Laden, everything at once.", () => Go(Page.Formations));
+                Add("Formations...", "", "The miniboss, and ready-made mixes: shield and bow, Clingers with a Laden, everything at once.", () => Go(Page.Formations));
                 Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone.", () =>
                 {
                     Spawner.ClearSpawned();

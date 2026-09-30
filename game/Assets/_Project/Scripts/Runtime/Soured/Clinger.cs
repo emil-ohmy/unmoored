@@ -8,7 +8,12 @@ namespace MyGame
     // (stunned); blocked, it glances off. Caught, it clings to your back: your stamina drains away and doesn't come back,
     // your health a little too, and you move slower, while it whispers. Dash and it's thrown off (even with no stamina
     // left), tumbling to land staggered: your window. Scatter one and the other keens, and turns frantic.
-    public sealed class Clinger : Soured
+    //
+    // Riding its other half (`mount`: the Unparted's Fast, on Hold's back): shielded there (Hold's shoulders take the
+    // blow), it leaps down at you now and then, and after one go (caught hold or not) it scrambles back up. The Hook
+    // pulls it off. Its other half (`other`) scattered: it keens and turns frantic, and between attacks it goes back
+    // to where Hold fell and crouches there, weeping, open.
+    public class Clinger : Soured
     {
         [Header("Clinger: circling")]
         public float circleRadius = 3.4f;
@@ -41,6 +46,17 @@ namespace MyGame
         [Tooltip("Its other half (paired with the nearest Clinger if left empty)")]
         public Clinger partner;
 
+        [Header("Riding its other half (the Unparted's Fast)")]
+        public Transform mount;          // a bone on its other half's back; none: an ordinary Clinger
+        public Soured other;             // that other half (not a Clinger)
+        public float rideTime = 2.2f;    // at least this long on its back between leaps
+        public float dismountRange = 7f; // it leaps down at you from this close
+        public float mountReach = 1.5f;  // how near it must scramble to climb back up
+        public float weepTime = 3.2f;    // crouched where its other half fell
+        public bool Mounted { get; private set; }
+        public bool Weeping { get; private set; }
+        public bool Mourning { get; private set; }
+
         public bool Clinging { get; private set; }
         public bool Frantic { get; private set; }
         public bool BeingThrown => throwStart >= 0f;
@@ -51,11 +67,22 @@ namespace MyGame
         int slot;
         Vector3 throwFrom, throwTo;
 
-        protected override string ChaseClip(float distance) => burst || distance > leapMax ? "Skitter" : IdleClip;
+        bool returning, leapt, mountedOnce, landStagger = true;
+        float mountedAt, hopStart = -1f, nextWeep;
+        Vector3 hopFrom, otherFellAt;
+        const float HopTime = 0.35f;
+
+        protected override string ChaseClip(float distance) => burst || distance > leapMax || returning ? "Skitter" : IdleClip;
+        protected override bool Unhittable => Mounted; // (on Hold's back: Hold's shoulders take the blow)
 
         // Straight in from afar; nearer, round and round at a few metres in quick bursts, now and then turning back.
         protected override Vector3 ChaseStep(Vector3 toTarget, float distance)
         {
+            // Back to its other half, to climb up again; or (mourning) to where it fell, to weep.
+            if (returning && other != null && other.IsAlive)
+                return Towards(other.transform.position, mountReach, Mount);
+            if (Mourning && !Weeping && Time.time >= nextWeep)
+                return Towards(otherFellAt, 0.9f, Weep);
             if (Time.time >= nextBurstFlip)
             {
                 burst = !burst;
@@ -78,6 +105,8 @@ namespace MyGame
 
         protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
+            if (Mounted || returning || Mourning && Time.time >= nextWeep)
+                return null;
             if (Time.time < nextLeap || distance < leapMin || distance > leapMax || target == null)
                 return null;
             if (partner != null && partner.IsAlive && (partner.CurrentState == State.Telegraph || partner.CurrentState == State.Strike))
@@ -92,6 +121,7 @@ namespace MyGame
             if (state == State.Telegraph)
             {
                 resolved = false;
+                leapt = true;
                 nextLeap = Time.time + leap.telegraph + leap.strike + leap.recover + leapCooldown * (Frantic ? 0.5f : 1f);
             }
             if (state == State.Chase && !sighted)
@@ -101,14 +131,39 @@ namespace MyGame
             }
             if (state == State.Idle)
                 sighted = false;
+            // One go at you, then back up onto its other half.
+            if (state == State.Chase && leapt && mount != null && other != null && other.IsAlive && !Mounted && !Clinging)
+                returning = true;
         }
 
         protected override void Tick(float dt)
         {
+            if (mount != null && !mountedOnce)
+            {
+                mountedOnce = true;
+                Mount(instantly: true);
+            }
             if (!paired)
                 Pair();
             if (partner != null && !mourned && IsAlive && !partner.IsAlive)
                 Keen();
+            if (other != null && !mourned && IsAlive && !other.IsAlive)
+            {
+                Keen(); // its other half is gone
+                Mourning = true;
+                otherFellAt = other.transform.position;
+                nextWeep = Time.time + 1.2f;
+                returning = false;
+                if (Mounted)
+                    Dismount(towardsTarget: false);
+            }
+            if (Mounted)
+                UpdateMounted();
+            if (Weeping && CurrentState != State.Busy)
+            {
+                Weeping = false; // (done weeping, or knocked out of it)
+                nextWeep = Time.time + weepTime + 3.5f; // a go at you, then back to it
+            }
             if (CurrentState == State.Strike && !resolved && StateTime >= leap.strike * leap.impactAt)
             {
                 resolved = true;
@@ -124,6 +179,8 @@ namespace MyGame
         void Pair()
         {
             paired = true;
+            if (mount != null || other != null)
+                return; // (the Unparted's Fast has its other half already)
             if (partner != null)
             {
                 partner.partner = this;
@@ -158,6 +215,84 @@ namespace MyGame
             Sfx.Instance?.Attack(keenSound, transform.position + Vector3.up, 0.9f, "clinger_keen");
             Effects.Instance?.AlertFlare(transform.position + transform.forward * 0.3f + Vector3.up * eyeHeight);
             nextLeap = Mathf.Min(nextLeap, Time.time + 0.8f);
+        }
+
+        // ---- riding its other half
+
+        Vector3 Towards(Vector3 where, float reach, System.Action arrived)
+        {
+            Vector3 to = where - transform.position;
+            to.y = 0f;
+            if (to.magnitude <= reach)
+            {
+                arrived();
+                return Vector3.zero;
+            }
+            return to.normalized * chaseSpeed * (Frantic ? franticSpeed : 1f);
+        }
+
+        void Mount() => Mount(instantly: false);
+
+        // Up onto its other half's back (a hop), and it rides there, holding on.
+        void Mount(bool instantly)
+        {
+            if (mount == null || other == null || !other.IsAlive)
+                return;
+            Mounted = true;
+            returning = leapt = false;
+            SetCarried(true);
+            BeBusy("Cling", 3600f);
+            mountedAt = Time.time;
+            hopFrom = transform.position;
+            hopStart = instantly ? -1f : Time.time;
+        }
+
+        void UpdateMounted()
+        {
+            if (!IsAlive || other == null || !other.IsAlive || CurrentState != State.Busy)
+            {
+                Dismount(towardsTarget: false);
+                return;
+            }
+            Vector3 forward = other.transform.forward;
+            forward.y = 0f;
+            Vector3 seat = mount.position;
+            float u = hopStart < 0f ? 1f : Mathf.Clamp01((Time.time - hopStart) / HopTime);
+            transform.SetPositionAndRotation(Vector3.Lerp(hopFrom, seat, UiKit.Smooth(0f, 1f, u)) + Vector3.up * (0.6f * Mathf.Sin(u * Mathf.PI)),
+                Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward.normalized : transform.forward));
+            // Down at you: when you're near, it's had a while on its back, and its other half isn't mid-blow.
+            if (u >= 1f && target != null && Clingable(target) && !passive && !Held && target.ClungBy < 2 && Time.time - mountedAt > rideTime
+                && Vector3.Distance(target.transform.position, other.transform.position) < dismountRange
+                && other.CurrentState != State.Telegraph && other.CurrentState != State.Strike)
+            {
+                Dismount(towardsTarget: true);
+                nextLeap = Time.time + 0.5f;
+            }
+        }
+
+        // Down off its other half's back: a hop to the ground beside it (towards you, to come at you).
+        void Dismount(bool towardsTarget)
+        {
+            if (!Mounted)
+                return;
+            Mounted = false;
+            Vector3 dir = towardsTarget && target != null ? target.transform.position - other.transform.position : other.transform.right;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f)
+                dir = other.transform.forward;
+            throwFrom = transform.position;
+            throwTo = Landing(other.transform.position + dir.normalized * (other.radius + 1.0f));
+            throwStart = Time.time;
+            landStagger = false;
+            BeBusy("Leap", throwTime);
+        }
+
+        // Where its other half fell: it crouches there a while, weeping (open to a blow).
+        void Weep()
+        {
+            Weeping = true;
+            BeBusy("Crouch", weepTime);
+            Sfx.Instance?.Attack(keenSound, transform.position + Vector3.up, 0.45f, "clinger_weep");
         }
 
         static bool Clingable(Apprentice a) =>
@@ -246,7 +381,11 @@ namespace MyGame
                 throwStart = -1f;
                 SetCarried(false);
                 PlaceAt(throwTo);
-                StaggerNow(thrownStagger); // (over the water it falls in, and drowns: fair play)
+                if (landStagger)
+                    StaggerNow(thrownStagger); // (over the water it falls in, and drowns: fair play)
+                else
+                    BeBusy("Land", 0.25f); // (hopped down off its other half: on its feet, and at you)
+                landStagger = true;
             }
         }
 
@@ -259,7 +398,20 @@ namespace MyGame
             return new Vector3(at.x, waterLevel - 0.2f, at.z);
         }
 
-        public override HookResult OnHooked(Apprentice by) => Clinging || BeingThrown ? HookResult.Shrugged : base.OnHooked(by);
+        public override HookResult OnHooked(Apprentice by)
+        {
+            if (Clinging || BeingThrown)
+                return HookResult.Shrugged;
+            if (Mounted)
+            {
+                // Pulled off its other half's back.
+                Mounted = false;
+                SetCarried(false);
+                PlaceAt(Landing(transform.position));
+                StaggerNow(0.05f); // (no longer riding: free to be pulled)
+            }
+            return base.OnHooked(by);
+        }
 
         public override void Reform()
         {
@@ -268,7 +420,10 @@ namespace MyGame
             Clinging = false;
             throwStart = -1f;
             Frantic = mourned = sighted = false;
+            Mounted = Weeping = Mourning = returning = leapt = false;
             base.Reform();
+            if (mount != null)
+                Mount(instantly: true);
         }
 
         void OnDestroy()

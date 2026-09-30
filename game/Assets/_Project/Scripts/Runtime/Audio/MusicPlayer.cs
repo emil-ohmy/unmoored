@@ -92,7 +92,8 @@ namespace MyGame
             if (boss == null)
                 FightPhase = 0;
 
-            AmbientTarget = boss != null || UiKit.Now < quietUntil ? 0f : volume * duck;
+            bool fightMusic = boss != null && boss.Music != null && boss.Music.Length > 0; // (a miniboss has none: the Area's plays on)
+            AmbientTarget = fightMusic || UiKit.Now < quietUntil ? 0f : volume * duck;
             float ambientTime = ambientLevel > AmbientTarget ? (boss != null ? 1.5f : duckTime) : fadeIn;
             ambientLevel = Mathf.MoveTowards(ambientLevel, AmbientTarget, volume / Mathf.Max(ambientTime, 0.01f) * UiKit.DeltaTime);
             source.volume = ambientLevel * Settings.Music;
