@@ -192,6 +192,7 @@ public static partial class MainSceneBuilder
         sfx.lanternSnuff = Clips("lantern_snuff");
         sfx.murmur = Clips("lingerer_murmur");
         sfx.oarStroke = Clips("oar_stroke");
+        sfx.bossFarewell = Clips("boss_farewell");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
@@ -539,6 +540,11 @@ public static partial class MainSceneBuilder
         var unparted = root.AddComponent<Unparted>();
         unparted.hold = hold;
         unparted.fast = fast;
+        unparted.music = new[]
+        {
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_unparted_1.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_unparted_2.wav"),
+        };
         return unparted;
     }
 

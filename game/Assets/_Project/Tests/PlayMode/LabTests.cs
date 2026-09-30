@@ -580,7 +580,12 @@ namespace MyGame.Tests
         {
             var u = SpawnTheUnparted();
             IBoss farewell = null;
-            void OnDefeated(IBoss b) => farewell = b;
+            string sound = "";
+            void OnDefeated(IBoss b)
+            {
+                farewell = b;
+                sound = Sfx.Instance.LastPlayed; // (the HUD's own handler, first: the bell)
+            }
             BossFight.Defeated += OnDefeated;
             try
             {
@@ -593,6 +598,8 @@ namespace MyGame.Tests
                 u.hold.TakeHit(new Hit { Damage = 10000f, From = apprentice.transform.position });
                 yield return new WaitForSeconds(0.5f);
                 Assert.AreSame(u, farewell, "its farewell, once both are scattered");
+                Assert.AreEqual("boss_farewell", sound, "a great bell as its farewell comes up");
+                Assert.AreEqual(2, u.Music.Length, "its own music, a track per phase");
                 Assert.AreEqual(obols + u.hold.obols + u.fast.obols, apprentice.Obols);
                 yield return new WaitForSeconds(0.2f);
                 var hud = Object.FindAnyObjectByType<Hud>();
@@ -602,6 +609,36 @@ namespace MyGame.Tests
             {
                 BossFight.Defeated -= OnDefeated;
             }
+        }
+
+        // Left behind (the fight broken off, Hold wandered off from where Fast was set down): Fast goes back to Hold and
+        // climbs up, it doesn't walk off to where it first stood.
+        [UnityTest]
+        public IEnumerator Unparted_FastBelongsWithHold_NotWhereItWasSetDown()
+        {
+            var u = SpawnTheUnparted();
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            for (float t = 0f; t < 10f && u.fast.Mounted; t += Time.deltaTime)
+                yield return null;
+            Assert.IsFalse(u.fast.Mounted, "(it leapt down)");
+            // Hold, dragged far from where they were set down; then the Apprentice goes away.
+            Vector3 far = u.hold.transform.position + Vector3.right * 18f;
+            u.hold.SetSpawn(far, u.hold.transform.rotation);
+            u.hold.Reform();
+            apprentice.Teleport(new Vector3(-6f, 0.55f, -2f));
+            for (float t = 0f; t < 15f && !u.fast.Mounted; t += Time.deltaTime)
+            {
+                if (u.fast.Clinging)
+                {
+                    input.Move = Vector2.left;
+                    input.PressDash();
+                }
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.IsTrue(u.fast.Mounted, "back up on Hold");
+            Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
         }
     }
 }

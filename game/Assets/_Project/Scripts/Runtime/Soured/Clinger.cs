@@ -75,6 +75,16 @@ namespace MyGame
         protected override string ChaseClip(float distance) => burst || distance > leapMax || returning ? "Skitter" : IdleClip;
         protected override bool Unhittable => Mounted; // (on Hold's back: Hold's shoulders take the blow)
 
+        // Riding its other half, it belongs with it: its leash is measured from it, and going back means climbing up.
+        protected override Vector3 Home => mount != null && other != null && other.IsAlive ? other.transform.position : SpawnPosition;
+        protected override bool ArrivedHome()
+        {
+            if (mount == null || other == null || !other.IsAlive)
+                return false;
+            Mount();
+            return true;
+        }
+
         // Straight in from afar; nearer, round and round at a few metres in quick bursts, now and then turning back.
         protected override Vector3 ChaseStep(Vector3 toTarget, float distance)
         {
@@ -138,6 +148,9 @@ namespace MyGame
 
         protected override void Tick(float dt)
         {
+            if (CurrentState == State.Returning && mount != null && other != null && other.IsAlive
+                && Vector3.Distance(Flat3(transform.position), Flat3(other.transform.position)) <= mountReach)
+                Mount(); // (back at its other half: up it goes)
             if (mount != null && !mountedOnce)
             {
                 mountedOnce = true;
@@ -425,6 +438,8 @@ namespace MyGame
             if (mount != null)
                 Mount(instantly: true);
         }
+
+        static Vector3 Flat3(Vector3 v) => new Vector3(v.x, 0f, v.z);
 
         void OnDestroy()
         {

@@ -16,6 +16,7 @@ namespace MyGame
         public string farewell = "TILL DEATH DID THEY PART";
         public string farewellLine = "Again.";
         public float leash = 16f; // further than this from them, the fight is off (they go back)
+        public AudioClip[] music; // one track per phase: both of them; one scattered
 
         public int TimesDefeated { get; private set; }
 
@@ -29,7 +30,7 @@ namespace MyGame
         public float HealthFraction => (Left(hold) + Left(fast)) / (hold.maxHealth + fast.maxHealth);
         public float[] PhaseMarks => new float[0];
         public int Phase => hold.IsAlive && fast.IsAlive ? 1 : 2;
-        public AudioClip[] Music => null; // (a miniboss: the Area's own music plays on)
+        public AudioClip[] Music => music;
         public string Farewell => farewell;
         public string FarewellLine => farewellLine;
 

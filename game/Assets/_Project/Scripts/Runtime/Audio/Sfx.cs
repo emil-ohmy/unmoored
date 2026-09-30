@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem, lanternSnuff, murmur, oarStroke;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem, lanternSnuff, murmur, oarStroke, bossFarewell;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -108,7 +108,22 @@ namespace MyGame
             uiVoice.PlayOneShot(uiTick[Random.Range(0, uiTick.Length)], 0.35f * Settings.Effects);
         }
 
-        AudioSource uiVoice;
+        AudioSource uiVoice, farewellVoice;
+
+        // A beaten Boss's farewell comes up: a great bell, struck once, heard everywhere (not from a place).
+        public void BossFarewell()
+        {
+            LastPlayed = "boss_farewell";
+            if (bossFarewell == null || bossFarewell.Length == 0 || bossFarewell[0] == null)
+                return;
+            if (farewellVoice == null)
+            {
+                farewellVoice = gameObject.AddComponent<AudioSource>();
+                farewellVoice.playOnAwake = false;
+                farewellVoice.spatialBlend = 0f;
+            }
+            farewellVoice.PlayOneShot(bossFarewell[Random.Range(0, bossFarewell.Length)], 0.85f * Settings.Effects);
+        }
 
         AudioListener listener;
         public void LanternLit(Vector3 at) => Play(lanternLit, at, 0.8f, "lantern_lit");

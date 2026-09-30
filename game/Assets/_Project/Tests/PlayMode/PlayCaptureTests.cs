@@ -1572,17 +1572,24 @@ namespace MyGame.Tests
                     Shot($"unparted-2-fight-{shots++}");
                 yield return null;
             }
-            u.hold.OnHooked(apprentice);
-            yield return Frames(20);
-            u.fast.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+            for (int k = 0; k < 200 && u.fast.IsAlive; k++)
+            {
+                if (u.fast.Mounted)
+                    u.hold.OnHooked(apprentice);
+                else if (!u.fast.Clinging)
+                    u.fast.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+                yield return null;
+            }
             yield return Frames(20);
             Shot("unparted-3-howl");
             yield return Frames(40);
             u.hold.TakeHit(new Hit { Damage = 10000f, From = apprentice.transform.position });
-            yield return Frames(50);
+            yield return Frames(45);
             Shot("unparted-4-farewell");
-            yield return Frames(40);
+            yield return Frames(45);
             Shot("unparted-5-farewell-line");
+            yield return Frames(40);
+            Shot("unparted-6-farewell-line-later");
             cam.targetTexture = null;
             Time.captureFramerate = 0;
         }
