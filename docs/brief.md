@@ -70,6 +70,15 @@ business and pay their fare to row them across.
   the Soured is staggered and its attack is interrupted.
 - **Feel:** hit-stop, knockback and shake on every hit.
 - **Telegraphs:** readable body wind-ups in animation only. No ground markers.
+- **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
+  LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
+  - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on
+    RT (heavy stays on Y alone), and the Vault then an attack for its slam.
+  - **The rest extend what's there,** by context and combination (held or tapped, in the air, while rowing, locked
+    on). The Stroke needs no button: the heavy attack while rowing is its wave. The Hook already does this, doing a
+    different thing for a post, a Soured and something too heavy.
+  - **The d-pad is for consumables.**
+  - **Rebindable before release.** Every binding lives in one place.
 
 ## Death, rest and healing
 
