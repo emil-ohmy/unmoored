@@ -87,38 +87,94 @@ namespace MyGame
 
         public void NextCount() => Count = Counts[(Array.IndexOf(Counts, Count) + 1) % Counts.Length];
 
+        // Ready-made mixes (the Tester's Formations page): kinds by name, set down at (right, ahead) of the Apprentice.
+        public static readonly (string name, string description, (string kind, float right, float ahead)[] places)[] Formations =
+        {
+            ("Shield and bow", "A Laden up front, an archer behind it: the quay's lesson.",
+                new[] { ("Laden", 0f, 6f), ("Laden archer", 0f, 11f) }),
+            ("The crossroads, doubled", "Two Laden holding the front, two archers covering them.",
+                new[] { ("Laden", -1.8f, 6f), ("Laden", 1.8f, 6f), ("Laden archer", -3f, 11f), ("Laden archer", 3f, 11f) }),
+            ("A Laden and a pair of Clingers", "The heap in front of you, the pair round the sides.",
+                new[] { ("Laden", 0f, 7f), ("Clinger", -3f, 5f), ("Clinger", 3f, 5f) }),
+            ("Bow and Clingers", "An archer at range while a pair wears you down.",
+                new[] { ("Laden archer", 0f, 11f), ("Clinger", -2.5f, 6f), ("Clinger", 2.5f, 6f) }),
+            ("Two pairs of Clingers", "Four of them, two pairs.",
+                new[] { ("Clinger", -4f, 6f), ("Clinger", -2.5f, 7f), ("Clinger", 2.5f, 7f), ("Clinger", 4f, 6f) }),
+            ("Everything", "A Laden, an archer and a pair of Clingers.",
+                new[] { ("Laden", 0f, 7f), ("Laden archer", 0f, 12f), ("Clinger", -3f, 5f), ("Clinger", 3f, 5f) }),
+        };
+
+        // `Count` of this kind, each on a free spot on an arc in front of the Apprentice (clear of what's there already).
         public void Spawn(int kind, Apprentice near)
         {
-            var template = kinds[kind].template;
-            Vector3 forward = Flat(near.transform.forward).normalized;
-            if (forward.sqrMagnitude < 0.01f)
-                forward = Vector3.forward;
-            Vector3 right = Vector3.Cross(Vector3.up, forward);
+            Frame(near, out Vector3 origin, out Vector3 forward);
             int count = Count * Mathf.Max(1, kinds[kind].group);
             for (int i = 0; i < count; i++)
+                SpawnOne(kind, FreeSpot(origin, forward), forward);
+        }
+
+        public void SpawnFormation(int formation, Apprentice near)
+        {
+            Frame(near, out Vector3 origin, out Vector3 forward);
+            Vector3 right = Vector3.Cross(Vector3.up, forward);
+            foreach (var (kindName, r, a) in Formations[formation].places)
             {
-                Vector3 spot = near.transform.position + forward * ahead + right * ((i - (count - 1) * 0.5f) * spacing);
-                spot = Ground(spot, near.transform.position);
-                var go = Instantiate(template, spot, template.transform.rotation);
-                go.name = kinds[kind].name + (count > 1 ? $" {spawned.Count + 1}" : "");
-                // Face the Apprentice (turning about the vertical only: a rigged model's root keeps its own rotation).
-                float yaw = Vector3.SignedAngle(Flat(go.transform.forward), -forward, Vector3.up);
-                go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation;
-                var soured = go.GetComponent<Soured>();
-                // Its dropped lantern lives outside it: a copy of its own, carrying this one's light.
-                if (soured.droppedLantern != null)
-                {
-                    var lantern = Instantiate(soured.droppedLantern);
-                    lantern.carried = go.GetComponentInChildren<Light>(true);
-                    lantern.gameObject.SetActive(true);
-                    soured.droppedLantern = lantern;
-                }
-                soured.passive = !Aggressive;
-                if (Aggressive)
-                    soured.aggroRadius = Mathf.Max(soured.aggroRadius, ahead + 6f); // it knows you're there
-                go.SetActive(true);
-                spawned.Add(soured);
+                int kind = Array.FindIndex(kinds, k => k.name == kindName);
+                if (kind >= 0)
+                    SpawnOne(kind, Ground(origin + right * r + forward * a, origin), forward);
             }
+        }
+
+        static void Frame(Apprentice near, out Vector3 origin, out Vector3 forward)
+        {
+            origin = near.transform.position;
+            forward = Flat(near.transform.forward).normalized;
+            if (forward.sqrMagnitude < 0.01f)
+                forward = Vector3.forward;
+        }
+
+        // A spot on standing ground in front of the Apprentice, a little way off, clear of everything set down so far:
+        // along an arc at `ahead`, then further out, then nearer.
+        Vector3 FreeSpot(Vector3 origin, Vector3 forward)
+        {
+            foreach (float radius in new[] { ahead, ahead + 2.5f, ahead + 5f, ahead - 2f })
+                foreach (float angle in new[] { 0f, 15f, -15f, 30f, -30f, 45f, -45f, 60f, -60f, 80f, -80f })
+                {
+                    Vector3 p = Ground(origin + Quaternion.Euler(0f, angle, 0f) * forward * radius, origin);
+                    if (Flat(p - origin).magnitude < 3f)
+                        continue; // (the ground ran out: too close)
+                    bool free = true;
+                    foreach (var s in spawned)
+                        if (s != null && Flat(s.transform.position - p).magnitude < spacing)
+                            free = false;
+                    if (free)
+                        return p;
+                }
+            return Ground(origin + forward * ahead, origin);
+        }
+
+        void SpawnOne(int kind, Vector3 spot, Vector3 forward)
+        {
+            var template = kinds[kind].template;
+            var go = Instantiate(template, spot, template.transform.rotation);
+            go.name = $"{kinds[kind].name} {spawned.Count + 1}";
+            // Face the Apprentice (turning about the vertical only: a rigged model's root keeps its own rotation).
+            float yaw = Vector3.SignedAngle(Flat(go.transform.forward), -forward, Vector3.up);
+            go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation;
+            var soured = go.GetComponent<Soured>();
+            // Its dropped lantern lives outside it: a copy of its own, carrying this one's light.
+            if (soured.droppedLantern != null)
+            {
+                var lantern = Instantiate(soured.droppedLantern);
+                lantern.carried = go.GetComponentInChildren<Light>(true);
+                lantern.gameObject.SetActive(true);
+                soured.droppedLantern = lantern;
+            }
+            soured.passive = !Aggressive;
+            if (Aggressive)
+                soured.aggroRadius = Mathf.Max(soured.aggroRadius, ahead + 8f); // it knows you're there
+            go.SetActive(true);
+            spawned.Add(soured);
         }
 
         public void ClearSpawned()

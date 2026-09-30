@@ -180,8 +180,9 @@ namespace MyGame.Tests
         Clinger[] SpawnClingers()
         {
             var spawner = post.spawner;
-            int kind = System.Array.FindIndex(spawner.kinds, k => k.name == "Clingers");
+            int kind = System.Array.FindIndex(spawner.kinds, k => k.name == "Clinger");
             Assert.GreaterOrEqual(kind, 0, "the lab can set down Clingers");
+            spawner.Count = 2; // (a pair)
             spawner.Spawn(kind, apprentice);
             return spawner.Spawned.OfType<Clinger>().ToArray();
         }
@@ -190,7 +191,7 @@ namespace MyGame.Tests
         public IEnumerator Clingers_ComeInPairs_CircleYou_ThenOneLeaps()
         {
             var pair = SpawnClingers();
-            Assert.AreEqual(2, pair.Length, "always two");
+            Assert.AreEqual(2, pair.Length, "a pair");
             yield return null;
             yield return null;
             Assert.AreSame(pair[1], pair[0].partner, "each the other's other half");
@@ -339,6 +340,36 @@ namespace MyGame.Tests
             input.Move = Vector2.zero;
             yield return new WaitForSeconds(1f);
             Assert.IsTrue(pair.Any(c => c.CurrentState != Soured.State.Idle), "then they come for you");
+        }
+
+        // Different kinds, one after another, each on a spot of its own; and the ready-made formations.
+        [UnityTest]
+        public IEnumerator TestersPost_MixesKinds_AndFormations()
+        {
+            yield return OpenTheMenu();
+            Menu.Do("Laden");
+            Menu.Do("Clinger");
+            Menu.Do("Laden archer");
+            Menu.Do("Clinger");
+            var all = post.spawner.Spawned.ToArray();
+            Assert.AreEqual(4, all.Length);
+            for (int i = 0; i < all.Length; i++)
+                for (int j = i + 1; j < all.Length; j++)
+                    Assert.Greater(Vector3.Distance(all[i].transform.position, all[j].transform.position), 1.5f, "each on a spot of its own");
+            Assert.AreEqual(2, all.OfType<Clinger>().Count(), "Clingers one at a time");
+            Menu.Do("Clear them all");
+            Menu.Do("Formations...");
+            Assert.AreEqual("Formations", Menu.PageName);
+            Menu.Do("Everything");
+            var formed = post.spawner.Spawned.ToArray();
+            Assert.AreEqual(4, formed.Length);
+            Assert.AreEqual(1, formed.OfType<LadenArcher>().Count());
+            Assert.AreEqual(2, formed.OfType<Clinger>().Count());
+            Assert.AreEqual(1, formed.Count(s => s.GetType() == typeof(Laden)));
+            apprentice.OpenMenu.Close();
+            yield return new WaitForSeconds(0.2f);
+            var clingers = formed.OfType<Clinger>().ToArray();
+            Assert.AreSame(clingers[1], clingers[0].partner, "the two Clingers pair up");
         }
     }
 }

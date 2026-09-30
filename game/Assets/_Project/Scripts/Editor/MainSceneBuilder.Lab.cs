@@ -73,7 +73,7 @@ public static partial class MainSceneBuilder
         {
             new LabSpawner.Kind { name = "Laden", template = laden.gameObject },
             new LabSpawner.Kind { name = "Laden archer", template = archer.gameObject },
-            new LabSpawner.Kind { name = "Clingers", template = clinger.gameObject, group = 2 }, // (they come in pairs)
+            new LabSpawner.Kind { name = "Clinger", template = clinger.gameObject }, // (two near each other pair up)
         };
         tester.spawner = spawner;
 
