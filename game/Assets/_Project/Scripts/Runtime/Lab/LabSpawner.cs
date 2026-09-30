@@ -16,6 +16,7 @@ namespace MyGame
         {
             public string name;
             public GameObject template; // inactive; its dropped lantern (if any) inactive too
+            public int group = 1;       // set down this many at a time (Clingers: a pair)
         }
 
         public Kind[] kinds = new Kind[0];
@@ -55,12 +56,13 @@ namespace MyGame
             if (forward.sqrMagnitude < 0.01f)
                 forward = Vector3.forward;
             Vector3 right = Vector3.Cross(Vector3.up, forward);
-            for (int i = 0; i < Count; i++)
+            int count = Count * Mathf.Max(1, kinds[kind].group);
+            for (int i = 0; i < count; i++)
             {
-                Vector3 spot = near.transform.position + forward * ahead + right * ((i - (Count - 1) * 0.5f) * spacing);
+                Vector3 spot = near.transform.position + forward * ahead + right * ((i - (count - 1) * 0.5f) * spacing);
                 spot = Ground(spot, near.transform.position);
                 var go = Instantiate(template, spot, template.transform.rotation);
-                go.name = kinds[kind].name + (Count > 1 ? $" {spawned.Count + 1}" : "");
+                go.name = kinds[kind].name + (count > 1 ? $" {spawned.Count + 1}" : "");
                 // Face the Apprentice (turning about the vertical only: a rigged model's root keeps its own rotation).
                 float yaw = Vector3.SignedAngle(Flat(go.transform.forward), -forward, Vector3.up);
                 go.transform.rotation = Quaternion.Euler(0f, yaw, 0f) * go.transform.rotation;

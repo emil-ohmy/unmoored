@@ -54,10 +54,12 @@ namespace MyGame
                 {
                     int kind = i;
                     string name = Spawner.kinds[i].name;
-                    Add(name, $"x{Spawner.Count}", $"Set down {Spawner.Count} {name} in front of you, {(Spawner.Aggressive ? "aggressive" : "idle")}.", () =>
+                    int group = Mathf.Max(1, Spawner.kinds[i].group);
+                    string many = group > 1 ? $"{Spawner.Count} pair{(Spawner.Count > 1 ? "s" : "")} of {name}" : $"{Spawner.Count} {name}";
+                    Add(name, group > 1 ? $"x{Spawner.Count} pair" : $"x{Spawner.Count}", $"Set down {many} in front of you, {(Spawner.Aggressive ? "aggressive" : "idle")}.", () =>
                     {
                         Spawner.Spawn(kind, apprentice);
-                        Say(Spawner.Count == 1 ? $"A {name}." : $"{Spawner.Count} of them. As ordered.");
+                        Say(Spawner.Count * group == 1 ? $"A {name}." : group > 1 && Spawner.Count == 1 ? "A pair. They never come alone." : $"{Spawner.Count * group} of them. As ordered.");
                     });
                 }
                 Add("How many", Spawner.Count.ToString(), "How many to set down at once.", Spawner.NextCount);

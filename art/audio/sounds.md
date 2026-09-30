@@ -44,6 +44,12 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Bow lantern snuffed (`lantern_snuff`) | in game | Synth | the Apprentice falls: a flare, the flame fluttering faster and fainter, a last puff, a deep cold swell sinking under it |
 | A soul murmurs (`lingerer_murmur`) | in game | Synth | a Lingerer beginning a line: a soft, wordless, breathy hum, low and old, in a little hall (4 contours) |
 | Oar stroke (`oar_stroke`) | in game | Synth | rowing: the blade slipping in, water swirling past it, drips as it lifts (4 variants) |
+| Clinger's tell (`clinger_hiss`) | in game | Synth | crouching to leap: a sharp intake of breath into a rising hiss through the teeth (0.35 s) |
+| Clinger grabs (`clinger_grab`) | in game | Synth | catching hold: cloth snatched and bunched, a soft bump, a small exhale |
+| Clinger thrown off (`clinger_throw`) | in game | Synth | cloth ripping loose, a whoosh, a thump and scrabble as it lands |
+| Clinger keens (`clinger_keen`) | in game | Synth | its other half scattered: a thin, rising, wavering wordless cry, cut off short |
+| Clinger whispers (`clinger_whisper`) | in game | Synth | on your back, barely there: "don't go", "stay", "please" (breath shaped into the words) |
+| Clinger skitters (`clinger_skitter`) | in game | Synth | darting over stone: a quick scrabble of dry taps and clicks |
 | Chapel floor cracking (`floor_crack`, 2) | in game | Synth | the warning before a section gives way: a grinding rumble swelling, cracks quickening, grit |
 | Chapel floor giving way (`floor_break`, 2) | in game | Synth | a splitting crack, the deep boom of it dropping, stone grinding and tumbling, rubble plopping into the water |
 | Anchoress's Undertow (`undertow`) | in game | Synth | 4 s: a low drowned murmur of prayer (two muffled voices) over water welling up, deep churning, bubbles thickening; her tell when she kneels |

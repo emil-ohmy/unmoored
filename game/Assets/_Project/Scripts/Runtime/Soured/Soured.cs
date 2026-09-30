@@ -88,6 +88,8 @@ namespace MyGame
         protected virtual string ChaseClip(float distance) => "Walk";
         protected virtual float ChaseSpeed(float distance) => chaseSpeed;
         protected virtual void OnChaseDistance(float distance) { }
+        // How it closes in (the default: straight at them, at ChaseSpeed); a Clinger circles.
+        protected virtual Vector3 ChaseStep(Vector3 toTarget, float distance) => toTarget.normalized * ChaseSpeed(distance);
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
@@ -173,7 +175,7 @@ namespace MyGame
                         tellClip = tell != null ? tell.clip : null;
                     }
                     else
-                        planar = toTarget.normalized * ChaseSpeed(distance);
+                        planar = ChaseStep(toTarget, distance);
                     break;
 
                 case State.Telegraph:
@@ -305,6 +307,11 @@ namespace MyGame
                     return;
             }
             Tick(dt);
+            if (carried)
+            {
+                UpdateFlash(); // (carried by its own machinery: clinging to someone's back, flung off)
+                return;
+            }
 
             if (swingTrail != null) // the smear of a melee blow (a shot has none)
                 swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
@@ -516,6 +523,19 @@ namespace MyGame
             Scatter();
         }
 
+        bool carried;
+
+        // Moved by the subclass alone for a while (a Clinger on someone's back): no walking, no gravity, no collisions.
+        protected void SetCarried(bool on)
+        {
+            carried = on;
+            controller.enabled = !on;
+            verticalVelocity = 0f;
+            knockback = Vector3.zero;
+        }
+
+        protected bool Carried => carried;
+
         protected void PlaceAt(Vector3 position)
         {
             controller.enabled = false;
@@ -636,6 +656,7 @@ namespace MyGame
         // Back to its spawn, whole again (the Ferryman's hoard pulls it back).
         public virtual void Reform()
         {
+            carried = false;
             controller.enabled = false;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
             controller.enabled = true;

@@ -442,6 +442,43 @@ public static partial class MainSceneBuilder
         return laden;
     }
 
+    // The Clinger: fast, fragile, always two. Circles, leaps, clings to your back; dash it off.
+    static Clinger Clinger(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/clinger", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.5f, 0f);
+        controller.height = 1.0f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var clinger = go.AddComponent<Clinger>();
+        clinger.maxHealth = 40f;   // three light blows
+        clinger.radius = 0.4f;
+        clinger.knockbackResistance = 0f;
+        clinger.staggerCapacity = 30f;
+        clinger.staggerDuration = 0.9f;
+        clinger.aggroRadius = 8f;
+        clinger.noticeCloseRadius = 1.8f;
+        clinger.chaseSpeed = 4.2f;
+        clinger.turnSpeed = 720f;
+        clinger.obols = 20;
+        clinger.eyeHeight = 0.85f;
+        clinger.barHeight = 1.35f;
+        clinger.yankStagger = 0.8f;
+        clinger.deathDuration = 0.8f;
+        clinger.leap.windupSound = Clips("clinger_hiss");
+        clinger.leap.swingSound = Clips("dash");
+        clinger.leap.swingPitch = 1.35f;
+        clinger.skitterSound = Clips("clinger_skitter");
+        clinger.grabSound = Clips("clinger_grab");
+        clinger.throwSound = Clips("clinger_throw");
+        clinger.keenSound = Clips("clinger_keen");
+        clinger.whisperSound = Clips("clinger_whisper");
+        BeltLantern(go, clinger, "Spine");
+        return clinger;
+    }
+
     // The Laden archer: keeps its distance and shoots.
     static LadenArcher LadenArcher(string name, Vector3 position, float yaw)
     {

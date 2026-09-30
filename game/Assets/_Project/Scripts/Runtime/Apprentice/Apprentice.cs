@@ -107,6 +107,11 @@ namespace MyGame
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
         public float ceremonyDuration = 2.4f; // a key item held up
 
+        [Header("Clung to (a Clinger on your back)")]
+        public float clingStaminaDrain = 25f; // per second, each: and it doesn't come back meanwhile
+        public float clingHealthDrain = 3f;   // per second, each
+        public float clingMoveFactor = 0.7f;
+
         [Header("Feel")]
         public float inputBuffer = 0.2f;
 
@@ -256,7 +261,8 @@ namespace MyGame
                     Vector3 move = MoveDirection();
                     bool wasAiming = AimingHook;
                     AimingHook = HasHook && Input.HookHeld;
-                    planar = move * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f) * (AimingHook ? hookAimMoveFactor : 1f);
+                    planar = move * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f) * (AimingHook ? hookAimMoveFactor : 1f)
+                           * (clingers.Count > 0 ? clingMoveFactor : 1f);
                     Vector3 face = LockTarget != null ? ToLockTarget() : move; // locked: strafe, always facing it
                     if (face.sqrMagnitude > 0.001f)
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
@@ -407,6 +413,7 @@ namespace MyGame
             }
             FrameHookTarget();
 
+            UpdateClung(dt);
             RegenerateStamina(dt);
             knockback *= Mathf.Exp(-10f * dt);
             if (CurrentState == State.Rowing)
@@ -678,7 +685,7 @@ namespace MyGame
             switch (act)
             {
                 case Act.Dash:
-                    if (!CanSpend(DashCost))
+                    if (!CanSpend(DashCost) && clingers.Count == 0) // (clung to: a desperate shrug works even spent)
                     {
                         Announce("no stamina");
                         return;
@@ -693,6 +700,7 @@ namespace MyGame
                     Enter(State.Dashing);
                     Sfx.Instance?.Dash(transform.position);
                     clips.PlayOnce("Dash", dashDuration);
+                    ThrowOffClingers(dashDirection);
                     break;
                 case Act.Light:
                     StartAttack(false, 0);
@@ -718,6 +726,50 @@ namespace MyGame
             float rate = CurrentState == State.Blocking ? 0.4f : 1f; // holding a block slows recovery
             if (!busy && Time.time - lastStaminaUse >= staminaRegenDelay)
                 Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * rate * dt);
+        }
+
+        // ---- clung to
+
+        readonly System.Collections.Generic.List<Clinger> clingers = new System.Collections.Generic.List<Clinger>();
+        public int ClungBy => clingers.Count;
+        public System.Collections.Generic.IReadOnlyList<Clinger> Clingers => clingers;
+
+        // A Clinger has caught hold (it rides on your back); it lets go by itself, or you dash it off.
+        public void Cling(Clinger clinger)
+        {
+            if (!clingers.Contains(clinger))
+                clingers.Add(clinger);
+        }
+
+        public void LetGo(Clinger clinger) => clingers.Remove(clinger);
+
+        // Each Clinger on your back drains stamina (none comes back meanwhile) and a little health.
+        void UpdateClung(float dt)
+        {
+            clingers.RemoveAll(c => c == null || !c.Clinging);
+            if (clingers.Count == 0 || !IsAlive)
+                return;
+            Stamina = Mathf.Max(0f, Stamina - clingStaminaDrain * clingers.Count * dt);
+            lastStaminaUse = Time.time;
+            if (CurrentState == State.Ceremony || CurrentState == State.Rowing)
+                return;
+            Health = Mathf.Max(0f, Health - clingHealthDrain * clingers.Count * dt);
+            if (Health <= 0f)
+            {
+                Announce("drained");
+                Die();
+            }
+        }
+
+        void ThrowOffClingers(Vector3 direction)
+        {
+            if (clingers.Count == 0)
+                return;
+            foreach (var c in clingers.ToArray())
+                c.ThrowOff(direction);
+            clingers.Clear();
+            CameraRig.Instance?.Shake(0.15f);
+            Announce("threw them off");
         }
 
         void TryHeal()
