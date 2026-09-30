@@ -97,6 +97,8 @@ business and pay their fare to row them across.
 - **One oar, strengthened.** No other oars and no attachments: the oar itself is made stronger in five steps, each
   with its own look, name and description (the game's voice, dry). Each step costs **Ferry Nails** (1, 2, 3, then 4:
   ten in all), spent at a Mooring post. Steps go in order, so however many nails are found early, no step is skipped.
+  Each step is a moment, like taking an Ability: the Apprentice holds the oar up high, the world dims, and the oar
+  changes in the flash.
   Each hits harder and staggers more (x1, 1.2, 1.45, 1.7, 2).
   Each step looks more over the top than the last, and from the second on it's fitted in metal:
   1. **The Apprentice's Oar:** plain wood, worn smooth, with a red band.
@@ -115,9 +117,11 @@ business and pay their fare to row them across.
   - **Held Breaths:** more stamina (+10 each).
   - **Embers:** one more Healing charge each.
   The starting health and stamina (100) and the bonus each piece gives are placeholders, to be balanced together.
-- **The character screen** (I or C; Select on a gamepad) pauses the game. It has four pages:
+- **The character screen** (I or C; Select on a gamepad) pauses the game. It has five pages:
   - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
   - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.
+  - **Abilities:** each one found, with what it is, how it's used (keyboard and gamepad) and what it's for. The list
+    scrolls, since how many there will be isn't settled.
   - **Charms:** those found and those fitted, the slots, and a dark socket for each still to find.
   - **The Lantern:** a glow, five flames and one line. It says as little as it can.
 - **Obols**, the fare of the dead, buy:

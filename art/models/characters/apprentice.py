@@ -83,6 +83,8 @@ HOOK_WHIRL = [
                                            HOOK_WHIRL_CENTRE[2]))))
     for k in range(5)
 ]
+OAR_RAISED = {"Pivot": (-5, 0, 0), "Body": (-10, 0, 0), "Head": (-24, 0, 0), "Oar": ((-6, -8, 0), (-0.19, 0.02, 0.94)),
+              "Root": ((0, 0, 0), (0, 0, 0.03))}
 RAISED = {"Pivot": (-4, 0, 0), "Body": (-8, 0, 0), "Head": (-20, 0, 0), "Oar": (12, 0, -24),
           "Hook": ((0, 0, 0), (-0.22, -0.2, 0.86)), "Root": ((0, 0, 0), (0, 0, 0.02))}
 
@@ -175,6 +177,17 @@ ACTIONS = {
         (15, RAISED),
         (30, dict(RAISED, Hook=((0, 0, 8), (-0.22, -0.2, 0.9)))),
         (46, RAISED),
+        (58, REST),
+    ]),
+    # The oar strengthened (2.4 s): a crouch, then the oar hoisted straight up high beside the head, blade to the sky,
+    # the head tipped back to look up at it; a small pump at the top (its new look arrives there), then lowered.
+    "RaiseOar": ("BEZIER", [
+        (1, REST),
+        (8, {"Pivot": (10, 0, 0), "Head": (8, 0, 0), "Oar": ((10, 0, -10), (-0.1, 0.0, -0.08)), "Root": ((0, 0, 0), (0, 0, -0.08))}),
+        (15, OAR_RAISED),
+        (22, dict(OAR_RAISED, Oar=((-6, -8, 0), (-0.19, 0.02, 1.03)))),
+        (30, OAR_RAISED),
+        (46, OAR_RAISED),
         (58, REST),
     ]),
     "Heal": ("BEZIER", [  # bows its head to the mask, a small glow of relief (0.7 s)

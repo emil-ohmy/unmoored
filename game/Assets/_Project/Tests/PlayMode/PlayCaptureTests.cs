@@ -1317,10 +1317,11 @@ namespace MyGame.Tests
                 apprentice.AddFerryNail();
             e.Strengthen();
             Lantern.DevLevels = 1;
+            apprentice.GiveHook();
             yield return Frames(30);
             var screen = UnityEngine.Object.FindAnyObjectByType<CharacterScreen>();
             screen.Toggle(true);
-            for (int page = 0; page < 4; page++)
+            for (int page = 0; page < CharacterScreen.TabNames.Length; page++)
             {
                 yield return Frames(15);
                 Shot($"character-{page}-{screen.Current}", cam);
@@ -1336,6 +1337,19 @@ namespace MyGame.Tests
             screen.Toggle(false);
             Lantern.DevLevels = 0;
             yield return Frames(15);
+
+            // Strengthening it: held up high, changing in the flash.
+            e.Restore(2, 3, 1, 1);
+            yield return Frames(5);
+            Assert.IsTrue(apprentice.StrengthenOar());
+            foreach (float at in new[] { 0.2f, 0.32f, 0.45f, 0.7f })
+            {
+                while (apprentice.CurrentState == Apprentice.State.Ceremony && apprentice.StateTime < apprentice.ceremonyDuration * at)
+                    yield return null;
+                Shot($"ceremony-{Mathf.RoundToInt(at * 100)}", cam);
+            }
+            while (apprentice.CurrentState == Apprentice.State.Ceremony)
+                yield return null;
 
             // The oar, close up.
             var close = new GameObject("Close Camera").AddComponent<Camera>();

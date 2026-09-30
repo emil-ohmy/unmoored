@@ -810,17 +810,37 @@ namespace MyGame.Tests
             Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "Resting opens the post's menu: the oar's row first");
             Assert.AreEqual(0, apprentice.OpenMenu.Selected);
             StringAssert.Contains("Strengthen", apprentice.OpenMenu.Rows[0].Label);
+            // Strengthening is a moment of its own: the menu closes, the oar is held up high, and it changes at the top.
+            string found = null;
+            apprentice.Found += (title, hint) => found = title;
             input.PressInteract();
             yield return null;
+            Assert.AreEqual(Apprentice.State.Ceremony, apprentice.CurrentState, "held up, as a key item is");
+            Assert.IsNull(apprentice.OpenMenu, "the post's menu closes for it");
+            Assert.AreEqual(0, e.OarStep, "not yet: it changes in the flash at the top");
+            yield return new WaitForSeconds(apprentice.ceremonyDuration * 0.5f);
             Assert.AreEqual(1, e.OarStep, "one step (one nail)");
             Assert.AreEqual(3, e.FerryNails);
-            input.PressInteract();
-            yield return null;
+            AssertShows(1);
+            Assert.AreEqual("The Oarhand's Oar", found, "and its name");
+            yield return new WaitForSeconds(apprentice.ceremonyDuration * 0.5f + 0.2f);
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+
+            IEnumerator StrengthenAtThePost()
+            {
+                input.PressInteract(); // (Rest again)
+                yield return null;
+                Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu);
+                input.PressInteract();
+                yield return null;
+                yield return new WaitForSeconds(apprentice.ceremonyDuration + 0.2f);
+            }
+            yield return StrengthenAtThePost();
             Assert.AreEqual(2, e.OarStep, "the next (two nails)");
             Assert.AreEqual(1, e.FerryNails);
-            input.PressInteract();
-            yield return null;
+            yield return StrengthenAtThePost();
             Assert.AreEqual(2, e.OarStep, "three nails for the next: one isn't enough");
+            Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "(the menu stays, and says so)");
             Assert.AreEqual("The Boatman's Oar", e.Oar.Name);
             Assert.AreEqual(plain * Oar.Steps[2].Strength, apprentice.DamageFactor, 0.001f, "it hits harder");
             AssertShows(2);
@@ -875,6 +895,17 @@ namespace MyGame.Tests
             Assert.IsTrue(Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Length == pieces.Length, "back where they were");
         }
 
+        // A long list keeps its chosen row in view, moving as little as it can.
+        [Test]
+        public void ScrollRows_KeepTheChosenOneInView()
+        {
+            Assert.AreEqual(0, CharacterScreen.ScrollRows.Window(0, 3, 12, 5), "in view already");
+            Assert.AreEqual(2, CharacterScreen.ScrollRows.Window(0, 6, 12, 5), "down past the bottom: one row at a time");
+            Assert.AreEqual(4, CharacterScreen.ScrollRows.Window(6, 4, 12, 5), "up past the top");
+            Assert.AreEqual(7, CharacterScreen.ScrollRows.Window(0, 11, 12, 5), "wrapped round to the last");
+            Assert.AreEqual(0, CharacterScreen.ScrollRows.Window(4, 1, 3, 5), "a short list never scrolls");
+        }
+
         // The character screen: I / C / Select pauses the world behind four pages, left and right between them.
         [UnityTest]
         public IEnumerator TheCharacterScreen_Pauses_AndShowsItsPages()
@@ -896,6 +927,17 @@ namespace MyGame.Tests
             Assert.AreEqual("The Apprentice's Oar", screen.OarName);
             StringAssert.Contains("???", screen.OarNext, "the next step, unnamed");
             StringAssert.Contains("1 Ferry Nail", screen.OarNext);
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Abilities, screen.Current);
+            Assert.AreEqual(0, screen.AbilityRows.Count, "none found yet");
+            apprentice.GiveHook();
+            yield return null;
+            Assert.AreEqual("The Hook", screen.AbilityRows[0]);
+            Assert.AreEqual("The Hook", screen.AbilityName);
+            StringAssert.Contains("Hold F", screen.AbilityHow, "how it's used");
+            StringAssert.Contains("RB", screen.AbilityHow);
+            StringAssert.Contains("hook post", screen.AbilityHow, "and what for");
 
             screen.Turn(1);
             Assert.AreEqual(CharacterScreen.Tab.Charms, screen.Current);

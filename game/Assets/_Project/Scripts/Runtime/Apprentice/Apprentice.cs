@@ -174,6 +174,7 @@ namespace MyGame
         Act buffered;
         float bufferedAt;
         float stateTime;
+        public float StateTime => stateTime; // (how long in the current state: captures)
         float stateDuration;
         bool snuffSounded;
         float lastStaminaUse = -10f;
@@ -257,7 +258,7 @@ namespace MyGame
                 case State.Free when inMenu:
                     clips.Loop("Idle", 0.1f);
                     OpenMenu.Tick(Input);
-                    if (!OpenMenu.IsOpen)
+                    if (OpenMenu != null && !OpenMenu.IsOpen) // (a choice in it may close it: the oar strengthened)
                         OpenMenu = null;
                     break;
 
@@ -974,7 +975,8 @@ namespace MyGame
 
         System.Action pendingTake;
         string ceremonyTitle, ceremonyHint;
-        bool ceremonyAnnounced, ceremonyFlashed;
+        bool ceremonyAnnounced, ceremonyFlashed, ceremonyOar;
+        System.Action ceremonyGrant; // (given at the flash: the oar changes in the light)
         Light ceremonyLight;
 
         // Stoop to pick an item up; it's taken (`take`) at the bottom of the stoop. A blow before then leaves it there.
@@ -992,16 +994,35 @@ namespace MyGame
 
         // A key item (an Ability): held up high for a moment, the world dimming and the camera easing in, a cold burst
         // of light and its motif; then its banner. Untouchable meanwhile.
-        public void ReceiveKeyItem(string title, string hint, System.Action grant)
+        public void ReceiveKeyItem(string title, string hint, System.Action grant) => Ceremony(title, hint, grant, false);
+
+        // At a Mooring post, with the Ferry Nails for it: the oar's next step, as a key item is received. It's hoisted
+        // high, and in the flash at the top it becomes the next oar; then its name.
+        public bool StrengthenOar()
         {
-            grant();
+            var next = Equipment.NextOar;
+            if (!Equipment.CanStrengthen || !IsAlive)
+                return false;
+            CloseMenu();
+            Ceremony(next.Name, next.FoundLine, () => Equipment.Strengthen(), true);
+            return true;
+        }
+
+        void Ceremony(string title, string hint, System.Action grant, bool oar)
+        {
+            ceremonyOar = oar;
+            ceremonyGrant = null;
+            if (oar)
+                ceremonyGrant = grant;
+            else
+                grant();
             ceremonyTitle = title;
             ceremonyHint = hint;
             ceremonyAnnounced = ceremonyFlashed = false;
             buffered = Act.None;
             SetLockTarget(null);
             Enter(State.Ceremony);
-            clips.PlayOnce("RaiseItem", ceremonyDuration);
+            clips.PlayOnce(oar ? "RaiseOar" : "RaiseItem", ceremonyDuration);
             Sfx.Instance?.KeyItem(transform.position + Vector3.up);
             CameraRig.Instance?.SetZoom(0.72f);
             if (ceremonyLight == null)
@@ -1020,7 +1041,8 @@ namespace MyGame
         void UpdateCeremony()
         {
             float t = stateTime / ceremonyDuration;
-            Vector3 held = hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
+            Vector3 held = ceremonyOar ? transform.position + Vector3.up * 2.6f // (the blade, held high)
+                : hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
             ceremonyLight.transform.position = held + Vector3.up * 0.2f;
             // The light swells as it's lifted, flares at the top, and eases away as it's lowered.
             ceremonyLight.intensity = t < 0.3f ? 6f * (t / 0.3f) * (t / 0.3f) : 6f * Mathf.Clamp01((0.95f - t) / 0.65f);
@@ -1028,6 +1050,8 @@ namespace MyGame
             {
                 ceremonyFlashed = true;
                 Effects.Instance?.KeyItemRing(held);
+                ceremonyGrant?.Invoke();
+                ceremonyGrant = null;
             }
             if (!ceremonyAnnounced && t >= 0.4f)
             {

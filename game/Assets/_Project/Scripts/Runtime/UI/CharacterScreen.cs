@@ -4,14 +4,16 @@ using UnityEngine.UI;
 
 namespace MyGame
 {
-    // The character screen (I or C; Select on a gamepad): the world pauses behind four pages, left/right between them.
+    // The character screen (I or C; Select on a gamepad): the world pauses behind five pages, left/right between them.
     // The Apprentice (health, stamina, healing, what's carried), The Oar (its step: its name, what it is, how strong,
-    // what the next step asks), Charms (those found, those fitted, the slots, and dark sockets for the rest) and The
-    // Lantern, which says as little as it can. Closed with the same key, Esc or B. Drawn in real time.
+    // what the next step asks), Abilities (each found: what it is, how it's used, what it's for), Charms (those found,
+    // those fitted, the slots, and dark sockets for the rest) and The Lantern, which says as little as it can. Long lists
+    // scroll. Closed with the same key, Esc or B. Drawn in real time.
     public sealed class CharacterScreen : MonoBehaviour
     {
-        public enum Tab { Apprentice, Oar, Charms, Lantern }
-        public static readonly string[] TabNames = { "The Apprentice", "The Oar", "Charms", "The Lantern" };
+        public enum Tab { Apprentice, Oar, Abilities, Charms, Lantern }
+        public static readonly string[] TabNames = { "The Apprentice", "The Oar", "Abilities", "Charms", "The Lantern" };
+        static int Tabs => TabNames.Length;
 
         public Font titleFont, textFont;
         public GameObject[] oarModels; // the oar at each step, on its own (oar_display): shown turning on the Oar page
@@ -22,7 +24,8 @@ namespace MyGame
 
         public bool Open { get; private set; }
         public Tab Current { get; private set; }
-        public int SelectedCharm { get; private set; }
+        public int SelectedCharm => charmList.Selected;
+        public int SelectedAbility => abilityList.Selected;
 
         // What each page says (tests, and the capture).
         public string OarName => oarName.text;
@@ -30,11 +33,12 @@ namespace MyGame
         public string LanternLine => lanternLine.text;
         public string CharmDetail => charmDetail.text;
         public IReadOnlyList<string> CharmRows => charmRowText;
+        public IReadOnlyList<string> AbilityRows => abilityRowText;
+        public string AbilityName => abilityName.text;
+        public string AbilityHow => abilityKeys.text + "\n" + abilityPad.text + "\n" + string.Join("\n", System.Array.ConvertAll(abilityUses, u => u.text));
         public string StatValue(int row) => stats[row].value.text;
 
         static readonly Color Cold = new Color(0.78f, 0.88f, 1f);
-        const float CharmRowHeight = 58f;
-        const int CharmRows_ = 8;
 
         MenuInput input;
         Apprentice apprentice;
@@ -43,9 +47,9 @@ namespace MyGame
         Image shade;
         int closedFrame = -1;
 
-        readonly Text[] tabs = new Text[4];
+        readonly Text[] tabs = new Text[TabNames.Length];
         Image tabLeft, tabRight;
-        readonly RectTransform[] pages = new RectTransform[4];
+        readonly RectTransform[] pages = new RectTransform[TabNames.Length];
 
         (Text label, Text value, Text note)[] stats;
         Image oarGlow;
@@ -56,8 +60,10 @@ namespace MyGame
         Text oarName, oarDescription, oarNext;
         Image[] pips;
         Image[] slotMarks;
-        (Image band, Text label, Text value)[] charmRows;
-        readonly List<string> charmRowText = new List<string>();
+        ScrollRows charmList, abilityList;
+        readonly List<string> charmRowText = new List<string>(), abilityRowText = new List<string>();
+        Text abilityName, abilityDescription, abilityHowHeading, abilityKeys, abilityPad, abilityNone;
+        Text[] abilityUses;
         Text charmDetail;
         Image lanternGlow, lanternCore;
         Image[] flames;
@@ -91,8 +97,8 @@ namespace MyGame
             UiKit.Image(root, "Backdrop", UiKit.Band, Color.black.WithAlpha(0.55f), centre, new Vector2(0, 20), new Vector2(1900, 980));
 
             // The tabs, across the top.
-            for (int i = 0; i < 4; i++)
-                tabs[i] = UiKit.Text(root, "Tab", titleFont, 40, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2(-600 + i * 400, 400), 3f);
+            for (int i = 0; i < Tabs; i++)
+                tabs[i] = UiKit.Text(root, "Tab", titleFont, 38, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2((i - (Tabs - 1) / 2f) * 345f, 400), 3f);
             tabLeft = Diamond(root, UiKit.Ember, 10f);
             tabRight = Diamond(root, UiKit.Ember, 10f);
             UiKit.Image(root, "Rule", UiKit.Rule, UiKit.Bone.WithAlpha(0.55f), centre, new Vector2(0, 360), new Vector2(1600, 3));
@@ -100,12 +106,13 @@ namespace MyGame
             var hints = UiKit.Text(root, "Hints", textFont, 26, UiKit.Bone.WithAlpha(0.75f), TextAnchor.MiddleCenter, new Vector2(0.5f, 0f), new Vector2(0, 70), 1f);
             hints.text = "Left / Right: page     Up / Down: choose     I / Select, Esc / B: close";
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < Tabs; i++)
                 pages[i] = UiKit.Stretch(UiKit.Rect(root, TabNames[i], centre, Vector2.zero, Vector2.zero));
-            BuildApprentice(pages[0]);
-            BuildOar(pages[1]);
-            BuildCharms(pages[2]);
-            BuildLantern(pages[3]);
+            BuildApprentice(pages[(int)Tab.Apprentice]);
+            BuildOar(pages[(int)Tab.Oar]);
+            BuildAbilities(pages[(int)Tab.Abilities]);
+            BuildCharms(pages[(int)Tab.Charms]);
+            BuildLantern(pages[(int)Tab.Lantern]);
             root.gameObject.SetActive(false);
         }
 
@@ -235,24 +242,43 @@ namespace MyGame
                 slotMarks[i] = Diamond(page, UiKit.Ember, 20f);
                 slotMarks[i].rectTransform.anchoredPosition = new Vector2(10 + i * 50, 290);
             }
-            charmRows = new (Image, Text, Text)[CharmRows_];
-            for (int i = 0; i < CharmRows_; i++)
-            {
-                float y = 210 - i * CharmRowHeight;
-                var band = UiKit.Image(page, "Band", UiKit.Band, UiKit.Ember.WithAlpha(0.14f), centre, new Vector2(0, y), new Vector2(1000, CharmRowHeight + 6));
-                var label = UiKit.Text(page, "Label", textFont, 34, UiKit.Bone, TextAnchor.MiddleLeft, centre, new Vector2(-420, y), 1f);
-                label.rectTransform.pivot = new Vector2(0f, 0.5f);
-                label.rectTransform.sizeDelta = new Vector2(600, CharmRowHeight);
-                var value = UiKit.Text(page, "Value", textFont, 30, UiKit.Ember, TextAnchor.MiddleRight, centre, new Vector2(420, y), 1f);
-                value.rectTransform.pivot = new Vector2(1f, 0.5f);
-                value.rectTransform.sizeDelta = new Vector2(300, CharmRowHeight);
-                charmRows[i] = (band, label, value);
-            }
+            charmList = new ScrollRows(page, textFont, 0f, 210f, 1000f, 7);
             charmDetail = UiKit.Text(page, "Detail", textFont, 30, UiKit.Ash, TextAnchor.UpperCenter, centre, new Vector2(0, -262));
             charmDetail.horizontalOverflow = HorizontalWrapMode.Wrap;
             charmDetail.rectTransform.pivot = new Vector2(0.5f, 1f);
             charmDetail.rectTransform.sizeDelta = new Vector2(1100, 90);
         }
+
+        void BuildAbilities(RectTransform page)
+        {
+            var centre = new Vector2(0.5f, 0.5f);
+            abilityList = new ScrollRows(page, textFont, -470f, 280f, 520f, 9);
+            abilityNone = UiKit.Text(page, "None", textFont, 32, UiKit.Ash.WithAlpha(0.7f), TextAnchor.MiddleCenter, centre, new Vector2(0, 40), 1f);
+            abilityNone.text = "Nothing yet. The oar will have to do.";
+            const float x = 290f;
+            Text Line(string name, Font font, int size, Color colour, float y, float height, TextAnchor anchor = TextAnchor.UpperLeft)
+            {
+                var t = UiKit.Text(page, name, font, size, colour, anchor, centre, new Vector2(x, y));
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                t.rectTransform.pivot = new Vector2(0.5f, 1f);
+                t.rectTransform.sizeDelta = new Vector2(880, height);
+                return t;
+            }
+            abilityName = Line("Name", titleFont, 48, UiKit.Bone, 300, 70);
+            abilityDescription = Line("Description", textFont, 30, UiKit.Ash, 225, 110);
+            abilityHowHeading = Line("How", titleFont, 30, UiKit.Ember, 105, 44);
+            abilityHowHeading.text = "How";
+            abilityKeys = Line("Keys", textFont, 30, UiKit.Bone, 62, 40);
+            abilityPad = Line("Pad", textFont, 30, UiKit.Bone, 24, 40);
+            var forHeading = Line("For", titleFont, 30, UiKit.Ember, -38, 44);
+            forHeading.text = "For";
+            abilityUses = new Text[6];
+            for (int i = 0; i < abilityUses.Length; i++)
+                abilityUses[i] = Line("Use", textFont, 28, UiKit.Ash, -80 - i * 40, 40);
+            abilityDetail = new Graphic[] { abilityName, abilityDescription, abilityHowHeading, abilityKeys, abilityPad, forHeading };
+        }
+
+        Graphic[] abilityDetail;
 
         void BuildLantern(RectTransform page)
         {
@@ -296,17 +322,18 @@ namespace MyGame
 
         public void Turn(int by)
         {
-            Current = (Tab)(((int)Current + by + 4) % 4);
+            Current = (Tab)(((int)Current + by + Tabs) % Tabs);
             Sfx.Instance?.UiTick();
             Draw();
         }
 
-        public void ChooseCharm(int by)
+        public void ChooseCharm(int by) => Choose(charmList, by);
+        public void ChooseAbility(int by) => Choose(abilityList, by);
+
+        void Choose(ScrollRows list, int by)
         {
-            int count = CharmCount;
-            if (count == 0)
+            if (!list.Move(by))
                 return;
-            SelectedCharm = (SelectedCharm + by + count) % count;
             Sfx.Instance?.UiTick();
             Draw();
         }
@@ -328,6 +355,8 @@ namespace MyGame
                     Turn(step.x);
                 else if (step.y != 0 && Current == Tab.Charms)
                     ChooseCharm(-step.y);
+                else if (step.y != 0 && Current == Tab.Abilities)
+                    ChooseAbility(-step.y);
             }
             if (group == null)
                 return;
@@ -345,7 +374,7 @@ namespace MyGame
         {
             if (apprentice == null || group == null)
                 return;
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < Tabs; i++)
             {
                 bool on = i == (int)Current;
                 tabs[i].text = TabNames[i];
@@ -360,6 +389,7 @@ namespace MyGame
             {
                 case Tab.Apprentice: DrawApprentice(); break;
                 case Tab.Oar: DrawOar(); break;
+                case Tab.Abilities: DrawAbilities(); break;
                 case Tab.Charms: DrawCharms(); break;
                 default: DrawLantern(); break;
             }
@@ -406,9 +436,39 @@ namespace MyGame
             oarNext.color = next != null && e.CanStrengthen ? UiKit.Bone : UiKit.Ash;
         }
 
-        // The charms found (no dev charm unless it's owned), then a dark socket for each still to find.
-        int CharmCount => charmRowText.Count;
+        // The Abilities found (how many there'll be isn't said: no sockets for the rest), the chosen one beside them.
+        void DrawAbilities()
+        {
+            abilityRowText.Clear();
+            var found = new List<Ability>();
+            foreach (var a in Ability.All)
+                if (a.FoundBy(apprentice))
+                {
+                    found.Add(a);
+                    abilityRowText.Add(a.Name);
+                }
+            var rows = new List<ScrollRows.Item>();
+            foreach (var name in abilityRowText)
+                rows.Add(new ScrollRows.Item { Label = name });
+            abilityList.Set(rows);
+            bool any = found.Count > 0;
+            abilityNone.enabled = !any;
+            foreach (var g in abilityDetail)
+                g.enabled = any;
+            var chosen = any ? found[abilityList.Selected] : null;
+            abilityName.text = chosen?.Name ?? "";
+            abilityDescription.text = chosen?.Description ?? "";
+            abilityKeys.text = chosen != null ? $"Keyboard:  {chosen.Keys}" : "";
+            abilityPad.text = chosen != null ? $"Gamepad:  {chosen.Pad}" : "";
+            for (int i = 0; i < abilityUses.Length; i++)
+            {
+                bool on = chosen != null && i < chosen.Uses.Length;
+                abilityUses[i].enabled = on;
+                abilityUses[i].text = on ? "·  " + chosen.Uses[i] : "";
+            }
+        }
 
+        // The charms found (no dev charm unless it's owned), then a dark socket for each still to find.
         void DrawCharms()
         {
             var e = apprentice.Equipment;
@@ -427,21 +487,13 @@ namespace MyGame
                 charmRowText.Add(c.Name);
             for (int i = 0; i < unfound; i++)
                 charmRowText.Add("Not yet found");
-            SelectedCharm = Mathf.Clamp(SelectedCharm, 0, Mathf.Max(0, charmRowText.Count - 1));
-            for (int i = 0; i < charmRows.Length; i++)
+            var rows = new List<ScrollRows.Item>();
+            for (int i = 0; i < charmRowText.Count; i++)
             {
-                var (band, label, value) = charmRows[i];
-                bool on = i < charmRowText.Count;
-                label.gameObject.SetActive(on);
-                value.gameObject.SetActive(on);
-                band.enabled = on && i == SelectedCharm;
-                if (!on)
-                    continue;
                 bool isFound = i < found.Count;
-                label.text = charmRowText[i];
-                label.color = !isFound ? UiKit.Ash.WithAlpha(0.35f) : i == SelectedCharm ? UiKit.Bone : UiKit.Ash;
-                value.text = isFound && e.IsFitted(found[i]) ? "fitted" : "";
+                rows.Add(new ScrollRows.Item { Label = charmRowText[i], Value = isFound && e.IsFitted(found[i]) ? "fitted" : "", Dim = !isFound });
             }
+            charmList.Set(rows);
             if (charmRowText.Count == 0)
                 charmDetail.text = "Nothing yet.";
             else if (SelectedCharm < found.Count)
@@ -465,6 +517,99 @@ namespace MyGame
             }
             lastRing.color = Cold.WithAlpha(level >= Lantern.Levels ? 0.7f + 0.3f * breathe : 0.12f);
             lanternLine.text = Lantern.Line;
+        }
+        // A list of rows that scrolls: as many as fit are shown, the chosen one kept in view, and a caret above or below
+        // when there are more that way. For lists whose length isn't known yet (Abilities, Charms).
+        public sealed class ScrollRows
+        {
+            public struct Item
+            {
+                public string Label, Value;
+                public bool Dim;
+            }
+
+            const float RowHeight = 58f;
+            readonly (Image band, Text label, Text value)[] rows;
+            readonly Image up, down;
+            int first, count;
+
+            public int Selected { get; private set; }
+            public int First => first;
+
+            public ScrollRows(Transform page, Font font, float x, float top, float width, int visible)
+            {
+                var centre = new Vector2(0.5f, 0.5f);
+                rows = new (Image, Text, Text)[visible];
+                for (int i = 0; i < visible; i++)
+                {
+                    float y = top - i * RowHeight;
+                    var band = UiKit.Image(page, "Band", UiKit.Band, UiKit.Ember.WithAlpha(0.14f), centre, new Vector2(x, y), new Vector2(width, RowHeight + 6));
+                    var label = UiKit.Text(page, "Label", font, 34, UiKit.Bone, TextAnchor.MiddleLeft, centre, new Vector2(x - width / 2f + 60f, y), 1f);
+                    label.rectTransform.pivot = new Vector2(0f, 0.5f);
+                    label.rectTransform.sizeDelta = new Vector2(width - 120f, RowHeight);
+                    var value = UiKit.Text(page, "Value", font, 30, UiKit.Ember, TextAnchor.MiddleRight, centre, new Vector2(x + width / 2f - 60f, y), 1f);
+                    value.rectTransform.pivot = new Vector2(1f, 0.5f);
+                    value.rectTransform.sizeDelta = new Vector2(300, RowHeight);
+                    rows[i] = (band, label, value);
+                }
+                up = Caret(page, new Vector2(x, top + RowHeight * 0.62f), true);
+                down = Caret(page, new Vector2(x, top - (visible - 0.38f) * RowHeight), false);
+            }
+
+            // A small chevron (two strokes).
+            static Image Caret(Transform page, Vector2 at, bool pointsUp)
+            {
+                var root = UiKit.Image(page, "Caret", null, Color.clear, new Vector2(0.5f, 0.5f), at, new Vector2(30, 16));
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    var stroke = UiKit.Image(root.rectTransform, "Stroke", null, UiKit.Ember.WithAlpha(0.8f), new Vector2(0.5f, 0.5f), new Vector2(side * 6f, 0f), new Vector2(16, 3));
+                    stroke.rectTransform.localRotation = Quaternion.Euler(0, 0, (pointsUp ? -30f : 30f) * side);
+                }
+                return root;
+            }
+
+            // Moves the choice (wrapping round); false if there's nothing to move to.
+            public bool Move(int by)
+            {
+                if (count < 2)
+                    return false;
+                Selected = (Selected + by + count) % count;
+                first = Window(first, Selected, count, rows.Length);
+                return true;
+            }
+
+            // The first row shown, so the chosen one is in view (moving the window as little as it can).
+            public static int Window(int first, int selected, int count, int visible)
+            {
+                if (selected < first)
+                    first = selected;
+                if (selected >= first + visible)
+                    first = selected - visible + 1;
+                return Mathf.Clamp(first, 0, Mathf.Max(0, count - visible));
+            }
+
+            public void Set(IReadOnlyList<Item> items)
+            {
+                count = items.Count;
+                Selected = Mathf.Clamp(Selected, 0, Mathf.Max(0, count - 1));
+                first = Window(first, Selected, count, rows.Length);
+                for (int i = 0; i < rows.Length; i++)
+                {
+                    var (band, label, value) = rows[i];
+                    int item = first + i;
+                    bool on = item < count;
+                    label.gameObject.SetActive(on);
+                    value.gameObject.SetActive(on);
+                    band.enabled = on && item == Selected;
+                    if (!on)
+                        continue;
+                    label.text = items[item].Label;
+                    label.color = items[item].Dim ? UiKit.Ash.WithAlpha(0.35f) : item == Selected ? UiKit.Bone : UiKit.Ash;
+                    value.text = items[item].Value ?? "";
+                }
+                up.gameObject.SetActive(first > 0);
+                down.gameObject.SetActive(first + rows.Length < count);
+            }
         }
     }
 }

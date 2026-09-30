@@ -56,15 +56,8 @@ namespace MyGame
                 var next = Equipment.NextOar;
                 if (next == null)
                     return;
-                if (!Equipment.Strengthen())
-                {
+                if (!apprentice.StrengthenOar()) // (it stands, and holds the oar up: a moment of its own)
                     Say($"Not enough Ferry Nails ({Equipment.FerryNails} of {next.Cost}).");
-                    return;
-                }
-                Sfx.Instance?.KeyItem(apprentice.transform.position + UnityEngine.Vector3.up);
-                Effects.Instance?.KeyItemRing(apprentice.transform.position + UnityEngine.Vector3.up);
-                apprentice.AnnounceFind(Equipment.Oar.Name, Equipment.Oar.FoundLine);
-                Say($"{Equipment.Oar.Name}.");
                 return;
             }
             var charm = SelectedCharm;

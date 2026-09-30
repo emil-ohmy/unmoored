@@ -105,7 +105,7 @@ How far the Bow lantern has grown, 1 to 5, from the Mooring posts lit across the
 _Avoid_: Lamp level, light level
 
 **Character screen**:
-The paused screen with four pages: the Apprentice, the Oar, Charms and the Lantern.
+The paused screen with five pages: the Apprentice, the Oar, Abilities, Charms and the Lantern.
 _Avoid_: Inventory, status menu
 
 **Obol**:
