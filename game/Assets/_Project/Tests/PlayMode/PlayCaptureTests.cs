@@ -1394,6 +1394,127 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // The heights in the lab: the stair and walkway, inside the tower (the storeys above hidden), behind it (the
+        // cutaway), the roof, the Hook across, the high platform.
+        [UnityTest]
+        public IEnumerator Capture_Heights()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            apprentice.GiveHook();
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var tower = UnityEngine.Object.FindAnyObjectByType<Storeys>().transform.position;
+            IEnumerator At(string name, Vector3 where, Vector3 facing)
+            {
+                apprentice.Teleport(where);
+                apprentice.transform.rotation = Quaternion.LookRotation(facing);
+                yield return Frames(30);
+                Capture(outDir, name);
+            }
+            yield return Frames(40);
+            yield return At("heights-0-stairs", new Vector3(21.5f, 0.55f, 0.5f), Vector3.right);
+            yield return At("heights-1-walkway", new Vector3(29.5f, 2.95f, 0.5f), Vector3.right);
+            yield return At("heights-2-first-floor", tower + new Vector3(-1f, 2.45f, 0f), Vector3.right);
+            yield return At("heights-3-ground-floor", tower + new Vector3(-1f, 0.05f, -1f), Vector3.right);
+            yield return At("heights-4-behind", tower + new Vector3(0f, 0.05f, 4.6f), Vector3.right);
+            yield return At("heights-5-roof", tower + new Vector3(1.5f, 4.85f, -0.9f), Vector3.right);
+            input.HookHeld = true;
+            yield return Frames(8);
+            input.HookHeld = false;
+            yield return Frames(14);
+            Capture(outDir, "heights-6-hook");
+            yield return Frames(30);
+            Capture(outDir, "heights-7-high-platform");
+            Time.captureFramerate = 0;
+        }
+
+        // A walk-through of the heights for looking at how it all fits together: many spots, at the game's own zoom and
+        // closer. (SHOTS; `HEIGHTS_ZOOM` sets the zoom of the close set.)
+        [UnityTest]
+        public IEnumerator Capture_HeightsTour()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var tower = UnityEngine.Object.FindAnyObjectByType<Storeys>().transform.position;
+            var spots = new (string name, Vector3 at)[]
+            {
+                ("a-approach", new Vector3(19f, 0.55f, -2f)),
+                ("b-stair-foot", new Vector3(22f, 0.55f, 0.5f)),
+                ("c-stair-mid", new Vector3(24.5f, 1.8f, 0.5f)),
+                ("d-walkway", new Vector3(28f, 2.95f, 0.5f)),
+                ("e-door-west", new Vector3(32f, 2.95f, 0.5f)),
+                ("f-floor1", tower + new Vector3(-1f, 2.45f, 0f)),
+                ("g-landing", tower + new Vector3(2.6f, 2.45f, 2.6f)),
+                ("h-balcony", tower + new Vector3(0f, 2.45f, -4.4f)),
+                ("i-ground", tower + new Vector3(-1f, 0.05f, 0f)),
+                ("j-south-door", tower + new Vector3(0f, 0.05f, -4.2f)),
+                ("k-east-outside", tower + new Vector3(5f, 0.05f, 0f)),
+                ("l-north-outside", tower + new Vector3(0f, 0.05f, 4.6f)),
+                ("m-roof", tower + new Vector3(0f, 4.85f, -1.5f)),
+                ("n-high", new Vector3(45.5f, 3.35f, 0.5f)),
+                ("o-low", new Vector3(49.5f, 1.95f, 0.5f)),
+            };
+            string zoomText = Environment.GetEnvironmentVariable("HEIGHTS_ZOOM");
+            float close = string.IsNullOrEmpty(zoomText) ? 0.55f : float.Parse(zoomText, System.Globalization.CultureInfo.InvariantCulture);
+            yield return Frames(60);
+            foreach (var zoom in new[] { 1f, close })
+            {
+                CameraRig.Instance.SetZoom(zoom);
+                foreach (var (name, at) in spots)
+                {
+                    apprentice.Teleport(at);
+                    yield return Frames(zoom < 1f ? 40 : 25);
+                    Capture(outDir, $"tour-{(zoom < 1f ? "close" : "game")}-{name}");
+                }
+            }
+            CameraRig.Instance.SetZoom(1f);
+            Time.captureFramerate = 0;
+        }
+
+        // (a probe: the lab's floor near the training Laden, over a few seconds, and further west)
+        [UnityTest]
+        public IEnumerator Capture_LabProbe()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            yield return Frames(60);
+            foreach (var (name, at) in new[] { ("probe-19", new Vector3(19f, 0.55f, -2f)), ("probe-12", new Vector3(12f, 0.55f, -2f)), ("probe-5", new Vector3(5f, 0.55f, -2f)), ("probe-27", new Vector3(27f, 0.55f, -3f)) })
+            {
+                apprentice.Teleport(at);
+                for (int k = 0; k < 3; k++)
+                {
+                    yield return Frames(30);
+                    Capture(outDir, $"{name}-{k}");
+                }
+            }
+            Debug.Log($"[probe] camera at {Camera.main.transform.position} looking {Camera.main.transform.forward}, apprentice at {apprentice.transform.position}");
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()

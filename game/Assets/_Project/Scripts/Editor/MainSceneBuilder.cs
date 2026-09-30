@@ -160,6 +160,7 @@ public static partial class MainSceneBuilder
         hud.apprentice = apprentice;
         hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");
         hud.textFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
+        systems.AddComponent<Cutaway>(); // architecture between the camera and the Apprentice opens up
         systems.AddComponent<SaveSystem>(); // keeps the slot being played (from the title screen) in step with the world
         var pause = systems.AddComponent<PauseMenu>();
         pause.titleFont = hud.titleFont;
@@ -898,7 +899,7 @@ public static partial class MainSceneBuilder
         Flicker(PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 6.5f, intensity, LanternLight), 0.1f, 5f, 0.01f);
     }
 
-    static void Torch(Vector3 position)
+    static GameObject Torch(Vector3 position)
     {
         var go = Place("Environment/torch", position, Mathf.Repeat(position.x * 37f + position.z * 91f, 360f)); // varied but repeatable
         var light = PointLight(go.transform, GlowCentre(go, "Torch_Glow") + Vector3.up * 0.15f, 6f, 3.2f, TorchLight);
@@ -917,6 +918,7 @@ public static partial class MainSceneBuilder
         crackle.volume = 0.5f;
         crackle.dopplerLevel = 0f;
         embers.AddComponent<TorchFlame>().emberMaterial = sparkMaterial;
+        return go;
     }
 
     static void Flicker(Light light, float amount, float speed, float wobble)
