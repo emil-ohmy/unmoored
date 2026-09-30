@@ -2,41 +2,50 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // The Drowned: a Soured that couldn't let go of life. It waits under the water at an edge, only bubbles showing,
-    // and follows the Apprentice along the shore below the surface (within its stretch of water). At the edge nearest
-    // them it bursts up waist-high, arms flung up (the tell), and grabs: no guard stops it; a dash through it does. Caught,
-    // they're dragged under (damage, then washed ashore: never a death by itself). Missed, it hangs over the edge,
-    // clawing, open to blows, then sinks back. Weak to the Hook: hooked while it's up, it's hauled out onto dry ground,
-    // stranded, reeling, then it crawls back and slips in. Under the water nothing reaches it (no lock-on, no Hook).
+    // The Drowned: a Soured that couldn't let go of life. It waits under the water, only bubbles showing, and nothing
+    // reaches it there (no lock-on, no Hook, no blows). When it can see the Apprentice, and they're in range, it rises
+    // waist-high, gathers itself (the tell) and spits a glob of poison at them, then sinks and waits to spit again. A
+    // perfect block turns the spit back, and a Drowned struck by its own spit is slain outright. Hide from it (out of
+    // its sight) and it swims to the shore nearest you and comes up there, hanging on the edge, looking for you: open to
+    // the oar. Weak to the Hook: caught while it's up, it's hauled out over the Apprentice onto the ground, stranded and
+    // reeling; then it crawls back to the water and slips in.
     public sealed class Drowned : Soured
     {
         [Header("The Drowned")]
         public float surfaceY = 0f;          // the water's surface (the model's origin, risen, is at the waterline)
         public float submergedDepth = 1.9f;  // how far under it waits
-        public float riseSpeed = 5f, sinkSpeed = 3f;
-        public float edgeClearance = 0.45f;  // how far out from an edge it rises (its arms reach the rest)
-        public float grabDamage = 25f;
-        public float clutchTime = 1.5f;      // missed: hanging over the edge, open to blows
+        public float riseSpeed = 4f, sinkSpeed = 3f;
+        public float edgeClearance = 0.45f;  // how far out from an edge it comes up at the shore
+        public float spitRange = 9f;
+        public float spitCooldown = 2.2f;    // under the water between spits
+        public float ashoreTime = 5f;        // come to the shore after someone hiding: how long it looks for them
         public float strandedStagger = 3f;   // hooked out: reeling on dry ground
         public float crawlSpeed = 0.9f;
-        public float afterCatch = 4f;        // caught someone: it lets them get up before it tries again
-        public AudioClip[] bubbleSound, surgeSound;
+        public float spitSpeed = 9f;
+        public AudioClip[] bubbleSound;
 
         public bool Submerged => height < 0.35f && !stranded;
         public bool Stranded => stranded;
-        public bool Caught { get; private set; } // (tests: its last grab caught someone)
+        public bool Ashore => ashore;          // come up at the shore, looking for someone out of sight
         public override bool Targetable => IsAlive && !Submerged;
+        public static event System.Action<Drowned, Spit> Spat; // (tests)
 
         float height = 0f;      // 0 under, 1 risen
-        bool stranded, sinking, stayDown;
-        float nextGrab;
-        float sinkAt = -1f, nextBubble, nextSurfaceCheck;
+        bool stranded, sinking, stayDown, ashore;
+        float nextSpit, ashoreUntil = -1f, sinkAt = -1f, nextBubble, nextSurfaceCheck, sawAt = -10f;
+        int sightFrame = -1;
+        bool hadSight;
         Vector3 lurkAt;
+        Material glob;
 
         protected override void Awake()
         {
             base.Awake();
             lurkAt = transform.position;
+            foreach (var r in GetComponentsInChildren<Renderer>())
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && m.name.StartsWith("SouredEye_Glow"))
+                        glob = m;
         }
 
         protected override void Start()
@@ -49,29 +58,47 @@ namespace MyGame
         protected override bool Floats => !stranded; // (it swims: there's nothing under it to stand on)
         protected override bool Unhittable => Submerged;
         protected override Vector3 ChaseStep(Vector3 toTarget, float distance) => Vector3.zero; // (it swims: Tick)
-        protected override string IdleClip => stranded ? "Stranded" : "Idle";
-        protected override string ChaseClip(float distance) => stranded ? "Crawl" : "Swim";
+        protected override string IdleClip => stranded ? "Stranded" : ashore ? "Clutch" : "Idle";
+        protected override string ChaseClip(float distance) => stranded ? "Crawl" : ashore || height > 0.5f ? "Clutch" : "Swim";
+        // (its level is the water's: someone on the edge above it is on its level)
+        protected override bool OnItsLevel() => target != null && Mathf.Abs(target.transform.position.y - surfaceY) < 1.3f;
+        protected override bool LosesTarget(float distance) => !stranded && base.LosesTarget(distance); // (stranded, all it wants is the water)
 
+        // Spit, when it can see them, they're in range, and it's had its breath.
         protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
-            if (stranded || sinking || target == null || target.CurrentState == Apprentice.State.Sinking || Time.time < nextGrab)
+            if (stranded || sinking || target == null || Time.time < nextSpit || distance > spitRange || !CanSee())
                 return null;
-            // Only at the edge, right by them.
-            return distance <= attackRange && Flat(lurkAt - transform.position).magnitude < 0.4f ? primary : null;
+            return primary;
         }
 
         protected override void OnEntered(State state)
         {
             if (state == State.Telegraph)
+            {
                 stayDown = false;
-            if (state == State.Chase && !stranded && height > 0.5f && sinkAt < 0f)
+                ashore = false;
+            }
+            if (state == State.Recover)
+            {
+                nextSpit = Time.time + primary.recover + spitCooldown;
+                sinkAt = Time.time + primary.recover * 0.8f; // (spat: back under)
+            }
+            if (state == State.Chase && !stranded && height > 0.5f && sinkAt < 0f && !ashore)
                 sinkAt = Time.time; // (after a stagger, back under)
         }
 
-        // (its level is the water's: it rises to meet someone on the edge above it)
-        protected override bool OnItsLevel() => target != null && Mathf.Abs(target.transform.position.y - surfaceY) < 1.3f;
-
-        protected override bool LosesTarget(float distance) => !stranded && base.LosesTarget(distance); // (stranded, all it wants is the water)
+        // The spit, along its aim (sidestepping escapes it), at the height they were at.
+        protected override void Shoot(SouredAttack attack, Vector3 direction, int index)
+        {
+            Vector3 from = transform.position + Vector3.up * 0.8f + transform.forward * 0.25f;
+            Vector3 chest = target.transform.position + Vector3.up * 0.65f;
+            float flat = Flat(chest - from).magnitude;
+            Vector3 at = from + Flat(direction).normalized * flat;
+            at.y = chest.y;
+            var spit = Spit.Fire(from, at, spitSpeed, target, this, glob);
+            Spat?.Invoke(this, spit);
+        }
 
         // The Hook: under the water, nothing to catch; up, it's hauled out onto the ground, stranded.
         public override HookResult OnHooked(Apprentice by)
@@ -87,7 +114,7 @@ namespace MyGame
                 over = over.sqrMagnitude > 0.01f ? over.normalized : by.transform.forward;
                 RetargetYank(by.transform.position + over * 1.4f);
                 stranded = true; // (out on the ground now: it falls, and crawls)
-                sinking = false;
+                sinking = ashore = false;
                 sinkAt = -1f;
                 Sfx.Instance?.Splash(transform.position);
                 Effects.Instance?.Splash(transform.position);
@@ -104,69 +131,95 @@ namespace MyGame
                 TickStranded(dt);
                 return;
             }
-            bool up = CurrentState == State.Telegraph || CurrentState == State.Strike || CurrentState == State.Recover
-                      || CurrentState == State.Staggered || CurrentState == State.Stunned;
+            bool attacking = CurrentState == State.Telegraph || CurrentState == State.Strike || CurrentState == State.Recover
+                             || CurrentState == State.Staggered || CurrentState == State.Stunned;
             if (sinkAt >= 0f && Time.time >= sinkAt && (CurrentState == State.Recover || CurrentState == State.Chase))
             {
-                sinking = stayDown = true; // (and it stays under until it next rises to grab)
+                sinking = stayDown = true; // (and it stays under until it next rises)
                 sinkAt = -1f;
                 clips.PlayOnce("Sink", 0.6f);
             }
             if (sinking && height <= 0.02f)
                 sinking = false;
-            up &= !stayDown;
+
+            // Where to be: under where it waits; after someone it can see, where it is (it rises to spit); after someone
+            // hiding, the shore nearest them, where it comes up and looks.
+            if (!attacking && !sinking && Time.time >= nextSurfaceCheck)
+            {
+                nextSurfaceCheck = Time.time + 0.2f;
+                if (CurrentState != State.Chase || target == null)
+                {
+                    lurkAt = Home;
+                    ashore = false;
+                }
+                else if (CanSee() && Flat(target.transform.position - transform.position).magnitude <= spitRange)
+                {
+                    sawAt = Time.time;
+                    if (!ashore)
+                        lurkAt = transform.position;
+                }
+                else if (!ashore)
+                {
+                    lurkAt = EdgeNear(target.transform.position);
+                    if (Flat(lurkAt - transform.position).magnitude < 0.4f)
+                    {
+                        ashore = true; // at the shore: up, looking for them
+                        ashoreUntil = Time.time + ashoreTime;
+                        stayDown = false;
+                        Effects.Instance?.Splash(new Vector3(transform.position.x, surfaceY, transform.position.z));
+                    }
+                }
+                if (ashore && Time.time >= ashoreUntil && Time.time - sawAt > 1f)
+                {
+                    ashore = false; // nobody: back under, and home
+                    sinking = stayDown = true;
+                    lurkAt = Home;
+                }
+            }
+            bool up = (attacking || ashore) && !stayDown;
             height = Mathf.MoveTowards(height, up && !sinking ? 1f : 0f, (up ? riseSpeed : sinkSpeed) * dt);
 
-            // Under, it swims to the edge nearest the Apprentice (within its stretch of water), or back to where it waits.
             if (!up && !sinking)
             {
-                if (Time.time >= nextSurfaceCheck)
-                {
-                    nextSurfaceCheck = Time.time + 0.2f;
-                    lurkAt = CurrentState == State.Chase && target != null ? EdgeNear(target.transform.position) : Home;
-                }
                 Vector3 to = Flat(lurkAt - transform.position);
                 float step = Mathf.Min(to.magnitude, chaseSpeed * dt);
-                Vector3 next = transform.position + (to.sqrMagnitude > 1e-4f ? to.normalized * step : Vector3.zero);
                 if (to.sqrMagnitude > 0.01f)
+                {
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(to), turnSpeed * dt);
-                PlaceAt(new Vector3(next.x, transform.position.y, next.z));
+                    var next = transform.position + to.normalized * step;
+                    PlaceAt(new Vector3(next.x, transform.position.y, next.z));
+                }
             }
-            if ((up || CurrentState == State.Chase) && target != null && !sinking)
+            if ((up || height > 0.3f) && target != null && !sinking && CurrentState != State.Strike)
             {
                 Vector3 look = Flat(target.transform.position - transform.position);
-                if (look.sqrMagnitude > 0.01f && (up || height > 0.5f))
+                if (look.sqrMagnitude > 0.01f)
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(look), turnSpeed * 0.5f * dt);
             }
             var p = transform.position;
             PlaceAt(new Vector3(p.x, Mathf.Lerp(surfaceY - submergedDepth, surfaceY, Ease(height)), p.z));
-            // Its grab: the moment the blow would land.
-            if (CurrentState == State.Strike && StateTime >= primary.strike * primary.impactAt && !grabbed)
-                Grab();
-            if (CurrentState != State.Strike)
-                grabbed = false;
             Bubbles();
         }
 
-        bool grabbed;
-
-        void Grab()
+        // A clear line from its head, up out of the water, to the Apprentice (walls, crates, railings hide them).
+        bool CanSee()
         {
-            grabbed = true;
-            Caught = false;
-            if (target == null || !target.IsAlive)
-                return;
-            Vector3 to = Flat(target.transform.position - transform.position);
-            if (to.magnitude > primary.reach + 0.35f || Vector3.Angle(transform.forward, to) > primary.arc || !OnItsLevel())
-                return;
-            Effects.Instance?.Splash(transform.position + transform.forward * 0.8f);
-            if (target.DragUnder(this, grabDamage))
-            {
-                Caught = true;
-                nextGrab = Time.time + afterCatch;
-                clips.PlayOnce("Drag", 1.2f);
-                sinkAt = Time.time + 0.4f; // down with them
-            }
+            if (sightFrame == Time.frameCount)
+                return hadSight;
+            sightFrame = Time.frameCount;
+            hadSight = false;
+            if (target == null)
+                return false;
+            Vector3 from = new Vector3(transform.position.x, surfaceY + 0.9f, transform.position.z), to = target.transform.position + Vector3.up * 0.7f;
+            Vector3 d = to - from;
+            hadSight = true;
+            foreach (var hit in Physics.RaycastAll(from, d.normalized, d.magnitude, ~0, QueryTriggerInteraction.Ignore))
+                if (!(hit.collider is CharacterController))
+                {
+                    hadSight = false;
+                    break;
+                }
+            return hadSight;
         }
 
         // Hooked out: reeling (the stagger), then it drags itself back to the nearest water and slips in.
@@ -181,7 +234,6 @@ namespace MyGame
                 SlipIn(water);
                 return;
             }
-            // (dragging itself along the ground: the base keeps it off nothing, so it does its own stepping here)
             PlaceAt(transform.position + to.normalized * Mathf.Min(to.magnitude, crawlSpeed * dt));
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(to), turnSpeed * 0.5f * dt);
         }
@@ -192,7 +244,7 @@ namespace MyGame
             Effects.Instance?.Splash(new Vector3(at.x, surfaceY, at.z));
             Sfx.Instance?.Splash(new Vector3(at.x, surfaceY, at.z));
             height = 0.3f;
-            sinking = true;
+            sinking = stayDown = true;
             PlaceUnder(at);
             lurkAt = at;
         }
@@ -214,24 +266,20 @@ namespace MyGame
         // The point in the water at the edge nearest `near`, out from the edge by edgeClearance, within its leash.
         Vector3 EdgeNear(Vector3 near)
         {
-            Vector3 home = Home;
-            Vector3 from = Flat(transform.position) + Vector3.up * surfaceY;
-            Vector3 best = Flat(transform.position) + Vector3.up * transform.position.y;
-            Vector3 dir = Flat(from - near);
+            Vector3 dir = Flat(transform.position - near);
             if (dir.sqrMagnitude < 0.01f)
                 dir = -transform.forward;
             dir.Normalize();
-            // Walk out from them towards it until it's open water with room round it.
-            for (float d = 0.3f; d < 6f; d += 0.25f)
+            for (float d = 0.3f; d < 8f; d += 0.25f)
             {
                 Vector3 p = new Vector3(near.x, surfaceY, near.z) + dir * d;
                 if (!IsOpenWater(p, edgeClearance))
                     continue;
-                if (Flat(p - home).magnitude > leashRadius)
+                if (Flat(p - Home).magnitude > leashRadius)
                     break;
                 return p;
             }
-            return best;
+            return transform.position;
         }
 
         // The nearest open water to a point on land (for crawling back).
@@ -278,10 +326,10 @@ namespace MyGame
         public override void Reform()
         {
             base.Reform();
-            stranded = sinking = stayDown = false;
-            nextGrab = 0f;
+            stranded = sinking = stayDown = ashore = false;
+            nextSpit = 0f;
             height = 0f;
-            sinkAt = -1f;
+            sinkAt = ashoreUntil = -1f;
             PlaceUnder(transform.position);
             lurkAt = transform.position;
         }

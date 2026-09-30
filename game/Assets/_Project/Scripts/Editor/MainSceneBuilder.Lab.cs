@@ -93,9 +93,13 @@ public static partial class MainSceneBuilder
         };
         tester.spawner = heightsTester.spawner = spawner;
 
-        // Two Drowned waiting off the quay's south edge, east of the posts (only bubbles show).
+        // Two Drowned waiting off the quay's south edge, east of the posts (only bubbles show), and crates on the edge
+        // between them to hide behind (hide, and they come to the shore to look for you).
         Drowned("Drowned (south edge)", new Vector3(9f, 0f, -6.1f), 0f);
         Drowned("Drowned (south edge, further)", new Vector3(13.5f, 0f, -6.1f), 0f);
+        Place("Environment/crate", new Vector3(11.0f, QuayTop, -4.7f), 10f);
+        Place("Environment/crate", new Vector3(11.9f, QuayTop, -4.8f), -8f);
+        Place("Environment/barrel", new Vector3(12.7f, QuayTop, -4.6f), 0f);
 
         // The training Laden: idle and immortal, facing the way in.
         var dummy = Laden("Training Laden", new Vector3(18f, QuayTop, 0f), -90f);

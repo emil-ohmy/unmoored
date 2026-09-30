@@ -29,6 +29,10 @@ namespace MyGame.Tests
             post = Object.FindObjectsByType<TesterPost>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).First(); // (the west one)
             readout = Object.FindAnyObjectByType<LabReadout>();
             dummy = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).First(l => l.immortal);
+            // (the lab's Drowned spit at anyone in sight of their water: only a test about them lets them)
+            if (!NUnit.Framework.TestContext.CurrentContext.Test.Name.Contains("Drowned"))
+                foreach (var d in Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None))
+                    d.passive = true;
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -1148,53 +1152,111 @@ namespace MyGame.Tests
             var set = post.spawner.Spawned.OfType<Drowned>().Single();
             yield return new WaitForSeconds(0.3f);
             Assert.IsTrue(Drowned.IsOpenWater(set.transform.position, 0.3f), $"in the water ({set.transform.position})");
-            Assert.IsTrue(set.Submerged);
         }
 
-        // A Drowned waits under the water, out of reach (no lock-on, no blows); come to its edge and it rises and grabs:
-        // dragged under, you wash ashore with its damage taken.
+        // A Drowned waits under the water, out of reach (no lock-on, no blows); when it sees you, it rises and spits:
+        // the spit hurts a little, and builds poison.
         [UnityTest]
-        public IEnumerator TheDrowned_WaitsUnder_AndDragsYouDown()
+        public IEnumerator TheDrowned_RisesAndSpitsPoison()
         {
             var drowned = SouthDrowned;
             Assert.IsTrue(drowned.Submerged && !drowned.Targetable, "under, and out of reach");
-            float health = apprentice.Health;
-            apprentice.Teleport(AtTheEdge);
-            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
-            yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph, 4f, "it rising");
-            yield return WaitFor(() => !drowned.Submerged, 1f, "it up out of the water");
-            Assert.IsTrue(drowned.Targetable);
-            yield return WaitFor(() => apprentice.Dragged, 2f, "it catching you");
-            Assert.IsTrue(drowned.Caught);
-            yield return WaitFor(() => apprentice.CurrentState != Apprentice.State.Sinking, 3f, "washing ashore");
-            Assert.AreEqual(health - drowned.grabDamage, apprentice.Health, 0.5f, "its damage, not a third of your health");
-            Assert.Greater(apprentice.transform.position.y, 0.3f, "on the quay again");
-            yield return WaitFor(() => drowned.Submerged, 4f, "it back under");
-            yield return new WaitForSeconds(0.8f);
-            Assert.IsTrue(drowned.Submerged, "and it stays under a while (it lets you get up)");
+            Spit spat = null;
+            Defence? what = null;
+            System.Action<Drowned, Spit> onSpat = (d, sp) => { if (d == drowned) spat = sp; };
+            System.Action<Spit, Defence> onResolved = (sp, r) => { if (sp == spat) what = r; };
+            Drowned.Spat += onSpat;
+            Spit.Resolved += onResolved;
+            try
+            {
+                float health = apprentice.Health;
+                apprentice.Teleport(new Vector3(9f, 0.55f, -1.5f));
+                yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph, 4f, "it rising to spit");
+                yield return WaitFor(() => !drowned.Submerged, 1f, "it up out of the water");
+                Assert.IsTrue(drowned.Targetable, "up, it can be reached");
+                yield return WaitFor(() => spat != null, 2f, "the spit");
+                yield return WaitFor(() => what != null, 2f, "it reaching you");
+                Assert.AreEqual(Defence.Taken, what);
+                Assert.Less(apprentice.Health, health, "it hurts a little");
+                Assert.Greater(apprentice.Poison, 30f, "and builds poison");
+                yield return null;
+                yield return null; // (the HUD draws after gameplay)
+                Assert.IsTrue(Object.FindAnyObjectByType<Hud>().PoisonShown, "the meter shows");
+                yield return WaitFor(() => drowned.Submerged, 4f, "and it sinks back");
+            }
+            finally
+            {
+                Drowned.Spat -= onSpat;
+                Spit.Resolved -= onResolved;
+            }
         }
 
-        // Dash through its grab and it misses: it hangs over the edge, clawing, open to blows; then it sinks back.
+        // Poison builds up, and ebbs if you keep clear; full, you're poisoned, losing health, until a Bitter Root (or a
+        // Rest) cures it.
         [UnityTest]
-        public IEnumerator TheDrowned_Missed_HangsOverTheEdge_OpenToBlows()
+        public IEnumerator Poison_BuildsUp_Poisons_AndABitterRootCuresIt()
+        {
+            apprentice.AddPoison(40f);
+            yield return new WaitForSeconds(apprentice.poisonDecayDelay + 1.5f);
+            Assert.Less(apprentice.Poison, 40f, "it ebbs, kept clear");
+            Assert.IsFalse(apprentice.Poisoned);
+            apprentice.AddPoison(70f);
+            apprentice.AddPoison(70f);
+            Assert.IsTrue(apprentice.Poisoned, "full: poisoned");
+            float health = apprentice.Health;
+            yield return new WaitForSeconds(2f);
+            Assert.AreEqual(health - apprentice.poisonPerSecond * 2f, apprentice.Health, 1f, "losing health");
+            yield return UseFromTheBelt(Provision.BitterRoot);
+            yield return new WaitForSeconds(apprentice.drinkTime + 0.1f);
+            Assert.IsFalse(apprentice.Poisoned, "cured");
+            Assert.AreEqual(0f, apprentice.Poison, "and the build-up gone");
+            apprentice.AddPoison(200f);
+            apprentice.RestoreFully();
+            Assert.IsFalse(apprentice.Poisoned, "a Rest cures it too");
+        }
+
+        // A perfect block turns its spit back, and a Drowned struck by its own spit is slain outright.
+        [UnityTest]
+        public IEnumerator TheDrowned_SpitTurnedBack_SlaysIt()
         {
             var drowned = SouthDrowned;
-            apprentice.Teleport(AtTheEdge);
-            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
-            yield return WaitFor(() => drowned.CurrentState == Soured.State.Strike, 4f, "its grab");
-            input.Move = Vector2.left; // (along the edge, through it)
-            input.PressDash();
-            yield return new WaitForSeconds(0.4f);
-            input.Move = Vector2.zero;
-            Assert.IsFalse(apprentice.Dragged, "the dash slipped it");
-            yield return WaitFor(() => drowned.CurrentState == Soured.State.Recover, 1f, "it hanging there");
-            apprentice.Teleport(new Vector3(drowned.transform.position.x, 0.55f, -4.7f));
+            Spit spat = null;
+            System.Action<Drowned, Spit> onSpat = (d, sp) => { if (d == drowned) spat = sp; };
+            Drowned.Spat += onSpat;
+            try
+            {
+                apprentice.Teleport(new Vector3(9f, 0.55f, -1.5f));
+                var toIt = drowned.transform.position - apprentice.transform.position;
+                apprentice.transform.rotation = Quaternion.LookRotation(new Vector3(toIt.x, 0f, toIt.z));
+                yield return WaitFor(() => spat != null, 6f, "the spit");
+                // Raised on time: just before it arrives.
+                yield return WaitFor(() => spat == null || Vector3.Distance(spat.transform.position, apprentice.transform.position + Vector3.up * 0.6f) < 1.5f, 2f, "it close");
+                input.BlockHeld = true;
+                yield return WaitFor(() => !drowned.IsAlive, 2f, "it struck by its own spit");
+                input.BlockHeld = false;
+                Assert.AreEqual(0f, apprentice.Poison, "nothing got through");
+            }
+            finally { Drowned.Spat -= onSpat; }
+        }
+
+        // Out of its sight (behind something), it comes to the shore nearest you and looks for you there: open to the oar.
+        [UnityTest]
+        public IEnumerator TheDrowned_YouHide_ItComesAshore()
+        {
+            var drowned = SouthDrowned;
+            var cover = GameObject.CreatePrimitive(PrimitiveType.Cube); // (a wall between it and you)
+            cover.transform.position = new Vector3(9f, 1.2f, -4.6f);
+            cover.transform.localScale = new Vector3(4f, 1.4f, 0.3f);
+            apprentice.Teleport(new Vector3(9f, 0.55f, -3.2f));
+            yield return WaitFor(() => drowned.Ashore && !drowned.Submerged, 6f, "it coming ashore, looking");
+            Assert.IsTrue(drowned.Targetable);
+            Object.Destroy(cover);
+            apprentice.Teleport(new Vector3(drowned.transform.position.x, 0.55f, -4.9f));
             apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
             yield return null;
             input.PressLight();
             yield return new WaitForSeconds(0.5f);
-            Assert.Less(drowned.Health, drowned.maxHealth, "struck while it's up");
-            yield return WaitFor(() => drowned.Submerged, 4f, "and back under");
+            Assert.Less(drowned.Health, drowned.maxHealth, "whacked while it's up");
         }
 
         // Weak to the Hook: caught while it's up, it's hauled out onto the quay, stranded and reeling; then it crawls
@@ -1206,7 +1268,7 @@ namespace MyGame.Tests
             apprentice.GiveHook();
             apprentice.Teleport(AtTheEdge);
             apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
-            yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph && !drowned.Submerged, 4f, "it rising");
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph && !drowned.Submerged, 5f, "it rising");
             input.HookHeld = true;
             yield return null;
             yield return null;

@@ -39,7 +39,11 @@ namespace MyGame
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
         static readonly Color FlameOuter = UiKit.Hex(0xff9a45), FlameCore = UiKit.Hex(0xffe3a8), FlameSpent = UiKit.Hex(0x2a2629, 0.9f);
 
-        RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail, hpFrame, staminaFrame;
+        RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail, hpFrame, staminaFrame, poisonFill, poisonFrame;
+        Image poisonFillImage;
+        GameObject poisonCap;
+        static readonly Color PoisonGreen = new Color(0.52f, 0.78f, 0.26f);
+        public bool PoisonShown => poisonFrame.gameObject.activeSelf;
         const float HealthWidth = 380f, StaminaWidth = 300f, LongestBar = 2.2f; // (at the start; a bar grows with its most, to 2.2 times)
 
         bool barsSized;
@@ -87,6 +91,10 @@ namespace MyGame
             hpFill = Bar(hudRoot, "Health", new Vector2(56, -46), 380, 14, HealthRed, out hpTrail);
             hpFillImage = hpFill.GetComponent<Image>();
             staminaFill = Bar(hudRoot, "Stamina", new Vector2(56, -70), 300, 8, StaminaMoss, out _);
+            poisonFill = Bar(hudRoot, "Poison", new Vector2(56, -88), 200, 6, PoisonGreen, out _);
+            poisonFrame = (RectTransform)poisonFill.parent;
+            poisonFillImage = poisonFill.GetComponent<Image>();
+            poisonCap = hudRoot.Find("Poison Cap").gameObject;
             hpFrame = (RectTransform)hpFill.parent;
             staminaFrame = (RectTransform)staminaFill.parent;
             BuildCharges(hudRoot);
@@ -251,6 +259,15 @@ namespace MyGame
             float health = apprentice.Health / apprentice.maxHealth;
             hpFill.anchorMax = new Vector2(health, 1f);
             hpFillImage.color = Color.Lerp(HealthRed, UiKit.Ember, 0.8f * (1f - UiKit.Smooth(0.05f, 0.7f, now - healedAt))); // flares warm on a heal
+            // Poison: its build-up under the bars (only while there's any); poisoned, it pulses, and health goes sickly.
+            bool poisoned = apprentice.Poisoned;
+            poisonFrame.gameObject.SetActive(apprentice.Poison > 0.01f);
+            poisonCap.SetActive(apprentice.Poison > 0.01f);
+            poisonFill.anchorMax = new Vector2(apprentice.PoisonFraction, 1f);
+            float pulse = poisoned ? 0.5f + 0.5f * Mathf.Sin(now * 6f) : 0f;
+            poisonFillImage.color = Color.Lerp(PoisonGreen, new Color(0.8f, 1f, 0.5f), pulse * 0.6f);
+            if (poisoned)
+                hpFillImage.color = Color.Lerp(hpFillImage.color, new Color(0.45f, 0.62f, 0.2f), 0.55f);
             hpTrail.anchorMax = new Vector2(Trail(health, ref hpLast, ref hpTrailValue, ref hpTrailHold), 1f);
             staminaFill.anchorMax = new Vector2(apprentice.Stamina / apprentice.maxStamina, 1f);
             Grow(hpFrame, HealthWidth * apprentice.maxHealth / apprentice.BaseHealth);
@@ -580,10 +597,12 @@ namespace MyGame
         }
 
         public static Sprite IconOf(Provision p) =>
-            p == Provision.PitchPot ? UiKit.PotIcon : p == Provision.EmberTar ? UiKit.TinIcon : p == Provision.WayBack ? UiKit.CordIcon : UiKit.FlaskIcon;
+            p == Provision.PitchPot ? UiKit.PotIcon : p == Provision.EmberTar ? UiKit.TinIcon : p == Provision.WayBack ? UiKit.CordIcon
+            : p == Provision.BitterRoot ? UiKit.RootIcon : UiKit.FlaskIcon;
 
         public static Color ColourOf(Provision p) =>
-            p == Provision.PitchPot ? UiKit.Hex(0xc07a4e) : p == Provision.EmberTar ? UiKit.Hex(0xff8a3a) : p == Provision.WayBack ? UiKit.Hex(0xe0d4b6) : UiKit.Hex(0xffc47a);
+            p == Provision.PitchPot ? UiKit.Hex(0xc07a4e) : p == Provision.EmberTar ? UiKit.Hex(0xff8a3a) : p == Provision.WayBack ? UiKit.Hex(0xe0d4b6)
+            : p == Provision.BitterRoot ? UiKit.Hex(0xb9a36a) : UiKit.Hex(0xffc47a);
 
         void UpdateBelt(float now)
         {

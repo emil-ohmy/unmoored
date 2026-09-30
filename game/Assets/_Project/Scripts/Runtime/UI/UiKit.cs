@@ -171,6 +171,16 @@ namespace MyGame
             return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(loop, Mathf.Min(knot, tail)));
         });
 
+        // A gnarled root, forked at the foot, a twist of twine round its neck.
+        public static Sprite RootIcon => Cached("RootIcon", 64, 64, (u, v) =>
+        {
+            float stem = Mathf.Abs(u - 0.5f - 0.06f * Mathf.Sin(v * 9f)) - (0.07f + 0.05f * v);
+            stem = Mathf.Max(stem, Mathf.Max(0.2f - v, v - 0.88f));
+            float forkL = Mathf.Abs(u - 0.5f + (0.3f - v) * 0.9f) - 0.04f, forkR = Mathf.Abs(u - 0.5f - (0.3f - v) * 0.7f) - 0.035f;
+            float fork = Mathf.Max(Mathf.Min(forkL, forkR), Mathf.Max(v - 0.32f, 0.06f - v));
+            return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(stem, fork));
+        }, (u, v) => Mathf.Abs(v - 0.7f) < 0.04f ? 0.55f : Mathf.Lerp(0.65f, 1f, v));
+
         // Lighter at the top than the bottom: gives a bar's fill a little body.
         public static Sprite Sheen => Cached("Sheen", 4, 32, (u, v) => 1f, (u, v) => Mathf.Lerp(0.62f, 1f, Mathf.Pow(v, 0.7f)));
 

@@ -222,6 +222,7 @@ public static partial class MainSceneBuilder
         sfx.drink = Clips("drink");
         sfx.tarSizzle = Clips("tar_sizzle");
         sfx.wayBack = Clips("way_back");
+        sfx.spitSplat = Clips("spit_splat");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
@@ -478,8 +479,9 @@ public static partial class MainSceneBuilder
         return laden;
     }
 
-    // The Drowned: waits under the water at an edge, rises to grab and drag you under (dash through it); hooked out,
-    // it's stranded on the ground. `position`: where it waits (at the water's surface; it sinks out of sight).
+    // The Drowned: waits under the water, rises to spit poison at you (a perfect block turns it back: it's slain by its
+    // own spit); hide from it and it comes to the shore, open to the oar; hooked out, it's stranded on the ground.
+    // `position`: where it waits (at the water's surface; it sinks out of sight).
     static Drowned Drowned(string name, Vector3 position, float yaw)
     {
         var go = Place("Characters/drowned", position, yaw);
@@ -494,11 +496,11 @@ public static partial class MainSceneBuilder
         drowned.radius = 0.45f;
         drowned.staggerCapacity = 40f;
         drowned.staggerDuration = 1.0f;
-        drowned.aggroRadius = 4.5f;       // (it feels you come near its stretch of edge)
+        drowned.aggroRadius = 9f;         // (it feels you come near its water)
         drowned.viewHalfAngle = 180f;     // (under the water, it senses all round)
-        drowned.noticeCloseRadius = 4.5f;
-        drowned.leashRadius = 7f;         // its stretch of water
-        drowned.giveUpRange = 7f;
+        drowned.noticeCloseRadius = 9f;
+        drowned.leashRadius = 9f;         // its stretch of water
+        drowned.giveUpRange = 13f;
         drowned.chaseSpeed = 3f;
         drowned.turnSpeed = 540f;
         drowned.attackRange = 2.0f;
@@ -507,12 +509,13 @@ public static partial class MainSceneBuilder
         drowned.barHeight = 1.5f;
         drowned.primary = new SouredAttack
         {
-            name = "Grab", windupClip = "Rise", strikeClip = "Grab", recoverClip = "Clutch",
-            telegraph = 0.7f, strike = 0.35f, recover = 1.5f, impactAt = 0.55f,
-            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 25f, reach = 1.9f, arc = 60f, knockback = 0f, scripted = true,
+            name = "Spit", windupClip = "Rise", strikeClip = "Spit", recoverClip = "Clutch",
+            telegraph = 0.85f, strike = 0.3f, recover = 0.9f, impactAt = 0.35f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.75f, damage = 6f, reach = 9f, arc = 180f, knockback = 2f,
+            ranged = true, projectileSpeed = 9f,
         };
         drowned.primary.windupSound = Clips("drowned_rise");
-        drowned.primary.swingSound = Clips("drowned_grab");
+        drowned.primary.releaseSound = Clips("drowned_spit");
         drowned.bubbleSound = Clips("drowned_bubbles");
         return drowned;
     }

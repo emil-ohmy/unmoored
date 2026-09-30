@@ -105,7 +105,12 @@ namespace MyGame
         [Header("Hook visuals")]
         public GameObject hookHeadModel; // the Hook's head in flight (spawned per throw)
 
-        [Header("Provisions (the belt: d-pad / 1-4)")]
+        [Header("Poison (a Drowned's spit): it builds up; full, you're poisoned a while")]
+        public float poisonMax = 100f;
+        public float poisonDecayDelay = 2.5f, poisonDecayPerSecond = 8f; // (the build-up ebbs if you keep clear)
+        public float poisonedTime = 20f, poisonPerSecond = 2f;             // poisoned: about 40 health, unless cured
+
+        [Header("Provisions (the belt)")]
         public GameObject pitchPotModel;      // a Pitch Pot in flight
         public float throwRange = 5.5f;       // a Pitch Pot lands this far ahead (or on what's locked on to, if nearer)
         public float throwTime = 0.4f, drinkTime = 0.7f, wayBackTime = 1.4f;
@@ -459,12 +464,6 @@ namespace MyGame
                 else
                     controller.Move(hookStep); // (yanking a Soured: collisions apply)
                 hookStep = Vector3.zero;
-            }
-            else if (Dragged)
-            {
-                // Hauled over the edge and down, in the Drowned's arms.
-                float u = UiKit.Smooth(0f, sinkTime * 0.7f, stateTime);
-                transform.position = Vector3.Lerp(dragFrom, dragTo, u) + Vector3.up * (0.4f * Mathf.Sin(Mathf.Min(1f, u * 1.4f) * Mathf.PI));
             }
             else
             {
@@ -865,7 +864,7 @@ namespace MyGame
             else
             {
                 clips.PlayOnce("Heal", p == MyGame.Provision.WayBack ? wayBackTime * 0.6f : drinkTime);
-                if (p == MyGame.Provision.WarmBroth)
+                if (p == MyGame.Provision.WarmBroth || p == MyGame.Provision.BitterRoot)
                     Sfx.Instance?.Drink(transform.position + Vector3.up * 0.8f);
                 else if (p == MyGame.Provision.EmberTar)
                     Sfx.Instance?.TarSizzle(transform.position + Vector3.up);
@@ -900,6 +899,12 @@ namespace MyGame
                 }
                 else if (usingProvision == MyGame.Provision.WarmBroth)
                     brothUntil = Time.time + brothDuration;
+                else if (usingProvision == MyGame.Provision.BitterRoot)
+                {
+                    bool was = Poisoned || Poison > 0f;
+                    CurePoison();
+                    Found?.Invoke(usingProvision.Name, was ? "The poison's gone. So is the taste of anything else" : "Nothing to cure. Still tastes awful");
+                }
             }
             if (stateTime < time)
                 return;
@@ -913,6 +918,55 @@ namespace MyGame
             ToFreeAndConsume();
         }
 
+        // ------------------------------------------------------------ poison
+
+        float poisonedUntil = -1f, lastPoisonAt = -10f, nextPoisonMote;
+
+        public float Poison { get; private set; }                 // the build-up, 0 .. poisonMax
+        public bool Poisoned => Time.time < poisonedUntil;          // full: losing health until it wears off (or is cured)
+        public float PoisonFraction => Mathf.Clamp01(Poison / poisonMax);
+
+        // Poison taken in (a Drowned's spit). Full, you're poisoned. (Already poisoned, more changes nothing.)
+        public void AddPoison(float amount)
+        {
+            if (!IsAlive || amount <= 0f || Poisoned)
+                return;
+            lastPoisonAt = Time.time;
+            Poison = Mathf.Min(poisonMax, Poison + amount);
+            if (Poison >= poisonMax)
+            {
+                poisonedUntil = Time.time + poisonedTime;
+                Found?.Invoke("Poisoned", "A Bitter Root cures it. So does a Rest");
+            }
+        }
+
+        public void CurePoison()
+        {
+            Poison = 0f;
+            poisonedUntil = -1f;
+        }
+
+        void UpdatePoison(float dt)
+        {
+            if (Poisoned)
+            {
+                Health = Mathf.Max(0f, Health - poisonPerSecond * dt);
+                Poison = poisonMax * Mathf.Clamp01((poisonedUntil - Time.time) / poisonedTime); // (draining as it wears off)
+                if (Time.time >= nextPoisonMote)
+                {
+                    nextPoisonMote = Time.time + 0.18f;
+                    Effects.Instance?.Wisp(transform.position + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(0.3f, 1f), Random.Range(-0.3f, 0.3f)),
+                        new Color(0.55f, 0.9f, 0.3f), Vector3.up * 0.6f, 0.7f);
+                }
+                if (Health <= 0f)
+                    Die();
+                else if (!Poisoned)
+                    CurePoison();
+            }
+            else if (Poison > 0f && Time.time - lastPoisonAt > poisonDecayDelay)
+                Poison = Mathf.Max(0f, Poison - poisonDecayPerSecond * dt);
+        }
+
         // What lasts after a Provision: the tar's flames along the blade, the broth's slow mending.
         void UpdateProvisionEffects(float dt)
         {
@@ -921,6 +975,7 @@ namespace MyGame
                 tarUntil = brothUntil = -1f;
                 return;
             }
+            UpdatePoison(dt);
             if (Mending)
             {
                 Health = Mathf.Min(maxHealth, Health + brothAmount / brothDuration * dt);
@@ -1088,6 +1143,7 @@ namespace MyGame
         // away; they slump, and their Shade rises from the body. Then the phrase, and the dark.
         void Die()
         {
+            CurePoison();
             Enter(State.Dead);
             snuffSounded = false;
             clips.PlayOnce("Death", deathDuration);
@@ -1603,6 +1659,7 @@ namespace MyGame
 
         public void RestoreFully()
         {
+            CurePoison();
             Health = maxHealth;
             Stamina = maxStamina;
             HealingCharges = maxHealingCharges;
@@ -1729,30 +1786,6 @@ namespace MyGame
         static Vector3 Hop(Vector3 from, Vector3 to, float t) =>
             Vector3.Lerp(from, to, UiKit.Smooth(0f, 1f, t)) + Vector3.up * (0.45f * Mathf.Sin(t * Mathf.PI));
 
-        // Grabbed by a Drowned: pulled off your feet and under (no guard stops it; a dash's i-frames do), then washed
-        // ashore as from a fall, but with its damage. False if it missed (dodged, already under, not on your feet).
-        public bool DragUnder(Soured by, float damage)
-        {
-            if (!IsAlive || Invulnerable || CurrentState == State.Rowing || CurrentState == State.Hooking)
-                return false;
-            dragDamage = damage;
-            dragFrom = transform.position;
-            dragTo = new Vector3(by.transform.position.x, waterLevel - 1.2f, by.transform.position.z);
-            Sfx.Instance?.Hurt(transform.position + Vector3.up);
-            HitStop.Trigger(0.1f);
-            CameraRig.Instance?.Shake(0.3f);
-            GoUnder();
-            dragged = true;
-            controller.enabled = false; // (hauled over the edge: no walls, no floor)
-            Announce("dragged under");
-            return true;
-        }
-
-        public bool Dragged => dragged && CurrentState == State.Sinking;
-        bool dragged;
-        float dragDamage;
-        Vector3 dragFrom, dragTo;
-
         // Into the water: a splash, and you go under while the screen dips to black; then you wash ashore.
         void GoUnder()
         {
@@ -1770,8 +1803,7 @@ namespace MyGame
         // Behind the black: on solid ground near where you fell, coughing, a third of your health gone.
         void WashAshore()
         {
-            Health = Mathf.Max(0f, Health - (dragged ? dragDamage : maxHealth * waterDamage));
-            dragged = false;
+            Health = Mathf.Max(0f, Health - maxHealth * waterDamage);
             washedAt = Time.time;
             Teleport(SafeGroundNear(lastSafeGround));
             Sfx.Instance?.Hurt(transform.position + Vector3.up);

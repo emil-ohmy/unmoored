@@ -423,6 +423,18 @@ namespace MyGame
                 Stun();
         }
 
+        // Slain outright (a Drowned struck by its own spit, turned back): down at once, whatever its health.
+        public void Slay(Vector3 from)
+        {
+            if (!IsAlive || immortal)
+                return;
+            Health = 0f;
+            dealt = maxHealth;
+            flashUntil = Time.time + 0.1f;
+            Struck?.Invoke(this, HitResult.Landed, maxHealth);
+            Die(new Hit { Damage = maxHealth, From = from, Knockback = Flat(transform.position - from).normalized * 3f });
+        }
+
         // A perfect block turns the blow back: the Soured reels, open to a riposte.
         public void Stun()
         {

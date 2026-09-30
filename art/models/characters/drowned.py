@@ -4,11 +4,10 @@ off into the dark): bloated and grey-green, long lank hair like waterweed hangin
 arms too long, pale swollen hands. The same sickly green eyes as every Soured, glowing through the hair, and its belt
 lantern, drowned, still faintly lit.
 
-Clips: Idle (lurking, a slow sway), Swim (gliding under, arms trailing), Rise (0.7 s telegraph: bursting up, arms flung
-high), Grab (0.35 s: thrown forward over the edge, both arms reaching), Clutch (1.5 s: missed, sprawled over the edge,
-clawing at the stones: the punish window), Drag (1.2 s: dragging its catch down), Sink (0.6 s: back under), Stranded
-(loop: hooked out onto dry ground, flopping on its belly), Crawl (loop: hauling itself back to the water), Stagger,
-Death.
+Clips: Idle (lurking, a slow sway), Swim (gliding under, arms trailing), Rise (0.85 s telegraph: bursting up, arms
+flung high, the head drawn back, gathering), Spit (0.3 s: the head thrust forward, arms flung back), Clutch (loop: up at
+the edge, hanging on and looking about; after a spit, and at the shore), Sink (0.6 s: back under), Stranded (loop:
+hooked out onto dry ground, flopping on its belly), Crawl (loop: hauling itself back to the water), Stagger, Death.
 """
 import math
 
@@ -36,8 +35,6 @@ REST = {"Spine": (8, 0, 0), "Head": (6, 0, 0), "ArmL": (-8, 0, -6), "ArmR": (-8,
 LURK = {"Pivot": (12, 0, 0), "Spine": (14, 0, 0), "Head": (10, 0, 0), "ArmL": (-18, 0, -10), "ArmR": (-18, 0, 10)}
 RISEN = {"Pivot": (-10, 0, 0), "Spine": (-8, 0, 0), "Head": (-26, 0, 0), "ArmL": ((-165, 0, -18), (0, 0, 0.04)),
          "ArmR": ((-165, 0, 18), (0, 0, 0.04)), "Root": ((0, 0, 0), (0, 0, 0.08))}
-REACH = {"Pivot": (52, 0, 0), "Spine": (12, 0, 0), "Head": (-30, 0, 0), "ArmL": (-100, 0, -6), "ArmR": (-100, 0, 6),
-         "Root": ((0, 0, 0), (0, -0.2, 0.05))}
 CLUTCH = {"Pivot": (62, 0, 0), "Spine": (10, 0, 0), "Head": (-34, 0, 0), "ArmL": ((-80, 0, -30), (0, -0.04, 0)),
           "ArmR": ((-80, 0, 30), (0, -0.04, 0)), "Root": ((0, 0, 0), (0, -0.3, 0.0))}
 LYING = {"Pivot": (82, 0, 0), "Spine": (4, 0, 0), "Head": (-40, 0, 0), "ArmL": (-60, 0, -40), "ArmR": (-60, 0, 40),
@@ -56,7 +53,9 @@ ACTIONS = {
     ]),
     "Rise": ("BEZIER", [(1, LURK), (6, with_(LURK, Pivot=(24, 0, 0), Root=((0, 0, 0), (0, 0, -0.1)))), (12, RISEN),
                         (17, with_(RISEN, Head=(-32, 0, 0)))]),
-    "Grab": ("BEZIER", [(1, RISEN), (4, REACH), (9, with_(REACH, Pivot=(58, 0, 0)))]),
+    "Spit": ("BEZIER", [(1, RISEN), (3, {"Pivot": (26, 0, 0), "Spine": (18, 0, 0), "Head": (30, 0, 0), "ArmL": (40, 0, -30),
+                                        "ArmR": (40, 0, 30), "Root": ((0, 0, 0), (0, -0.08, 0.04))}),
+                        (8, with_(LURK, Pivot=(4, 0, 0), Head=(0, 0, 0)))]),
     "Clutch": ("BEZIER", [
         (1, CLUTCH),
         (9, with_(CLUTCH, ArmL=((-92, 0, -24), (0, -0.08, 0)), Head=(-40, 0, 6))),
@@ -64,8 +63,6 @@ ACTIONS = {
         (27, with_(CLUTCH, ArmL=((-92, 0, -24), (0, -0.08, 0)), Head=(-40, 0, 4))),
         (36, CLUTCH),
     ]),
-    "Drag": ("BEZIER", [(1, REACH), (8, {"Pivot": (-10, 0, 0), "Spine": (-6, 0, 0), "Head": (10, 0, 0), "ArmL": (-40, 0, 20),
-                                        "ArmR": (-40, 0, -20)}), (29, LURK)]),
     "Sink": ("BEZIER", [(1, CLUTCH), (8, with_(LURK, Head=(20, 0, 0))), (15, LURK)]),
     "Stranded": ("BEZIER", [
         (1, LYING),

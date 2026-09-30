@@ -70,6 +70,9 @@ business and pay their fare to row them across.
   the Soured is staggered and its attack is interrupted.
 - **Feel:** hit-stop, knockback and shake on every hit.
 - **Telegraphs:** readable body wind-ups in animation only. No ground markers.
+- **Poison** (a Drowned's spit): it builds up in a meter under the bars (a plain block lets a little through) and
+  ebbs if you keep clear. Full, you're poisoned: about 40 health over 20 s, unless you cure it with a Bitter Root or
+  a Rest.
 - **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
   LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
   - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on
@@ -138,6 +141,7 @@ business and pay their fare to row them across.
   - **The Way Back** (3): to black, and back at the last Mooring post you Rested at. Not in a Boss's arena, and not
     on the water.
   - **Warm Broth** (3): mends 30 health over 10 s, and a blow doesn't stop it.
+  - **Bitter Root** (3): cures poison and empties its build-up.
   - The belt has four slots that keep their places; an empty one is passed by. The first of a kind goes in the first
     empty slot. The Satchel page works slot-first: pick a slot (left/right), then choose what goes in it (up/down,
     with the chosen one turning, as the Oar page shows the oar). One put in another's slot swaps with it, and "empty"
@@ -201,7 +205,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Clinger | a person | Fast pairs that circle, leap and cling to your back: stamina drains (and a little health), you slow; dash to throw off (even spent). Scatter one and the other turns frantic | Stroke |
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
 | Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |
-| Drowned | life | Waits under the water at an edge (only bubbles show), follows you along the shore, and rises to grab: no guard stops it, a dash does. Caught, you're dragged under: damage, then you wash ashore (not death). Missed, it hangs over the edge, open to blows | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
+| Drowned | life | Waits under the water (only bubbles show), out of reach. Seeing you, it rises and spits poison, then sinks and spits again. A perfect block turns the spit back, and a Drowned struck by its own spit dies outright. Hide from it and it comes to the shore to look for you, open to the oar | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
 
 ## Art direction
 

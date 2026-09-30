@@ -109,8 +109,12 @@ The paused screen with six pages: the Apprentice, the Oar, Abilities, the Satche
 _Avoid_: Inventory, status menu
 
 **Provision**:
-Something carried and used up: a Pitch Pot, Ember Tar, the Way Back, Warm Broth. Bought or found, each kind up to a cap; Resting doesn't refill them.
+Something carried and used up: a Pitch Pot, Ember Tar, the Way Back, Warm Broth, a Bitter Root. Bought or found, each kind up to a cap; Resting doesn't refill them.
 _Avoid_: Consumable, item, potion
+
+**Poison**:
+What a Drowned's spit leaves in you: a build-up that ebbs if you keep clear; full, you're poisoned, losing health a while, until it wears off or is cured (a Bitter Root, a Rest).
+_Avoid_: Toxin, venom, status
 
 **Satchel**:
 Where the Apprentice carries Provisions, and the character screen's page for them.

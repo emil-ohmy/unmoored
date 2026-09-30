@@ -39,7 +39,12 @@ namespace MyGame
             "Mends 30 health over 10 seconds. A blow doesn't stop it.",
             3, 50);
 
-        public static readonly Provision[] All = { PitchPot, EmberTar, WayBack, WarmBroth };
+        public static readonly Provision BitterRoot = new Provision("bitter_root", "Bitter Root",
+            "Tastes exactly as bad as the poison. That's how you know it works.",
+            "Cures poison, and empties its build-up.",
+            3, 45);
+
+        public static readonly Provision[] All = { PitchPot, EmberTar, WayBack, WarmBroth, BitterRoot };
 
         public static Provision ById(string id) => System.Array.Find(All, p => p.Id == id);
 

@@ -1,12 +1,12 @@
 """The Provisions, as found lying about (and the Pitch Pot as thrown): "pitch_pot" (a squat clay pot, a rag stuffed in
 its neck, pitch dribbled down its side), "ember_tar" (a little tin of tar, its lid off, embers glowing in it),
-"way_back" (a coil of knotted cord, pale, a bone toggle at one end) and "warm_broth" (a stoppered flask in a woven
-sleeve, a warm glow in its glass). Sized up a little to read from the camera. Origin at the base."""
+"way_back" (a coil of knotted cord, pale, a bone toggle at one end), "warm_broth" (a stoppered flask in a woven
+sleeve, a warm glow in its glass) and "bitter_root" (a gnarled forked root, twine round its neck, earth still on it). Sized up a little to read from the camera. Origin at the base."""
 import math
 
 M, part = kit.M, kit.part  # `kit` is injected by build_model.py
 
-VARIANTS = ["pitch_pot", "ember_tar", "way_back", "warm_broth"]
+VARIANTS = ["pitch_pot", "ember_tar", "way_back", "warm_broth", "bitter_root"]
 
 
 def build(variant):
@@ -37,6 +37,16 @@ def build(variant):
         for k in range(0, len(pts), 6):
             parts.append(part("Knot", kit.ico(1, 0.028), cord, M(pts[k])))
         parts.append(part("Toggle", kit.cylinder(6, 0.018, 0.1), bone, M((0.16, -0.02, 0.03), rot=(0, 90, 30))))
+    elif variant == "bitter_root":
+        root, twine, earth = kit.mat("Root", "#8a7148"), kit.mat("Twine", "#a38b62"), kit.mat("PieceAsh", "#3d3935")
+        rng = kit.rng
+        stem = [(0.0, 0.0, 0.03), (0.02, 0.01, 0.12), (-0.01, 0.0, 0.22), (0.015, -0.01, 0.32)]
+        parts = [part("Root", kit.tube(stem, [0.045, 0.05, 0.04, 0.025], seg=6), root, jitter=0.004)]
+        for k, (dx, dy) in enumerate(((0.1, 0.03), (-0.09, 0.05), (0.02, -0.1), (-0.05, -0.08))):
+            parts.append(part("Fork", kit.tube([(0.0, 0.0, 0.05), (dx * 0.6, dy * 0.6, 0.02), (dx, dy, 0.0)], [0.028, 0.02, 0.01], seg=5), root))
+        for k in range(3):
+            parts.append(part("Twine", kit.cylinder(8, 0.047, 0.012), twine, M((0.0, 0.0, 0.24 + k * 0.016))))
+        parts.append(part("Earth", kit.cylinder(7, 0.07, 0.015), earth, M((0.0, 0.0, 0.007))))
     else:
         glass, sleeve, cork = kit.mat("BrothGlass_Glow", "#ffb86a"), kit.mat("Sleeve", "#7a6248"), kit.mat("PieceCork", "#8a6a4a")
         parts = [

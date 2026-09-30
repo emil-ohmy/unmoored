@@ -1299,22 +1299,25 @@ namespace MyGame.Tests
                 File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
             }
             var drowned = UnityEngine.Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None).First(d => d.name == "Drowned (south edge)");
-            apprentice.Teleport(new Vector3(9f, 0.55f, -4.6f));
-            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            Spit spat = null;
+            System.Action<Drowned, Spit> onSpat = (d, sp) => { if (d == drowned) spat = sp; };
+            Drowned.Spat += onSpat;
+            apprentice.Teleport(new Vector3(10.5f, 0.55f, -2.2f));
             for (int i = 0; i < 20 && drowned.CurrentState != Soured.State.Telegraph; i++)
                 yield return null;
             Shot("drowned-0-waiting");
-            while (drowned.CurrentState == Soured.State.Telegraph && drowned.StateTime < 0.45f)
+            while (drowned.CurrentState == Soured.State.Telegraph && drowned.StateTime < 0.6f)
                 yield return null;
             Shot("drowned-1-rising");
-            while (drowned.CurrentState != Soured.State.Strike)
+            while (spat == null)
                 yield return null;
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 6; i++)
                 yield return null;
-            Shot("drowned-2-grab");
-            for (int i = 0; i < 10; i++)
+            Shot("drowned-2-spit");
+            for (int i = 0; i < 30; i++)
                 yield return null;
-            Shot("drowned-3-dragged");
+            Shot("drowned-3-poisoned");
+            Drowned.Spat -= onSpat;
         }
 
         // The character screen's four pages, and the oar at each of its five steps (close up, from the front).
@@ -1553,7 +1556,7 @@ namespace MyGame.Tests
             apprentice.Teleport(new Vector3(4f, 0.55f, 0f));
             apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
             yield return Frames(10);
-            int kind = Array.FindIndex(post.spawner.kinds, k => k.name == "Clingers");
+            int kind = Array.FindIndex(post.spawner.kinds, k => k.name == "Clinger");
             post.spawner.Spawn(kind, apprentice);
             var pair = post.spawner.Spawned.OfType<Clinger>().ToArray();
             yield return Frames(10);

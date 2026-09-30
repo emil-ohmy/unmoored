@@ -9,7 +9,7 @@ namespace MyGame
         public static Sfx Instance { get; private set; }
 
         public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem, lanternSnuff, murmur, oarStroke, bossFarewell,
-            pitchBurst, drink, tarSizzle, wayBack;
+            pitchBurst, drink, tarSizzle, wayBack, spitSplat;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -92,6 +92,7 @@ namespace MyGame
         public void Drink(Vector3 at) => Play(drink, at, 0.8f, "drink");
         public void TarSizzle(Vector3 at) => Play(tarSizzle, at, 0.8f, "tar_sizzle");
         public void WayBack(Vector3 at) => Play(wayBack, at, 0.9f, "way_back");
+        public void SpitSplat(Vector3 at) => Play(spitSplat, at, 0.8f, "spit_splat");
         public void LanternSnuff(Vector3 at) => Play(lanternSnuff, at, 1f, "lantern_snuff");
         public void OarStroke(Vector3 at) => Play(oarStroke, at, 0.55f, "oar_stroke");
         public void Murmur(Vector3 at) => Play(murmur, at, 0.55f, "murmur"); // a soul beginning a line

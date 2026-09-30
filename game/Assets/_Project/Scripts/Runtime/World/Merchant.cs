@@ -9,7 +9,7 @@ namespace MyGame
     {
         public float interactRadius = 1.5f;
         public string[] stockIds = { "eel_skin" };
-        public string[] provisionIds = { "pitch_pot", "ember_tar", "way_back", "warm_broth" }; // (as many as the Satchel takes)
+        public string[] provisionIds = { "pitch_pot", "ember_tar", "way_back", "warm_broth", "bitter_root" }; // (as many as the Satchel takes)
 
         public IEnumerable<Provision> Provisions
         {
