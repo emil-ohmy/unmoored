@@ -33,6 +33,13 @@ namespace MyGame
             });
         }
 
+        // (the lab) Where it was again, to be found again.
+        public void PutBack()
+        {
+            Taken = false;
+            gameObject.SetActive(true);
+        }
+
         // Loading a save: already taken (carried, or given).
         public void RestoreTaken()
         {

@@ -862,9 +862,9 @@ namespace MyGame.Tests
         public IEnumerator UpgradePieces_AreFound_AndMakeTheApprenticeStronger()
         {
             var pieces = Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None);
-            Assert.AreEqual(3, pieces.Count(p => p.kind == UpgradePiece.Kind.FerryNail));
-            Assert.AreEqual(1, pieces.Count(p => p.kind == UpgradePiece.Kind.WarmStone));
-            Assert.AreEqual(1, pieces.Count(p => p.kind == UpgradePiece.Kind.HeldBreath));
+            Assert.AreEqual(4, pieces.Count(p => p.kind == UpgradePiece.Kind.FerryNail), "three about the heights, one in the row");
+            Assert.AreEqual(2, pieces.Count(p => p.kind == UpgradePiece.Kind.WarmStone));
+            Assert.AreEqual(2, pieces.Count(p => p.kind == UpgradePiece.Kind.HeldBreath));
             float health = apprentice.maxHealth, stamina = apprentice.maxStamina;
             var hud = Object.FindAnyObjectByType<Hud>();
             float healthBar = hud.HealthBarWidth, staminaBar = hud.StaminaBarWidth;
@@ -895,12 +895,52 @@ namespace MyGame.Tests
             Assert.IsTrue(Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Length == pieces.Length, "back where they were");
         }
 
+        // Every kind of find lies in a row on the quay; taken, they come back when the Apprentice is reset.
+        [UnityTest]
+        public IEnumerator EveryKindOfFind_LiesInARow_AndComesBack()
+        {
+            yield return null;
+            var finds = Object.FindAnyObjectByType<LabFinds>();
+            Assert.IsNotNull(finds);
+            foreach (UpgradePiece.Kind kind in System.Enum.GetValues(typeof(UpgradePiece.Kind)))
+                Assert.IsTrue(Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Any(p => p.kind == kind), $"a {kind}");
+            foreach (var p in Provision.All)
+                Assert.IsTrue(Object.FindObjectsByType<ProvisionFind>(FindObjectsSortMode.None).Any(f => f.Kind == p), p.Name);
+            Assert.IsNotNull(Object.FindAnyObjectByType<ChargePiece>(), "an Ember");
+            Assert.IsNotNull(Object.FindAnyObjectByType<ObolCache>(), "an Obol Cache");
+            Assert.IsNotNull(Object.FindAnyObjectByType<Keepsake>(), "a keepsake");
+            var hook = Object.FindAnyObjectByType<FerrymansHook>();
+            Assert.IsTrue(hook != null && hook.Available, "and the Hook, to take");
+
+            // Take the Hook and the Ember, then reset: both are back.
+            apprentice.Teleport(hook.transform.position + Vector3.right * 0.6f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(hook, apprentice.Nearby);
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.ceremonyDuration + 0.3f);
+            Assert.IsTrue(apprentice.HasHook, "the Hook, held up");
+            var ember = Object.FindAnyObjectByType<ChargePiece>();
+            apprentice.Teleport(ember.transform.position + Vector3.right * 0.6f);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(ember.Taken);
+            yield return OpenTheMenu();
+            Menu.Do("Reset the Apprentice");
+            yield return null;
+            Assert.IsFalse(apprentice.HasHook);
+            Assert.IsFalse(ember.Taken, "the Ember's back");
+            var again = Object.FindObjectsByType<FerrymansHook>(FindObjectsSortMode.None).FirstOrDefault(h => h.Available);
+            Assert.IsNotNull(again, "and the Hook");
+        }
+
         // Nothing is reached through a floor: under the Held Breath, on the storey below, it's neither in reach nor
         // shining (its storey, lamps and all, is hidden). And thin posts never open up for the camera, as walls do.
         [UnityTest]
         public IEnumerator ThingsOnAnotherStorey_AreOutOfReach_AndThinPostsStayWhole()
         {
-            var breath = Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).First(p => p.kind == UpgradePiece.Kind.HeldBreath);
+            var breath = Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None)
+                .Where(p => p.kind == UpgradePiece.Kind.HeldBreath).OrderByDescending(p => p.transform.position.y).First(); // (the tower's, upstairs)
             var below = breath.transform.position;
             below.y = Object.FindAnyObjectByType<Storeys>().transform.position.y + 0.08f; // the ground floor's flagstones
             apprentice.Teleport(below);

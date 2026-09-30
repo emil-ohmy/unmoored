@@ -1308,6 +1308,14 @@ namespace MyGame.Tests
                 RenderTexture.active = previous;
                 File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
             }
+            // Every kind of find, in their row.
+            var finds = UnityEngine.Object.FindAnyObjectByType<LabFinds>();
+            if (finds != null && finds.hookSpot != null)
+            {
+                apprentice.Teleport(new Vector3(7.2f, finds.hookSpot.position.y, 1.2f), true, true);
+                yield return Frames(40);
+                Shot("finds-row", cam);
+            }
             var e = apprentice.Equipment;
             apprentice.AddWarmStone();
             apprentice.AddHeldBreath();

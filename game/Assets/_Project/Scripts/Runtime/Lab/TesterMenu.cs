@@ -161,10 +161,7 @@ namespace MyGame
             apprentice.Equipment.ResetToStart();
             apprentice.Restore(0, 3, false);
             Lantern.DevLevels = 0;
-            foreach (var piece in Object.FindObjectsByType<UpgradePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                piece.PutBack();
-            foreach (var find in Object.FindObjectsByType<ProvisionFind>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                find.PutBack();
+            Object.FindAnyObjectByType<LabFinds>()?.PutBack(); // (everything found, where it was again)
             Say("As new. Or as new as anyone gets down here.");
         }
 

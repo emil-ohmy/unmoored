@@ -20,6 +20,13 @@ namespace MyGame
         public bool Available => !Taken;
         public string PromptLabel => "Take";
 
+        // (the lab) Where it was again, to be found again.
+        public void PutBack()
+        {
+            Taken = false;
+            gameObject.SetActive(true);
+        }
+
         // Loading a save: already taken.
         public void RestoreTaken()
         {

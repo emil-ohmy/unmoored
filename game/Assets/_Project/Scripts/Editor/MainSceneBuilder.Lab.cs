@@ -40,12 +40,7 @@ public static partial class MainSceneBuilder
         StreetLantern(new Vector3(15.5f, QuayTop, -4.8f), 0f);
         StreetLantern(new Vector3(15.5f, QuayTop, 4.6f), 180f);
 
-        // Provisions to find, along the quay's north edge: two Pitch Pots, Ember Tar, Warm Broth, the Way Back (the
-        // Tester's Post fills the Satchel too).
-        ProvisionAt("pitch_pot", 2, new Vector3(-1.2f, QuayTop, 4.3f), 20f);
-        ProvisionAt("ember_tar", 1, new Vector3(1.4f, QuayTop, 4.4f), -30f);
-        ProvisionAt("warm_broth", 1, new Vector3(4.0f, QuayTop, 4.3f), 10f);
-        ProvisionAt("way_back", 1, new Vector3(9.8f, QuayTop, 4.2f), 60f);
+        FindsRow(new Vector3(1.0f, QuayTop, 3.3f), 1.25f);
 
         // The Mooring post and the Tester's Post, side by side at the west end.
         MooringPostAt(new Vector3(-6.0f, QuayTop, -3.4f), 0f);
@@ -234,6 +229,51 @@ public static partial class MainSceneBuilder
         UpgradePieceAt(UpgradePiece.Kind.FerryNail, new Vector3(46.6f, highTop, -0.5f), 60f);
         UpgradePieceAt(UpgradePiece.Kind.HeldBreath, tower + new Vector3(-2.4f, storey, 1.1f), 0f).transform.SetParent(middle.transform, true);
         UpgradePieceAt(UpgradePiece.Kind.WarmStone, new Vector3(50.4f, QuayTop + 1.4f, 1.3f), 0f);
+    }
+
+    // Every kind of thing there is to find, side by side along the quay's north edge, west to east: the pieces that
+    // make the Apprentice stronger (a Ferry Nail, a Warm Stone, a Held Breath, an Ember), the four Provisions, an Obol
+    // Cache, a keepsake (Old Hesper's son's boat-lantern) and the Hook. Resetting the Apprentice puts them back.
+    static void FindsRow(Vector3 start, float step)
+    {
+        var finds = new GameObject("Lab Finds").AddComponent<LabFinds>();
+        int n = 0;
+        Vector3 Next() => start + Vector3.right * (step * n++);
+        UpgradePieceAt(UpgradePiece.Kind.FerryNail, Next(), 20f);
+        UpgradePieceAt(UpgradePiece.Kind.WarmStone, Next(), 0f);
+        UpgradePieceAt(UpgradePiece.Kind.HeldBreath, Next(), 0f);
+        var ember = Place("Environment/charge_ember", Next(), 0f);
+        ember.name = "Ember (Healing Charge Piece)";
+        ember.AddComponent<ChargePiece>();
+        var emberGlow = ember.AddComponent<PickupGlow>();
+        emberGlow.tier = PickupGlow.Tier.Item;
+        emberGlow.colour = LanternLight;
+        emberGlow.height = 1.0f;
+        foreach (var p in Provision.All)
+            ProvisionAt(p.Id, 1, Next(), 20f * n);
+        var cache = Place("Environment/obol_cache", Next(), 30f);
+        cache.name = "Obol Cache";
+        cache.AddComponent<ObolCache>();
+        var cacheGlow = cache.AddComponent<PickupGlow>();
+        cacheGlow.tier = PickupGlow.Tier.Item;
+        cacheGlow.colour = LanternLight;
+        cacheGlow.height = 0.7f;
+        var lantern = Place("Environment/boat_lantern", Next(), 200f);
+        lantern.name = "Boat-Lantern (Keepsake)";
+        var keepsake = lantern.AddComponent<Keepsake>();
+        keepsake.id = HesperKeepsake;
+        keepsake.title = "A Boat-Lantern";
+        keepsake.hint = "Its glass is painted, crookedly. It's still burning. Old Hesper will know it.";
+        keepsake.interactRadius = 1.0f;
+        var lanternGlow = lantern.AddComponent<PickupGlow>();
+        lanternGlow.tier = PickupGlow.Tier.Item;
+        lanternGlow.colour = LanternLight;
+        lanternGlow.height = 0.6f;
+        var hookSpot = new GameObject("Hook Spot").transform;
+        hookSpot.position = Next();
+        hookSpot.SetParent(finds.transform, true);
+        finds.hookSpot = hookSpot;
+        finds.hookModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
     }
 
     // Provisions lying about, glowing where they lie (an item).
