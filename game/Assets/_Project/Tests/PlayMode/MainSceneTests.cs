@@ -1517,17 +1517,17 @@ namespace MyGame.Tests
             talk = apprentice.OpenMenu as Conversation;
             Assert.AreEqual("Thank you, child.", talk.CurrentLine);
             talk.Close();
-            Vector3 was = hesper.transform.position;
+            Vector3 was = hesper.figure.position;
             yield return new WaitForSeconds(Lingerer.DriftOut * 0.6f);
             Assert.IsTrue(hesper.Drifting, "she thins away first");
             Assert.IsFalse(hesper.Available, "(no talking to her while she goes)");
-            Assert.Less(FlatDistance(hesper.transform.position, was), 0.1f, "still where she sat");
+            Assert.Less(FlatDistance(hesper.figure.position, was), 0.1f, "still where she sat");
             var block = new MaterialPropertyBlock();
             hesper.GetComponentInChildren<Renderer>().GetPropertyBlock(block);
             Assert.Greater(block.GetFloat("_Dissolve"), 0.3f, "dissolving");
             yield return new WaitForSeconds(Lingerer.DriftOut + Lingerer.DriftPause + Lingerer.DriftIn);
             Assert.IsFalse(hesper.Drifting);
-            Assert.Less(FlatDistance(hesper.transform.position, hesper.waitAt.position), 0.1f, "and gathers again by the boat");
+            Assert.Less(FlatDistance(hesper.figure.position, hesper.waitAt.position), 0.1f, "and gathers again by the boat");
 
             apprentice.Teleport(hesper.InteractPosition + Vector3.left * 0.9f);
             yield return new WaitForSeconds(0.3f);
@@ -1535,6 +1535,226 @@ namespace MyGame.Tests
             input.PressInteract();
             yield return null;
             StringAssert.Contains("Whenever you are", (apprentice.OpenMenu as Conversation).CurrentLine);
+        }
+
+        // ---- The boat
+
+        Dock FarDock(Boat boat) => boat.docks.First(d => d.farShore);
+
+        IEnumerator TakeTheOars(Boat boat)
+        {
+            apprentice.Teleport(boat.InteractPosition);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(boat, apprentice.Nearby, "the boat, moored: Row");
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 0.1f);
+            Assert.AreEqual(Apprentice.State.Rowing, apprentice.CurrentState);
+        }
+
+        // Rows towards `target` (steering straight at it) until within `within`, or gives up after `timeout`.
+        IEnumerator RowTo(Boat boat, Vector3 target, float within, float timeout)
+        {
+            for (float t = 0f; t < timeout; t += Time.deltaTime)
+            {
+                Vector3 to = target - boat.transform.position;
+                to.y = 0f;
+                if (to.magnitude < within)
+                    break;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+        }
+
+        [UnityTest]
+        public IEnumerator Boat_RowsFromTheLanding_ToTheFarShore_AndBack()
+        {
+            var boat = Object.FindAnyObjectByType<Boat>();
+            Assert.IsNotNull(boat, "the Ferryman's boat, at the landing");
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Assert.AreEqual(boat.home, boat.MooredAt);
+            Assert.Greater(Vector3.Dot(boat.bowLantern.transform.position - boat.transform.position, boat.Bow), 1f, "the bow pole is at its bow");
+            apprentice.Teleport(boat.InteractPosition);
+            yield return new WaitForSeconds(0.3f);
+            yield return null;
+            Assert.AreEqual("Row", hud.PromptText);
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 0.1f);
+            Assert.AreEqual(Apprentice.State.Rowing, apprentice.CurrentState, "into the boat");
+            Assert.IsTrue(boat.Rowing);
+            Assert.Less(FlatDistance(apprentice.transform.position, boat.seat.position), 0.1f, "sat in it");
+            Assert.IsTrue(apprentice.LanternOnTheBow, "the bow lantern hung on the bow");
+            Assert.IsTrue(boat.bowLantern.activeSelf);
+            var lantern = apprentice.GetComponent<BowLantern>().lanternLight;
+            Assert.Less(Vector3.Distance(lantern.transform.position, boat.bowLanternGlass.position), 0.1f, "its light with it");
+
+            var far = FarDock(boat);
+            float lowest = 10f;
+            for (float t = 0f; t < 30f && boat.DockInReach != far; t += Time.deltaTime)
+            {
+                Vector3 to = far.mooring.position - boat.transform.position;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                lowest = Mathf.Min(lowest, apprentice.transform.position.y);
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.AreEqual(far, boat.DockInReach, "rowed out to the Far shore");
+            Assert.Greater(lowest, apprentice.waterLevel, "sat in the boat all the way, not in the water");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
+            Assert.Greater(boat.Strokes, 4, "stroke after stroke");
+            yield return null;
+            Assert.AreEqual("Step ashore", hud.PromptText);
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 1f);
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState, "ashore");
+            Assert.Less(FlatDistance(apprentice.transform.position, far.ashore.position), 0.3f, "on the Far shore's jetty");
+            Assert.AreEqual(far, boat.MooredAt, "the boat tied up there");
+            Assert.Less(FlatDistance(boat.transform.position, far.mooring.position), 0.1f);
+            Assert.IsFalse(apprentice.LanternOnTheBow);
+            Assert.IsFalse(boat.bowLantern.activeSelf, "the lantern back at the hip");
+
+            // And home again.
+            yield return TakeTheOars(boat);
+            for (float t = 0f; t < 30f && boat.DockInReach != boat.home; t += Time.deltaTime)
+            {
+                Vector3 to = boat.home.mooring.position - boat.transform.position;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.AreEqual(boat.home, boat.DockInReach, "back at the landing");
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 1f);
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+            Assert.Less(FlatDistance(apprentice.transform.position, boat.home.ashore.position), 0.3f);
+        }
+
+        // It glides on, turns better under way, slides along what it meets, and the lagoon's edge turns it back.
+        [UnityTest]
+        public IEnumerator Boat_HasWeight_MeetsTheWorld_AndStaysInTheLagoon()
+        {
+            var boat = Object.FindAnyObjectByType<Boat>();
+            yield return TakeTheOars(boat);
+            boat.PlaceAt(new Vector3(8f, 0f, -32f), Vector3.back);
+            input.Move = Vector2.down;
+            yield return new WaitForSeconds(0.3f);
+            float early = boat.Speed;
+            yield return new WaitForSeconds(2f);
+            Assert.Greater(boat.Speed, early + 1f, "it gathers way slowly");
+            input.Move = Vector2.zero;
+            float rowing = boat.Speed;
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(boat.Speed, rowing * 0.5f, "and glides on when you stop");
+
+            // Into the landing (from the east, just south of the mooring): it stops at the planks.
+            boat.PlaceAt(new Vector3(6.2f, 0f, -26.8f), Vector3.left);
+            input.Move = Vector2.left;
+            yield return new WaitForSeconds(3f);
+            input.Move = Vector2.zero;
+            Assert.Greater(boat.transform.position.x, 4.3f, "not through the landing");
+
+            // Out past the lagoon's edge: the water turns it back.
+            boat.PlaceAt(new Vector3(boat.lagoon.xMax - 2f, 0f, -30f), Vector3.right);
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(6f);
+            input.Move = Vector2.zero;
+            Assert.Less(boat.transform.position.x, boat.lagoon.xMax + 1.5f, "kept to the lagoon");
+
+            // Nothing on the water hurts.
+            apprentice.TakeHit(50f, Vector3.zero);
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health);
+        }
+
+        // Waking at a Mooring post, the boat is home (nobody's left stranded).
+        [UnityTest]
+        public IEnumerator Boat_IsHomeAgain_WhenYouWake()
+        {
+            var boat = Object.FindAnyObjectByType<Boat>();
+            var far = FarDock(boat);
+            yield return TakeTheOars(boat);
+            boat.PlaceAt(far.mooring.position, Vector3.back);
+            yield return null;
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 1f);
+            Assert.AreEqual(far, boat.MooredAt);
+            apprentice.TakeHit(10000f, Vector3.zero);
+            yield return new WaitForSeconds(apprentice.respawnDelay + 0.5f);
+            Assert.AreEqual(boat.home, boat.MooredAt, "the boat's back at the landing");
+            Assert.Less(FlatDistance(boat.transform.position, boat.home.mooring.position), 0.1f);
+        }
+
+        // Her Crossing: the fare paid, take the oars and she comes aboard. Nearing the Far shore the oar rests and she
+        // talks as the boat drifts in (the music low); put in, her goodbye, then she goes on into the light, leaving his
+        // lantern on the jetty and her Wick for you.
+        [UnityTest]
+        public IEnumerator Hesper_HerCrossing_ToTheFarShore()
+        {
+            foreach (var s in Object.FindObjectsByType<Soured>(FindObjectsSortMode.None))
+                s.gameObject.SetActive(false);
+            var hesper = Object.FindAnyObjectByType<Lingerer>();
+            var boat = Object.FindAnyObjectByType<Boat>();
+            var far = FarDock(boat);
+            hesper.Restore(Lingerer.Business.Paid);
+            Assert.IsFalse(hesper.boatFigure.activeSelf, "not in the boat yet");
+            yield return TakeTheOars(boat);
+            yield return new WaitForSeconds(1.6f);
+            Assert.IsTrue(hesper.Aboard, "she comes aboard");
+            Assert.IsTrue(hesper.boatFigure.activeSelf);
+            Assert.IsFalse(hesper.figure.gameObject.activeSelf, "gone from the landing");
+            Assert.IsFalse(hesper.Available);
+
+            boat.PlaceAt(far.mooring.position + Vector3.forward * (hesper.talkDistance + 3f), Vector3.back);
+            yield return RowTo(boat, far.mooring.position, hesper.talkDistance - 1f, 10f);
+            yield return null;
+            var talk = apprentice.OpenMenu as Conversation;
+            Assert.IsNotNull(talk, "she talks, out on the water");
+            Assert.AreEqual(Apprentice.State.Rowing, apprentice.CurrentState);
+            StringAssert.Contains("colder out here", talk.CurrentLine);
+            Assert.IsTrue(boat.Coasting, "the oar rests; the boat drifts in");
+            Assert.IsTrue(MusicPlayer.Hushed);
+            float before = FlatDistance(boat.transform.position, far.mooring.position);
+            yield return new WaitForSeconds(1.5f);
+            Assert.Less(FlatDistance(boat.transform.position, far.mooring.position), before - 0.5f, "drifting in");
+            talk.Skip();
+            StringAssert.Contains("rest of us", talk.CurrentLine);
+            talk.Close();
+            yield return null;
+            Assert.IsFalse(boat.Coasting, "the oars again");
+
+            yield return RowTo(boat, far.mooring.position, 1.5f, 15f);
+            Assert.AreEqual(far, boat.DockInReach);
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 0.3f);
+            talk = apprentice.OpenMenu as Conversation;
+            Assert.IsNotNull(talk, "her goodbye");
+            StringAssert.Contains("far enough", talk.CurrentLine);
+            Assert.IsFalse(apprentice.Equipment.Owns(Charm.HespersWick));
+            talk.Close();
+            yield return null;
+            Assert.IsTrue(hesper.Departing, "she goes on");
+            Assert.AreEqual(Lingerer.Business.Crossed, hesper.State);
+            yield return new WaitForSeconds(3.5f);
+            Assert.IsFalse(hesper.boatFigure.activeSelf, "gone into the light");
+            Assert.IsTrue(hesper.leftBehind.activeSelf, "his lantern left on the jetty");
+            Assert.IsTrue(apprentice.Equipment.Owns(Charm.HespersWick), "her parting gift");
+            Assert.IsFalse(MusicPlayer.Hushed);
+            Assert.IsFalse(hesper.Available, "nobody left to speak to");
+        }
+
+        // Hesper's Wick: the bow lantern's light reaches further.
+        [UnityTest]
+        public IEnumerator HespersWick_LightsFurther()
+        {
+            var lantern = apprentice.GetComponent<BowLantern>();
+            yield return null;
+            float range = lantern.Range;
+            apprentice.Equipment.Own(Charm.HespersWick);
+            if (apprentice.Equipment.IsFitted(Charm.TestersKnot))
+                apprentice.Equipment.Toggle(Charm.TestersKnot); // (one slot)
+            apprentice.Equipment.Toggle(Charm.HespersWick);
+            Assert.IsTrue(apprentice.Equipment.IsFitted(Charm.HespersWick));
+            yield return null;
+            Assert.Greater(lantern.Range, range * 1.4f);
         }
 
         // ---- The Laden archer        // ---- The Laden archer

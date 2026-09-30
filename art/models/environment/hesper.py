@@ -4,8 +4,12 @@ burning for him (the game adds its light). Like every soul: no face in the hood,
 Front is -Y (where she looks); origin at her feet."""
 M, part, along = kit.M, kit.part, kit.along  # `kit` is injected by build_model.py
 
+# "": on her crate at the landing, her lamp beside her; "boat": the same, sat in the boat's bow for her Crossing (no
+# crate, no lamp: the game sets her down on the seat and puts his lantern in her lap).
+VARIANTS = ["", "boat"]
 
-def build():
+
+def build(variant=""):
     shawl = kit.mat("Shawl", "#9aa1b3")
     shawl_dark = kit.mat("ShawlShade", "#6e7486")
     skirt = kit.mat("Skirt", "#5f6576")
@@ -38,4 +42,10 @@ def build():
         part("LampCap", kit.cone(8, 0.07, 0.02, 0.05), metal, M((0.42, -0.2, 0.175))),
         part("LampRing", kit.tube([(0.37, -0.2, 0.2), (0.42, -0.2, 0.25), (0.47, -0.2, 0.2)], [0.008, 0.008, 0.008], seg=4), metal),
     ]
+    if variant == "boat":
+        import bpy
+        dropped = [p for p in parts if p.name.startswith(("Crate", "Lamp"))]
+        parts = [p for p in parts if p not in dropped]
+        for p in dropped:
+            bpy.data.objects.remove(p)
     return [kit.join(parts, "Hesper")]

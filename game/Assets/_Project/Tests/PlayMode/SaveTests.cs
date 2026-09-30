@@ -147,8 +147,50 @@ namespace MyGame.Tests
             Assert.AreEqual(Lingerer.Business.Paid, hesper.State);
             Assert.IsFalse(apprentice.Equipment.Carries(keepsake.id), "given");
             Assert.IsTrue(hesper.heldKeepsake.activeSelf, "she holds it");
-            Assert.Less(Vector3.Distance(hesper.transform.position, hesper.waitAt.position), 0.1f, "waiting by the boat");
+            Assert.Less(Vector3.Distance(hesper.figure.position, hesper.waitAt.position), 0.1f, "waiting by the boat");
             Assert.AreEqual(0, apprentice.Obols);
+        }
+
+        // Her Crossing is kept: she's gone on, his lantern stays on the Far shore, her Wick is yours.
+        [UnityTest]
+        public IEnumerator ACrossing_IsKept()
+        {
+            SaveSlots.Current = 0;
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            var apprentice = Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            var hesper = Object.FindAnyObjectByType<Lingerer>();
+            var boat = Object.FindAnyObjectByType<Boat>();
+            var far = boat.docks.First(d => d.farShore);
+            hesper.Restore(Lingerer.Business.Paid);
+            apprentice.Teleport(boat.InteractPosition);
+            yield return null;
+            boat.Interact(apprentice);
+            yield return new WaitForSeconds(1.6f);
+            boat.PlaceAt(far.mooring.position, Vector3.back);
+            yield return null;
+            yield return null;
+            apprentice.OpenMenu?.Close(); // (her talk on the water)
+            yield return null;
+            apprentice.StepAshore(far);
+            yield return new WaitForSeconds(apprentice.hopTime + 0.3f);
+            apprentice.OpenMenu?.Close(); // (her goodbye)
+            yield return new WaitForSeconds(3.5f);
+            Assert.AreEqual(Lingerer.Business.Crossed, hesper.State);
+            string home = boat.home.name;
+            SaveSystem.Instance.SaveNow();
+
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            apprentice = Object.FindAnyObjectByType<Apprentice>();
+            hesper = Object.FindAnyObjectByType<Lingerer>();
+            Assert.AreEqual(Lingerer.Business.Crossed, hesper.State);
+            Assert.IsFalse(hesper.figure.gameObject.activeSelf, "gone on");
+            Assert.IsTrue(hesper.leftBehind.activeSelf, "his lantern still on the Far shore");
+            Assert.IsTrue(apprentice.Equipment.Owns(Charm.HespersWick));
+            Assert.AreEqual(home, Object.FindAnyObjectByType<Boat>().MooredAt.name, "the boat at home");
         }
 
         // Playing a scene straight from the editor (no slot chosen) keeps nothing.

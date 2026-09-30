@@ -22,6 +22,8 @@ BONES = {
     "Head": ((0, 0, 0.62), (0, 0, 1.05), "Body"),
     "Oar": (tuple(HAND), tuple(OAR @ Vector((0, 0, 0.9))), "Body"),  # pivots at the hand
     "Hook": ((0.22, 0.16, 0.5), (0.22, 0.16, 0.7), "Body"),  # the Hook, hung at the back of the hip (hidden until found)
+    # The bow lantern at the left hip: its own bone, so the game can hide it while it hangs on the boat's bow.
+    "Lantern": ((-0.36, -0.06, 0.52), (-0.36, -0.06, 0.62), "Body"),
 }
 
 REST = {}
@@ -81,6 +83,21 @@ HOOK_WHIRL = [
 ]
 RAISED = {"Pivot": (-4, 0, 0), "Body": (-8, 0, 0), "Head": (-20, 0, 0), "Oar": (12, 0, -24),
           "Hook": ((0, 0, 0), (-0.22, -0.2, 0.86)), "Root": ((0, 0, 0), (0, 0, 0.02))}
+
+# Rowing (seated in the boat, facing the bow): a paddle stroke one side, the oar swung over, then the other side. The
+# Apprentice sits low (the boat's rim hides the hem). Catch: the blade dipped in ahead; pull: drawn back along the side;
+# lift: out of the water, and over. 48 frames: two strokes (the game sets the pace from how hard it's rowed).
+SIT = (0, 0, -0.16)
+ROW_R_CATCH = {"Body": (12, 0, -14), "Head": (-8, 0, 10), "Oar": ((25, 145, 0), (-0.05, -0.22, 0.1)), "Root": ((0, 0, 0), SIT)}
+ROW_R_PULL = {"Body": (-4, 0, 12), "Head": (2, 0, -8), "Oar": ((-30, 145, 0), (-0.05, 0.2, 0.05)), "Root": ((0, 0, 0), SIT)}
+ROW_R_LIFT = {"Body": (0, 0, 8), "Head": (0, 0, -4), "Oar": ((20, 110, 0), (-0.12, 0.1, 0.2)), "Root": ((0, 0, 0), SIT)}
+ROW_OVER_L = {"Body": (4, 0, 0), "Head": (-2, 0, 0), "Oar": ((10, 0, 0), (-0.42, -0.1, 0.28)), "Root": ((0, 0, 0), SIT)}
+ROW_L_CATCH = {"Body": (12, 0, 14), "Head": (-8, 0, -10), "Oar": ((25, -145, 0), (-0.78, -0.22, 0.1)), "Root": ((0, 0, 0), SIT)}
+ROW_L_PULL = {"Body": (-4, 0, -12), "Head": (2, 0, 8), "Oar": ((-30, -145, 0), (-0.78, 0.2, 0.05)), "Root": ((0, 0, 0), SIT)}
+ROW_L_LIFT = {"Body": (0, 0, -8), "Head": (0, 0, 4), "Oar": ((20, -110, 0), (-0.7, 0.1, 0.2)), "Root": ((0, 0, 0), SIT)}
+ROW_OVER_R = {"Body": (4, 0, 0), "Head": (-2, 0, 0), "Oar": ((10, 0, 0), (-0.36, -0.1, 0.28)), "Root": ((0, 0, 0), SIT)}
+# Resting on the oars: laid across the boat, blade out to the right, the hands in the lap.
+ROW_REST = {"Body": (6, 0, 0), "Head": (4, 0, 0), "Oar": ((0, 90, 0), (-0.36, -0.12, -0.08)), "Root": ((0, 0, 0), SIT)}
 
 ACTIONS = {
     "Idle": ("BEZIER", [
@@ -188,6 +205,15 @@ ACTIONS = {
         (3, {"Oar": ((62, 0, -70), (-0.1, -0.52, 0.3)), "Body": (10, 0, 8), "Head": (-4, 0, 0), "Root": ((0, 0, 0), (0, -0.08, 0))}),
         (10, {"Oar": ((88, 0, -84), (-0.12, -0.34, 0.18)), "Body": (-4, 0, 0), "Head": (4, 0, 0)}),
     ]),
+    "Row": ("BEZIER", [
+        (1, ROW_R_CATCH), (9, ROW_R_PULL), (14, ROW_R_LIFT), (19, ROW_OVER_L),
+        (25, ROW_L_CATCH), (33, ROW_L_PULL), (38, ROW_L_LIFT), (43, ROW_OVER_R), (49, ROW_R_CATCH),
+    ]),
+    "RowIdle": ("BEZIER", [
+        (1, ROW_REST),
+        (30, dict(ROW_REST, Body=(8, 0, 0), Root=((0, 0, 0), (0, 0, -0.17)))),
+        (60, ROW_REST),
+    ]),
     "Hit": ("BEZIER", [
         (1, REST),
         (3, {"Body": (-18, 0, 0), "Head": (-12, 0, 0), "Oar": (-10, 0, 0), "Root": ((0, 0, 0), (0, 0.08, 0))}),
@@ -226,10 +252,10 @@ def build():
     metal, soul = kit.mat("LanternMetal", "#2c2b31"), kit.mat("SoulLantern_Glow", "#cfe6ff")
     lx, ly, lz = -0.36, -0.06, 0.38
     parts += [
-        part("LanternCord", kit.cube(), metal, M((lx + 0.02, ly, lz + 0.14), rot=(0, 18, 0), scale=(0.015, 0.015, 0.12)), group="Body"),
-        part("LanternTop", kit.cone(4, 0.07, 0.01, 0.06), metal, M((lx, ly, lz + 0.08), rot=(0, 0, 45)), group="Body"),
-        part("LanternGlass", kit.cube(), soul, M((lx, ly, lz), scale=(0.08, 0.08, 0.11)), group="Body"),
-        part("LanternBase", kit.cube(), metal, M((lx, ly, lz - 0.065), scale=(0.1, 0.1, 0.02)), group="Body"),
+        part("LanternCord", kit.cube(), metal, M((lx + 0.02, ly, lz + 0.14), rot=(0, 18, 0), scale=(0.015, 0.015, 0.12)), group="Lantern"),
+        part("LanternTop", kit.cone(4, 0.07, 0.01, 0.06), metal, M((lx, ly, lz + 0.08), rot=(0, 0, 45)), group="Lantern"),
+        part("LanternGlass", kit.cube(), soul, M((lx, ly, lz), scale=(0.08, 0.08, 0.11)), group="Lantern"),
+        part("LanternBase", kit.cube(), metal, M((lx, ly, lz - 0.065), scale=(0.1, 0.1, 0.02)), group="Lantern"),
     ]
     # The Hook (the Ferryman's, taken from his relic): a small iron grappling hook with a few links of chain, hung at the
     # back of the hip. Same dark iron as the relic and the hook posts' rings.

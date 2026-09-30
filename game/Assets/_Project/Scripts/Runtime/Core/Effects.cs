@@ -145,6 +145,31 @@ namespace MyGame
             }, 1);
         }
 
+        // A mote drifting somewhere (a soul's light going on ahead of it).
+        public void Wisp(Vector3 at, Color colour, Vector3 velocity, float lifetime)
+        {
+            wisps.Emit(new ParticleSystem.EmitParams
+            {
+                position = at, velocity = velocity, startLifetime = lifetime, startSize = Random.Range(0.07f, 0.15f),
+                startColor = colour, applyShapeToPosition = false,
+            }, 1);
+        }
+
+        // The oar's blade dipping in: a few droplets and a small pale ring (every stroke, so small).
+        public void OarDip(Vector3 position)
+        {
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 7; i++)
+                sparks.Emit(new ParticleSystem.EmitParams
+                {
+                    startColor = Color.Lerp(new Color(0.55f, 0.68f, 0.82f, 0.8f), new Color(0.85f, 0.92f, 1f, 0.8f), Random.value),
+                    startSize = Random.Range(0.04f, 0.08f),
+                    startLifetime = Random.Range(0.2f, 0.4f),
+                }, 1);
+            flash.transform.position = position;
+            flash.Emit(new ParticleSystem.EmitParams { startSize = 0.7f, startLifetime = 0.4f, startColor = new Color(0.6f, 0.75f, 0.9f, 0.35f), applyShapeToPosition = false }, 1);
+        }
+
         public int LiveWisps => wisps != null ? wisps.particleCount : 0;
 
         ParticleSystem BuildWisps()

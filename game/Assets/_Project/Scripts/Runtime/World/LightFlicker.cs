@@ -32,6 +32,9 @@ namespace MyGame
                 Mathf.PerlinNoise(seed, t) - 0.5f, Mathf.PerlinNoise(t, t) - 0.5f, Mathf.PerlinNoise(seed + 5f, t) - 0.5f) * (2f * wobble);
         }
 
+        // The light was moved (the bow lantern hung on the boat): wobble about where it is now.
+        public void Rehome() => basePosition = transform.localPosition;
+
         // Lets other components (the bow lantern) change the steady brightness without fighting the flicker.
         public float BaseIntensity
         {

@@ -44,7 +44,7 @@ A Laden that let most of its heap go and kept a bow: shoots single arrows or a v
 _Avoid_: Archer (alone), ranged Laden, bowman
 
 **Crossing**:
-Rowing a Lingerer from the hub jetty to the far shore, releasing them.
+Rowing a Lingerer from the hub jetty to the Far shore, releasing them. On the water they speak (a memory of the Ferryman); at the Far shore they go on into its light and leave a parting gift.
 _Avoid_: Release, passing, ascension
 
 ### Progression
@@ -122,7 +122,7 @@ _Avoid_: Corpse, ghost, bloodstain, echo
 The unique, tough enemy at the climax of an Area.
 
 **Old Hesper**:
-The Drowned Village's Lingerer, in full "Old Hesper, who keeps a light": an old woman on the landing keeping a lamp lit for her son, who went out the night the water came up. Her keepsake is his boat-lantern, still burning out on the islet north of the yard (reached with the Hook); brought it, she can let him go. Her fare paid, she waits by the boat for her Crossing.
+The Drowned Village's Lingerer, in full "Old Hesper, who keeps a light": an old woman on the landing keeping a lamp lit for her son, who went out the night the water came up. Her keepsake is his boat-lantern, still burning out on the islet north of the yard (reached with the Hook); brought it, she can let him go. Her fare paid, she waits by the boat for her Crossing; rowed to the Far shore, she leaves his lantern on its jetty and gives the Apprentice Hesper's Wick.
 
 **The Antediluvian Anchoress**:
 The Drowned Village's Boss: a Laden who would not let the Ferryman go. She chained his ferry's anchor to herself (fastened with his stolen hook) and keeps vigil in the drowned chapel; beaten, she gives up the Hook. "Antediluvian": from before the flood. Her full title, revealed as her fight first begins: the Antediluvian Anchoress, of Fleeting Memories.
@@ -139,7 +139,7 @@ The Ferryman's jetty at the centre of the underworld, where Crossings leave from
 _Avoid_: Home, base, town
 
 **Far shore**:
-Where souls go when they cross; reached only by Crossings.
+Where souls go when they cross. The Apprentice can row out to its jetty, but no further: the way on beyond its light is for the dead.
 _Avoid_: Afterlife, other side
 
 **Mooring post**:

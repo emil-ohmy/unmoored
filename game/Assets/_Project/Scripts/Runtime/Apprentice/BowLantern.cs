@@ -10,10 +10,14 @@ namespace MyGame
         public float minRange = 3.5f, maxRange = 8f;
         public float minIntensity = 2.2f, maxIntensity = 4f;
         public float easeSpeed = 1.5f; // how quickly it swells after a post is lit
+        public float wickRange = 1.5f, wickIntensity = 1.35f; // Hesper's Wick fitted
 
         public float Power { get; private set; }
 
         LightFlicker flicker;
+        Equipment equipment;
+        bool Wick => equipment != null && equipment.IsFitted(Charm.HespersWick);
+        public float Range => lanternLight != null ? lanternLight.range : 0f;
         float pulse;
         float snuffAt = -1f, snuffTime = 1f, nextMote; // going out (the Apprentice has fallen)
 
@@ -39,6 +43,7 @@ namespace MyGame
 
         void Start()
         {
+            equipment = GetComponent<Equipment>();
             if (lanternLight != null)
                 flicker = lanternLight.GetComponent<LightFlicker>();
             Power = MooringPost.LitFraction;
@@ -70,8 +75,8 @@ namespace MyGame
         {
             if (lanternLight == null)
                 return;
-            lanternLight.range = Mathf.Lerp(minRange, maxRange, Power);
-            float intensity = (Mathf.Lerp(minIntensity, maxIntensity, Power) + pulse) * Lit;
+            lanternLight.range = Mathf.Lerp(minRange, maxRange, Power) * (Wick ? wickRange : 1f);
+            float intensity = (Mathf.Lerp(minIntensity, maxIntensity, Power) * (Wick ? wickIntensity : 1f) + pulse) * Lit;
             if (flicker != null)
                 flicker.BaseIntensity = intensity;
             else
