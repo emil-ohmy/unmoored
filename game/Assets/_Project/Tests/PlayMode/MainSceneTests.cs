@@ -937,8 +937,8 @@ namespace MyGame.Tests
             input.PressInteract();
             yield return null;
             Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "Resting with Equipment to fit should open the post's menu");
-            // Down to the Eel Skin (the dev Tester's Knot is owned too, listed first).
-            for (int i = 0; i < 5 && apprentice.Equipment.Owned[apprentice.OpenMenu.Selected] != Charm.EelSkin; i++)
+            // Down to the Eel Skin (the oar's row first, then the dev Tester's Knot, then it).
+            for (int i = 0; i < 6 && (apprentice.OpenMenu.Selected == 0 || apprentice.Equipment.Owned[apprentice.OpenMenu.Selected - 1] != Charm.EelSkin); i++)
             {
                 input.Move = Vector2.zero;
                 yield return null;

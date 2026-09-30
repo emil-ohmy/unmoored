@@ -40,6 +40,7 @@ namespace MyGame
             ("Lock on", "Tab / Middle click", "R3"),
             ("Switch target", "Scroll", "Right stick"),
             ("Hook: hold to aim, let go", "F", "RB"),
+            ("The Apprentice (character)", "I / C", "Select"),
             ("Pause", "Esc", "Start"),
         };
 
@@ -73,7 +74,7 @@ namespace MyGame
             input.Tick();
             if (!Open)
             {
-                if (input.PausePressed)
+                if (input.PausePressed && !CharacterScreen.Blocks)
                     PausePressed();
             }
             else

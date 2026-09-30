@@ -218,5 +218,34 @@ public static partial class MainSceneBuilder
         Vector3 roofPost = new Vector3(38.2f, roofTop, 0.5f), highPost = new Vector3(44.3f, highTop, 1.6f);
         HookPostAt(roofPost, new Vector3(38.2f, roofTop, -0.4f), highPost).arc = 1.6f;
         HookPostAt(highPost, new Vector3(44.8f, highTop, 0.5f), roofPost).arc = 1.6f;
+
+        // Things to find up there (the Tester's Post gives any of them too; resetting the Apprentice puts them back):
+        // Ferry Nails at the tower's foot, on its roof and on the high platform; a Held Breath in the middle storey; a
+        // Warm Stone on the low platform.
+        UpgradePieceAt(UpgradePiece.Kind.FerryNail, tower + new Vector3(3.9f, 0f, -2.2f), 30f);
+        UpgradePieceAt(UpgradePiece.Kind.FerryNail, tower + new Vector3(-2.2f, 2 * storey, 1.8f), -20f);
+        UpgradePieceAt(UpgradePiece.Kind.FerryNail, new Vector3(46.6f, highTop, -0.5f), 60f);
+        UpgradePieceAt(UpgradePiece.Kind.HeldBreath, tower + new Vector3(-2.4f, storey, 1.1f), 0f).transform.SetParent(middle.transform, true);
+        UpgradePieceAt(UpgradePiece.Kind.WarmStone, new Vector3(50.4f, QuayTop + 1.4f, 1.3f), 0f);
+    }
+
+    // A piece that makes the Apprentice stronger for good, glowing where it lies (an item).
+    static UpgradePiece UpgradePieceAt(UpgradePiece.Kind kind, Vector3 at, float yaw)
+    {
+        var (model, name, colour) = kind switch
+        {
+            UpgradePiece.Kind.FerryNail => ("upgrade_piece_ferry_nail", "Ferry Nail", Hex("#9fc4ff")),
+            UpgradePiece.Kind.WarmStone => ("upgrade_piece_warm_stone", "Warm Stone", Hex("#ff8a4a")),
+            _ => ("upgrade_piece_held_breath", "Held Breath", Hex("#d4ecff")),
+        };
+        var go = Place("Environment/" + model, at, yaw);
+        go.name = name;
+        var piece = go.AddComponent<UpgradePiece>();
+        piece.kind = kind;
+        var glow = go.AddComponent<PickupGlow>();
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = colour;
+        glow.height = 0.5f;
+        return piece;
     }
 }

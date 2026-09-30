@@ -134,14 +134,27 @@ namespace MyGame.Tests
             Menu.Do("A Charm slot");
             Menu.Do("The Hook");
             Menu.Do("500 Obols");
+            Menu.Do("Strength...");
+            Assert.AreEqual("Strength", Menu.PageName);
             Menu.Do("A Healing charge");
+            Menu.Do("A Ferry Nail");
+            Menu.Do("A Warm Stone");
+            Menu.Do("A Held Breath");
+            Menu.Do("The lantern: a level");
+            Assert.AreEqual(1, apprentice.Equipment.FerryNails);
+            Assert.AreEqual(1, apprentice.Equipment.WarmStones);
+            Assert.AreEqual(1, apprentice.Equipment.HeldBreaths);
+            Assert.AreEqual(2, Lantern.Level);
             Assert.IsTrue(apprentice.Equipment.Owns(Charm.HespersWick) && apprentice.Equipment.Owns(Charm.EelSkin));
             Assert.AreEqual(2, apprentice.Equipment.charmSlots);
             Assert.IsTrue(apprentice.HasHook);
             Assert.AreEqual(500, apprentice.Obols);
             Assert.AreEqual(4, apprentice.maxHealingCharges);
             Menu.Do("Back");
+            Menu.Do("Back");
             Menu.Do("Reset the Apprentice");
+            Assert.AreEqual(0, apprentice.Equipment.WarmStones + apprentice.Equipment.HeldBreaths + apprentice.Equipment.FerryNails);
+            Assert.AreEqual(1, Lantern.Level);
             Assert.IsFalse(apprentice.Equipment.Owns(Charm.HespersWick));
             Assert.IsTrue(apprentice.Equipment.Owns(Charm.TestersKnot), "the Tester's Knot stays");
             Assert.AreEqual(1, apprentice.Equipment.charmSlots);
@@ -762,5 +775,139 @@ namespace MyGame.Tests
             Assert.Less(nearest, 2.5f, $"it followed you all the way into the tower (it got to {laden.transform.position}, {laden.CurrentState}; you're at {apprentice.transform.position})");
         }
 
+
+        // The oar is strengthened a step at a time, with Ferry Nails at a Mooring post (1, 2, 3, then 4 of them): no
+        // step skipped however many are carried. Each step hits harder, and looks it.
+        [UnityTest]
+        public IEnumerator TheOar_IsStrengthenedInOrder_AtAMooringPost()
+        {
+            var e = apprentice.Equipment;
+            var look = apprentice.GetComponent<OarLook>();
+            Assert.AreEqual(0, e.OarStep);
+            Assert.AreEqual("The Apprentice's Oar", e.Oar.Name);
+            Assert.IsFalse(e.Strengthen(), "nothing to strengthen it with");
+            Assert.IsTrue(look.Showing("OarBand") && !look.Showing("OarTar") && !look.Showing("OarFerryman"));
+            var names = apprentice.GetComponentInChildren<SkinnedMeshRenderer>().sharedMaterials.Select(m => m.name).ToArray();
+            foreach (var trim in new[] { "OarTar", "OarTwine", "OarIron", "OarCarving", "OarFerryman_Glow" })
+                Assert.IsTrue(names.Any(n => n.StartsWith(trim)), $"the model carries the {trim} trim");
+            float plain = apprentice.DamageFactor;
+
+            for (int i = 0; i < 4; i++)
+                apprentice.AddFerryNail();
+            var mooring = Object.FindAnyObjectByType<MooringPost>();
+            apprentice.Teleport(mooring.RespawnPoint);
+            yield return new WaitForSeconds(0.2f);
+            input.PressInteract();
+            yield return null;
+            Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "Resting opens the post's menu: the oar's row first");
+            Assert.AreEqual(0, apprentice.OpenMenu.Selected);
+            StringAssert.Contains("Strengthen", apprentice.OpenMenu.Rows[0].Label);
+            input.PressInteract();
+            yield return null;
+            Assert.AreEqual(1, e.OarStep, "one step (one nail)");
+            Assert.AreEqual(3, e.FerryNails);
+            input.PressInteract();
+            yield return null;
+            Assert.AreEqual(2, e.OarStep, "the next (two nails)");
+            Assert.AreEqual(1, e.FerryNails);
+            input.PressInteract();
+            yield return null;
+            Assert.AreEqual(2, e.OarStep, "three nails for the next: one isn't enough");
+            Assert.AreEqual("The Boatman's Oar", e.Oar.Name);
+            Assert.AreEqual(plain * Oar.Steps[2].Strength, apprentice.DamageFactor, 0.001f, "it hits harder");
+            Assert.IsTrue(look.Showing("OarTar") && look.Showing("OarIron") && !look.Showing("OarCarving"), "tarred, and iron-shod");
+            input.PressDash();
+            yield return null;
+
+            for (int i = 0; i < 7; i++)
+                apprentice.AddFerryNail();
+            Assert.IsTrue(e.Strengthen() && e.Strengthen() && !e.Strengthen(), "the last two steps, then no more");
+            Assert.AreEqual(Oar.Last, e.OarStep);
+            Assert.AreEqual("The Ferryman's Oar", e.Oar.Name);
+            Assert.AreEqual(1, e.FerryNails);
+            Assert.IsTrue(look.Showing("OarFerryman") && !look.Showing("OarBand") && !look.Showing("OarTar"), "his: pale, his mark on it");
+        }
+
+        // The pieces that make the Apprentice stronger for good lie about the heights: taken with a stoop, each adds
+        // what it's for; resetting the Apprentice puts them back.
+        [UnityTest]
+        public IEnumerator UpgradePieces_AreFound_AndMakeTheApprenticeStronger()
+        {
+            var pieces = Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None);
+            Assert.AreEqual(3, pieces.Count(p => p.kind == UpgradePiece.Kind.FerryNail));
+            Assert.AreEqual(1, pieces.Count(p => p.kind == UpgradePiece.Kind.WarmStone));
+            Assert.AreEqual(1, pieces.Count(p => p.kind == UpgradePiece.Kind.HeldBreath));
+            float health = apprentice.maxHealth, stamina = apprentice.maxStamina;
+            foreach (var kind in new[] { UpgradePiece.Kind.FerryNail, UpgradePiece.Kind.WarmStone, UpgradePiece.Kind.HeldBreath })
+            {
+                var piece = pieces.First(p => p.kind == kind);
+                apprentice.Teleport(piece.transform.position + Vector3.right * 0.6f);
+                yield return new WaitForSeconds(0.2f);
+                yield return null;
+                Assert.AreEqual(piece, apprentice.Nearby, $"the {kind} is right there");
+                input.PressInteract();
+                yield return null;
+                Assert.AreEqual(Apprentice.State.PickingUp, apprentice.CurrentState, "it stoops to pick it up");
+                yield return new WaitForSeconds(0.8f);
+                Assert.IsTrue(piece.Taken && !piece.gameObject.activeSelf);
+            }
+            Assert.AreEqual(1, apprentice.Equipment.FerryNails);
+            Assert.AreEqual(health + apprentice.healthPerStone, apprentice.maxHealth, "a Warm Stone: more health");
+            Assert.AreEqual(stamina + apprentice.staminaPerBreath, apprentice.maxStamina, "a Held Breath: more stamina");
+
+            yield return OpenTheMenu();
+            Menu.Do("Reset the Apprentice");
+            Assert.AreEqual(health, apprentice.maxHealth);
+            Assert.AreEqual(stamina, apprentice.maxStamina);
+            Assert.IsTrue(Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Length == pieces.Length, "back where they were");
+        }
+
+        // The character screen: I / C / Select pauses the world behind four pages, left and right between them.
+        [UnityTest]
+        public IEnumerator TheCharacterScreen_Pauses_AndShowsItsPages()
+        {
+            var screen = Object.FindAnyObjectByType<CharacterScreen>();
+            Assert.IsNotNull(screen);
+            yield return null;
+            apprentice.AddWarmStone();
+            apprentice.AddFerryNail();
+            screen.Toggle(true);
+            Assert.IsTrue(screen.Open && Pause.IsPaused, "the world stops");
+            Assert.IsTrue(CharacterScreen.Blocks, "Esc belongs to it, not the pause menu");
+            yield return null;
+            Assert.AreEqual(CharacterScreen.Tab.Apprentice, screen.Current);
+            Assert.AreEqual($"{Mathf.RoundToInt(apprentice.maxHealth)}", screen.StatValue(0));
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Oar, screen.Current);
+            Assert.AreEqual("The Apprentice's Oar", screen.OarName);
+            StringAssert.Contains("???", screen.OarNext, "the next step, unnamed");
+            StringAssert.Contains("1 Ferry Nail", screen.OarNext);
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Charms, screen.Current);
+            Assert.AreEqual(Charm.TestersKnot.Name, screen.CharmRows[0]);
+            Assert.AreEqual(Charm.All.Length, screen.CharmRows.Count, "those found, then a socket for each still to find");
+            Assert.AreEqual(Charm.TestersKnot.Description, screen.CharmDetail);
+            screen.ChooseCharm(1);
+            StringAssert.Contains("Somewhere", screen.CharmDetail);
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Lantern, screen.Current);
+            Assert.AreEqual(Lantern.Lines[0], screen.LanternLine);
+            Lantern.DevLevels = Lantern.Levels - 1;
+            yield return null;
+            Assert.AreEqual("It's ready.", screen.LanternLine);
+            Lantern.DevLevels = 0;
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Apprentice, screen.Current, "round again");
+
+            screen.Toggle(false);
+            Assert.IsFalse(Pause.IsPaused);
+            // Not over a menu in the world.
+            yield return OpenTheMenu();
+            screen.Toggle(true);
+            Assert.IsFalse(screen.Open, "not while a post's menu is open");
+        }
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // A Healing charge piece: an ember kept in an iron dish, found behind a secret. Taking it adds a Healing charge for
+    // An Ember (a Healing charge piece): kept in an iron dish, found behind a secret. Taking it adds a Healing charge for
     // good (stats are never bought: they're found).
     public sealed class ChargePiece : MonoBehaviour, IInteractable
     {

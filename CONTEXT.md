@@ -64,13 +64,25 @@ The three Abilities: the Hook pulls you to a hook post, yanks a Soured over to y
 An obstacle, on land or on water, that can only be passed once the Apprentice has a specific Ability.
 _Avoid_: Lock, barrier
 
-**Equipment**:
-The collective term for Oar attachments and Charms; never another weapon.
-_Avoid_: Gear, loot, items
+**Oar step**:
+How strong the Oar is: five in order, each with its own look and name (the Apprentice's, the Oarhand's, the Boatman's, the Steersman's, the Ferryman's Oar). Strengthened at a Mooring post with Ferry Nails, never skipped. There is only ever one Oar.
+_Avoid_: Weapon level, upgrade, new oar, Oar attachment (retired)
 
-**Oar attachment**:
-A piece of Equipment fitted to the Oar that changes its properties, such as reach, speed or weight.
-_Avoid_: Oar head, mod, upgrade
+**Ferry Nail**:
+A find: an old boat nail from the ferries. Spent at a Mooring post to strengthen the Oar.
+_Avoid_: Upgrade material, titanite, shard
+
+**Warm Stone**:
+A find that adds health for good.
+_Avoid_: Heart piece, HP upgrade
+
+**Held Breath**:
+A find that adds stamina for good.
+_Avoid_: Stamina upgrade
+
+**Equipment**:
+The Charms the Apprentice owns and has fitted; never another weapon.
+_Avoid_: Gear, loot, items
 
 **Charm**:
 A piece of passive Equipment that modifies the Apprentice without changing the Oar.
@@ -87,6 +99,14 @@ _Avoid_: Shop, vendor, trader
 **Bow lantern**:
 The Apprentice's own lantern, carried at the hip and hung on the boat's bow when rowing; its cold light grows with each lit Mooring post and burns through fog on the water. Never an Ability.
 _Avoid_: Lamp, light
+
+**Lantern level**:
+How far the Bow lantern has grown, 1 to 5, from the Mooring posts lit across the whole journey. Fully lit, it opens the way to the secret last Boss and ending.
+_Avoid_: Lamp level, light level
+
+**Character screen**:
+The paused screen with four pages: the Apprentice, the Oar, Charms and the Lantern.
+_Avoid_: Inventory, status menu
 
 **Obol**:
 The currency: the fare the dead carry to pay for crossing.
@@ -165,9 +185,9 @@ _Avoid_: Sigil, rune, symbol
 A pile with an iron ring that the Hook can pull the Apprentice to, across water; the first kind of Ability gate.
 _Avoid_: Grapple point, anchor
 
-**Healing charge piece**:
+**Ember**:
 A find, hidden behind a secret, that adds one Healing charge for good.
-_Avoid_: Flask upgrade, estus shard
+_Avoid_: Healing charge piece, flask upgrade, estus shard
 
 **Journey**:
 One playthrough, kept in one of three save slots: chosen, begun or continued from the title screen, and saved as you go (every Rest, and whenever something that lasts changes).

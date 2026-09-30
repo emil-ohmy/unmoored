@@ -22,12 +22,13 @@ namespace MyGame
         readonly Queue<(float time, float damage)> recent = new Queue<(float, float)>();
         Apprentice apprentice;
         Text text;
+        Canvas canvas;
 
         void Awake()
         {
             var canvasGo = new GameObject("Lab Readout Canvas", typeof(Canvas), typeof(CanvasScaler));
             canvasGo.transform.SetParent(transform, false);
-            var canvas = canvasGo.GetComponent<Canvas>();
+            canvas = canvasGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 20;
             var scaler = canvasGo.GetComponent<CanvasScaler>();
@@ -68,6 +69,7 @@ namespace MyGame
 
         void Update()
         {
+            canvas.enabled = !Pause.IsPaused; // (out of the way of a menu that pauses)
             while (recent.Count > 0 && Time.time - recent.Peek().time > window)
                 recent.Dequeue();
             float sum = 0f;

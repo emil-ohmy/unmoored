@@ -59,6 +59,18 @@ namespace MyGame
         // Loading a save: lit, quietly (no sound, no banner).
         public void RestoreLit() => SetLit(true);
 
+        public static int LitCount
+        {
+            get
+            {
+                int lit = 0;
+                foreach (var post in all)
+                    if (post.IsLit)
+                        lit++;
+                return lit;
+            }
+        }
+
         public static float LitFraction
         {
             get
@@ -98,8 +110,7 @@ namespace MyGame
             if (firstLight)
                 Sfx.Instance?.LanternLit(transform.position);
             Rested?.Invoke(this, firstLight);
-            if (apprentice.Equipment.Owned.Count > 0) // something to fit: sit, and choose
-                apprentice.ShowMenu(new PostMenu(apprentice));
+            apprentice.ShowMenu(new PostMenu(apprentice)); // sit: the oar, and the Charms to fit
         }
 
         void SetLit(bool lit)

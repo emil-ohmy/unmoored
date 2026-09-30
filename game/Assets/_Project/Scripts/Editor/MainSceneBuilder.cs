@@ -166,6 +166,9 @@ public static partial class MainSceneBuilder
         var pause = systems.AddComponent<PauseMenu>();
         pause.titleFont = hud.titleFont;
         pause.textFont = hud.textFont;
+        var character = systems.AddComponent<CharacterScreen>(); // I / C / Select: the Apprentice, the oar, Charms, the lantern
+        character.titleFont = hud.titleFont;
+        character.textFont = hud.textFont;
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
@@ -252,6 +255,7 @@ public static partial class MainSceneBuilder
         var apprentice = go.AddComponent<Apprentice>();
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
+        go.AddComponent<OarLook>(); // the oar's step: its trims and its wood
         Swoosh(go, "Oar", "OarBlade", ApprenticeSwoosh, 0.16f, towardsPivot: 0.55f); // from the tip to half-way down the shaft: a wide crescent
         apprentice.hookHeadModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);

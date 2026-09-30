@@ -7,7 +7,7 @@ namespace MyGame
     // while held), confirm, back, and pause. Works on real time, so it runs while the game is paused.
     public sealed class MenuInput : System.IDisposable
     {
-        readonly InputAction move, confirm, back, pause, delete;
+        readonly InputAction move, confirm, back, pause, delete, character;
         Vector2Int held;
         float nextRepeat;
 
@@ -16,6 +16,7 @@ namespace MyGame
         public bool Back => back.WasPressedThisFrame();
         public bool PausePressed => pause.WasPressedThisFrame();
         public bool Delete => delete.WasPressedThisFrame();
+        public bool CharacterPressed => character.WasPressedThisFrame();
 
         public MenuInput()
         {
@@ -28,7 +29,8 @@ namespace MyGame
             back = Button("<Keyboard>/escape", "<Keyboard>/backspace", "<Gamepad>/buttonEast");
             pause = Button("<Keyboard>/escape", "<Gamepad>/start");
             delete = Button("<Keyboard>/delete", "<Keyboard>/x", "<Gamepad>/buttonWest");
-            foreach (var a in new[] { move, confirm, back, pause, delete })
+            character = Button("<Keyboard>/i", "<Keyboard>/c", "<Gamepad>/select");
+            foreach (var a in new[] { move, confirm, back, pause, delete, character })
                 a.Enable();
         }
 
@@ -64,7 +66,7 @@ namespace MyGame
 
         public void Dispose()
         {
-            foreach (var a in new[] { move, confirm, back, pause, delete })
+            foreach (var a in new[] { move, confirm, back, pause, delete, character })
                 a.Dispose();
         }
     }

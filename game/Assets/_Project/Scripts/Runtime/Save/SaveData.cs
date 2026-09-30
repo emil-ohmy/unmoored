@@ -26,7 +26,10 @@ namespace MyGame
         public string[] charmsFitted = new string[0];
         public int healingCharges = 3;              // the most they can carry
         public bool hasHook;
-        public string[] taken = new string[0];      // items picked up (Obol caches, Healing charge pieces, keepsakes)
+        public int oarStep;                         // the oar's step (0: the Apprentice's own)
+        public int ferryNails;                      // carried, not yet spent
+        public int warmStones, heldBreaths;         // found: more health, more stamina
+        public string[] taken = new string[0];      // items picked up (Obol caches, Embers, upgrade pieces, keepsakes)
         public string[] keepsakes = new string[0];  // keepsakes carried (not yet given)
         public string[] lingerers = new string[0];  // each Lingerer's business: "id=State" (Waiting, Given, Paid)
         public string[] opened = new string[0];     // gates opened (shortcuts)

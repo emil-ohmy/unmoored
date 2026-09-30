@@ -1272,6 +1272,95 @@ namespace MyGame.Tests
         }
 
         // The lab: the floor, the Tester's Post and its menu, a pair of Laden set down, the readout.
+        // The character screen's four pages, and the oar at each of its five steps (close up, from the front).
+        [UnityTest]
+        public IEnumerator Capture_Character()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
+            yield return null;
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name, Camera from)
+            {
+                from.Render();
+                var previous = RenderTexture.active;
+                RenderTexture.active = from.targetTexture;
+                var tex = new Texture2D(from.targetTexture.width, from.targetTexture.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var e = apprentice.Equipment;
+            apprentice.AddWarmStone();
+            apprentice.AddHeldBreath();
+            e.Own(Charm.EelSkin);
+            e.Toggle(Charm.EelSkin);
+            for (int i = 0; i < 3; i++)
+                apprentice.AddFerryNail();
+            e.Strengthen();
+            Lantern.DevLevels = 1;
+            yield return Frames(30);
+            var screen = UnityEngine.Object.FindAnyObjectByType<CharacterScreen>();
+            screen.Toggle(true);
+            for (int page = 0; page < 4; page++)
+            {
+                yield return Frames(15);
+                Shot($"character-{page}-{screen.Current}", cam);
+                screen.Turn(1);
+            }
+            screen.Turn(1);
+            for (int step = 2; step <= Oar.Last; step++)
+            {
+                e.Restore(step, 0, 1, 1);
+                yield return Frames(3);
+                Shot($"character-oar-{step}", cam);
+            }
+            screen.Toggle(false);
+            Lantern.DevLevels = 0;
+            yield return Frames(15);
+
+            // The oar, close up.
+            var close = new GameObject("Close Camera").AddComponent<Camera>();
+            close.targetTexture = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            close.fieldOfView = 40f;
+            close.backgroundColor = new Color(0.1f, 0.1f, 0.12f);
+            close.clearFlags = CameraClearFlags.SolidColor;
+            close.enabled = false;
+            var light = new GameObject("Close Light").AddComponent<Light>();
+            light.type = LightType.Point;
+            light.range = 8f;
+            light.intensity = 3f;
+            for (int step = 0; step <= Oar.Last; step++)
+            {
+                e.Restore(step, 0, 1, 1);
+                yield return Frames(3);
+                Vector3 at = apprentice.transform.position + Vector3.up * 1.15f;
+                close.transform.position = at + apprentice.transform.forward * 3.2f + Vector3.up * 0.3f;
+                close.transform.LookAt(at);
+                light.transform.position = close.transform.position + Vector3.up;
+                Shot($"oar-{step}", close);
+            }
+            UnityEngine.Object.Destroy(close.gameObject);
+        }
+
         [UnityTest]
         public IEnumerator Capture_Lab()
         {

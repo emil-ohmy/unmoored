@@ -60,7 +60,9 @@ namespace MyGame
         public float heavyHitStop = 0.14f;
 
         [Header("Health")]
-        public float maxHealth = 100f;
+        public float maxHealth = 100f;   // (its start; each Warm Stone found adds healthPerStone)
+        public float healthPerStone = 10f;
+        public float staminaPerBreath = 10f; // each Held Breath found
         public float staggerDuration = 0.35f;
         public float recoilDuration = 0.35f; // when a hit bounces off a Laden's heap
         public float recoilPush = 14f; // ~1.4 m shove: knockback decays at 10/s
@@ -132,7 +134,8 @@ namespace MyGame
         public Equipment Equipment { get; private set; }
         public Menu OpenMenu { get; private set; } // while open, the Apprentice stands still and input drives the menu
         public float DashCost => dashStaminaCost * (Equipment.IsFitted(Charm.EelSkin) ? 0.5f : 1f);
-        public float DamageFactor => Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f; // (a development Charm)
+        // Its blows: the oar's strength (its step), and the Tester's Knot (a development Charm).
+        public float DamageFactor => Equipment.Oar.Strength * (Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f);
         public Soured LockTarget { get; private set; }
         public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
@@ -193,6 +196,7 @@ namespace MyGame
         {
             controller = GetComponent<CharacterController>();
             clips = new ClipPlayer(GetComponentInChildren<Animation>());
+            TakeBase();
             Health = maxHealth;
             Stamina = maxStamina;
             HealingCharges = maxHealingCharges;
@@ -517,7 +521,7 @@ namespace MyGame
                 var result = soured.TakeHit(new Hit
                 {
                     Damage = (isHeavy ? heavyDamage : lightDamage) * DamageFactor,
-                    Stagger = isHeavy ? heavyStagger : lightStagger,
+                    Stagger = (isHeavy ? heavyStagger : lightStagger) * Equipment.Oar.Strength,
                     Knockback = to.normalized * (isHeavy ? heavyKnockback : lightKnockback),
                     From = transform.position,
                     Heavy = isHeavy,
@@ -1044,6 +1048,7 @@ namespace MyGame
         // Loading a save: the Obols carried, the most Healing charges they can carry, the Hook; health and charges full.
         public void Restore(int obols, int healingChargeMax, bool hook)
         {
+            ApplyUpgrades(); // (the Warm Stones and Held Breaths its Equipment was given back)
             Obols = Mathf.Max(0, obols);
             maxHealingCharges = Mathf.Max(1, healingChargeMax);
             HasHook = hook;
@@ -1054,7 +1059,51 @@ namespace MyGame
         {
             maxHealingCharges++;
             HealingCharges = Mathf.Min(HealingCharges + 1, maxHealingCharges);
-            Found?.Invoke("A Healing Charge", "One more flame to heal with");
+            Found?.Invoke("An Ember", "One more flame to heal with");
+        }
+
+        float baseHealth = -1f, baseStamina = -1f; // (the start, before any Warm Stone or Held Breath)
+
+        void TakeBase()
+        {
+            if (baseHealth < 0f)
+            {
+                baseHealth = maxHealth;
+                baseStamina = maxStamina;
+            }
+        }
+
+        // What's been found, in health and stamina (and the lot, whole).
+        void ApplyUpgrades()
+        {
+            TakeBase();
+            maxHealth = baseHealth + Equipment.WarmStones * healthPerStone;
+            maxStamina = baseStamina + Equipment.HeldBreaths * staminaPerBreath;
+        }
+
+        public void AddWarmStone()
+        {
+            Equipment.AddWarmStone();
+            ApplyUpgrades();
+            Health = Mathf.Min(maxHealth, Health + healthPerStone);
+            Found?.Invoke("A Warm Stone", "More health, for good");
+        }
+
+        public void AddHeldBreath()
+        {
+            Equipment.AddHeldBreath();
+            ApplyUpgrades();
+            Stamina = Mathf.Min(maxStamina, Stamina + staminaPerBreath);
+            Found?.Invoke("A Held Breath", "More stamina, for good");
+        }
+
+        public void AddFerryNail()
+        {
+            Equipment.AddFerryNail();
+            var next = Equipment.NextOar;
+            Found?.Invoke("A Ferry Nail", next == null ? "The oar will grow no stronger. You keep it anyway."
+                : Equipment.CanStrengthen ? "Enough to strengthen the oar, at a Mooring post"
+                : $"{Equipment.FerryNails} of the {next.Cost} the oar's next step asks");
         }
 
         // The Soured the Hook would catch: the one locked on to (in reach), or the nearest in reach ahead, in the open.

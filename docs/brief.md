@@ -91,18 +91,32 @@ business and pay their fare to row them across.
   - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
     in Area 3, which hints where it is.
 - **Bow lantern:** never required. Carried at the Apprentice's hip on land and hung on the bow when rowing; its cold
-  light grows with every lit Mooring post and burns through fog to optional routes and secrets. Fully powered, it
-  unlocks a secret ending.
-- **Oar attachments,** one fitted at a time and swapped at posts. The Plain blade you start with, plus:
-  - **Iron blade:** heavy, big stagger.
-  - **Light blade:** fast, and carries the third light swing.
-  - **Long shaft:** reach.
-  - **Barbed blade:** slows the stagger meter's drain.
-  - Three are found, one per Area, and one is sold.
+  light grows with every lit Mooring post and burns through fog to optional routes and secrets. It has five levels,
+  counted against every Mooring post in the game. Fully powered, it is the key to a secret last Boss and ending; the
+  game never says so.
+- **One oar, strengthened.** No other oars and no attachments: the oar itself is made stronger in five steps, each
+  with its own look, name and description (the game's voice, dry). Each step costs **Ferry Nails** (1, 2, 3, then 4:
+  ten in all), spent at a Mooring post. Steps go in order, so however many nails are found early, no step is skipped.
+  Each hits harder and staggers more (x1, 1.2, 1.45, 1.7, 2).
+  1. **The Apprentice's Oar:** worn smooth, with a red band.
+  2. **The Oarhand's Oar:** tarred, and bound with twine.
+  3. **The Boatman's Oar:** shod in iron at the blade.
+  4. **The Steersman's Oar:** carved with a notch for every crossing.
+  5. **The Ferryman's Oar:** his. Pale wood, his mark glowing on the blade.
 - **Charms:** about 8, some with trade-offs. 1 slot at the start, plus 2 bought. Half are found, half sold.
-- **Stats are never bought.** Max-HP and Healing-charge pieces are found behind secrets.
+- **Stats are never bought.** What makes the Apprentice stronger for good is found, often behind secrets:
+  - **Ferry Nails:** for the oar.
+  - **Warm Stones:** more health (+10 each).
+  - **Held Breaths:** more stamina (+10 each).
+  - **Embers:** one more Healing charge each.
+  The starting health and stamina (100) and the bonus each piece gives are placeholders, to be balanced together.
+- **The character screen** (I or C; Select on a gamepad) pauses the game. It has four pages:
+  - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
+  - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.
+  - **Charms:** those found and those fitted, the slots, and a dark socket for each still to find.
+  - **The Lantern:** a glow, five flames and one line. It says as little as it can.
 - **Obols**, the fare of the dead, buy:
-  - Oar attachments, Charms and slots from the merchant soul in the Hub
+  - Charms and slots from the merchant soul in the Hub
   - consumables
   - **passage for souls**
 
@@ -184,10 +198,10 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 
 A 1–2 hour game:
 - the Hub and 3 Areas
-- 3 Bosses and the Ferryman
+- 3 Bosses and the Ferryman (and a secret last Boss, opened by the fully lit bow lantern)
 - 3 Abilities and the bow lantern
-- the Plain blade and 4 attachments
-- about 8 Charms
+- one oar, strengthened in 5 steps (10 Ferry Nails)
+- about 8 Charms, and Warm Stones, Held Breaths and Embers to find
 - 5–7 Lingerers
 - 5 Soured families
 
