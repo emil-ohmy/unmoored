@@ -156,6 +156,7 @@ public static partial class MainSceneBuilder
         var effects = systems.AddComponent<Effects>();
         effects.sparkMaterial = sparkMaterial;
         effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
+        effects.flameMaterial = ParticleMaterial("M_Flame", FlameTexture("T_Flame"));
         var hud = systems.AddComponent<Hud>();
         hud.apprentice = apprentice;
         hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");
@@ -475,6 +476,45 @@ public static partial class MainSceneBuilder
         BeltLantern(go, laden);
         Swoosh(go, "Heap", "FrameGold", SouredSwoosh, 0.18f, "HeapWood"); // the whole heap, top to chest: a big heavy smear
         return laden;
+    }
+
+    // The Drowned: waits under the water at an edge, rises to grab and drag you under (dash through it); hooked out,
+    // it's stranded on the ground. `position`: where it waits (at the water's surface; it sinks out of sight).
+    static Drowned Drowned(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/drowned", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.55f, 0f);
+        controller.height = 1.1f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var drowned = go.AddComponent<Drowned>();
+        drowned.maxHealth = 70f;
+        drowned.radius = 0.45f;
+        drowned.staggerCapacity = 40f;
+        drowned.staggerDuration = 1.0f;
+        drowned.aggroRadius = 4.5f;       // (it feels you come near its stretch of edge)
+        drowned.viewHalfAngle = 180f;     // (under the water, it senses all round)
+        drowned.noticeCloseRadius = 4.5f;
+        drowned.leashRadius = 7f;         // its stretch of water
+        drowned.giveUpRange = 7f;
+        drowned.chaseSpeed = 3f;
+        drowned.turnSpeed = 540f;
+        drowned.attackRange = 2.0f;
+        drowned.obols = 35;
+        drowned.eyeHeight = 0.9f;
+        drowned.barHeight = 1.5f;
+        drowned.primary = new SouredAttack
+        {
+            name = "Grab", windupClip = "Rise", strikeClip = "Grab", recoverClip = "Clutch",
+            telegraph = 0.7f, strike = 0.35f, recover = 1.5f, impactAt = 0.55f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 25f, reach = 1.9f, arc = 60f, knockback = 0f, scripted = true,
+        };
+        drowned.primary.windupSound = Clips("drowned_rise");
+        drowned.primary.swingSound = Clips("drowned_grab");
+        drowned.bubbleSound = Clips("drowned_bubbles");
+        return drowned;
     }
 
     // The Clinger: fast, fragile, always two. Circles, leaps, clings to your back; dash it off.
@@ -1168,6 +1208,31 @@ public static partial class MainSceneBuilder
                 float d = new Vector2(x + 0.5f - size / 2f, y + 0.5f - size / 2f).magnitude / (size / 2f);
                 float a = ring ? Mathf.Clamp01(1f - Mathf.Abs(d - 0.8f) / 0.12f) : Mathf.Clamp01(1f - d);
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, a * a));
+            }
+        tex.Apply();
+        AssetDatabase.CreateAsset(tex, path);
+        return tex;
+    }
+
+    // A 64x96 alpha texture: a tongue of flame, round and dense at the foot, drawn up into a wavering point.
+    static Texture2D FlameTexture(string name)
+    {
+        string path = $"{Generated}/{name}.asset";
+        var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (existing != null)
+            return existing;
+        const int w = 64, h = 96;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = name };
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float u = (x + 0.5f) / w - 0.5f, v = (y + 0.5f) / h;
+                float wave = 0.04f * Mathf.Sin(v * 11f) * v;
+                float half = v < 0.3f ? Mathf.Sqrt(Mathf.Max(0f, 1f - Mathf.Pow((0.3f - v) / 0.3f, 2f))) * 0.4f
+                                      : 0.4f * Mathf.Pow(1f - (v - 0.3f) / 0.7f, 1.2f);
+                float d = Mathf.Abs(u - wave) / Mathf.Max(0.001f, half);
+                float a = Mathf.Clamp01(1f - d) * Mathf.Clamp01(1.2f - v * 0.9f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, a)));
             }
         tex.Apply();
         AssetDatabase.CreateAsset(tex, path);

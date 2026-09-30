@@ -1129,6 +1129,97 @@ namespace MyGame.Tests
             StringAssert.Contains("Pitch Pot 2", hud.BeltText(1), "the belt shows it, and how many");
         }
 
+        Drowned SouthDrowned => Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None).First(d => d.name == "Drowned (south edge)");
+        static readonly Vector3 AtTheEdge = new Vector3(9f, 0.55f, -4.6f); // (the quay's south edge, over it)
+
+        IEnumerator WaitFor(System.Func<bool> done, float seconds, string what)
+        {
+            for (float t = 0f; t < seconds && !done(); t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(done(), $"waited {seconds} s for {what}");
+        }
+
+        // The Tester's Post sets a Drowned down in the water nearest you, never on the quay.
+        [UnityTest]
+        public IEnumerator TestersPost_SetsADrownedInTheWater()
+        {
+            yield return OpenTheMenu();
+            Menu.Do("Drowned");
+            var set = post.spawner.Spawned.OfType<Drowned>().Single();
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(Drowned.IsOpenWater(set.transform.position, 0.3f), $"in the water ({set.transform.position})");
+            Assert.IsTrue(set.Submerged);
+        }
+
+        // A Drowned waits under the water, out of reach (no lock-on, no blows); come to its edge and it rises and grabs:
+        // dragged under, you wash ashore with its damage taken.
+        [UnityTest]
+        public IEnumerator TheDrowned_WaitsUnder_AndDragsYouDown()
+        {
+            var drowned = SouthDrowned;
+            Assert.IsTrue(drowned.Submerged && !drowned.Targetable, "under, and out of reach");
+            float health = apprentice.Health;
+            apprentice.Teleport(AtTheEdge);
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph, 4f, "it rising");
+            yield return WaitFor(() => !drowned.Submerged, 1f, "it up out of the water");
+            Assert.IsTrue(drowned.Targetable);
+            yield return WaitFor(() => apprentice.Dragged, 2f, "it catching you");
+            Assert.IsTrue(drowned.Caught);
+            yield return WaitFor(() => apprentice.CurrentState != Apprentice.State.Sinking, 3f, "washing ashore");
+            Assert.AreEqual(health - drowned.grabDamage, apprentice.Health, 0.5f, "its damage, not a third of your health");
+            Assert.Greater(apprentice.transform.position.y, 0.3f, "on the quay again");
+            yield return WaitFor(() => drowned.Submerged, 4f, "it back under");
+            yield return new WaitForSeconds(0.8f);
+            Assert.IsTrue(drowned.Submerged, "and it stays under a while (it lets you get up)");
+        }
+
+        // Dash through its grab and it misses: it hangs over the edge, clawing, open to blows; then it sinks back.
+        [UnityTest]
+        public IEnumerator TheDrowned_Missed_HangsOverTheEdge_OpenToBlows()
+        {
+            var drowned = SouthDrowned;
+            apprentice.Teleport(AtTheEdge);
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Strike, 4f, "its grab");
+            input.Move = Vector2.left; // (along the edge, through it)
+            input.PressDash();
+            yield return new WaitForSeconds(0.4f);
+            input.Move = Vector2.zero;
+            Assert.IsFalse(apprentice.Dragged, "the dash slipped it");
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Recover, 1f, "it hanging there");
+            apprentice.Teleport(new Vector3(drowned.transform.position.x, 0.55f, -4.7f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            yield return null;
+            input.PressLight();
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(drowned.Health, drowned.maxHealth, "struck while it's up");
+            yield return WaitFor(() => drowned.Submerged, 4f, "and back under");
+        }
+
+        // Weak to the Hook: caught while it's up, it's hauled out onto the quay, stranded and reeling; then it crawls
+        // back to the water and slips in.
+        [UnityTest]
+        public IEnumerator TheDrowned_Hooked_IsStrandedOnTheQuay()
+        {
+            var drowned = SouthDrowned;
+            apprentice.GiveHook();
+            apprentice.Teleport(AtTheEdge);
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph && !drowned.Submerged, 4f, "it rising");
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(drowned, apprentice.HookFoe, "the Hook aims at it, up");
+            input.HookHeld = false;
+            yield return WaitFor(() => drowned.Stranded, 1f, "hauled out");
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Staggered, 2f, "landed, reeling");
+            Assert.Greater(drowned.transform.position.y, 0.3f, "up on the quay");
+            Assert.Greater(drowned.transform.position.z, apprentice.transform.position.z, "beyond you, away from the water");
+            yield return WaitFor(() => !drowned.Stranded, 10f, "it crawling back in");
+            yield return WaitFor(() => drowned.Submerged, 3f, "under again");
+        }
+
         // A long list keeps its chosen row in view, moving as little as it can.
         [Test]
         public void ScrollRows_KeepTheChosenOneInView()

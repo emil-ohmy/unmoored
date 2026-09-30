@@ -82,14 +82,20 @@ public static partial class MainSceneBuilder
         var archer = Template(LadenArcher("Laden archer", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         var clinger = Template(Clinger("Clinger", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         var unparted = Template(TheUnparted("The Unparted", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var drowned = Template(Drowned("Drowned", new Vector3(0f, 0f, -8f), 0f).gameObject);
         spawner.kinds = new[]
         {
             new LabSpawner.Kind { name = "Laden", template = laden },
             new LabSpawner.Kind { name = "Laden archer", template = archer },
             new LabSpawner.Kind { name = "Clinger", template = clinger }, // (two near each other pair up)
             new LabSpawner.Kind { name = "The Unparted", template = unparted, listed = false }, // (the miniboss: Formations)
+            new LabSpawner.Kind { name = "Drowned", template = drowned, inWater = true }, // (in the water nearest you)
         };
         tester.spawner = heightsTester.spawner = spawner;
+
+        // Two Drowned waiting off the quay's south edge, east of the posts (only bubbles show).
+        Drowned("Drowned (south edge)", new Vector3(9f, 0f, -6.1f), 0f);
+        Drowned("Drowned (south edge, further)", new Vector3(13.5f, 0f, -6.1f), 0f);
 
         // The training Laden: idle and immortal, facing the way in.
         var dummy = Laden("Training Laden", new Vector3(18f, QuayTop, 0f), -90f);

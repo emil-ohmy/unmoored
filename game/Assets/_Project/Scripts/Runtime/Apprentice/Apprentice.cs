@@ -460,6 +460,12 @@ namespace MyGame
                     controller.Move(hookStep); // (yanking a Soured: collisions apply)
                 hookStep = Vector3.zero;
             }
+            else if (Dragged)
+            {
+                // Hauled over the edge and down, in the Drowned's arms.
+                float u = UiKit.Smooth(0f, sinkTime * 0.7f, stateTime);
+                transform.position = Vector3.Lerp(dragFrom, dragTo, u) + Vector3.up * (0.4f * Mathf.Sin(Mathf.Min(1f, u * 1.4f) * Mathf.PI));
+            }
             else
             {
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
@@ -532,7 +538,7 @@ namespace MyGame
             float arc = isHeavy ? heavyArc : lightArc;
             foreach (var collider in Physics.OverlapSphere(transform.position, reach + 1f))
             {
-                if (!collider.TryGetComponent(out Soured soured) || !soured.IsAlive)
+                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable)
                     continue;
                 Vector3 to = soured.transform.position - transform.position;
                 to.y = 0f;
@@ -612,7 +618,7 @@ namespace MyGame
 
             if (LockTarget != null)
             {
-                if (!LockTarget.IsAlive || !LockTarget.isActiveAndEnabled)
+                if (!LockTarget.Targetable || !LockTarget.isActiveAndEnabled)
                     SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
                 else if (ToLockTarget().magnitude > lockBreakRange || OffScreenTooLong())
                     SetLockTarget(null);
@@ -658,7 +664,7 @@ namespace MyGame
             float bestScore = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == exclude || !s.IsAlive || !s.isActiveAndEnabled)
+                if (s == exclude || !s.Targetable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -682,7 +688,7 @@ namespace MyGame
             float bestAngle = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == LockTarget || !s.IsAlive || !s.isActiveAndEnabled)
+                if (s == LockTarget || !s.Targetable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -1299,7 +1305,7 @@ namespace MyGame
             facing.y = 0f;
             bool Reachable(Soured s)
             {
-                if (s == null || !s.IsAlive || !s.isActiveAndEnabled)
+                if (s == null || !s.Targetable || !s.isActiveAndEnabled)
                     return false;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -1723,6 +1729,30 @@ namespace MyGame
         static Vector3 Hop(Vector3 from, Vector3 to, float t) =>
             Vector3.Lerp(from, to, UiKit.Smooth(0f, 1f, t)) + Vector3.up * (0.45f * Mathf.Sin(t * Mathf.PI));
 
+        // Grabbed by a Drowned: pulled off your feet and under (no guard stops it; a dash's i-frames do), then washed
+        // ashore as from a fall, but with its damage. False if it missed (dodged, already under, not on your feet).
+        public bool DragUnder(Soured by, float damage)
+        {
+            if (!IsAlive || Invulnerable || CurrentState == State.Rowing || CurrentState == State.Hooking)
+                return false;
+            dragDamage = damage;
+            dragFrom = transform.position;
+            dragTo = new Vector3(by.transform.position.x, waterLevel - 1.2f, by.transform.position.z);
+            Sfx.Instance?.Hurt(transform.position + Vector3.up);
+            HitStop.Trigger(0.1f);
+            CameraRig.Instance?.Shake(0.3f);
+            GoUnder();
+            dragged = true;
+            controller.enabled = false; // (hauled over the edge: no walls, no floor)
+            Announce("dragged under");
+            return true;
+        }
+
+        public bool Dragged => dragged && CurrentState == State.Sinking;
+        bool dragged;
+        float dragDamage;
+        Vector3 dragFrom, dragTo;
+
         // Into the water: a splash, and you go under while the screen dips to black; then you wash ashore.
         void GoUnder()
         {
@@ -1740,7 +1770,8 @@ namespace MyGame
         // Behind the black: on solid ground near where you fell, coughing, a third of your health gone.
         void WashAshore()
         {
-            Health = Mathf.Max(0f, Health - maxHealth * waterDamage);
+            Health = Mathf.Max(0f, Health - (dragged ? dragDamage : maxHealth * waterDamage));
+            dragged = false;
             washedAt = Time.time;
             Teleport(SafeGroundNear(lastSafeGround));
             Sfx.Instance?.Hurt(transform.position + Vector3.up);

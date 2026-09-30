@@ -75,12 +75,12 @@ namespace MyGame
                 Add("They start", Spawner.Aggressive ? "aggressive" : "idle", "Aggressive: they know you're there. Idle: they never notice you, and never fight back.",
                     () => Spawner.Aggressive = !Spawner.Aggressive);
                 Add("Formations...", "", "The miniboss, and ready-made mixes: shield and bow, Clingers with a Laden, everything at once.", () => Go(Page.Formations));
-                Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone.", () =>
+                Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone (and the readout's counts start again).", () =>
                 {
                     Spawner.ClearSpawned();
+                    post.readout?.ResetCounts();
                     Say("Cleared.");
                 });
-                Add("Reset the readout", "", "Start the damage counts again.", () => post.readout?.ResetCounts());
                 Add("Give the Apprentice...", "", "Charms, Charm slots, the Hook, Obols; Ferry Nails, Warm Stones, Held Breaths, Healing charges.", () => Go(Page.Give));
                 Add("Reset the Apprentice", "", "As they started: no Charms but the Tester's Knot, one slot, no Hook, no Obols, three Healing charges, the first oar, nothing found (the pieces lie where they were again).", ResetApprentice);
             }

@@ -1272,6 +1272,51 @@ namespace MyGame.Tests
         }
 
         // The lab: the floor, the Tester's Post and its menu, a pair of Laden set down, the readout.
+        // The Drowned: bubbles, rising (its tell), the grab, dragging the Apprentice under.
+        [UnityTest]
+        public IEnumerator Capture_Drowned()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var drowned = UnityEngine.Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None).First(d => d.name == "Drowned (south edge)");
+            apprentice.Teleport(new Vector3(9f, 0.55f, -4.6f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            for (int i = 0; i < 20 && drowned.CurrentState != Soured.State.Telegraph; i++)
+                yield return null;
+            Shot("drowned-0-waiting");
+            while (drowned.CurrentState == Soured.State.Telegraph && drowned.StateTime < 0.45f)
+                yield return null;
+            Shot("drowned-1-rising");
+            while (drowned.CurrentState != Soured.State.Strike)
+                yield return null;
+            for (int i = 0; i < 4; i++)
+                yield return null;
+            Shot("drowned-2-grab");
+            for (int i = 0; i < 10; i++)
+                yield return null;
+            Shot("drowned-3-dragged");
+        }
+
         // The character screen's four pages, and the oar at each of its five steps (close up, from the front).
         [UnityTest]
         public IEnumerator Capture_Character()

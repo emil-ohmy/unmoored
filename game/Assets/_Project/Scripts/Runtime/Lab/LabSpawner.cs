@@ -19,6 +19,7 @@ namespace MyGame
             public GameObject template; // inactive; its dropped lantern (if any) inactive too
             public int group = 1;       // set down this many at a time
             public bool listed = true;  // a row of its own on the Spawn page (a miniboss is on the Formations page)
+            public bool inWater;        // set down in the water nearest the Apprentice (a Drowned), not on the ground
         }
 
         public Kind[] kinds = new Kind[0];
@@ -115,7 +116,7 @@ namespace MyGame
             Frame(near, out Vector3 origin, out Vector3 forward);
             int count = Count * Mathf.Max(1, kinds[kind].group);
             for (int i = 0; i < count; i++)
-                SpawnOne(kind, FreeSpot(origin, forward), forward);
+                SpawnOne(kind, kinds[kind].inWater ? WaterSpot(near.transform.position) : FreeSpot(origin, forward), forward);
         }
 
         // (tests) One of a kind, set down right here, facing `facing`.
@@ -165,6 +166,25 @@ namespace MyGame
                         return p;
                 }
             return Ground(origin + forward * ahead, origin);
+        }
+
+        // The open water nearest `origin` (just off an edge), clear of any already set down there.
+        Vector3 WaterSpot(Vector3 origin)
+        {
+            for (float r = 1f; r <= 14f; r += 0.5f)
+                for (int i = 0; i < 24; i++)
+                {
+                    Vector3 p = new Vector3(origin.x, 0f, origin.z) + Quaternion.Euler(0f, i * 15f, 0f) * Vector3.forward * r;
+                    if (!Drowned.IsOpenWater(p, 0.45f))
+                        continue;
+                    bool free = true;
+                    foreach (var s in spawned)
+                        if (s != null && Flat(s.transform.position - p).magnitude < spacing * 1.5f)
+                            free = false;
+                    if (free)
+                        return p;
+                }
+            return origin + Vector3.forward * 8f;
         }
 
         void SpawnOne(int kind, Vector3 spot, Vector3 forward)

@@ -72,3 +72,6 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Warm Broth drunk (`drink`) | in game | Synth | a cork's soft pop, three gulps through the mask, a small warm sigh |
 | Ember Tar on the oar (`tar_sizzle`) | in game | Synth | a wet slap, the tar catching with a hiss that swells into a low steady burn |
 | The Way Back (`way_back`) | in game | Synth | a knot pulled loose, a long breath of wind drawn backwards, a far soft bell as the black closes |
+| Drowned waiting (`drowned_bubbles`, 3) | in game | Synth | bubbles breaking the surface over a low muffled gurgle, like a breath it can't take |
+| Drowned rising (`drowned_rise`, 2) | in game | Synth | its tell: water surging up and pouring off it, a drowned groan swelling, wet and choked |
+| Drowned's grab (`drowned_grab`, 2) | in game | Synth | a heavy wet slap of arms on stone, the water heaving as it lunges |

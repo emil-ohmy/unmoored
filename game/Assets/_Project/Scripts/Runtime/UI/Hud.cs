@@ -45,7 +45,7 @@ namespace MyGame
         bool barsSized;
         public float HealthBarWidth => hpFrame.sizeDelta.x - 4f;
         public float StaminaBarWidth => staminaFrame.sizeDelta.x - 4f;
-        CanvasGroup hudGroup, promptGroup;
+        CanvasGroup hudGroup, promptGroup, canvasGroup;
         Image restFlash, keyCap, buttonRing, ceremonyDim, dip;
         public float DipAlpha => dip != null ? dip.color.a : 0f;
         Text glyph, promptLabel, obolText, obolGain, obolNote;
@@ -78,6 +78,8 @@ namespace MyGame
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
             canvasRect = (RectTransform)canvasGo.transform;
+            canvasGroup = canvasGo.AddComponent<CanvasGroup>();
+            canvasGroup.interactable = canvasGroup.blocksRaycasts = false;
 
             var hudRoot = UiKit.Stretch(UiKit.Rect(canvasRect, "HUD", Vector2.zero, Vector2.zero, Vector2.zero));
             hudGroup = hudRoot.gameObject.AddComponent<CanvasGroup>();
@@ -272,6 +274,8 @@ namespace MyGame
             Dialogue.Tick(talk, usingGamepad);
             Death.Tick();
             hudGroup.alpha = Death.HudAlpha * (Pause.IsPaused ? 0.2f : 1f); // (dimmed under the pause menu)
+            // Paused (the pause menu, the character screen), its messages go quiet too: nothing shows through a menu.
+            canvasGroup.alpha = Pause.IsPaused ? 0f : Mathf.MoveTowards(canvasGroup.alpha, 1f, UiKit.DeltaTime * 6f); // (gone at once; back softly)
             AreaTitle.Tick();
             LanternBanner.Tick();
             FoundBanner.Tick();

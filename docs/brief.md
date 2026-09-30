@@ -201,7 +201,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Clinger | a person | Fast pairs that circle, leap and cling to your back: stamina drains (and a little health), you slow; dash to throw off (even spent). Scatter one and the other turns frantic | Stroke |
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
 | Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |
-| Drowned | life | Drags you under water: damage, then you wash ashore (not death) | Hook |
+| Drowned | life | Waits under the water at an edge (only bubbles show), follows you along the shore, and rises to grab: no guard stops it, a dash does. Caught, you're dragged under: damage, then you wash ashore (not death). Missed, it hangs over the edge, open to blows | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
 
 ## Art direction
 
