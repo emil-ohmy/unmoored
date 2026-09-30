@@ -83,8 +83,9 @@ Shader "MyGame/Toon"
             return 1.0 - saturate((n - _Dissolve) / 0.08);
         }
 
-        // Discards this fragment if it's architecture standing between the camera and the Apprentice.
-        void CutawayClip(float3 positionWS)
+        // Discards this fragment if it's architecture standing between the camera and the Apprentice. `grow` widens the
+        // hole (the outline pass: its hull stands proud of the surface, so it's cut a little wider, leaving no scraps).
+        void CutawayClip(float3 positionWS, float grow = 0.0)
         {
             if (_Cutaway < 0.5 || _CutawayCentre.w <= 0.0)
                 return;
@@ -96,8 +97,8 @@ Shader "MyGame/Toon"
             if (along > reach - 1.0 || positionWS.y < _CutawayCentre.y - 0.4)
                 return; // behind them, beside them, or at their feet (the floor they stand on)
             float away = length(toPixel - dir * along);
-            float n = DissolveNoise(positionWS * 2.2);
-            clip(away - _CutawayCentre.w * (0.9 + 0.2 * n)); // (a softly irregular edge, not a perfect circle)
+            float n = DissolveNoise(positionWS * 1.6);
+            clip(away - _CutawayCentre.w * (0.94 + 0.12 * n) - grow); // (a softly uneven edge, not a perfect circle)
         }
         ENDHLSL
 
@@ -234,7 +235,7 @@ Shader "MyGame/Toon"
             half4 frag(Varyings input) : SV_Target
             {
                 DissolveClip(input.positionWS);
-                CutawayClip(input.positionWS);
+                CutawayClip(input.positionWS, 0.12);
                 return half4(MixFog(_OutlineColor.rgb, input.fogFactor), 1.0);
             }
             ENDHLSL

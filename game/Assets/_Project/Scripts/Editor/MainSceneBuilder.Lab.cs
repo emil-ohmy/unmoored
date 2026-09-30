@@ -111,15 +111,45 @@ public static partial class MainSceneBuilder
         var ground = Storey("tower_ground");
         var middle = Storey("tower_middle");
         var top = Storey("tower_top");
-        // Light inside each storey (hidden with it), and on the roof.
-        var t1 = Torch(tower + new Vector3(-2.6f, 0f, 2.6f));
-        var t2 = Torch(tower + new Vector3(-2.6f, 0f, -2.6f));
-        var t3 = Torch(tower + new Vector3(-2.6f, storey, 2.6f));
-        var t4 = Torch(tower + new Vector3(0.9f, storey, -2.6f));
-        var t5 = Torch(tower + new Vector3(-2.7f, 2 * storey, -2.7f));
-        foreach (var t in new[] { t1, t2 }) t.transform.SetParent(ground.transform, true);
-        foreach (var t in new[] { t3, t4 }) t.transform.SetParent(middle.transform, true);
-        t5.transform.SetParent(top.transform, true);
+        // Furnished, and lit from within: each storey's things are hidden with it. (Tower-local spots, game directions;
+        // a prop's back to the wall: yaw 0 north, 90 east, -90 west.)
+        GameObject Prop(GameObject storeyGo, string model, float e, float u, float n, float yaw)
+        {
+            var go = Place("Environment/" + model, tower + new Vector3(e, u, n), yaw);
+            go.transform.SetParent(storeyGo.transform, true);
+            return go;
+        }
+        void Glow(GameObject prop, string material, float range, float intensity, Color colour, float flicker)
+        {
+            var light = PointLight(prop.transform, GlowCentre(prop, material), range, intensity, colour);
+            Flicker(light, flicker, 5f, 0.01f);
+        }
+        const float g = 0.08f; // the ground floor's flagstones
+        const float OutsideWall = 3.5f; // (a lantern on the outside of a wall, hung from it)
+        Prop(ground, "tower_props_oar_rack", -3.1f, g, 1.6f, -90f);
+        Prop(ground, "tower_props_sacks", -2.4f, g, 2.5f, 0f);
+        Prop(ground, "barrel", -2.6f, g, -2.5f, 30f);
+        Prop(ground, "crate", -1.8f, g, -2.6f, 12f);
+        Prop(ground, "tower_props_rope", -0.4f, g, 2.4f, 0f);
+        Glow(Prop(ground, "tower_props_lantern", 0.6f, g, 3.15f, 0f), "HangingLantern_Glow", 6f, 2.6f, LanternLight, 0.12f);
+        Prop(middle, "tower_props_table", -1.0f, storey, -1.2f, 0f).name = "Table";
+        Glow(GameObject.Find("Table"), "Candle_Glow", 3.5f, 1.4f, Hex("#ffcf7a"), 0.2f);
+        Prop(middle, "tower_props_stool", -1.0f, storey, -2.0f, 20f);
+        Prop(middle, "tower_props_stool", 0.05f, storey, -1.3f, 70f);
+        Prop(middle, "tower_props_cot", -2.6f, storey, -2.1f, 0f);
+        Prop(middle, "tower_props_shelf", -3.15f, storey, 2.0f, -90f);
+        Prop(middle, "tower_props_sacks", -2.5f, storey, 0.9f, 40f);
+        Glow(Prop(middle, "tower_props_lantern", -3.15f, storey, -0.95f, -90f), "HangingLantern_Glow", 6f, 2.4f, LanternLight, 0.12f);
+        Glow(Prop(top, "tower_props_brazier", -2.1f, 2 * storey, -2.0f, 0f), "Coals_Glow", 7f, 3f, TorchLight, 0.25f);
+        Prop(top, "tower_props_rope", 2.3f, 2 * storey, -2.1f, 180f);
+        // Warm lanterns by its doors, outside (the village marks its ways in with warm light), and one at the stair.
+        Glow(Prop(ground, "tower_props_lantern", -1.25f, 0f, -OutsideWall, 0f), "HangingLantern_Glow", 6f, 2.8f, LanternLight, 0.12f);
+        Glow(Prop(middle, "tower_props_lantern", -OutsideWall, storey, -1.25f, 90f), "HangingLantern_Glow", 6f, 2.8f, LanternLight, 0.12f);
+        StreetLantern(new Vector3(21.7f, QuayTop, -0.9f), 90f, 2.6f);
+        // At its foot, outside: a few crates and barrels against the walls.
+        Place("Environment/crate", tower + new Vector3(-4.1f, 0f, -2.6f), 200f);
+        Place("Environment/barrel", tower + new Vector3(-4.2f, 0f, -1.7f), 0f);
+        Place("Environment/barrel", tower + new Vector3(4.1f, 0f, 2.8f), 60f);
         storeys.storeys = new[]
         {
             new Storeys.Storey { floor = tower.y, parts = new[] { ground } },

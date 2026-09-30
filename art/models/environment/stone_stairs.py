@@ -1,19 +1,22 @@
 """A flight of stone steps, rising towards the game's north from its origin (the foot of the first step), 1.6 m
-wide: "storey" (2.4 m: 12 steps) and "low" (1.4 m: 7 steps). Solid underneath. Game directions (E, N, U)."""
-M, part = kit.M, kit.part  # `kit` is injected by build_model.py
+wide: "storey" (2.4 m: 12 steps) and "low" (1.4 m: 7 steps). Each step a block with a pale worn tread edge; coursed
+cheeks either side. Game directions (see masonry.py)."""
+import masonry as m
 
 VARIANTS = ["storey", "low"]
 RISE, RUN, WIDTH = 0.2, 0.333, 1.6
 
 
-def box(name, mat, e0, e1, n0, n1, u0, u1):
-    return part(name, kit.cube(), mat, M((-(e0 + e1) / 2, -(n0 + n1) / 2, (u0 + u1) / 2), scale=(e1 - e0, n1 - n0, u1 - u0)))
-
-
 def build(variant):
-    stone, dark = kit.mat("TowerStone", "#6f6a66"), kit.mat("TowerStoneDark", "#55504d")
     steps = 12 if variant == "storey" else 7
     parts = []
+    stones = [m.mat(s) for s in m.STONE]
+    cap = m.mat(m.CAP)
     for i in range(steps):
-        parts.append(box("Step", dark if i % 2 else stone, -WIDTH / 2, WIDTH / 2, i * RUN, (i + 1) * RUN, -0.4, (i + 1) * RISE))
-    return [kit.join(parts, f"StoneStairs_{variant}")]
+        top = (i + 1) * RISE
+        m.step(parts, -WIDTH / 2, WIDTH / 2, i * RUN, (i + 1) * RUN, -0.4, top, tone=i)
+        # A low cheek either side, following the steps.
+        for e0, e1 in ((-WIDTH / 2 - 0.18, -WIDTH / 2), (WIDTH / 2, WIDTH / 2 + 0.18)):
+            parts.append(m.box("Cheek", stones[(i + 1) % 3], e0, e1, i * RUN, (i + 1) * RUN, -0.4, top + 0.12))
+            parts.append(m.box("CheekCap", cap, e0 - 0.01, e1 + 0.01, i * RUN, (i + 1) * RUN, top + 0.12, top + 0.18))
+    return [m.kit.join(parts, f"StoneStairs_{variant}")]
