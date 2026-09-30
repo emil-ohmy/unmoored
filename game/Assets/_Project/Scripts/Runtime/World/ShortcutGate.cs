@@ -59,6 +59,7 @@ namespace MyGame
         {
             IsOpen = true;
             openedAt = -1000f;
+            wayChanged = false;
         }
 
         public void Interact(Apprentice apprentice)
@@ -74,8 +75,16 @@ namespace MyGame
             Sfx.Instance?.GateOpen(transform.position + Vector3.up);
         }
 
+        bool wayChanged;
+
         void Update()
         {
+            // Swung open: the way through is open to the Soured too.
+            if (IsOpen && !wayChanged && Time.time - openedAt > swingTime)
+            {
+                wayChanged = true;
+                NavMeshBaker.Instance?.Rebuild();
+            }
             if (hinge == null)
                 return;
             if (IsOpen)

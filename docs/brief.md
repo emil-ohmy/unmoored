@@ -134,6 +134,13 @@ City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused 
 
 The **Drowned** appear at water edges everywhere.
 
+**Heights** (the Areas have verticality: walkways, towers of several storeys, platforms):
+- Drops up to about 1.5 m can be taken, one way (a shortcut down). Taller edges are always walled or railed. No
+  falling damage: heights are routes, not traps.
+- Inside a building, the storeys above the Apprentice fade away; architecture between the camera and them opens up.
+- The Soured find their way (up stairs, round walls) but never walk off a ledge, and never strike through a floor.
+  Broad ones (a Laden) can't take a narrow stair; slim ones (an archer, a Clinger) can. Archers aim up and down.
+
 ## Soured families
 
 Each couldn't let go of something. Weaknesses are advantages, never requirements.

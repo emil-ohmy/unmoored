@@ -121,6 +121,7 @@ namespace MyGame
                 s.transform.localRotation = s.homeRotation;
                 if (s.collider != null)
                     s.collider.enabled = true;
+                NavMeshBaker.Instance?.Rebuild();
                 if (s.renderer != null)
                     s.renderer.enabled = true;
             }
@@ -168,7 +169,10 @@ namespace MyGame
             {
                 s.gaveWay = true;
                 if (s.collider != null)
+                {
                     s.collider.enabled = false;
+                    NavMeshBaker.Instance?.Rebuild(); // (a hole in the floor: the ways round it change)
+                }
                 Sfx.Instance?.Attack(breakSound, s.centre, 1f, "floor_break");
                 CameraRig.Instance?.Shake(0.5f);
                 HitStop.Trigger(0.05f);

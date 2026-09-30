@@ -117,6 +117,15 @@ namespace MyGame
                 SpawnOne(kind, FreeSpot(origin, forward), forward);
         }
 
+        // (tests) One of a kind, set down right here, facing `facing`.
+        public Soured SpawnAt(string kindName, Vector3 at, Vector3 facing)
+        {
+            int kind = Array.FindIndex(kinds, k => k.name == kindName);
+            int before = spawned.Count;
+            SpawnOne(kind, at, -Flat(facing).normalized);
+            return spawned[before];
+        }
+
         public void SpawnFormation(int formation, Apprentice near)
         {
             Frame(near, out Vector3 origin, out Vector3 forward);

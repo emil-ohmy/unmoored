@@ -171,8 +171,8 @@ public static partial class MainSceneBuilder
             Place("Environment/railing_long", new Vector3(x, walkTop, 1.94f), 0f);
             Place("Environment/railing_long", new Vector3(x, walkTop, -0.94f), 0f);
         }
-        Place("Environment/railing_short", new Vector3(26.56f, walkTop, -1f), -90f);
-        Place("Environment/railing_short", new Vector3(26.56f, walkTop, 1.2f), -90f);
+        Place("Environment/railing_stub", new Vector3(26.56f, walkTop, -1f), -90f); // (either side of the 2 m stair)
+        Place("Environment/railing_stub", new Vector3(26.56f, walkTop, 1.55f), -90f);
 
         // The high platform (railed on three sides: its east side drops onto the low one) and the low one.
         Vector3 high = new Vector3(45.5f, QuayTop, 0.5f), low = new Vector3(49.5f, QuayTop, 0.5f);

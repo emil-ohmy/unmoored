@@ -106,8 +106,8 @@ namespace MyGame
             }
             float pace = (burst ? 1f : 0.25f) * (Frantic ? franticSpeed : 1f);
             Vector3 dir = toTarget.normalized;
-            if (distance > leapMax + 1.5f)
-                return dir * chaseSpeed * (Frantic ? franticSpeed : 1f);
+            if (distance > leapMax + 1.5f || !OnItsLevel())
+                return PathDirection(target.transform.position) * chaseSpeed * (Frantic ? franticSpeed : 1f);
             Vector3 round = Vector3.Cross(Vector3.up, dir) * burstSide;
             float inOut = Mathf.Clamp((distance - circleRadius) * 1.5f, -1.5f, 2.5f);
             return (round * circleSpeed + dir * inOut) * pace;
@@ -241,7 +241,7 @@ namespace MyGame
                 arrived();
                 return Vector3.zero;
             }
-            return to.normalized * chaseSpeed * (Frantic ? franticSpeed : 1f);
+            return PathDirection(where) * chaseSpeed * (Frantic ? franticSpeed : 1f);
         }
 
         void Mount() => Mount(instantly: false);

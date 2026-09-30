@@ -33,8 +33,7 @@ namespace MyGame
         public static Arrow Fire(Vector3 from, Vector3 direction, float speed, float damage, float knockback,
                                  Apprentice target, Soured owner, Material wood, Material tipGlow, Material trailMaterial)
         {
-            direction.y = 0f;
-            direction.Normalize();
+            direction.Normalize(); // (up or down at someone on another level: the archer aims it)
             var go = new GameObject("Arrow");
             go.transform.SetPositionAndRotation(from, Quaternion.LookRotation(direction));
             Part(go.transform, wood, new Vector3(0f, 0f, -0.1f), new Vector3(0.025f, 0.025f, 0.7f));
@@ -145,8 +144,7 @@ namespace MyGame
         void Deflect(Vector3 at)
         {
             Deflected = passed = true;
-            Vector3 back = owner != null && owner.IsAlive ? owner.transform.position - at : -velocity;
-            back.y = 0f;
+            Vector3 back = owner != null && owner.IsAlive ? owner.transform.position + Vector3.up * 1.0f - at : -velocity;
             velocity = back.normalized * velocity.magnitude * DeflectSpeedFactor;
             damage *= DeflectDamageFactor;
             start = at;

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace MyGame
 {
@@ -88,8 +89,12 @@ namespace MyGame
         protected virtual string ChaseClip(float distance) => "Walk";
         protected virtual float ChaseSpeed(float distance) => chaseSpeed;
         protected virtual void OnChaseDistance(float distance) { }
-        // How it closes in (the default: straight at them, at ChaseSpeed); a Clinger circles.
-        protected virtual Vector3 ChaseStep(Vector3 toTarget, float distance) => toTarget.normalized * ChaseSpeed(distance);
+        // How it closes in (the default: along the way there, at ChaseSpeed; backing off, straight back); a Clinger circles.
+        protected virtual Vector3 ChaseStep(Vector3 toTarget, float distance)
+        {
+            float speed = ChaseSpeed(distance);
+            return (speed >= 0f && target != null ? PathDirection(target.transform.position) : toTarget.normalized) * speed;
+        }
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
@@ -162,10 +167,19 @@ namespace MyGame
                     float distance = toTarget.magnitude;
                     OnChaseDistance(distance);
                     LoopUnlessBusy(ChaseClip(distance));
-                    Face(toTarget, turnSpeed * dt);
                     var attack = ChooseAttack(toTarget, distance);
-                    if (attack != null)
+                    if (attack != null && !attack.ranged && !OnItsLevel())
+                        attack = null; // (never a blow through a floor, nor off a ledge at someone below)
+                    if (attack == null)
                     {
+                        pathTurned = false;
+                        planar = ChaseStep(toTarget, distance);
+                        // Going round something (the way there turns away from them): it faces where it's going.
+                        Face(pathTurned && planar.sqrMagnitude > 0.01f ? planar : toTarget, turnSpeed * dt);
+                    }
+                    else
+                    {
+                        Face(toTarget, turnSpeed * dt);
                         current = attack;
                         lockedDirection = toTarget.normalized; // locked now: sidestepping is always an answer
                         Enter(State.Telegraph);
@@ -174,8 +188,6 @@ namespace MyGame
                         tell = Sfx.Instance?.Attack(attack.windupSound, transform.position + Vector3.up, 1f, Label("windup"));
                         tellClip = tell != null ? tell.clip : null;
                     }
-                    else
-                        planar = ChaseStep(toTarget, distance);
                     break;
 
                 case State.Telegraph:
@@ -246,9 +258,10 @@ namespace MyGame
                         LoopUnlessBusy(IdleClip);
                         break;
                     }
-                    Face(home, turnSpeed * dt);
+                    Vector3 way = PathDirection(Home);
+                    Face(way.sqrMagnitude > 0.01f ? way : home, turnSpeed * dt);
                     LoopUnlessBusy(ChaseClip(float.MaxValue));
-                    planar = home.normalized * Mathf.Min(chaseSpeed, home.magnitude / Mathf.Max(dt, 1e-4f));
+                    planar = way * Mathf.Min(chaseSpeed, home.magnitude / Mathf.Max(dt, 1e-4f));
                     break;
                 }
 
@@ -621,14 +634,70 @@ namespace MyGame
             return Vector3.zero;
         }
 
+        // Solid ground about where it stands (a step down at most: walking, it never goes off a ledge).
         bool HasFooting(Vector3 at)
         {
+            float lowest = Mathf.Max(waterLevel + 0.1f, transform.position.y - 0.6f);
             int count = Physics.RaycastNonAlloc(at + Vector3.up * 0.6f, Vector3.down, groundHits, 2f, ~0, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < count; i++)
-                if (!(groundHits[i].collider is CharacterController) && groundHits[i].point.y > waterLevel + 0.1f)
+                if (!(groundHits[i].collider is CharacterController) && groundHits[i].point.y > lowest)
                     return true;
             return false;
         }
+
+        // ---- finding the way (the NavMeshBaker's: up stairs, round walls, never off a ledge)
+
+        NavMeshPath path;
+        readonly Vector3[] corners = new Vector3[32];
+        int cornerCount = -1;   // -1: no way known (no navigation here): straight at it
+        bool pathComplete;
+        float nextPath = -1f;
+        Vector3 pathGoal;
+        bool pathTurned;        // the way there turns away from the straight line to it (going round something)
+
+        // Which way to walk now to get to `goal` (flat, unit length; zero when it can get no closer).
+        protected Vector3 PathDirection(Vector3 goal)
+        {
+            Vector3 direct = Flat(goal - transform.position);
+            var baker = NavMeshBaker.Instance;
+            if (baker == null || !baker.Ready || !controller.enabled)
+                return direct.normalized;
+            if (Time.time >= nextPath || Flat(goal - pathGoal).sqrMagnitude > 1f || Mathf.Abs(goal.y - pathGoal.y) > 1f)
+                Repath(goal, baker);
+            if (cornerCount < 0)
+                return direct.normalized;
+            for (int i = 1; i < cornerCount; i++)
+            {
+                Vector3 toCorner = Flat(corners[i] - transform.position);
+                if (toCorner.magnitude > 0.35f)
+                {
+                    Vector3 dir = toCorner.normalized;
+                    pathTurned = Vector3.Angle(dir, direct) > 45f;
+                    return dir;
+                }
+            }
+            return pathComplete ? direct.normalized : Vector3.zero; // (as near as it can get: it waits there)
+        }
+
+        void Repath(Vector3 goal, NavMeshBaker baker)
+        {
+            nextPath = Time.time + 0.25f + Random.value * 0.1f;
+            pathGoal = goal;
+            var filter = baker.Filter(radius);
+            path ??= new NavMeshPath();
+            if (!NavMesh.SamplePosition(transform.position, out var from, 1.2f, filter)
+                || !NavMesh.SamplePosition(goal, out var to, 2.5f, filter)
+                || !NavMesh.CalculatePath(from.position, to.position, filter, path))
+            {
+                cornerCount = -1;
+                return;
+            }
+            cornerCount = path.GetCornersNonAlloc(corners);
+            pathComplete = path.status == NavMeshPathStatus.PathComplete;
+        }
+
+        // The Apprentice on its own level (not a floor above or below, not down off a ledge).
+        protected bool OnItsLevel() => target != null && Mathf.Abs(target.transform.position.y - transform.position.y) < 1.3f;
 
         // Knocked (or fallen) into the water: a splash, and it goes under.
         void Drown()

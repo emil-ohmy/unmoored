@@ -116,7 +116,12 @@ namespace MyGame
                 Destroy(nocked.GetChild(nocked.childCount - 1).gameObject); // one fewer on the bow
             if (index > 0)
                 clips.PlayOnce(attack.strikeClip, attack.volleyInterval * 0.9f); // the snap of each release
-            Arrow.Fire(BowPoint(), direction, attack.projectileSpeed, attack.damage, attack.knockback, target, this, wood, tipGlow, trailMaterial);
+            // Along its aim (sidestepping still escapes it), rising or falling to where the Apprentice is: up on a
+            // walkway, down in a yard.
+            Vector3 from = BowPoint(), chest = target.transform.position + Vector3.up * 0.7f;
+            Vector3 flat = new Vector3(chest.x - from.x, 0f, chest.z - from.z);
+            Vector3 aim = new Vector3(direction.x, 0f, direction.z).normalized * Mathf.Max(0.5f, flat.magnitude) + Vector3.up * (chest.y - from.y);
+            Arrow.Fire(from, aim, attack.projectileSpeed, attack.damage, attack.knockback, target, this, wood, tipGlow, trailMaterial);
         }
 
         void LateUpdate()

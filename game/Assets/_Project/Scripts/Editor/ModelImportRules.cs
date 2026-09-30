@@ -24,7 +24,7 @@ public class ModelImportRules : AssetPostprocessor
                                          "mooring_post", "hook_post", "shortcut_gate", "crate", "barrel" };
     bool IsArchitecture => !IsCharacter && System.Array.Exists(Cutaway, c => System.IO.Path.GetFileName(assetPath).StartsWith(c));
 
-    public override uint GetVersion() => 2; // (2: the cutaway flag; bumping it re-imports every model)
+    public override uint GetVersion() => 3; // (2: the cutaway flag; 3: environment meshes readable. Bumping re-imports every model)
 
     void OnPreprocessModel()
     {
@@ -37,6 +37,7 @@ public class ModelImportRules : AssetPostprocessor
         importer.animationType = IsCharacter ? ModelImporterAnimationType.Legacy : ModelImporterAnimationType.None;
         importer.importAnimation = IsCharacter;
         importer.addCollider = !IsCharacter;
+        importer.isReadable = !IsCharacter; // (the Soured's ways are built from these at runtime: NavMeshBaker)
     }
 
     void OnPreprocessMaterialDescription(MaterialDescription description, Material material, AnimationClip[] clips)

@@ -69,6 +69,9 @@ game/Assets/_Project/
 - Saving: three slots (Save/SaveSlots, SaveSystem), written as you go (every Rest, and whenever something that lasts
   changes). Only a game begun from the title screen saves: pressing Play on Main in the editor keeps nothing. A new
   system that should last across quitting adds its piece to SaveData, SaveSystem.Capture and Apply (and a test).
+- Pathfinding: `NavMeshBaker` (in every scene, via FinishScene) builds the Soured's ways from the scene's colliders
+  when it loads, for slim and broad Soured; nothing is baked into the scenes. So environment meshes are imported
+  readable (ModelImportRules); a stair or gap a Laden should use must leave it room (about 1.3 m clear).
 - UI is built in code (`Scripts/Runtime/UI`: Hud, Banner, DeathScreen, UiKit with procedurally drawn sprites);
   no combat text: feedback lives in the world. Screenshots with the UI: `PlayCaptureTests.Capture_Ui`.
 - UI reads gameplay state in LateUpdate. In PlayMode tests a coroutine resumes after Update but before

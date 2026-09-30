@@ -640,5 +640,96 @@ namespace MyGame.Tests
             Assert.IsTrue(u.fast.Mounted, "back up on Hold");
             Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
         }
+
+        // ---- Finding the way (heights, stop 2)
+
+        Soured SetDown(string kind, Vector3 at)
+        {
+            var s = post.spawner.SpawnAt(kind, at, apprentice.transform.position - at);
+            s.aggroRadius = 30f;
+            s.leashRadius = 40f;
+            return s;
+        }
+
+        [UnityTest]
+        public IEnumerator Pathfinding_ALadenClimbsTheStair_UpToTheWalkway()
+        {
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            apprentice.Teleport(new Vector3(29.5f, 2.95f, 0.5f));
+            var laden = SetDown("Laden", new Vector3(19f, 0.55f, -3f));
+            float highest = 0f;
+            for (float t = 0f; t < 20f && highest < 2.7f; t += Time.deltaTime)
+            {
+                highest = Mathf.Max(highest, laden.transform.position.y);
+                yield return null;
+            }
+            Assert.Greater(highest, 2.7f, "up the stair, onto the walkway after you");
+        }
+
+        [UnityTest]
+        public IEnumerator Pathfinding_AnArcherTakesTheTowersNarrowStair_ALadenWaitsBelow_NeitherStrikesThroughTheFloor()
+        {
+            var tower = Object.FindAnyObjectByType<Storeys>().transform.position;
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            apprentice.Teleport(tower + new Vector3(-1.5f, 2.45f, 1.2f)); // the first floor
+            var laden = SetDown("Laden", tower + new Vector3(-1.5f, 0.1f, 1.2f)); // right under the Apprentice
+            yield return new WaitForSeconds(4f);
+            Assert.Less(laden.transform.position.y, tower.y + 1f, "too broad for the narrow stair: it stays below");
+            Assert.AreNotEqual(Soured.State.Telegraph, laden.CurrentState);
+            Assert.AreNotEqual(Soured.State.Strike, laden.CurrentState);
+            post.spawner.ClearSpawned();
+            var archer = SetDown("Laden archer", tower + new Vector3(-1.5f, 0.1f, -1.5f));
+            ((LadenArcher)archer).shootRange = 0f; // (only to see it walk)
+            float highest = 0f;
+            for (float t = 0f; t < 20f && highest < tower.y + 2.2f; t += Time.deltaTime)
+            {
+                highest = Mathf.Max(highest, archer.transform.position.y);
+                yield return null;
+            }
+            Assert.Greater(highest, tower.y + 2.2f, "a slim one finds the stair up");
+        }
+
+        [UnityTest]
+        public IEnumerator Pathfinding_NoSouredWalksOffALedge()
+        {
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.TakeHit(0f, Vector3.zero);
+            apprentice.Teleport(new Vector3(53f, 0.55f, 3.5f)); // on the ground, beside the low platform
+            var laden = SetDown("Laden", new Vector3(49.5f, 1.95f, 0.5f)); // on the low platform (1.4 m up)
+            var clinger = SetDown("Clinger", new Vector3(50.5f, 1.95f, -0.5f));
+            yield return new WaitForSeconds(6f);
+            Assert.Greater(laden.transform.position.y, 1.7f, "the Laden keeps to the platform");
+            Assert.Greater(clinger.transform.position.y, 1.7f, "and so does the Clinger");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "and neither strikes down at you");
+        }
+
+        [UnityTest]
+        public IEnumerator Pathfinding_ArchersAimUpAtAWalkway()
+        {
+            apprentice.Teleport(new Vector3(27.5f, 2.95f, 0.5f));
+            var archer = (LadenArcher)SetDown("Laden archer", new Vector3(18.5f, 0.55f, 0.5f));
+            archer.volleyChance = 0f;
+            Defence? result = null;
+            float rise = 0f;
+            void OnResolved(Arrow a, Defence d) => result = d;
+            Arrow.Resolved += OnResolved;
+            try
+            {
+                for (float t = 0f; t < 10f && result == null; t += Time.deltaTime)
+                {
+                    foreach (var a in Object.FindObjectsByType<Arrow>(FindObjectsSortMode.None))
+                        rise = Mathf.Max(rise, a.Velocity.y);
+                    yield return null;
+                }
+            }
+            finally
+            {
+                Arrow.Resolved -= OnResolved;
+            }
+            Assert.Greater(rise, 0.5f, "its arrows fly up at the walkway");
+            Assert.AreEqual(Defence.Taken, result, "and hit you up there");
+        }
     }
 }
