@@ -35,6 +35,7 @@ namespace MyGame
             var go = new GameObject("Shade", typeof(MeshFilter), typeof(MeshRenderer));
             var mesh = new Mesh { name = "Shade" };
             skinned.BakeMesh(mesh, true);
+            OarLook.HideOthers(mesh, skinned.sharedMaterials, apprentice.Equipment.OarStep);
             go.GetComponent<MeshFilter>().sharedMesh = mesh;
             go.transform.SetPositionAndRotation(skinned.transform.position, skinned.transform.rotation);
             var renderer = go.GetComponent<MeshRenderer>();
@@ -136,6 +137,7 @@ namespace MyGame
             if (skinned != null && filter != null && filter.sharedMesh != null)
             {
                 skinned.BakeMesh(filter.sharedMesh, true);
+                OarLook.HideOthers(filter.sharedMesh, skinned.sharedMaterials, owner.Equipment.OarStep);
                 transform.SetPositionAndRotation(skinned.transform.position, skinned.transform.rotation);
                 basePosition = transform.position;
             }

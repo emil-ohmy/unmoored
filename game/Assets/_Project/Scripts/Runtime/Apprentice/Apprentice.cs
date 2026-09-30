@@ -1064,6 +1064,9 @@ namespace MyGame
 
         float baseHealth = -1f, baseStamina = -1f; // (the start, before any Warm Stone or Held Breath)
 
+        public float BaseHealth { get { TakeBase(); return baseHealth; } }
+        public float BaseStamina { get { TakeBase(); return baseStamina; } }
+
         void TakeBase()
         {
             if (baseHealth < 0f)

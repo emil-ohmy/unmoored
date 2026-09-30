@@ -14,6 +14,7 @@ namespace MyGame
         public static readonly string[] TabNames = { "The Apprentice", "The Oar", "Charms", "The Lantern" };
 
         public Font titleFont, textFont;
+        public GameObject[] oarModels; // the oar at each step, on its own (oar_display): shown turning on the Oar page
 
         public static CharacterScreen Instance { get; private set; }
         // Whether Esc belongs to it this frame (open, or just closed by it): the pause menu leaves it alone.
@@ -47,8 +48,11 @@ namespace MyGame
         readonly RectTransform[] pages = new RectTransform[4];
 
         (Text label, Text value, Text note)[] stats;
-        Image oar, oarGlow;
-        readonly List<(Image image, int from, int to)> oarTrims = new List<(Image, int, int)>();
+        Image oarGlow;
+        RawImage oarView;
+        RenderTexture oarTexture;
+        Camera oarCamera;
+        Transform oarPivot;
         Text oarName, oarDescription, oarNext;
         Image[] pips;
         Image[] slotMarks;
@@ -107,6 +111,8 @@ namespace MyGame
 
         void OnDestroy()
         {
+            if (oarTexture != null)
+                oarTexture.Release();
             input?.Dispose();
             if (Open)
                 Pause.Set(false);
@@ -144,37 +150,20 @@ namespace MyGame
         void BuildOar(RectTransform page)
         {
             var centre = new Vector2(0.5f, 0.5f);
-            oarGlow = UiKit.Image(page, "Glow", UiKit.SoftDot, Cold.WithAlpha(0f), centre, new Vector2(280, 215), new Vector2(360, 200));
-            oar = UiKit.Image(page, "Oar", UiKit.OarShape, Color.white, centre, new Vector2(0, 215), new Vector2(840, 105));
-            // Its trims, as the model's (OarLook): along the sprite (u 0 the butt, 1 the blade's tip), their height a
-            // share of the oar's (the shaft is 0.18 of it, the blade 0.67).
-            void Trim(float u, float width, float height, uint colour, int from, int to, Sprite sprite = null, float v = 0.5f)
-            {
-                var image = UiKit.Image(oar.rectTransform, "Trim", sprite, UiKit.Hex(colour), new Vector2(u, 0.5f), Vector2.zero, Vector2.zero);
-                var rt = image.rectTransform;
-                rt.anchorMin = new Vector2(u - width / 2f, v - height / 2f);
-                rt.anchorMax = new Vector2(u + width / 2f, v + height / 2f);
-                rt.sizeDelta = Vector2.zero;
-                oarTrims.Add((image, from, to));
-            }
-            Trim(0.63f, 0.012f, 0.26f, 0xb8352b, 0, 3);                   // the Apprentice's red band
-            foreach (float u in new[] { 0.14f, 0.5f, 0.57f })
-                Trim(u, 0.014f, 0.24f, 0x2a221c, 1, 3);                    // tar
-            for (int i = 0; i < 4; i++)
-                Trim(0.25f + i * 0.012f, 0.005f, 0.22f, 0xa38b62, 1, 3);   // twine
-            Trim(0.012f, 0.02f, 0.24f, 0x3a3a42, 2, 4);                    // the iron ferrule
-            Trim(0.981f, 0.012f, 0.5f, 0x3a3a42, 2, 4);                    // the iron-shod tip
-            Trim(0.815f, 0.27f, 0.05f, 0x3a3a42, 2, 4, null, 0.81f);        // (and its edges, along the blade)
-            Trim(0.815f, 0.27f, 0.05f, 0x3a3a42, 2, 4, null, 0.19f);
-            for (int i = 0; i < 8; i++)
-                Trim(0.33f + i * 0.02f, 0.003f, 0.2f, 0xe2d6bc, 3, 4);     // a notch for every crossing
-            Trim(0.83f, 0.055f, 0.44f, 0x9fc4ff, 4, 4, UiKit.Ring);        // his mark
-            oarName = UiKit.Text(page, "Name", titleFont, 54, UiKit.Bone, TextAnchor.MiddleCenter, centre, new Vector2(0, 100), 3f);
-            oarDescription = UiKit.Text(page, "Description", textFont, 32, UiKit.Ash, TextAnchor.UpperCenter, centre, new Vector2(0, 40));
+            // The oar itself, turning slowly on the left (its own camera and lights, far below the world), a glow
+            // behind it; what it is on the right.
+            oarGlow = UiKit.Image(page, "Glow", UiKit.SoftDot, Cold.WithAlpha(0f), centre, new Vector2(-440, 20), new Vector2(620, 620));
+            oarView = UiKit.Rect(page, "Oar", centre, new Vector2(-440, 20), new Vector2(640, 640)).gameObject.AddComponent<RawImage>();
+            oarView.raycastTarget = false;
+            BuildOarStage();
+            oarView.texture = oarTexture;
+            const float x = 260f;
+            oarName = UiKit.Text(page, "Name", titleFont, 54, UiKit.Bone, TextAnchor.MiddleCenter, centre, new Vector2(x, 200), 3f);
+            oarDescription = UiKit.Text(page, "Description", textFont, 32, UiKit.Ash, TextAnchor.UpperCenter, centre, new Vector2(x, 140));
             oarDescription.horizontalOverflow = HorizontalWrapMode.Wrap;
             oarDescription.rectTransform.pivot = new Vector2(0.5f, 1f);
-            oarDescription.rectTransform.sizeDelta = new Vector2(1000, 130);
-            var strength = UiKit.Text(page, "Strength", textFont, 30, UiKit.Bone, TextAnchor.MiddleRight, centre, new Vector2(-120, -120), 1f);
+            oarDescription.rectTransform.sizeDelta = new Vector2(860, 170);
+            var strength = UiKit.Text(page, "Strength", textFont, 30, UiKit.Bone, TextAnchor.MiddleRight, centre, new Vector2(x - 120, -70), 1f);
             strength.rectTransform.pivot = new Vector2(1f, 0.5f);
             strength.rectTransform.sizeDelta = new Vector2(300, 50);
             strength.text = "Strength";
@@ -182,11 +171,55 @@ namespace MyGame
             for (int i = 0; i < pips.Length; i++)
             {
                 pips[i] = Diamond(page, UiKit.Ember, 18f);
-                pips[i].rectTransform.anchoredPosition = new Vector2(-70 + i * 50, -120);
+                pips[i].rectTransform.anchoredPosition = new Vector2(x - 70 + i * 50, -70);
             }
-            oarNext = UiKit.Text(page, "Next", textFont, 30, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2(0, -190), 1f);
-            var how = UiKit.Text(page, "How", textFont, 26, UiKit.Ash.WithAlpha(0.65f), TextAnchor.MiddleCenter, centre, new Vector2(0, -250), 1f);
+            oarNext = UiKit.Text(page, "Next", textFont, 30, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2(x, -140), 1f);
+            var how = UiKit.Text(page, "How", textFont, 26, UiKit.Ash.WithAlpha(0.65f), TextAnchor.MiddleCenter, centre, new Vector2(x, -200), 1f);
             how.text = "Strengthened at a Mooring post, a step at a time. No step is skipped.";
+        }
+
+        // Where the oar turns: far below the world, lit by two lamps of its own (warm and cold, for the metal's glints),
+        // seen by a camera that draws only while the page is open.
+        void BuildOarStage()
+        {
+            oarTexture = new RenderTexture(768, 768, 24, RenderTextureFormat.ARGB32) { name = "Oar Page", antiAliasing = 4 };
+            var stage = new GameObject("Oar Stage").transform;
+            stage.SetParent(transform, false);
+            stage.position = new Vector3(0f, -400f, 0f);
+            oarPivot = new GameObject("Oar Pivot").transform;
+            oarPivot.SetParent(stage, false);
+            if (oarModels != null)
+                foreach (var model in oarModels)
+                    if (model != null)
+                    {
+                        model.transform.SetParent(oarPivot, false);
+                        model.transform.localPosition = Vector3.down * 1.15f; // (its middle at the pivot)
+                        model.transform.localRotation = Quaternion.identity;
+                        model.SetActive(false);
+                    }
+            oarCamera = new GameObject("Oar Camera").AddComponent<Camera>();
+            oarCamera.transform.SetParent(stage, false);
+            oarCamera.transform.localPosition = new Vector3(0f, 0f, -3.9f);
+            oarCamera.fieldOfView = 42f;
+            oarCamera.nearClipPlane = 0.5f;
+            oarCamera.farClipPlane = 8f;
+            oarCamera.clearFlags = CameraClearFlags.SolidColor;
+            oarCamera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            oarCamera.targetTexture = oarTexture;
+            oarCamera.enabled = false;
+            Lamp(new Vector3(1.4f, 1.2f, -1.8f), new Color(1f, 0.85f, 0.65f), 2.6f);
+            Lamp(new Vector3(-1.6f, -0.4f, -1.4f), Cold, 2.5f);
+            void Lamp(Vector3 at, Color colour, float intensity)
+            {
+                var lamp = new GameObject("Oar Lamp").AddComponent<Light>();
+                lamp.transform.SetParent(stage, false);
+                lamp.transform.localPosition = at;
+                lamp.type = LightType.Point;
+                lamp.range = 6f;
+                lamp.color = colour;
+                lamp.intensity = intensity;
+                lamp.shadows = LightShadows.None;
+            }
         }
 
         void BuildCharms(RectTransform page)
@@ -300,6 +333,8 @@ namespace MyGame
                 return;
             group.alpha = Mathf.MoveTowards(group.alpha, Open ? 1f : 0f, Time.unscaledDeltaTime * 6f);
             group.gameObject.SetActive(group.alpha > 0.001f || Open);
+            if (oarCamera != null)
+                oarCamera.enabled = group.alpha > 0.001f && Current == Tab.Oar;
             if (Open)
                 Draw();
         }
@@ -352,11 +387,14 @@ namespace MyGame
         {
             var e = apprentice.Equipment;
             int step = e.OarStep;
-            oar.color = OarLook.Wood[step];
-            foreach (var (image, from, to) in oarTrims)
-                image.enabled = step >= from && step <= to;
+            if (oarModels != null)
+                for (int i = 0; i < oarModels.Length; i++)
+                    if (oarModels[i] != null && oarModels[i].activeSelf != (i == step))
+                        oarModels[i].SetActive(i == step);
+            // Leaning, blade up and to the right, turning slowly about its length.
+            oarPivot.localRotation = Quaternion.Euler(0f, 0f, -38f) * Quaternion.Euler(0f, UiKit.Now * 40f, 0f);
             float breathe = 0.5f + 0.5f * Mathf.Sin(UiKit.Now * 1.6f);
-            oarGlow.color = Cold.WithAlpha(step == Oar.Last ? 0.35f + 0.15f * breathe : 0f);
+            oarGlow.color = (step == Oar.Last ? new Color(1f, 0.8f, 0.4f) : Cold).WithAlpha((step == Oar.Last ? 0.3f : 0.08f + 0.03f * step) + 0.06f * breathe);
             oarName.text = e.Oar.Name;
             oarDescription.text = e.Oar.Description;
             for (int i = 0; i < pips.Length; i++)

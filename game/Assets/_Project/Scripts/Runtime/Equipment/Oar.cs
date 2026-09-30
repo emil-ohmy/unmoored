@@ -29,7 +29,7 @@ namespace MyGame
             new Oar("The Steersman's Oar",
                 "Carved with a mark for every crossing it has made. Most of them are yours. Some of them aren't.", "It hits harder still.", 1.7f, 3),
             new Oar("The Ferryman's Oar",
-                "His. Pale, cold to hold, and it knows the way across. You've earned it, which is more than he did.", "His, now. It will grow no stronger.", 2f, 4),
+                "His. Solid gold, cold to hold, and it knows the way across. You've earned it, which is more than he did.", "His, now. It will grow no stronger.", 2f, 4),
         };
 
         public const int Last = 4;

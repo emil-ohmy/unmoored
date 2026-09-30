@@ -169,6 +169,16 @@ public static partial class MainSceneBuilder
         var character = systems.AddComponent<CharacterScreen>(); // I / C / Select: the Apprentice, the oar, Charms, the lantern
         character.titleFont = hud.titleFont;
         character.textFont = hud.textFont;
+        character.oarModels = new GameObject[Oar.Steps.Length]; // (turning on its Oar page; no colliders: they're not in the world)
+        for (int step = 0; step < Oar.Steps.Length; step++)
+        {
+            var oar = Place($"Environment/oar_display_{step}", new Vector3(0f, -400f, 0f), 0f);
+            oar.name = $"Oar {step} (character screen)";
+            foreach (var c in oar.GetComponentsInChildren<Collider>())
+                UnityEngine.Object.DestroyImmediate(c);
+            oar.SetActive(false);
+            character.oarModels[step] = oar;
+        }
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
@@ -256,7 +266,7 @@ public static partial class MainSceneBuilder
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
         go.AddComponent<OarLook>(); // the oar's step: its trims and its wood
-        Swoosh(go, "Oar", "OarBlade", ApprenticeSwoosh, 0.16f, towardsPivot: 0.55f); // from the tip to half-way down the shaft: a wide crescent
+        Swoosh(go, "Oar", "Oar0Blade", ApprenticeSwoosh, 0.16f, towardsPivot: 0.55f); // from the tip to half-way down the shaft: a wide crescent
         apprentice.hookHeadModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
         Flicker(lantern, 0.06f, 2f, 0.01f); // a slow, steady pulse, not a flame

@@ -39,7 +39,12 @@ namespace MyGame
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
         static readonly Color FlameOuter = UiKit.Hex(0xff9a45), FlameCore = UiKit.Hex(0xffe3a8), FlameSpent = UiKit.Hex(0x2a2629, 0.9f);
 
-        RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
+        RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail, hpFrame, staminaFrame;
+        const float HealthWidth = 380f, StaminaWidth = 300f, LongestBar = 2.2f; // (at the start; a bar grows with its most, to 2.2 times)
+
+        bool barsSized;
+        public float HealthBarWidth => hpFrame.sizeDelta.x - 4f;
+        public float StaminaBarWidth => staminaFrame.sizeDelta.x - 4f;
         CanvasGroup hudGroup, promptGroup;
         Image restFlash, keyCap, buttonRing, ceremonyDim, dip;
         public float DipAlpha => dip != null ? dip.color.a : 0f;
@@ -80,6 +85,8 @@ namespace MyGame
             hpFill = Bar(hudRoot, "Health", new Vector2(56, -46), 380, 14, HealthRed, out hpTrail);
             hpFillImage = hpFill.GetComponent<Image>();
             staminaFill = Bar(hudRoot, "Stamina", new Vector2(56, -70), 300, 8, StaminaMoss, out _);
+            hpFrame = (RectTransform)hpFill.parent;
+            staminaFrame = (RectTransform)staminaFill.parent;
             BuildCharges(hudRoot);
             BuildPrompt(hudRoot);
             BuildObols(hudRoot);
@@ -244,6 +251,9 @@ namespace MyGame
             hpFillImage.color = Color.Lerp(HealthRed, UiKit.Ember, 0.8f * (1f - UiKit.Smooth(0.05f, 0.7f, now - healedAt))); // flares warm on a heal
             hpTrail.anchorMax = new Vector2(Trail(health, ref hpLast, ref hpTrailValue, ref hpTrailHold), 1f);
             staminaFill.anchorMax = new Vector2(apprentice.Stamina / apprentice.maxStamina, 1f);
+            Grow(hpFrame, HealthWidth * apprentice.maxHealth / apprentice.BaseHealth);
+            Grow(staminaFrame, StaminaWidth * apprentice.maxStamina / apprentice.BaseStamina);
+            barsSized = true; // (from the first frame on, they grow; before it, a loaded journey's are simply that long)
             UpdateCharges(now);
             UpdatePrompt();
             UpdateObols();
@@ -528,6 +538,16 @@ namespace MyGame
 
         // A framed bar at the top left: a thin bronze frame with a diamond at its left end, a dark back, a pale
         // trail (optional use) and the fill. Returns the fill; its anchorMax.x is the value.
+        // A bar is as long as its most: a Warm Stone or a Held Breath found lengthens it (quickly, not at once).
+        void Grow(RectTransform frame, float width)
+        {
+            float longest = (frame.name == "Health" ? HealthWidth : StaminaWidth) * LongestBar;
+            float target = Mathf.Min(width, longest) + 4f;
+            var size = frame.sizeDelta;
+            size.x = !barsSized || Mathf.Abs(size.x - target) < 0.5f ? target : Mathf.Lerp(size.x, target, 1f - Mathf.Exp(-8f * UiKit.DeltaTime));
+            frame.sizeDelta = size;
+        }
+
         static RectTransform Bar(Transform parent, string name, Vector2 position, float width, float height, Color colour, out RectTransform trail)
         {
             var top = new Vector2(0, 1);

@@ -786,10 +786,18 @@ namespace MyGame.Tests
             Assert.AreEqual(0, e.OarStep);
             Assert.AreEqual("The Apprentice's Oar", e.Oar.Name);
             Assert.IsFalse(e.Strengthen(), "nothing to strengthen it with");
-            Assert.IsTrue(look.Showing("OarBand") && !look.Showing("OarTar") && !look.Showing("OarFerryman"));
-            var names = apprentice.GetComponentInChildren<SkinnedMeshRenderer>().sharedMaterials.Select(m => m.name).ToArray();
-            foreach (var trim in new[] { "OarTar", "OarTwine", "OarIron", "OarCarving", "OarFerryman_Glow" })
-                Assert.IsTrue(names.Any(n => n.StartsWith(trim)), $"the model carries the {trim} trim");
+            var materials = apprentice.GetComponentInChildren<SkinnedMeshRenderer>().sharedMaterials;
+            for (int step = 0; step <= Oar.Last; step++)
+                Assert.Greater(look.SlotsOf(step), 0, $"the model carries the oar at step {step}");
+            Assert.IsTrue(materials.Any(m => m.name.StartsWith("Oar4Gold_Metal")), "the Ferryman's is gold");
+            void AssertShows(int step)
+            {
+                Assert.AreEqual(step, look.ShownStep);
+                for (int i = 0; i < materials.Length; i++)
+                    if (OarLook.StepOf(materials[i]) >= 0)
+                        Assert.AreEqual(OarLook.StepOf(materials[i]) == step, look.Showing(i), $"{materials[i].name} at step {step}");
+            }
+            AssertShows(0);
             float plain = apprentice.DamageFactor;
 
             for (int i = 0; i < 4; i++)
@@ -815,7 +823,7 @@ namespace MyGame.Tests
             Assert.AreEqual(2, e.OarStep, "three nails for the next: one isn't enough");
             Assert.AreEqual("The Boatman's Oar", e.Oar.Name);
             Assert.AreEqual(plain * Oar.Steps[2].Strength, apprentice.DamageFactor, 0.001f, "it hits harder");
-            Assert.IsTrue(look.Showing("OarTar") && look.Showing("OarIron") && !look.Showing("OarCarving"), "tarred, and iron-shod");
+            AssertShows(2);
             input.PressDash();
             yield return null;
 
@@ -825,7 +833,7 @@ namespace MyGame.Tests
             Assert.AreEqual(Oar.Last, e.OarStep);
             Assert.AreEqual("The Ferryman's Oar", e.Oar.Name);
             Assert.AreEqual(1, e.FerryNails);
-            Assert.IsTrue(look.Showing("OarFerryman") && !look.Showing("OarBand") && !look.Showing("OarTar"), "his: pale, his mark on it");
+            AssertShows(Oar.Last);
         }
 
         // The pieces that make the Apprentice stronger for good lie about the heights: taken with a stoop, each adds
@@ -838,6 +846,8 @@ namespace MyGame.Tests
             Assert.AreEqual(1, pieces.Count(p => p.kind == UpgradePiece.Kind.WarmStone));
             Assert.AreEqual(1, pieces.Count(p => p.kind == UpgradePiece.Kind.HeldBreath));
             float health = apprentice.maxHealth, stamina = apprentice.maxStamina;
+            var hud = Object.FindAnyObjectByType<Hud>();
+            float healthBar = hud.HealthBarWidth, staminaBar = hud.StaminaBarWidth;
             foreach (var kind in new[] { UpgradePiece.Kind.FerryNail, UpgradePiece.Kind.WarmStone, UpgradePiece.Kind.HeldBreath })
             {
                 var piece = pieces.First(p => p.kind == kind);
@@ -854,6 +864,9 @@ namespace MyGame.Tests
             Assert.AreEqual(1, apprentice.Equipment.FerryNails);
             Assert.AreEqual(health + apprentice.healthPerStone, apprentice.maxHealth, "a Warm Stone: more health");
             Assert.AreEqual(stamina + apprentice.staminaPerBreath, apprentice.maxStamina, "a Held Breath: more stamina");
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(healthBar * apprentice.maxHealth / health, hud.HealthBarWidth, 1f, "the health bar grows with it");
+            Assert.AreEqual(staminaBar * apprentice.maxStamina / stamina, hud.StaminaBarWidth, 1f, "and the stamina bar");
 
             yield return OpenTheMenu();
             Menu.Do("Reset the Apprentice");

@@ -137,25 +137,6 @@ namespace MyGame
                 return 0.55f + 0.35f * rim + 0.25f * stamp + 0.15f * (v - 0.5f);
             });
 
-        // An oar, lying blade to the right: a round-ended shaft, a flared neck, a long blade with a rounded tip (shading in
-        // the grey channel, lighter along its top edge; tinted by its step).
-        public static Sprite OarShape => Cached("OarShape", 512, 64, (u, v) =>
-        {
-            float y = Mathf.Abs(v - 0.5f) * 64f / 512f; // in u's units
-            float d;
-            if (u < 0.015f)
-                d = Mathf.Sqrt((0.015f - u) * (0.015f - u) + y * y) - 0.011f;  // the shaft's round end
-            else if (u < 0.6f)
-                d = y - 0.011f;                                                   // the shaft
-            else if (u < 0.68f)
-                d = y - Mathf.Lerp(0.011f, 0.042f, Smooth(0.6f, 0.68f, u));      // the neck
-            else if (u < 0.985f)
-                d = y - 0.042f * Mathf.Sqrt(Mathf.Clamp01((0.985f - u) / 0.035f)); // the blade, rounding off
-            else
-                d = u - 0.985f + y;
-            return 1f - Smooth(0f, 0.0025f, d);
-        }, (u, v) => Mathf.Lerp(0.72f, 1f, v));
-
         // Lighter at the top than the bottom: gives a bar's fill a little body.
         public static Sprite Sheen => Cached("Sheen", 4, 32, (u, v) => 1f, (u, v) => Mathf.Lerp(0.62f, 1f, Mathf.Pow(v, 0.7f)));
 

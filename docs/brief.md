@@ -98,11 +98,16 @@ business and pay their fare to row them across.
   with its own look, name and description (the game's voice, dry). Each step costs **Ferry Nails** (1, 2, 3, then 4:
   ten in all), spent at a Mooring post. Steps go in order, so however many nails are found early, no step is skipped.
   Each hits harder and staggers more (x1, 1.2, 1.45, 1.7, 2).
-  1. **The Apprentice's Oar:** worn smooth, with a red band.
-  2. **The Oarhand's Oar:** tarred, and bound with twine.
-  3. **The Boatman's Oar:** shod in iron at the blade.
-  4. **The Steersman's Oar:** carved with a notch for every crossing.
-  5. **The Ferryman's Oar:** his. Pale wood, his mark glowing on the blade.
+  Each step looks more over the top than the last, and from the second on it's fitted in metal:
+  1. **The Apprentice's Oar:** plain wood, worn smooth, with a red band.
+  2. **The Oarhand's Oar:** tarred and bound with twine, with brass at the butt, the neck and across the blade, and a
+     red ribbon.
+  3. **The Boatman's Oar:** banded in iron. The blade is broader, with an iron rim, a point and rivets, and there's a
+     boat-hook at the neck.
+  4. **The Steersman's Oar:** black wood with a notch for every crossing, wound in silver wire. The leaf-shaped blade
+     is framed in silver, with a crescent on each face and fins at its neck, and two Obols hang on cords.
+  5. **The Ferryman's Oar:** solid gold. It has a spiral ridge, a gold ring round the shaft (his mark, made whole) and
+     a great flared blade with his mark glowing on both faces.
 - **Charms:** about 8, some with trade-offs. 1 slot at the start, plus 2 bought. Half are found, half sold.
 - **Stats are never bought.** What makes the Apprentice stronger for good is found, often behind secrets:
   - **Ferry Nails:** for the oar.
