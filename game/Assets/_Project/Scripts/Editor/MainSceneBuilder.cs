@@ -74,8 +74,10 @@ public static partial class MainSceneBuilder
         Place("Environment/jetty_landing", new Vector3(walkX, QuayTop - 0.03f, -5.0f - Segment * 4), 0f);
         MooringPostAt(new Vector3(walkX + 1.25f, QuayTop, -26.7f), 180f);
         MerchantAt(new Vector3(walkX - 1.25f, QuayTop, -24.35f), 127f); // the landing's north-west corner, clear of the gate
-        HesperAt(new Vector3(walkX - 1.3f, QuayTop, -26.9f), 180f, new Vector3(walkX + 1.45f, QuayTop, -25.0f), 90f); // the south-west corner, looking out
-        Place("Environment/boat", new Vector3(walkX + 2.55f, -0.12f, -25.6f), 186f);
+        // The Ferryman's boat, moored along the landing's east side; out in the dark to the south-east, the Far shore.
+        var boat = BoatAt(new Vector3(walkX + 2.55f, -0.12f, -25.6f), 6f, new Vector3(walkX + 1.15f, QuayTop, -25.2f));
+        var far = FarShore(boat);
+        HesperAt(new Vector3(walkX - 1.3f, QuayTop, -26.9f), 180f, new Vector3(walkX + 1.15f, QuayTop, -24.3f), 90f, boat, far); // the south-west corner, looking out
         StreetLantern(new Vector3(walkX + 0.75f, QuayTop, -11.8f), -90f, 2.2f);
         // The title card comes up as the torchlit quay swims into view, before anything there notices you.
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
@@ -187,6 +189,7 @@ public static partial class MainSceneBuilder
         sfx.keyItem = Clips("key_item");
         sfx.lanternSnuff = Clips("lantern_snuff");
         sfx.murmur = Clips("lingerer_murmur");
+        sfx.oarStroke = Clips("oar_stroke");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
@@ -554,14 +557,129 @@ public static partial class MainSceneBuilder
 
     const string HesperKeepsake = "hesper-boat-lantern";
 
+    static Transform Child(Transform parent, string name, Vector3 local)
+    {
+        var t = new GameObject(name).transform;
+        t.SetParent(parent, false);
+        t.localPosition = local;
+        return t;
+    }
+
+    static Dock DockAt(string name, Vector3 mooring, float bowYaw, Vector3 ashore, bool farShore)
+    {
+        var dock = new GameObject($"Dock ({name})").AddComponent<Dock>();
+        dock.displayName = name;
+        dock.transform.position = ashore;
+        dock.mooring = new GameObject("Mooring").transform;
+        dock.mooring.SetParent(dock.transform, false);
+        dock.mooring.SetPositionAndRotation(mooring, Quaternion.Euler(0f, bowYaw, 0f));
+        dock.ashore = new GameObject("Ashore").transform;
+        dock.ashore.SetParent(dock.transform, false);
+        dock.ashore.position = ashore;
+        dock.farShore = farShore;
+        return dock;
+    }
+
+    // The Ferryman's boat (Boat), moored at `at` with its bow along `bowYaw`, stepped into from `ashore`. The root
+    // carries the course (its forward is the bow); the hull bobs under it. The hull has no colliders: the boat meets
+    // the world by its own casts, and nobody stands on it.
+    static Boat BoatAt(Vector3 at, float bowYaw, Vector3 ashore)
+    {
+        var root = new GameObject("Boat");
+        root.transform.SetPositionAndRotation(at, Quaternion.Euler(0f, bowYaw, 0f));
+        var model = Place("Environment/boat", at, bowYaw + 180f); // (a static model: its visual front is its back)
+        foreach (var c in model.GetComponentsInChildren<Collider>())
+            UnityEngine.Object.DestroyImmediate(c);
+        model.transform.SetParent(root.transform, true);
+        var boat = root.AddComponent<Boat>();
+        boat.model = model.transform;
+        boat.seat = Child(root.transform, "Seat", new Vector3(0f, 0.21f, -0.45f));
+        boat.passengerSeat = Child(root.transform, "Passenger Seat", new Vector3(0f, -0.16f, 0.45f));
+        // The wake: a pale ribbon laid flat on the water behind the stern.
+        boat.stern = Child(root.transform, "Stern", new Vector3(0f, 0.16f, -1.25f));
+        boat.stern.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+        var wake = boat.stern.gameObject.AddComponent<TrailRenderer>();
+        wake.alignment = LineAlignment.TransformZ;
+        wake.time = 1.8f;
+        wake.minVertexDistance = 0.2f;
+        wake.widthCurve = new AnimationCurve(new Keyframe(0f, 0.9f), new Keyframe(1f, 2.2f));
+        var wakeColour = new Gradient();
+        wakeColour.SetKeys(new[] { new GradientColorKey(new Color(0.75f, 0.85f, 1f), 0f), new GradientColorKey(new Color(0.6f, 0.72f, 0.9f), 1f) },
+                           new[] { new GradientAlphaKey(0.28f, 0f), new GradientAlphaKey(0f, 1f) });
+        wake.colorGradient = wakeColour;
+        var wakeMaterial = GeneratedMaterial("M_Wake", "MyGame/Particle");
+        wakeMaterial.SetFloat("_Intensity", 1f);
+        wake.sharedMaterial = wakeMaterial;
+        wake.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        wake.emitting = false;
+        // The bow lantern, hung from the bow pole while rowing (the Apprentice's own light moves into it).
+        var lantern = Place("Environment/bow_lantern", GlowCentre(model, "BowHook"), bowYaw);
+        foreach (var c in lantern.GetComponentsInChildren<Collider>())
+            UnityEngine.Object.DestroyImmediate(c);
+        lantern.name = "Bow Lantern";
+        lantern.transform.SetParent(model.transform, true);
+        boat.bowLantern = lantern;
+        boat.bowLanternGlass = new GameObject("Glass").transform;
+        boat.bowLanternGlass.SetParent(lantern.transform, false);
+        boat.bowLanternGlass.position = GlowCentre(lantern, "SoulLantern_Glow");
+        boat.home = DockAt("the landing", at, bowYaw, ashore, false);
+        boat.docks = new[] { boat.home };
+        return boat;
+    }
+
+    struct FarShoreParts
+    {
+        public Dock dock;
+        public Light light;
+        public GameObject leftBehind;
+    }
+
+    static readonly Color FarLightColour = Hex("#fff1d6");
+
+    // Out in the dark south-east of the landing: the Far shore, where the dead go on. A small jetty, a tall post with
+    // a pale warm light, and beyond it the way on, glowing faintly through the dark. A Lingerer's Crossing ends here.
+    static FarShoreParts FarShore(Boat boat)
+    {
+        var jetty = new Vector3(14.0f, QuayTop - 0.03f, -43.5f); // its planks run south, to z -46.6
+        Place("Environment/jetty_landing", jetty, 0f);
+        Place("Environment/islet_big", new Vector3(16.5f, -0.8f, -53.5f), 30f);
+        var post = Place("Environment/far_light", new Vector3(15.1f, QuayTop, -46.1f), 200f);
+        var light = PointLight(post.transform, GlowCentre(post, "FarLight_Glow"), 9f, 3.4f, FarLightColour);
+        Flicker(light, 0.05f, 1.2f, 0.005f); // steady: it isn't a flame
+        var motes = new GameObject("Motes").AddComponent<Motes>();
+        motes.transform.SetParent(post.transform, false);
+        motes.transform.position = GlowCentre(post, "FarLight_Glow");
+        var beyond = PointLight(post.transform, new Vector3(15.5f, 1.8f, -49.5f), 11f, 1.8f, FarLightColour); // the way on
+        beyond.name = "The Way On";
+        var way = new GameObject("Motes (the Way On)").AddComponent<Motes>();
+        way.transform.SetParent(post.transform, false);
+        way.transform.position = new Vector3(15.5f, 0.3f, -49.5f);
+        way.radius = 3f;
+        way.perSecond = 4f;
+        var dock = DockAt("the Far shore", new Vector3(11.45f, -0.12f, -45.0f), 180f, new Vector3(12.95f, QuayTop, -45.0f), true);
+        boat.docks = new[] { boat.home, dock };
+        // What Hesper leaves there once she's crossed: his lantern, set down by the post, still burning.
+        var left = Place("Environment/boat_lantern", new Vector3(14.55f, QuayTop, -45.75f), 160f);
+        left.name = "Boat-Lantern (Left on the Far shore)";
+        foreach (var c in left.GetComponentsInChildren<Collider>())
+            UnityEngine.Object.DestroyImmediate(c);
+        Flicker(PointLight(left.transform, GlowCentre(left, "BoatLantern_Glow"), 2.6f, 1.4f, LanternLight), 0.1f, 5f, 0.01f);
+        return new FarShoreParts { dock = dock, light = light, leftBehind = left };
+    }
+
     // Old Hesper, a Lingerer: an old soul on a crate at the landing's edge, keeping a lamp lit for her son, who went out
     // the night the water came up. Bring her his boat-lantern (on the islet north of the yard) and she can let him go;
     // pay her fare and she waits by the boat for the Crossing (`waitAt`, `waitYaw`). She never jokes.
-    static void HesperAt(Vector3 position, float yaw, Vector3 waitAt, float waitYaw)
+    static void HesperAt(Vector3 position, float yaw, Vector3 waitAt, float waitYaw, Boat boat, FarShoreParts far)
     {
+        var root = new GameObject("Old Hesper");
+        root.transform.position = position;
         var go = Place("Environment/hesper", position, yaw);
-        go.name = "Old Hesper";
-        var hesper = go.AddComponent<Lingerer>();
+        go.name = "Hesper (on the landing)";
+        go.transform.SetParent(root.transform, true);
+        go.AddComponent<SoulFade>();
+        var hesper = root.AddComponent<Lingerer>();
+        hesper.figure = go.transform;
         hesper.id = "hesper";
         hesper.displayName = "Old Hesper, who keeps a light";
         hesper.keepsake = HesperKeepsake;
@@ -582,6 +700,24 @@ public static partial class MainSceneBuilder
         Flicker(PointLight(held.transform, GlowCentre(held, "BoatLantern_Glow"), 2.6f, 1.4f, LanternLight), 0.1f, 5f, 0.01f);
         held.SetActive(false);
         hesper.heldKeepsake = held;
+
+        // For her Crossing: her, sat in the boat's bow with his lantern in her lap (hidden until she comes aboard).
+        var aboard = Place("Environment/hesper_boat", boat.passengerSeat.position, boat.transform.eulerAngles.y);
+        aboard.name = "Hesper (in the boat)";
+        foreach (var c in aboard.GetComponentsInChildren<Collider>())
+            UnityEngine.Object.DestroyImmediate(c);
+        var lap = Place("Environment/boat_lantern", GlowCentre(aboard, "HesperEyes_Glow") + Vector3.down * 0.45f, boat.transform.eulerAngles.y);
+        foreach (var c in lap.GetComponentsInChildren<Collider>())
+            UnityEngine.Object.DestroyImmediate(c);
+        lap.transform.SetParent(aboard.transform, true);
+        Flicker(PointLight(lap.transform, GlowCentre(lap, "BoatLantern_Glow"), 2.6f, 1.4f, LanternLight), 0.1f, 5f, 0.01f);
+        aboard.transform.SetParent(boat.model, true); // (she rides the hull's bob)
+        aboard.AddComponent<SoulFade>();
+        hesper.boatFigure = aboard;
+        hesper.farLight = far.light;
+        hesper.leftBehind = far.leftBehind;
+        hesper.giftCharm = Charm.HespersWick.Id;
+        hesper.giftHint = "A Charm, from Old Hesper. Fit it at a Mooring post.";
 
         hesper.meeting = new[]
         {
@@ -617,10 +753,23 @@ public static partial class MainSceneBuilder
         {
             "Thank you, child.",
             "A hundred Obols. You carried all that about? Past those things on the quay? Well. Young people.",
-            "I remember the Ferryman slowing, every night, to wave at my lamp. Then one night he didn't. Not a wave. Not a look.",
             "I'll wait by the boat. When you're ready to row, I'll be there.",
         };
         hesper.ready = new[] { "The boat's there, and I'm ready. Whenever you are." };
+        // Out on the water (the memory of the Ferryman), and at the Far shore.
+        hesper.crossing = new[]
+        {
+            "It's colder out here. I thought it would be.",
+            "You row better than he did. Don't tell him I said so.",
+            "I remember the Ferryman slowing, every night, to wave at my lamp. Then one night he didn't. Not a wave. Not a look.",
+            "Whatever took him, it had him a long while before it had the rest of us.",
+        };
+        hesper.farewell = new[]
+        {
+            "This is far enough, child. I can see the way from here.",
+            "Here. For that lamp of yours. Mine won't need it where I'm going.",
+            "Keep it lit. Someone might be looking for it.",
+        };
         hesper.readyAsides = new[]
         {
             "You keep coming to check on me. I'm not going anywhere, child. That was rather the trouble.",

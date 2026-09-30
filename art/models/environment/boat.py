@@ -1,4 +1,5 @@
-"""Rowing boat lofted from cross-sections: square stern, pointed bow along +Y. Keel near z=0."""
+"""Rowing boat lofted from cross-sections: square stern, pointed bow along +Y. Keel near z=0. A pole at the bow for
+the bow lantern to hang from (its tip is the BowHook material, which the game finds)."""
 import bmesh
 
 M, part = kit.M, kit.part  # `kit` is injected by build_model.py
@@ -11,6 +12,7 @@ RIM = [0.42, 0.4, 0.39, 0.4, 0.43, 0.5, 0.6]
 
 def build():
     hull, seat = kit.mat("Hull", "#4f7186"), kit.mat("Seat", "#7d6149")
+    pole, pole_tip = kit.mat("BowPole", "#46382e"), kit.mat("BowHook", "#2c2b31")
 
     def shell(bm):
         sections = []
@@ -31,5 +33,8 @@ def build():
         part("Hull", shell, hull),
         part("SeatAft", kit.cube(), seat, M((0, -0.45, 0.26), scale=(1.1, 0.24, 0.045))),
         part("SeatFwd", kit.cube(), seat, M((0, 0.45, 0.26), scale=(1.05, 0.22, 0.045))),
+        # The pole the bow lantern hangs from while rowing (the lantern is its own model: the Apprentice's, moved here).
+        part("BowPole", kit.tube([(0, 1.18, 0.5), (0, 1.3, 0.95), (0, 1.42, 1.12), (0, 1.58, 1.1)], [0.03, 0.028, 0.025, 0.02], seg=6), pole),
+        part("BowHook", kit.ico(1, 0.025), pole_tip, M((0, 1.6, 1.08))),
     ]
     return [kit.join(parts, "Boat")]

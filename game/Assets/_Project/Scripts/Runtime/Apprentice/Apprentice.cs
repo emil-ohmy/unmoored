@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -151,7 +151,8 @@ namespace MyGame
             || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd)
             || (CurrentState == State.Hooking && stateTime >= hookThrowTime && hookFoe == null) // pulled clear of harm (not when it's thrown at a Soured)
             || CurrentState == State.Ceremony
-            || CurrentState == State.Sinking;
+            || CurrentState == State.Sinking
+            || CurrentState == State.Rowing; // nothing on the water can hurt you (the brief)
 
         // How dark the screen dips around washing ashore: to black as you go under, back as you come up (the HUD).
         public float Dip => CurrentState == State.Sinking
@@ -197,6 +198,8 @@ namespace MyGame
             foreach (var t in GetComponentsInChildren<Transform>())
                 if (t.name == "Hook")
                     hookBone = t; // the rig's Hook bone (the Hook at the hip, whirled, held up)
+                else if (t.name == "Lantern")
+                    lanternBone = t;
             swingTrail = GetComponent<SwingTrail>();
             bodyRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
             if (bodyRenderer != null)
@@ -229,10 +232,10 @@ namespace MyGame
             if (Pause.IsPaused)
                 return; // (the pause menu has the controls)
             float dt = Time.deltaTime;
-            if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free))
-                CloseMenu();
+            if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free && CurrentState != State.Rowing))
+                CloseMenu(); // (a talk on the water stays open)
             bool inMenu = OpenMenu != null;
-            if (!inMenu)
+            if (!inMenu && CurrentState != State.Rowing)
             {
                 ReadInput();
                 UpdateLockOn();
@@ -370,8 +373,12 @@ namespace MyGame
                 case State.Ceremony:
                     UpdateCeremony();
                     break;
+
+                case State.Rowing:
+                    UpdateRowing(dt, inMenu);
+                    break;
             }
-            if (CurrentState != State.Free || inMenu)
+            if (CurrentState != State.Free && CurrentState != State.Rowing || inMenu)
             {
                 Nearby = null;
                 if (CurrentState != State.Hooking)
@@ -402,7 +409,9 @@ namespace MyGame
 
             RegenerateStamina(dt);
             knockback *= Mathf.Exp(-10f * dt);
-            if (CurrentState == State.Hooking)
+            if (CurrentState == State.Rowing)
+                verticalVelocity = 0f; // (sat in the boat: it carries the Apprentice)
+            else if (CurrentState == State.Hooking)
             {
                 verticalVelocity = 0f;
                 controller.Move(hookStep); // the pull sets the path; collisions still apply
@@ -421,7 +430,7 @@ namespace MyGame
                 controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
             TrackSafeGround(dt);
-            if (transform.position.y < waterLevel && IsAlive && CurrentState != State.Hooking && CurrentState != State.Sinking)
+            if (transform.position.y < waterLevel && IsAlive && CurrentState != State.Hooking && CurrentState != State.Sinking && CurrentState != State.Rowing)
                 GoUnder();
         }
 
@@ -1202,6 +1211,8 @@ namespace MyGame
         {
             if (hookBone != null)
                 hookBone.localScale = HasHook && !hookInFlight ? Vector3.one : Vector3.one * 0.0001f;
+            if (lanternBone != null) // on the boat's bow while rowing, not at the hip
+                lanternBone.localScale = LanternOnTheBow ? Vector3.one * 0.0001f : Vector3.one;
             float glow = CurrentState == State.Ceremony ? 1.6f + 0.5f * Mathf.Sin(Time.time * 6f)
                        : AimingHook && CurrentState == State.Free || CurrentState == State.Hooking ? 0.7f : 0f;
             if (hookSlot >= 0)
@@ -1297,7 +1308,7 @@ namespace MyGame
         }
 
         // Moves the Apprentice instantly. `onSafeGround`: the spot is solid, so washing ashore may return here.
-        public void Teleport(Vector3 position, bool onSafeGround = true)
+        public void Teleport(Vector3 position, bool onSafeGround = true, bool snapCamera = true)
         {
             controller.enabled = false; // CharacterController overrides direct position changes
             transform.position = position;
@@ -1305,8 +1316,114 @@ namespace MyGame
             verticalVelocity = 0f;
             if (onSafeGround)
                 lastSafeGround = position;
-            CameraRig.Instance?.SnapToTarget();
+            if (snapCamera)
+                CameraRig.Instance?.SnapToTarget();
         }
+
+        // ------------------------------------------------------------ the boat
+
+        public Boat Boat { get; private set; }
+        public bool LanternOnTheBow => CurrentState == State.Rowing && Boat != null && Boat.Rowing;
+        public float hopTime = 0.45f; // stepping into the boat, or out of it
+        enum RowPhase { Boarding, Rowing, Landing }
+        RowPhase rowPhase;
+        Vector3 hopFrom;
+        Quaternion hopFromRotation;
+        Dock landingAt;
+        Transform lanternBone;
+
+        // Into the boat (its "Row"): a hop down onto the seat, and the stick rows.
+        public void Board(Boat boat)
+        {
+            if (CurrentState != State.Free || boat.Rowing)
+                return;
+            SetLockTarget(null);
+            CloseMenu();
+            buffered = Act.None;
+            Boat = boat;
+            hopFrom = transform.position;
+            hopFromRotation = transform.rotation;
+            controller.enabled = false; // the boat carries the Apprentice now
+            rowPhase = RowPhase.Boarding;
+            Enter(State.Rowing);
+            clips.Loop("RowIdle", 0.15f);
+            boat.TakeRower(this);
+            Announce("took the oars");
+        }
+
+        // Out of the boat at a dock (its "Step ashore"): the boat is tied up, and a hop up onto the jetty.
+        public void StepAshore(Dock dock)
+        {
+            if (CurrentState != State.Rowing || rowPhase != RowPhase.Rowing || Boat == null)
+                return;
+            landingAt = dock;
+            hopFrom = transform.position;
+            hopFromRotation = transform.rotation;
+            rowPhase = RowPhase.Landing;
+            stateTime = 0f;
+            clips.Loop("Idle", 0.1f);
+            Boat.ReleaseRower(dock);
+            Announce("stepped ashore");
+        }
+
+        void UpdateRowing(float dt, bool inMenu)
+        {
+            Nearby = null;
+            switch (rowPhase)
+            {
+                case RowPhase.Boarding:
+                {
+                    float t = Mathf.Clamp01(stateTime / hopTime);
+                    transform.SetPositionAndRotation(Hop(hopFrom, Boat.seat.position, t), Quaternion.Slerp(hopFromRotation, Boat.seat.rotation, t));
+                    if (t >= 1f)
+                        rowPhase = RowPhase.Rowing;
+                    break;
+                }
+                case RowPhase.Rowing:
+                    if (inMenu)
+                    {
+                        OpenMenu.Tick(Input); // (a talk on the water: the oar rests meanwhile)
+                        if (!OpenMenu.IsOpen)
+                            OpenMenu = null;
+                    }
+                    Boat.Tick(inMenu ? Vector3.zero : MoveDirection(), dt);
+                    transform.SetPositionAndRotation(Boat.seat.position, Boat.seat.rotation);
+                    if (Boat.Effort > 0.05f)
+                    {
+                        clips.Loop("Row", 0.2f);
+                        clips.SetLoopSpeed(Boat.StrokeSpeed);
+                    }
+                    else
+                        clips.Loop("RowIdle", 0.3f);
+                    if (!inMenu && Boat.DockInReach is Dock dock)
+                    {
+                        Nearby = dock;
+                        if (Input.InteractPressed)
+                            dock.Interact(this);
+                    }
+                    break;
+                case RowPhase.Landing:
+                {
+                    float t = Mathf.Clamp01(stateTime / hopTime);
+                    Vector3 to = landingAt.ashore.position;
+                    Vector3 face = to - hopFrom;
+                    face.y = 0f;
+                    transform.SetPositionAndRotation(Hop(hopFrom, to, t),
+                        face.sqrMagnitude > 0.01f ? Quaternion.Slerp(hopFromRotation, Quaternion.LookRotation(face), t) : transform.rotation);
+                    if (t >= 1f)
+                    {
+                        Boat = null;
+                        Teleport(to, snapCamera: false); // (the controller's back; solid ground for washing ashore)
+                        buffered = Act.None;
+                        Enter(State.Free);
+                    }
+                    break;
+                }
+            }
+        }
+
+        static Vector3 Hop(Vector3 from, Vector3 to, float t) =>
+            Vector3.Lerp(from, to, UiKit.Smooth(0f, 1f, t)) + Vector3.up * (0.45f * Mathf.Sin(t * Mathf.PI));
 
         // Into the water: a splash, and you go under while the screen dips to black; then you wash ashore.
         void GoUnder()

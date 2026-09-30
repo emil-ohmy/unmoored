@@ -18,6 +18,9 @@ namespace MyGame
         public float phaseCrossfade = 2.5f;
         public float silenceAfterVictory = 5f;
 
+        public static bool Hushed; // a quiet moment (a Crossing): the ambient sinks low
+        [Range(0f, 1f)] public float whileHushed = 0.3f;
+
         public int FightPhase { get; private set; } // the Boss track playing now (0: none)
         public float AmbientTarget { get; private set; }
 
@@ -31,6 +34,7 @@ namespace MyGame
 
         void Awake()
         {
+            Hushed = false;
             source = GetComponent<AudioSource>();
             Setup(source);
             for (int i = 0; i < fight.Length; i++)
@@ -56,7 +60,7 @@ namespace MyGame
         void Update()
         {
             bool dead = apprentice != null && !apprentice.IsAlive;
-            float duck = dead ? whileDead : 1f;
+            float duck = dead ? whileDead : Hushed ? whileHushed : 1f;
             var current = BossFight.Current;
             if (current != boss)
             {

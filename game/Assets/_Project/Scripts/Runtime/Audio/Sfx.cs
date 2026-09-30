@@ -8,7 +8,7 @@ namespace MyGame
     {
         public static Sfx Instance { get; private set; }
 
-        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem, lanternSnuff, murmur;
+        public AudioClip[] oarSwing, oarSwingHeavy, dash, blockClang, parry, soulAbsorb, deathToll, lanternLit, oarHit, hurt, obolClink, charmFit, uiTick, heal, splash, arrowThunk, gateOpen, gateRattle, hookThrow, hookCatch, hookWhirl, itemTake, keyItem, lanternSnuff, murmur, oarStroke;
         [Range(0f, 0.3f)] public float pitchJitter = 0.07f;
         [Range(0f, 0.3f)] public float volumeJitter = 0.1f;
 
@@ -88,6 +88,7 @@ namespace MyGame
         public void ItemTake(Vector3 at) => Play(itemTake, at, 0.8f, "item_take");
         public void KeyItem(Vector3 at) => Play(keyItem, at, 1f, "key_item");
         public void LanternSnuff(Vector3 at) => Play(lanternSnuff, at, 1f, "lantern_snuff");
+        public void OarStroke(Vector3 at) => Play(oarStroke, at, 0.55f, "oar_stroke");
         public void Murmur(Vector3 at) => Play(murmur, at, 0.55f, "murmur"); // a soul beginning a line
         public void ObolClink(Vector3 at) => Play(obolClink, at, 0.8f, "obol_clink");
         public void CharmFit(Vector3 at) => Play(charmFit, at, 0.8f, "charm_fit");

@@ -1179,6 +1179,98 @@ namespace MyGame.Tests
             Time.captureFramerate = 0;
         }
 
+        // Rowing: taking the oars, the strokes and the wake, out to the Far shore with Hesper aboard; her talk on the
+        // water, her goodbye, and her going on into the light.
+        [UnityTest]
+        public IEnumerator Capture_Rowing()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var hesper = UnityEngine.Object.FindAnyObjectByType<Lingerer>();
+            var boat = UnityEngine.Object.FindAnyObjectByType<Boat>();
+            var far = boat.docks.First(d => d.farShore);
+            hesper.Restore(Lingerer.Business.Paid);
+            apprentice.Teleport(boat.InteractPosition);
+            yield return Frames(20);
+            Shot("row-0-moored");
+            input.PressInteract();
+            yield return Frames(6);
+            Shot("row-1-hop");
+            yield return Frames(40);
+            Shot("row-2-aboard");
+            for (int f = 0; f < 150; f++)
+            {
+                Vector3 to = far.mooring.position - boat.transform.position;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                if (f % 30 == 29)
+                    Shot($"row-3-rowing-{f:D3}");
+                if (apprentice.OpenMenu != null)
+                    break;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            for (int f = 0; f < 200 && apprentice.OpenMenu == null; f++)
+            {
+                Vector3 to = far.mooring.position - boat.transform.position;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            yield return Frames(45);
+            Shot("row-4-talk");
+            apprentice.OpenMenu?.Close();
+            for (int f = 0; f < 300 && boat.DockInReach != far; f++)
+            {
+                Vector3 to = far.mooring.position - boat.transform.position;
+                input.Move = new Vector2(to.x, to.z).normalized;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            yield return Frames(10);
+            Shot("row-5-far-shore");
+            input.PressInteract();
+            yield return Frames(40);
+            Shot("row-6-goodbye");
+            apprentice.OpenMenu?.Close();
+            for (int f = 0; f < 100; f += 10)
+            {
+                yield return Frames(10);
+                Shot($"row-7-depart-{f:D3}");
+            }
+            yield return Frames(30);
+            Shot("row-8-gift");
+            cam.targetTexture = null;
+            Time.captureFramerate = 0;
+        }
+
         // A section of the chapel floor breaking, in full view: the shudder, the tip over its edge, the rubble, the splash.
         [UnityTest]
         public IEnumerator Capture_FloorBreak()
