@@ -189,7 +189,11 @@ City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused 
 The Orchard's is **the Watchman, of the Unreaped Rows**: the man who worked the orchard, still keeping watch over a
 harvest that never came, as a scarecrow in its top rows. A puzzle-fight about where you face. He moves only while
 he isn't watched (the Apprentice facing him, within 60° either side).
-- **Find him.** Six scarecrows stand in the rows, all alike, all looking down the hill. Whenever he's behind you, he
+- **His arena: the Unreaped Rows,** the field above the orchard, through the gateway in its wall. It was never
+  harvested: dead wheat stands in rows, there are a few stooks where someone began and stopped, and it's walled round.
+  Once he's found, the gateway's two plank gates swing shut behind you and slam, and his own music begins. They open
+  again when the fight ends (you fall, or he's beaten).
+- **Find him.** Six scarecrows stand in the rows, all alike, all looking at the gate you come in by. Whenever he's behind you, he
   creeps a little nearer and turns a little more towards you, with a creak. Strike the wrong one and it bursts into
   straw, and the Moths nesting in it come at you. Strike the right one (or burn or hook it) and he tears free of his
   stake, his lantern flares and the fight begins. The blow that finds him does no harm. Each time he re-forms he

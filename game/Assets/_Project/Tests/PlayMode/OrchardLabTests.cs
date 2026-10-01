@@ -207,7 +207,7 @@ namespace MyGame.Tests
         // Stands the Apprentice `distance` from `figure`, out towards the middle of the field, facing it (or away).
         void StandBy(Component figure, float distance, bool facing)
         {
-            Vector3 at = figure.transform.position, centre = new Vector3(3f, at.y, 13.6f);
+            Vector3 at = figure.transform.position, centre = new Vector3(-2f, at.y, 26f); // (the field's middle)
             Vector3 out_ = centre - at;
             out_.y = 0f;
             out_ = out_.sqrMagnitude < 0.5f ? Vector3.back : out_.normalized;
@@ -227,6 +227,35 @@ namespace MyGame.Tests
                 if (f.gameObject.activeSelf)
                     foreach (var m in f.Moths)
                         m.Pin(new Vector3(-14f, 6f, 16f));
+        }
+
+        // The Unreaped Rows: in through the gateway from the orchard; found, he shuts it behind you (the gates swing to,
+        // and hold), and his own music plays; beaten, it opens again.
+        [UnityTest]
+        public IEnumerator TheField_FoundHeShutsTheGate_BeatenItOpens()
+        {
+            var w = Watchman();
+            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
+            Assert.IsNotNull(gate);
+            Assert.IsFalse(gate.Shut);
+            Assert.AreEqual(2, w.Music.Length, "his music, both halves");
+            Assert.IsTrue(w.Music.All(m => m != null));
+            // In from the orchard's top terrace, through the gateway, while it's open.
+            Vector3 way = gate.transform.position;
+            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z - 2f));
+            yield return Walk(Vector2.up, 1.6f);
+            Assert.Greater(apprentice.transform.position.z, way.z + 0.8f, $"through the gateway ({apprentice.transform.position})");
+            yield return Reveal(w);
+            Assert.IsTrue(gate.Shut, "shut behind you");
+            Assert.AreEqual(1f, gate.Closed, 0.01f, "swung to");
+            // Try to leave: the way's held.
+            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z + 1.5f));
+            yield return Walk(Vector2.down, 1.6f);
+            Assert.Greater(apprentice.transform.position.z, way.z, $"held in ({apprentice.transform.position})");
+            w.TakeHit(new Hit { Damage = w.maxHealth * 2f, From = apprentice.transform.position });
+            yield return new WaitForSeconds(2f);
+            Assert.IsFalse(gate.Shut, "beaten: open again");
+            Assert.AreEqual(0f, gate.Closed, 0.01f);
         }
 
         // Six scarecrows in the top rows, all alike: one of them is him, still hidden, his lantern dark; no fight yet.
@@ -432,7 +461,10 @@ namespace MyGame.Tests
             var w = Watchman();
             foreach (var m in Flock("Moths (middle terrace)").Moths)
                 m.Pin(m.transform.position); // (the middle terrace's: kept to their lantern, out of it)
-            apprentice.Teleport(new Vector3(3f, 3.35f, 11f), true, true);
+            apprentice.Teleport(new Vector3(-1.7f, 3.35f, 16.2f), true, true);
+            yield return Frames(45);
+            Shot("watchman-0-the-gateway");
+            apprentice.Teleport(new Vector3(-1.7f, 3.35f, 20f), true, true);
             yield return Frames(45);
             Shot("watchman-0-the-field");
             var s = w.field[0];
@@ -450,6 +482,20 @@ namespace MyGame.Tests
             Shot("watchman-2-found");
             yield return Frames(30);
             Shot("watchman-3-torn-free");
+            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
+            var gateCam = new GameObject("Gate Camera").AddComponent<Camera>();
+            gateCam.CopyFrom(cam);
+            gateCam.targetTexture = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            gateCam.transform.SetPositionAndRotation(gate.transform.position + new Vector3(0f, 9f, -7f), Quaternion.Euler(50f, 0f, 0f));
+            gateCam.Render();
+            var previousRt = RenderTexture.active;
+            RenderTexture.active = gateCam.targetTexture;
+            var gateTex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
+            gateTex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0);
+            gateTex.Apply();
+            RenderTexture.active = previousRt;
+            File.WriteAllBytes(Path.Combine(outDir, "watchman-3b-the-gate-shut.png"), gateTex.EncodeToPNG());
+            UnityEngine.Object.Destroy(gateCam.gameObject);
             foreach (var m in w.flocks[0].Moths)
                 m.Pin(new Vector3(-14f, 6f, 16f));
             StandBy(w, 2.2f, false);
@@ -557,11 +603,12 @@ namespace MyGame.Tests
             yield return At(new Vector3(12f, 1.95f, 5f), "orchard-4-inside");
             yield return At(new Vector3(11f, 4.35f, 8f), "orchard-5-loft");
             yield return At(new Vector3(2f, 3.35f, 13f), "orchard-6-top-terrace");
+            yield return At(new Vector3(-2f, 3.35f, 25f), "orchard-6b-the-unreaped-rows");
             // Wide, from the south over the water.
             var wide = new GameObject("Wide").AddComponent<Camera>();
             wide.CopyFrom(cam);
             wide.targetTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
-            wide.transform.SetPositionAndRotation(new Vector3(0f, 22f, -22f), Quaternion.Euler(40f, 0f, 0f));
+            wide.transform.SetPositionAndRotation(new Vector3(0f, 28f, -20f), Quaternion.Euler(45f, 0f, 0f));
             yield return null;
             Shot("orchard-7-wide", wide);
         }

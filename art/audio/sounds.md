@@ -52,7 +52,7 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Clinger skitters (`clinger_skitter`) | in game | Synth | darting over stone: a quick scrabble of dry taps and clicks |
 | Hold groans (`unparted_groan`) | in game | Synth | the Unparted's Hold winding up: a deep, hollow groan sliding down and up, effort and grief |
 | Hold howls (`unparted_howl`) | in game | Synth | Fast gone: a long anguished howl cracking into a higher cry, then Hold is berserk |
-| The Unparted's music (`music_unparted`) | in game | Synth | a grieving 3/4 waltz in F minor: a low voice and a thin high one circling, a heartbeat drum; variant 2 (one scattered) torn, with a keening wail |
+| The Unparted's music (`music_unparted`) | in game | Synth | a grieving 3/4 waltz in F minor: a low voice and a thin high one circling, a heartbeat drum; variant 2 (one scattered) torn, with a keening wail (2 was a copy of 1 until 2026-10-01: a variant-numbering slip) |
 | A Boss's farewell (`boss_farewell`) | in game | Synth | a great bronze bell struck once as a beaten Boss's farewell comes up, a long cathedral tail |
 | Chapel floor cracking (`floor_crack`, 2) | in game | Synth | the warning before a section gives way: a grinding rumble swelling, cracks quickening, grit |
 | Chapel floor giving way (`floor_break`, 2) | in game | Synth | a splitting crack, the deep boom of it dropping, stone grinding and tumbling, rubble plopping into the water |
@@ -66,7 +66,7 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Anchor lands (`anchor_land`, 2) | in game | Synth | a heavy clank on stone, a thud, the chain slapping down |
 | Anchor hauled (`anchor_haul`) | in game | Synth | iron grinding and juddering over stone, faster and louder, the chain rattling in |
 | Anchoress rises (`anchoress_rise`) | in game | Synth | 2.2 s: every link shaking, a swell under the floor, her voice climbing into a drowned many-voiced cry, peaking on the slam |
-| Music: The Anchoress (`Music/music_anchoress_1`, `_2`) | in game | Synth | 64 s loop, D minor, 60 bpm: a slow grinding march (deep drum, chain off-beats, bowed bass, drone, the Drowned Dark's choir); 2 is the same loop heavier (every beat, faster chain, a high wail, water surging) and crossfades in step when she rises |
+| Music: The Anchoress (`Music/music_anchoress_1`, `_2`) | in game | Synth | 64 s loop, D minor, 60 bpm: a slow grinding march (deep drum, chain off-beats, bowed bass, drone, the Drowned Dark's choir); 2 is the same loop heavier (every beat, faster chain, a high wail, water surging) and crossfades in step when she rises (2 was a copy of 1 until 2026-10-01: a variant-numbering slip) |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |
 | Pitch Pot bursting (`pitch_burst`, 2) | in game | Synth | clay cracking, a deep whumpf as the pitch catches, fire roaring up and settling into a crackle |
 | Warm Broth drunk (`drink`) | in game | Synth | a cork's soft pop, three gulps through the mask, a small warm sigh |
@@ -82,3 +82,5 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Watchman creeping (`watchman_creak`, 3) | in game | Synth | quiet, half heard behind you: a stake creaking in the earth (stick-slip of dry wood), straw settling in his coat |
 | Watchman found (`watchman_reveal`) | in game | Synth | his stake splintering as he tears free (cracks, a rending of fibres), a great dry whoosh of straw, a hollow breath in the sack; again, lower, when straw spills from him at half |
 | Watchman's hook drawn (`watchman_windup`, 2) | in game | Synth | his tell: his coat creaking as he twists, the blade rasping up through the straw, a thin ring of iron at the top |
+| Field gates slamming (`field_gate_slam`) | in game | Synth | the Watchman found: two heavy plank leaves banging to, one after the other, the latch dropping with an iron clank, the old wood rattling as it settles |
+| Music: The Watchman (`Music/music_watchman_1`, `_2`) | in game | Synth | 48 s loop, A minor (the Orchard's key), 3/4 at 60 bpm: a dry wooden knock on every beat (tick tock tock), a lone scratchy fiddle creeping through the opening of Last Autumn's tune at a bar a note, sliding between notes, a low bowed hum on A, damp reed chords (Am - F - Dm - E), straw rattling now and then, the music box returning in flat fragments; twice in the loop everything but the hum stops dead for two beats. 2 is the same loop worse (a heartbeat, the knocking doubled, the fiddle an octave up and trembling, a rising scrape every four bars) and crossfades in step at half health |

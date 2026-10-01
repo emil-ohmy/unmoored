@@ -32,7 +32,7 @@ game/Assets/_Project/
   Scenes/BossArena.unity          the Boss's chapel on its own, for play-testing (Build Boss Arena); the same
                                   chapel (MainSceneBuilder.DrownedChapel) stands in Main, south-west of the crossroads
   Scenes/Lab_Orchard.unity        the Orchard of Last Autumn's lab (Build Lab (Orchard)): its terraces, trees, press house,
-                                  air (leaves, mist, lantern moths), night (the harvest moon) and the Watchman's field (its miniboss, among scarecrows in the top rows). Assets > MyGame > Build
+                                  air (leaves, mist, lantern moths), night (the harvest moon) and the Unreaped Rows (the field over its wall: the Watchman's arena). Assets > MyGame > Build
                                   All Scenes builds every scene at once
   Scenes/Lab_DrownedCity.unity    the Drowned City's lab (Build Lab (Drowned City)): the Tester's Post spawns any Soured and gives the Apprentice
                                   anything; a training Laden; a readout. Nothing saved. New enemies and upgrades go here first

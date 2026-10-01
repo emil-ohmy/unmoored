@@ -168,10 +168,13 @@ _Avoid_: Elite, sub-boss, mid-boss
 The Drowned City's miniboss, in full "The Unparted, of the Last Embrace": two souls who never let each other go, grown into one great hunched Clinger. Hold carries; Fast rides its back, leaping down to cling to the Apprentice and climbing back up. Scatter Fast first and Hold goes berserk; scatter Hold first and Fast weeps where it fell.
 
 **The Watchman**:
-The Orchard's miniboss, in full "The Watchman, of the Unreaped Rows": the man who worked the orchard, a scarecrow among scarecrows in its top rows, keeping watch over a harvest that never came. He moves only while he isn't watched. First he must be found (he creeps when he's behind you); then faced down.
+The Orchard's miniboss, in full "The Watchman, of the Unreaped Rows": the man who worked the orchard, a scarecrow among scarecrows in the Unreaped Rows, keeping watch over a harvest that never came. He moves only while he isn't watched. First he must be found (he creeps when he's behind you); then faced down.
+
+**The Unreaped Rows**:
+The field above the Orchard, through the gateway in its wall, never harvested: the Watchman's arena. Its gates shut behind you while his fight is on.
 
 **Scarecrow**:
-Straw in an old coat on a stake, in the Orchard's top rows; the Watchman stands among them as one of them. Struck, one bursts, and the Moths nesting in its straw come out. Not a Soured (it has no soul), though it's struck like one.
+Straw in an old coat on a stake, in the Unreaped Rows; the Watchman stands among them as one of them. Struck, one bursts, and the Moths nesting in its straw come out. Not a Soured (it has no soul), though it's struck like one.
 
 **Watched**:
 Faced by the Apprentice: in front of them, within 60° either side of where they face.

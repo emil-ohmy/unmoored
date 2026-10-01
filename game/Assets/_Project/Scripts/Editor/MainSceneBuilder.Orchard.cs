@@ -33,7 +33,7 @@ public static partial class MainSceneBuilder
         OrchardRows();
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
         UpperTerrace();
-        TheWatchmansField(); // the Orchard's miniboss, among the scarecrows in the top rows
+        UnreapedRows(); // the field over the orchard wall: the Orchard's miniboss, among its scarecrows
         OrchardLanterns();
         OrchardAir();
 
@@ -164,8 +164,8 @@ public static partial class MainSceneBuilder
         Ramp(new GameObject("Press House Stair Ramp").transform, at + new Vector3(3.68f, 0f, -3.0f), at + new Vector3(3.68f, 2.4f, 1.0f), 1.0f);
     }
 
-    // The top terrace: the old trees, the well, the hives, the scarecrows keeping watch over nothing, and the orchard
-    // wall along its back, its gateway (where the Gardener's glasshouse will be).
+    // The top terrace: the old trees, the well, the hives, and the orchard wall along its back, its gateway into the
+    // Unreaped Rows (the Watchman's field; the Gardener's glasshouse will be beyond it).
     static void UpperTerrace()
     {
         OrchardTree("apple_old", new Vector3(-12f, UpperTop, 13f), 40f);
@@ -178,22 +178,104 @@ public static partial class MainSceneBuilder
         OrchardProp("apples", new Vector3(9.4f, UpperTop, 14.1f), 0f);
         float wallZ = OrchardBackZ - 0.35f;
         for (float x = -OrchardHalfWidth + 0.3f; x < OrchardHalfWidth - 0.4f; x += 4f)
-            Place(Mathf.Abs(x + 2f) < 0.5f ? "Environment/orchard_wall_gate" : "Environment/orchard_wall_long", new Vector3(x, UpperTop, wallZ), 0f);
+            Place(Mathf.Abs(x - FieldGateWallX) < 0.5f ? "Environment/orchard_wall_gate" : "Environment/orchard_wall_long", new Vector3(x, UpperTop, wallZ), 0f);
     }
 
-    // The Watchman, of the Unreaped Rows (the Orchard's miniboss), and the field he stands in: six scarecrows in the top
-    // rows, all alike, all looking down the hill, each on its stake; one of them is him (a different one each time he
-    // re-forms). The rest have Moths nesting in their straw; his lantern calls two flocks of its own.
+    // The Unreaped Rows: the field above the orchard, through the gateway in its wall, never harvested: dead wheat
+    // standing in rows, a few stooks where someone began and stopped, walled round. The Watchman's arena: six
+    // scarecrows in the rows, all alike, all looking at the gate you come in by; one of them is him (a different one
+    // each time he re-forms). Find him and the gates swing shut behind you until the fight is over.
+    const float FieldX = -2f, FieldZ = 18f, FieldHalfWidth = 12f, FieldDepth = 16f;
+    const float FieldGateWallX = -3.7f; // (the orchard wall's gate segment: its gateway from 0.9 to 3.1 m along it)
     static readonly Vector3[] WatchmanSpots =
     {
-        new Vector3(-0.5f, UpperTop, 12.6f), new Vector3(7.6f, UpperTop, 12.0f), new Vector3(1.8f, UpperTop, 15.4f),
-        new Vector3(-7.5f, UpperTop, 14.2f), new Vector3(12.0f, UpperTop, 13.2f), new Vector3(5.0f, UpperTop, 16.4f),
+        new Vector3(-6.5f, UpperTop, 22.5f), new Vector3(2.5f, UpperTop, 22.0f), new Vector3(-10f, UpperTop, 27.5f),
+        new Vector3(-2f, UpperTop, 26.5f), new Vector3(5.5f, UpperTop, 28.5f), new Vector3(-5f, UpperTop, 31.5f),
     };
 
-    static Watchman TheWatchmansField()
+    static void UnreapedRows()
+    {
+        var root = new GameObject("The Unreaped Rows").transform;
+        GameObject Put(string model, Vector3 at, float yaw)
+        {
+            var go = Place("Environment/" + model, at, yaw);
+            go.transform.SetParent(root, true);
+            return go;
+        }
+        Put("unreaped_field_ground", new Vector3(FieldX, 0f, FieldZ), 0f);
+        // Walled round, over the water: west, east and north.
+        float west = FieldX - FieldHalfWidth + 0.25f, east = FieldX + FieldHalfWidth - 0.25f, north = FieldZ + FieldDepth - 0.25f;
+        for (float z = FieldZ; z < north - 0.5f; z += 4f)
+        {
+            Put("orchard_wall_long", new Vector3(west, UpperTop, z), -90f);
+            Put("orchard_wall_long", new Vector3(east, UpperTop, z), -90f);
+        }
+        for (float x = FieldX - FieldHalfWidth; x < FieldX + FieldHalfWidth - 0.5f; x += 4f)
+            Put("orchard_wall_long", new Vector3(x, UpperTop, north), 0f);
+        Put("orchard_wall_end", new Vector3(west, UpperTop, north), 0f);
+        Put("orchard_wall_end", new Vector3(east, UpperTop, north), 0f);
+
+        // The stooks, and the wheat in its rows (none in the scarecrows' places, nor in the way in from the gate).
+        var stooks = new[] { new Vector3(7.5f, UpperTop, 20.6f), new Vector3(-11.6f, UpperTop, 21.2f), new Vector3(7.2f, UpperTop, 30.0f), new Vector3(-11.4f, UpperTop, 30.2f) };
+        var rng = new System.Random(11);
+        foreach (var at in stooks)
+            Put("unreaped_field_stook", at, (float)rng.NextDouble() * 360f);
+        float gateX = FieldGateWallX + 2f;
+        for (float x = FieldX - FieldHalfWidth + 1.2f; x < FieldX + FieldHalfWidth - 1f; x += 2.2f)
+            for (float z = FieldZ + 1.6f; z < FieldZ + FieldDepth - 1.1f; z += 1.45f)
+            {
+                var at = new Vector3(x + (float)(rng.NextDouble() - 0.5) * 0.5f, UpperTop, z + (float)(rng.NextDouble() - 0.5) * 0.4f);
+                bool clear = System.Array.TrueForAll(WatchmanSpots, p => Flat(p - at).magnitude > 1.4f)
+                          && System.Array.TrueForAll(stooks, p => Flat(p - at).magnitude > 1.4f)
+                          && !(Mathf.Abs(at.x - gateX) < 1.6f && at.z < FieldZ + 3.5f);
+                if (!clear || rng.NextDouble() < 0.28)
+                    continue;
+                var clump = Put("unreaped_field_wheat", at, (float)rng.NextDouble() * 360f);
+                foreach (var c in clump.GetComponentsInChildren<Collider>())
+                    Object.DestroyImmediate(c); // (nothing solid in it)
+            }
+
+        // A lantern just inside the gate, and two left burning low in the far corners (the rest is the moon's: and his).
+        foreach (var (at, yaw, range, intensity) in new[] {
+                     (new Vector3(gateX - 2.6f, UpperTop, FieldZ + 1.0f), 20f, 6f, 1.8f),
+                     (new Vector3(FieldX - FieldHalfWidth + 1.4f, UpperTop, FieldZ + FieldDepth - 1.4f), 135f, 8f, 1.4f),
+                     (new Vector3(FieldX + FieldHalfWidth - 1.4f, UpperTop, FieldZ + FieldDepth - 1.4f), -135f, 8f, 1.4f) })
+        {
+            var lantern = Put("orchard_props_lantern", at, yaw);
+            Vector3 lamp = GlowCentre(lantern, "OrchardLantern_Glow");
+            Flicker(PointLight(lantern.transform, lamp, range, intensity, LanternLight), 0.08f, 3f, 0.01f);
+        }
+
+        var watchman = TheWatchmansField(root);
+
+        // The gateway's two plank gates: open into the field; swung shut behind you once he's found.
+        var gate = new GameObject("Field Gate").AddComponent<ArenaGate>();
+        gate.transform.SetParent(root, true);
+        gate.transform.position = new Vector3(gateX, UpperTop, OrchardBackZ - 0.35f);
+        gate.boss = watchman;
+        Transform Leaf(float hingeX, float openYaw)
+        {
+            var leaf = Put("orchard_wall_leaf", new Vector3(hingeX, UpperTop, OrchardBackZ - 0.35f), openYaw);
+            foreach (var c in leaf.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (the gate's wall holds the way while they're shut)
+            return leaf.transform;
+        }
+        gate.leaves = new[] { Leaf(gateX - 1.06f, -90f), Leaf(gateX + 1.06f, 270f) };
+        gate.shutYaw = new[] { 0f, 180f };
+        gate.openYaw = new[] { -90f, 270f };
+        gate.shutSound = Clips("field_gate_slam");
+        gate.openSound = Clips("gate_open");
+    }
+
+    static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+    // The Watchman and the scarecrows he stands among, each on its stake, the scarecrows with Moths nesting in their
+    // straw; his lantern calls two flocks of its own.
+    static Watchman TheWatchmansField(Transform rows)
     {
         var root = new GameObject("The Watchman's Field").transform;
-        const float yaw = 180f; // (down the hill: their faces to you as you come up)
+        root.SetParent(rows, true);
+        const float yaw = 180f; // (towards the gate: their faces to you as you come in)
         Transform Pole(Vector3 at)
         {
             var pole = OrchardProp("pole", at, 0f);
@@ -266,6 +348,11 @@ public static partial class MainSceneBuilder
         w.primary.swingPitch = 1.1f;
         w.creakSound = Clips("watchman_creak");
         w.revealSound = Clips("watchman_reveal");
+        w.music = new[] // (found: his own; at half, the same music, worse)
+        {
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_watchman_1.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_watchman_2.wav"),
+        };
         w.lantern = PointLight(Bone(w.gameObject, "ArmL"), GlowCentre(w.gameObject, "WatchmanLanternGlass"), 7.5f, w.lanternIntensity, LanternLight);
         w.lantern.enabled = false;
         w.flocks = new MothFlock[2];
@@ -293,10 +380,10 @@ public static partial class MainSceneBuilder
             var light = PointLight(lantern.transform, lamp, 7f, 2.4f, LanternLight);
             Flicker(light, 0.08f, 3f, 0.01f);
             LanternMoths(lantern.transform, lamp);
-            // The Moths: a flock round the middle terrace's east lantern (by the press house); not by the way in (they'd
-            // be on you the moment you came). The top terrace's are the Watchman's (in the scarecrows, and his lantern's).
-            if (lit == 4)
-                MothFlockAt("Moths (middle terrace)", lamp, light.transform, 6);
+            // The Moths: a flock round the middle terrace's east lantern (by the press house), another round the top
+            // terrace's east one; not by the way in (they'd be on you the moment you came), nor by the field's gate.
+            if (lit == 4 || lit == 7)
+                MothFlockAt(lit == 4 ? "Moths (middle terrace)" : "Moths (top terrace)", lamp, light.transform, lit == 4 ? 6 : 5);
             lit++;
         }
     }

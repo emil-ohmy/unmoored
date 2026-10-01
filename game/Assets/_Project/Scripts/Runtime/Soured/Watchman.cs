@@ -19,7 +19,7 @@ namespace MyGame
         public string epithet = "of the Unreaped Rows";
         public string farewell = "THE WATCH IS ENDED";
         public string farewellLine = "Nothing came.";
-        public AudioClip[] music;             // (none: the Orchard's own plays on)
+        public AudioClip[] music;             // one track per phase (found; half way)
         [Range(0f, 180f)] public float watchHalfAngle = 60f;
         public float watchRange = 18f;
         public float leash = 20f;             // further than this from him, the fight is off
