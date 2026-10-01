@@ -76,3 +76,5 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Drowned rising (`drowned_rise`, 2) | in game | Synth | its tell: water surging up and pouring off it, a drowned groan swelling, wet and choked |
 | Drowned spitting (`drowned_spit`, 2) | in game | Synth | a wet gathering hawk in its throat, then the spit leaving with a thick "phtt" |
 | Spit striking (`spit_splat`, 2) | in game | Synth | a thick wet splat, and a small fizzing hiss as the poison eats at what it hit |
+| Moth diving (`moth_dive`, 2) | in game | Synth | a soft papery whirr of wings rising to a short dry hiss |
+| Moth scattered (`moth_release`, 6) | in game | Synth | a dry puff of dust and one soft music-box note, each variant a note of the same small tune (A minor) |

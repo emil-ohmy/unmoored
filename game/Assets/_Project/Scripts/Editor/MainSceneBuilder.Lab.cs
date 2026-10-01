@@ -124,6 +124,7 @@ public static partial class MainSceneBuilder
         var clinger = Template(Clinger("Clinger", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         var unparted = Template(TheUnparted("The Unparted", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         var drowned = Template(Drowned("Drowned", new Vector3(0f, 0f, -8f), 0f).gameObject);
+        var moths = Template(MothFlockAt("Moths", new Vector3(0f, QuayTop + 1.5f, 0f), null, 6).gameObject);
         spawner.kinds = new[]
         {
             new LabSpawner.Kind { name = "Laden", template = laden },
@@ -131,6 +132,7 @@ public static partial class MainSceneBuilder
             new LabSpawner.Kind { name = "Clinger", template = clinger }, // (two near each other pair up)
             new LabSpawner.Kind { name = "The Unparted", template = unparted, listed = false }, // (the miniboss: Formations)
             new LabSpawner.Kind { name = "Drowned", template = drowned, inWater = true }, // (in the water nearest you)
+            new LabSpawner.Kind { name = "Moths", template = moths }, // (a flock of six)
         };
         return spawner;
     }

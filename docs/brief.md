@@ -188,6 +188,9 @@ City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused 
 
 The **Drowned** appear at water edges everywhere.
 
+**Everything in the Orchard burns:** it's dry as old leaves. Fire does 1.75 times the harm to any Soured there, and
+they burn half as long again.
+
 **Heights** (the Areas have verticality: walkways, towers of several storeys, platforms):
 - Drops up to about 1.5 m can be taken, one way (a shortcut down). Taller edges are always walled or railed. No
   falling damage: heights are routes, not traps.
@@ -204,7 +207,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Laden | things | Tank; approaches with its heap of belongings low (open), then up close lifts it as a shield that blocks frontal hits; two attacks: an overhead slam along a line (long recovery) and a wide low sweep for anyone at its flank or back (short recovery); huge stagger meter | Hook |
 | Clinger | a person | Fast pairs that circle, leap and cling to your back: stamina drains (and a little health), you slow; dash to throw off (even spent). Scatter one and the other turns frantic | Stroke |
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
-| Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |
+| Moths | memories | A flock of one-hit wisps drawn to light: they circle their lantern, then come to yours, circling you just out of reach and sending one in at a time. It stalls, flaring (the tell), then dives straight through; a perfect block breaks it | The heavy attack (it sweeps through all it reaches) and fire (one alight sets the next alight) |
 | Drowned | life | Waits under the water (only bubbles show), out of reach. Seeing you, it rises and spits poison, then sinks and spits again. A perfect block turns the spit back, and a Drowned struck by its own spit dies outright. Hide from it and it comes to the shore to look for you, open to the oar | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
 
 ## Art direction

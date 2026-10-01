@@ -576,6 +576,61 @@ public static partial class MainSceneBuilder
         return drowned;
     }
 
+    // A Moth: one-hit, on the wing, in a flock (the flock decides where it flies and when it dives).
+    static Moth Moth(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/moth", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = Vector3.zero;
+        controller.height = 0.36f;
+        controller.radius = 0.18f;
+        controller.minMoveDistance = 0f;
+        var moth = go.AddComponent<Moth>();
+        moth.maxHealth = 1f;          // any blow
+        moth.radius = 0.32f;
+        moth.staggerCapacity = 999f;
+        moth.aggroRadius = 7f;
+        moth.viewHalfAngle = 180f;    // (it comes to light, from any side)
+        moth.noticeCloseRadius = 7f;
+        moth.leashRadius = 12f;
+        moth.giveUpRange = 12f;
+        moth.chaseSpeed = 4.5f;
+        moth.turnSpeed = 720f;
+        moth.obols = 8;
+        moth.eyeHeight = 0f;
+        moth.barHeight = 0.45f;
+        moth.fireWeakness = 3f;       // paper
+        moth.deathDuration = 0.45f;
+        moth.dissolveDuration = 0.55f;
+        moth.fareMotes = 10;
+        moth.primary = new SouredAttack
+        {
+            name = "Dive", windupClip = "Stall", strikeClip = "Dive", recoverClip = "Fly",
+            telegraph = 0.5f, strike = 0.7f, recover = 0.5f, impactAt = 0.1f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.85f, damage = 6f, reach = 8f, arc = 180f, knockback = 2f, scripted = true,
+        };
+        moth.diveSound = Clips("moth_dive");
+        moth.releaseSound = Clips("moth_release");
+        return moth;
+    }
+
+    // A flock of Moths round a light (`lamp`: none, round where it's set down).
+    static MothFlock MothFlockAt(string name, Vector3 at, Transform lamp, int count)
+    {
+        var root = new GameObject(name);
+        root.transform.position = lamp != null ? lamp.position : at;
+        var flock = root.AddComponent<MothFlock>();
+        flock.lamp = lamp;
+        for (int i = 0; i < count; i++)
+        {
+            float a = i * Mathf.PI * 2f / count;
+            var moth = Moth($"Moth {i + 1}", root.transform.position + new Vector3(Mathf.Cos(a) * flock.ringRadius, flock.ringHeight, Mathf.Sin(a) * flock.ringRadius), i * 47f);
+            moth.transform.SetParent(root.transform, true);
+        }
+        return flock;
+    }
+
     // The Clinger: fast, fragile, always two. Circles, leaps, clings to your back; dash it off.
     static Clinger Clinger(string name, Vector3 position, float yaw)
     {

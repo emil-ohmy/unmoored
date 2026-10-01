@@ -564,6 +564,8 @@ namespace MyGame
                     CameraRig.Instance?.Shake(riposte || isHeavy ? 0.25f : 0.1f);
                     Announce(riposte ? "RIPOSTE" : isHeavy ? "HEAVY HIT" : "hit");
                 }
+                if (isHeavy && soured is Moth)
+                    continue; // (a heavy swing goes on through Moths: as many as it reaches)
                 return; // one target per swing
             }
         }

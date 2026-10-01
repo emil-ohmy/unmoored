@@ -60,6 +60,9 @@ namespace MyGame
         [Tooltip("Its belt lantern, knocked off where it falls (optional)")]
         public DroppedLantern droppedLantern;
 
+        [Tooltip("Fire's harm to it, times this (on top of its Area's: a Moth goes up like paper)")]
+        public float fireWeakness = 1f;
+
         [Header("Water: knocked in, it drowns (a kill, like any other)")]
         public float waterLevel = -0.35f;
         [Tooltip("How far past its own radius it feels for solid ground before stepping (never walks off an edge)")]
@@ -144,8 +147,19 @@ namespace MyGame
         // Whether it can be locked on to, hooked, struck (a Drowned under the water can't).
         public virtual bool Targetable => IsAlive;
 
-        // Held up by the water (a Drowned): no gravity, no feeling for footing; it keeps the height it's given.
+        // Held up by the water (a Drowned) or the air (a Moth): no gravity, no feeling for footing; it keeps the height
+        // it's given.
         protected virtual bool Floats => false;
+
+        // On the wing (a Moth): fire rising from below still catches it.
+        public virtual bool Flies => false;
+
+        // Made aware of the Apprentice by another (a flock: one sees you, they all come).
+        public void Alert()
+        {
+            if (CurrentState == State.Idle || CurrentState == State.Returning)
+                Notice();
+        }
 
         void Update()
         {
@@ -507,6 +521,7 @@ namespace MyGame
         {
             if (!IsAlive || Unhittable || damage <= 0f)
                 return false;
+            damage *= fireWeakness * AreaTraits.FireHarm; // (a Moth: paper; the Orchard: dry as old leaves)
             Health -= damage;
             dealt = damage;
             if (immortal && Health <= 0f)

@@ -51,6 +51,11 @@ public static partial class MainSceneBuilder
         readout.font = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
         tester.readout = readout;
 
+        // Dry as old leaves: everything here burns harder, and longer.
+        var traits = new GameObject("Area Traits").AddComponent<AreaTraits>();
+        traits.fireHarm = 1.75f;
+        traits.burnLength = 1.5f;
+
         FinishScene(scene, OrchardLabPath, start, apprentice, "music_drowned_dark"); // (no music of its own yet)
     }
 
@@ -179,6 +184,7 @@ public static partial class MainSceneBuilder
     // Lanterns on crooks along the ways, each warm, flickering, a few small pale moths circling it.
     static void OrchardLanterns()
     {
+        int lit = 0;
         foreach (var (at, yaw) in new[] {
                      (new Vector3(-10.5f, GroundTop, -4.2f), 30f), (new Vector3(0.5f, GroundTop, -5.2f), -20f), (new Vector3(10f, GroundTop, -5f), 10f),
                      (new Vector3(-8f, MiddleTop, 2.8f), 90f), (new Vector3(3.6f, MiddleTop, 5.2f), -60f),
@@ -186,8 +192,14 @@ public static partial class MainSceneBuilder
         {
             var lantern = OrchardProp("lantern", at, yaw);
             Vector3 lamp = GlowCentre(lantern, "OrchardLantern_Glow");
-            Flicker(PointLight(lantern.transform, lamp, 7f, 2.4f, LanternLight), 0.08f, 3f, 0.01f);
+            var light = PointLight(lantern.transform, lamp, 7f, 2.4f, LanternLight);
+            Flicker(light, 0.08f, 3f, 0.01f);
             LanternMoths(lantern.transform, lamp);
+            // The Moths: a flock round the middle terrace's east lantern (by the press house), another round the top
+            // terrace's middle one; not by the way in (they'd be on you the moment you came).
+            if (lit == 4 || lit == 6)
+                MothFlockAt(lit == 4 ? "Moths (middle terrace)" : "Moths (top terrace)", lamp, light.transform, lit == 4 ? 6 : 5);
+            lit++;
         }
     }
 
