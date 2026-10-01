@@ -187,23 +187,27 @@ City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused 
 **"TILL DEATH DID THEY PART"** / *Again.*
 
 The Orchard's is **the Watchman, of the Unreaped Rows**: the man who worked the orchard, still keeping watch over a
-harvest that never came, as a scarecrow in its top rows. A puzzle-fight about where you face. He moves only while
-he isn't watched (the Apprentice facing him, within 60° either side).
+harvest that never came, as a scarecrow in the field above it. A puzzle-fight. He's straw: **the oar goes through him**
+(a puff of straw, no harm). Only fire hurts him: his own most of all, breathed out of his lantern and turned back at
+him with a perfect block (each one burns a third of him away). Fire you bring (a Pitch Pot, Ember Tar) burns him a
+little.
 - **His arena: the Unreaped Rows,** the field above the orchard, through the gateway in its wall. It was never
   harvested: dead wheat stands in rows, there are a few stooks where someone began and stopped, and it's walled round.
   Once he's found, the gateway's two plank gates swing shut behind you and slam, and his own music begins. They open
   again when the fight ends (you fall, or he's beaten).
-- **Find him.** Six scarecrows stand in the rows, all alike, all looking at the gate you come in by. Whenever he's behind you, he
-  creeps a little nearer and turns a little more towards you, with a creak. Strike the wrong one and it bursts into
-  straw, and the Moths nesting in it come at you. Strike the right one (or burn or hook it) and he tears free of his
-  stake, his lantern flares and the fight begins. The blow that finds him does no harm. Each time he re-forms he
-  stands in a different place.
-- **Face him down.** While watched he's stock still, mid-stride or mid-swing. Unwatched he lurches at you in jerky
-  bursts and sweeps his reaping hook (its tell is a rasp behind you, so turn and face him). His lantern calls a flock
-  of Moths when he's found and a second at half health. Each comes back to the lantern a while after it's scattered.
-  The Moths are what make you look away.
-- **Fire:** he's straw. Alight, he can't hold still: he thrashes at you, always moving, while the fire eats him.
-- Beaten, his lantern goes out and its Moths fall with it. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
+- **Find him.** Six scarecrows stand in the rows, all alike, all looking at the gate you come in by. Only one turns
+  on its stake to watch you: him. Strike a wrong one and it catches, then goes up in flames, burning you if you're
+  still near (it's gone until you Rest). Strike him (or burn or hook him) and he tears free of his stake, his lantern
+  lights, and the fight is on.
+- **Round 1.** He moves only while he isn't watched (the Apprentice facing him, 60° either side). Watched, he stands
+  still and breathes fire at you: he leans back with his lantern to his face, its flame roaring up (the tell), and
+  spews a slow ball of flame. Unwatched, he lurches at you and sweeps his reaping hook.
+- **Round 2.** Scorched, he flings himself back among the scarecrows. The lanterns gutter out; in the dark they all
+  move, and when the light comes back they all turn to watch you. He's the one still smouldering. Found again, his fire
+  comes as a fan of three (only the middle one at you), or held back and loosed late (a feint).
+- **Round 3.** Scorched again, he tears free for good, alight from head to foot: never still, watched or not, his hook
+  up close; and his fire comes in a rhythm: two quick small gouts no guard stops (sidestep them), then one big one to
+  turn back. The last one turned back burns him down to his stake. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
 
 The **Drowned** appear at water edges everywhere.
 

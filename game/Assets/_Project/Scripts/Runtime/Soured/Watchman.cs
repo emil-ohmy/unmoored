@@ -1,17 +1,19 @@
+using System.Collections;
 using UnityEngine;
 
 namespace MyGame
 {
     // The Watchman, of the Unreaped Rows: the Orchard's miniboss. The man who worked this orchard and couldn't let go of
-    // it: a scarecrow in the top rows among others like him (Scarecrow), still keeping watch over a harvest that never
-    // came. He moves only while he isn't watched: while the Apprentice doesn't face him (watchHalfAngle either side of
-    // where they face).
-    // Finding him: he creeps a little whenever he's behind the Apprentice, turning to them; strike the right scarecrow
-    // and he tears free of his stake, his lantern flares, and the fight is on (strike a wrong one, and Moths).
-    // Facing him down: watched, he stands stock still, mid-stride or mid-swing; unwatched, he lurches at them in jerky
-    // bursts and sweeps his reaping hook. His lantern calls the Moths (a flock when he's found, a second at half; when
-    // one's scattered, it comes back). Alight, he can't hold still: he thrashes at them, always moving, while the fire
-    // eats him. Beaten, his lantern goes out, and its Moths fall with it.
+    // it: a scarecrow in the field above it, among others like him (Scarecrow), still keeping watch over a harvest that
+    // never came. He's straw: the oar goes through him. Only fire hurts him, and the fire that hurts him most is his
+    // own, breathed out of his lantern and turned back at him by a perfect block (Fireball): each one burns a third of
+    // him away. Fire the Apprentice brings (pitch, tar) burns him a little.
+    // Round 1: of the six scarecrows, one turns on its stake to watch you: strike it and he tears free. Watched (the
+    // Apprentice facing him), he stands stock still and breathes fire at you; unwatched, he lurches at you and sweeps
+    // his reaping hook. Round 2: scorched, he flings himself back among them; the lanterns gutter out, and when they
+    // come back they've all moved, and all of them turn to watch you: he's the one still smouldering. His fire comes
+    // as a fan of three, or held back and loosed late. Round 3: he tears free for good, alight from head to foot, and
+    // never stops coming: two quick gouts no guard stops (sidestep them), then one to turn back.
     public sealed class Watchman : Soured, IBoss
     {
         [Header("The Watchman")]
@@ -19,57 +21,71 @@ namespace MyGame
         public string epithet = "of the Unreaped Rows";
         public string farewell = "THE WATCH IS ENDED";
         public string farewellLine = "Nothing came.";
-        public AudioClip[] music;             // one track per phase (found; half way)
+        public AudioClip[] music;             // one track per phase (found; scorched once)
         [Range(0f, 180f)] public float watchHalfAngle = 60f;
         public float watchRange = 18f;
         public float leash = 20f;             // further than this from him, the fight is off
 
-        [Header("Unfound")]
-        public Scarecrow[] field;             // the scarecrows he stands among: he takes the place of one, each time he re-forms
-        public Transform pole;                // his stake: it goes with him while he creeps, and stays where he tore free of it
-        public float creepReach = 12f;        // he creeps only while the Apprentice is this near
-        public float creepNearest = 2.5f;     // and never nearer to them than this
-        public float creepStep = 0.3f, creepTurn = 20f;
-        public Vector2 creepEvery = new Vector2(1.4f, 2.6f);
+        [Header("Among the scarecrows")]
+        public Scarecrow[] field;             // the scarecrows he stands among
+        public Transform pole;                // his stake: he goes back on one when he hides again
+        public float watchReach = 14f;        // on his stake, he turns to watch the Apprentice this near
+        public float turnToWatch = 40f;       // degrees a second
+        public Light[] fieldLights;           // the field's lanterns (they gutter out when he hides)
 
         [Header("Found")]
         public float lurchSpeed = 6.5f, lurchTime = 0.22f, lurchPause = 0.32f;
-        public float thrashSpeed = 3.4f;
+        public float thrashSpeed = 3.6f;
         public Light lantern;                 // his lantern's light: dark until he's found
         public float lanternIntensity = 3.4f;
-        public MothFlock[] flocks;            // to his lantern: the first when he's found, the second at half
-        public float flocksReturn = 10f;      // scattered, a flock comes back to it after this long
-        public AudioClip[] creakSound, revealSound;
 
+        [Header("His fire")]
+        public SouredAttack breath = new SouredAttack();  // round 1: one, slow
+        public SouredAttack fan = new SouredAttack();     // round 2: three abreast (the middle one at you)
+        public SouredAttack feint = new SouredAttack();   // round 2: held, loosed late
+        public SouredAttack flurry = new SouredAttack();  // round 3: two small (no guard stops them), then one to turn back
+        public float fireCooldown = 2.4f;     // between one breath and the next
+        public float fanSpread = 24f;
+        public float fireDamage = 18f, smallFireDamage = 10f, smallFireSpeed = 11f;
+        public Material fireMaterial;
+        public AudioClip[] creakSound, revealSound, strawSound, gutterSound, scorchSound;
+
+        public int Round { get; private set; }     // 0: not found yet; 1, 2, 3
         public bool Hidden { get; private set; } = true;
         public bool Watched { get; private set; }
-        public bool Thrashing => burning != null && burning.Alight && IsAlive;
-        public bool Frozen => !Hidden && Watched && !Thrashing && IsAlive
-            && CurrentState != State.Busy && CurrentState != State.Yanked && CurrentState != State.Stunned && CurrentState != State.Staggered; // (reeling, he reels)
-        public static event System.Action<Watchman> Crept, Revealed; // (tests)
+        public bool Thrashing => Round == 3 && IsAlive;
+        public bool Frozen => !Hidden && Round < 3 && Watched && IsAlive
+            && (CurrentState == State.Chase || (CurrentAttack == primary && (CurrentState == State.Telegraph || CurrentState == State.Strike || CurrentState == State.Recover)));
+        public static event System.Action<Watchman> Revealed, Scorched, Lost; // (tests)
+        public static event System.Action<Watchman, Fireball> Breathed;
 
         public string Title => title;
         public string Epithet => epithet;
-        public float[] PhaseMarks => new[] { 0.5f };
-        public int Phase => spilled ? 2 : 1;
+        public float[] PhaseMarks => new[] { 2f / 3f, 1f / 3f };
+        public int Phase => Round >= 2 ? 2 : 1; // (two tracks: found; scorched)
         public AudioClip[] Music => music;
         public string Farewell => farewell;
         public string FarewellLine => farewellLine;
 
         Animation anim;
-        Burning burning;
         Renderer glassRenderer;
         int glassSlot = -1;
         Material darkGlass, litGlass;
         (Vector3 position, Quaternion rotation)[] spots; // where the field stands: his place and theirs
-        float creepClock, burstClock;
-        float[] flockGone;                    // when each flock was last scattered (or -1: out, or not yet called)
-        bool spilled, fightOn;
+        float burstClock, nextFire, nextCreak, emitDebt, loseAt = -1f;
+        bool fightOn;
+        Light blaze;                          // alight (reeling into round 2; all through round 3)
+        Coroutine gutter;
+        Light moon;
+        float moonIntensity;
+        float[] fieldIntensity;
+        Color sky, equator, ground;
 
         protected override float Pace => Frozen ? 0f : 1f;
         protected override string IdleClip => "Idle";
         protected override string ChaseClip(float distance) => Thrashing ? "Thrash" : Lurching ? "Lurch" : "Idle";
         bool Lurching => burstClock % (lurchTime + lurchPause) < lurchTime;
+        Vector3 LanternPoint => lantern != null ? lantern.transform.position : transform.position + Vector3.up * 1.4f;
 
         protected override void Awake()
         {
@@ -91,23 +107,46 @@ namespace MyGame
                 foreach (var s in field)
                     all.Add((s.transform.position, s.transform.rotation));
             spots = all.ToArray();
-            flockGone = new float[flocks != null ? flocks.Length : 0];
-            Hide();
+            blaze = new GameObject("Blaze").AddComponent<Light>();
+            blaze.transform.SetParent(transform, false);
+            blaze.transform.localPosition = Vector3.up * 1.3f;
+            blaze.type = LightType.Point;
+            blaze.color = new Color(1f, 0.55f, 0.2f);
+            blaze.range = 6f;
+            blaze.shadows = LightShadows.None;
+            blaze.enabled = false;
+            foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+                if (l.type == LightType.Directional)
+                    moon = l;
+            moonIntensity = moon != null ? moon.intensity : 0f;
+            fieldIntensity = System.Array.ConvertAll(fieldLights ?? new Light[0], l => l != null ? l.intensity : 0f);
+            sky = RenderSettings.ambientSkyColor;
+            equator = RenderSettings.ambientEquatorColor;
+            ground = RenderSettings.ambientGroundColor;
         }
 
         protected override void Start()
         {
             base.Start();
-            Reform(); // (he's never in the same place twice: not even the first time)
+            Reform(); // (never in the same place twice: not even the first time)
         }
 
-        // ---- unfound
+        // ---- among the scarecrows
 
-        protected override bool Absorbs(Hit hit)
+        // The oar goes through straw (a puff of it, no harm); fire burns. Unfound, any of it finds him out.
+        protected override bool Absorbs(Hit hit, bool fire)
         {
-            if (!Hidden)
+            if (Hidden)
+            {
+                Reveal();
+                return true;
+            }
+            if (fire)
                 return false;
-            Reveal();
+            Vector3 towards = hit.From - transform.position;
+            towards.y = 0f;
+            Effects.Instance?.Straw(transform.position + Vector3.up * 1.1f + towards.normalized * 0.3f, 14);
+            Sfx.Instance?.Attack(strawSound, transform.position + Vector3.up, 0.8f, "straw_puff");
             return true;
         }
 
@@ -121,41 +160,39 @@ namespace MyGame
             return base.OnHooked(by);
         }
 
-        // Found out: he tears free of his stake, his lantern flares, and his Moths come to it.
+        // Found out: he tears free of his stake, his lantern flares, and the fight is on (or on again).
         void Reveal()
         {
             Hidden = false;
             passive = false;
+            if (Round == 0)
+                Round = 1;
+            foreach (var s in field ?? new Scarecrow[0])
+                if (s != null)
+                    s.Follows = false;
             Effects.Instance?.Straw(transform.position + Vector3.up * 1.1f, 40);
             Sfx.Instance?.Attack(revealSound, transform.position + Vector3.up, 1f, "watchman_reveal");
             CameraRig.Instance?.Shake(0.2f);
             SetLantern(true);
             BeBusy("Reveal", 1.2f);
-            Call(0);
+            nextFire = Time.time + 1.6f;
             Revealed?.Invoke(this);
         }
 
-        // While he's behind the Apprentice: now and then, a little nearer, turned a little more to them.
-        void Creep(float dt)
+        // Turns `figure` on its stake towards the Apprentice (near enough), at most `degrees`; true if it turned.
+        public static bool TurnToWatch(Transform figure, Apprentice a, float degrees, float reach = 14f)
         {
-            if (target == null || !target.IsAlive || Watched)
-                return;
-            Vector3 to = target.transform.position - transform.position;
+            if (a == null || !a.IsAlive)
+                return false;
+            Vector3 to = a.transform.position - figure.position;
             to.y = 0f;
-            float distance = to.magnitude;
-            if (distance > creepReach || distance < creepNearest)
-                return;
-            creepClock -= dt;
-            if (creepClock > 0f)
-                return;
-            creepClock = Random.Range(creepEvery.x, creepEvery.y);
-            var look = Quaternion.LookRotation(to / distance);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, look, creepTurn);
-            PlaceAt(transform.position + to / distance * Mathf.Min(creepStep, distance - creepNearest));
-            Scarecrow.StandPole(pole, transform);
-            PlayShort("Lurch", 0.3f);
-            Sfx.Instance?.Attack(creakSound, transform.position + Vector3.up, 0.5f, "watchman_creak");
-            Crept?.Invoke(this);
+            if (to.magnitude > reach || to.sqrMagnitude < 0.01f)
+                return false;
+            var look = Quaternion.LookRotation(to);
+            if (Quaternion.Angle(figure.rotation, look) < 0.5f)
+                return false;
+            figure.rotation = Quaternion.RotateTowards(figure.rotation, look, degrees);
+            return true;
         }
 
         // ---- found
@@ -169,29 +206,164 @@ namespace MyGame
             return Lurching ? PathDirection(target.transform.position) * lurchSpeed : Vector3.zero;
         }
 
-        // His lantern: lit, it calls flock `i` to it.
-        void Call(int i)
+        // Up close and unwatched (or alight, whatever you do): the hook. Watched (or alight, further off): his fire.
+        protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
-            if (flocks == null || i >= flocks.Length || flocks[i] == null)
-                return;
-            flocks[i].Release(lantern != null ? lantern.transform.position : transform.position + Vector3.up * 1.5f);
-            flockGone[i] = -1f;
+            if (Hidden)
+                return null;
+            if (distance <= attackRange && (!Watched || Thrashing))
+                return primary;
+            if (Time.time < nextFire || distance > breath.reach || !(Watched || (Thrashing && distance > attackRange)))
+                return null;
+            nextFire = Time.time + fireCooldown;
+            return Round == 1 ? breath : Round == 2 ? (Random.value < 0.5f ? fan : feint) : flurry;
         }
 
-        // Half way: straw spills from his coat, his lantern flares, and the second flock comes.
-        void Spill()
+        protected override void Shoot(SouredAttack attack, Vector3 direction, int index)
         {
-            spilled = true;
-            Effects.Instance?.Straw(transform.position + Vector3.up * 1.0f, 60);
-            Sfx.Instance?.Attack(revealSound, transform.position + Vector3.up, 0.8f, "watchman_reveal", 0.85f);
-            BeBusy("Stagger", 0.9f);
-            Call(1);
+            Vector3 from = LanternPoint;
+            Vector3 aim = direction;
+            if (target != null)
+            {
+                aim = target.transform.position - from;
+                aim.y = 0f;
+                aim.Normalize();
+            }
+            if (attack == fan)
+                for (int k = -1; k <= 1; k++)
+                    Breathe(from, Quaternion.Euler(0f, k * fanSpread, 0f) * aim, attack.projectileSpeed, 0.32f, fireDamage, true);
+            else if (attack == flurry && index < attack.volley - 1)
+                Breathe(from, aim, smallFireSpeed, 0.2f, smallFireDamage, false); // (small and quick: sidestep it)
+            else
+                Breathe(from, aim, attack.projectileSpeed, attack == flurry ? 0.42f : 0.34f, fireDamage, true);
+        }
+
+        void Breathe(Vector3 from, Vector3 direction, float speed, float size, float damage, bool parryable)
+        {
+            var ball = Fireball.Fire(from, direction, speed, size, target, this, fireMaterial);
+            ball.damage = damage;
+            ball.parryable = parryable;
+            Breathed?.Invoke(this, ball);
+        }
+
+        // His own fire, turned back at him: a third of him burns away.
+        public void Scorch(Vector3 from)
+        {
+            if (!IsAlive || Hidden)
+                return;
+            Vector3 at = transform.position + Vector3.up * 1.1f;
+            for (int i = 0; i < 70; i++)
+                Effects.Instance?.Flame(at + Random.insideUnitSphere * 0.6f, Random.insideUnitSphere * 2f + Vector3.up * 2.5f, Random.Range(0.4f, 0.8f), Random.Range(0.2f, 0.4f));
+            Effects.Instance?.Straw(at, 30);
+            Sfx.Instance?.Attack(scorchSound, at, 1f, "watchman_scorch");
+            CameraRig.Instance?.Shake(0.3f);
+            HitStop.Trigger(0.15f);
+            Scorched?.Invoke(this);
+            float burn = maxHealth / 3f;
+            if (Health - burn <= 0.5f)
+            {
+                Slay(from);
+                return;
+            }
+            LoseHealth(burn);
+            if (Round == 3)
+                BeBusy("Stagger", 0.8f); // (reeling, still burning)
+        }
+
+        // Scorched (or burnt) past a mark: round 2 (he hides again) or round 3 (he tears free for good, alight).
+        void NextRound()
+        {
+            if (Round == 1 && Health > maxHealth / 3f + 0.5f)
+            {
+                Round = 2;
+                BeBusy("Stagger", 2.0f); // (reeling, alight, till the lanterns gutter)
+                loseAt = Time.time + 0.9f;
+            }
+            else
+            {
+                Round = 3;
+                loseAt = -1f;
+                BeBusy("Reveal", 1.2f); // (torn free for good: and alight)
+                nextFire = Time.time + 2f;
+            }
+        }
+
+        // Back among them: the lanterns gutter out, and when they come back they've all moved, and they all watch you.
+        void LoseHimself()
+        {
+            loseAt = -1f;
+            if (gutter != null)
+                StopCoroutine(gutter);
+            gutter = StartCoroutine(GutterOut(() =>
+            {
+                var living = new System.Collections.Generic.List<Transform> { transform };
+                foreach (var s in field)
+                    if (s != null && s.IsAlive)
+                        living.Add(s.transform);
+                var places = living.ConvertAll(t => (t.position, t.rotation));
+                Shuffle(places);
+                for (int i = 0; i < living.Count; i++)
+                {
+                    if (living[i] == transform)
+                    {
+                        PlaceAt(places[i].position);
+                        transform.rotation = places[i].rotation;
+                    }
+                    else
+                        living[i].GetComponent<Scarecrow>().Stand(places[i].position, places[i].rotation);
+                }
+                Douse(); // (the fire that drove him back goes out in the dark)
+                Hide();
+                BeBusy("Idle", float.MaxValue); // (on his stake again: still)
+                foreach (var s in field)
+                    if (s != null && s.IsAlive)
+                        s.Follows = true;
+                Lost?.Invoke(this);
+            }));
+        }
+
+        IEnumerator GutterOut(System.Action atDarkest)
+        {
+            Sfx.Instance?.Attack(creakSound, transform.position + Vector3.up, 1f, "watchman_creak", 0.7f);
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.3f)
+            {
+                Dim(1f - t * 0.94f);
+                yield return null;
+            }
+            Dim(0.06f);
+            atDarkest();
+            yield return new WaitForSeconds(0.7f);
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.6f)
+            {
+                Dim(0.06f + t * 0.94f);
+                yield return null;
+            }
+            Dim(1f);
+            gutter = null;
+        }
+
+        // The night's light, all of it, at `k` of itself (the moon, the ambient, the field's lanterns).
+        void Dim(float k)
+        {
+            if (moon != null)
+                moon.intensity = moonIntensity * k;
+            for (int i = 0; fieldLights != null && i < fieldLights.Length; i++)
+            {
+                if (fieldLights[i] == null)
+                    continue;
+                var flicker = fieldLights[i].GetComponent<LightFlicker>();
+                if (flicker != null)
+                    flicker.BaseIntensity = fieldIntensity[i] * k; // (it flickers about that)
+                else
+                    fieldLights[i].intensity = fieldIntensity[i] * k;
+            }
+            RenderSettings.ambientSkyColor = sky * k;
+            RenderSettings.ambientEquatorColor = equator * k;
+            RenderSettings.ambientGroundColor = ground * k;
         }
 
         protected override void Tick(float dt)
         {
-            if (burning == null)
-                burning = GetComponent<Burning>();
             Watched = SeenBy(target);
             if (anim != null)
                 anim.enabled = !Frozen; // (stock still: the pose he was in)
@@ -199,27 +371,49 @@ namespace MyGame
                 return;
             if (Hidden)
             {
-                Creep(dt);
+                // On his stake: he turns to watch you (and in round 2, so do they all; and he smoulders).
+                if (TurnToWatch(transform, target, turnToWatch * Time.deltaTime, watchReach) && Time.time >= nextCreak)
+                {
+                    nextCreak = Time.time + Random.Range(1.8f, 3.2f);
+                    Sfx.Instance?.Attack(creakSound, transform.position + Vector3.up, 0.45f, "watchman_creak");
+                }
+                // Smouldering: embers rising off him, and the dull red glow of them on his coat and the ground.
+                bool smoulder = Round == 2;
+                if (smoulder && Random.value < 30f * Time.deltaTime)
+                    Effects.Instance?.Wisp(transform.position + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(0.6f, 1.7f), Random.Range(-0.3f, 0.3f)),
+                        new Color(1f, 0.45f, 0.12f), Vector3.up * Random.Range(0.5f, 1.1f) + Random.insideUnitSphere * 0.2f, Random.Range(0.9f, 1.6f));
+                blaze.enabled = smoulder;
+                if (smoulder)
+                {
+                    blaze.range = 3f;
+                    blaze.intensity = 0.7f + 0.35f * Mathf.PerlinNoise(Time.time * 3f, 0.6f);
+                }
                 return;
             }
             burstClock += dt;
-            if (!spilled && HealthFraction <= 0.5f && CurrentState != State.Busy)
-                Spill();
-            // Scattered, a flock comes back to the lantern a while later.
-            for (int i = 0; i < flockGone.Length; i++)
+            if ((Round == 1 && Health <= 2f * maxHealth / 3f + 0.01f) || (Round == 2 && Health <= maxHealth / 3f + 0.01f))
+                NextRound();
+            if (loseAt > 0f && Time.time >= loseAt)
+                LoseHimself();
+            bool alight = Thrashing || (Round == 2 && loseAt > 0f);
+            if (alight)
             {
-                if (flocks[i] == null || !flocks[i].gameObject.activeSelf || (i == 1 && !spilled))
-                    continue;
-                if (flocks[i].Alive > 0)
-                    flockGone[i] = -1f;
-                else if (flockGone[i] < 0f)
-                    flockGone[i] = Time.time;
-                else if (Time.time - flockGone[i] >= flocksReturn)
-                    Call(i);
+                emitDebt += Time.deltaTime * (Thrashing ? 80f : 30f);
+                for (; emitDebt >= 1f; emitDebt -= 1f)
+                    Effects.Instance?.Flame(transform.position + new Vector3(Random.Range(-0.4f, 0.4f), Random.Range(0.3f, 2.0f), Random.Range(-0.4f, 0.4f)),
+                        Vector3.up * Random.Range(1.4f, 2.6f), Random.Range(0.35f, 0.65f), Random.Range(0.18f, 0.34f));
+                blaze.range = 6f;
+                blaze.intensity = 1.8f + 0.7f * Mathf.PerlinNoise(Time.time * 9f, 0.2f);
             }
-            // The lantern: steady while he's watched, guttering when he isn't.
+            blaze.enabled = alight;
+            // The lantern: steady while he's watched, guttering when he isn't; drawing breath, its flame roars up.
+            bool drawing = CurrentState == State.Telegraph && CurrentAttack != null && CurrentAttack.ranged;
             if (lantern != null)
-                lantern.intensity = lanternIntensity * (Frozen ? 0.8f : 0.55f + 0.45f * Mathf.PerlinNoise(Time.time * 14f, 0.7f));
+                lantern.intensity = lanternIntensity * (drawing ? 1f + 1.2f * Mathf.Clamp01(StateTime / CurrentAttack.telegraph)
+                    : Frozen ? 0.8f : 0.55f + 0.45f * Mathf.PerlinNoise(Time.time * 14f, 0.7f));
+            if (drawing && Random.value < 30f * Time.deltaTime)
+                Effects.Instance?.Flame(LanternPoint + Random.insideUnitSphere * 0.08f, Vector3.up * Random.Range(0.6f, 1.4f), Random.Range(0.2f, 0.35f),
+                    Mathf.Lerp(0.08f, 0.2f, StateTime / CurrentAttack.telegraph));
         }
 
         // Whether the Apprentice is facing him (near enough to see him).
@@ -234,8 +428,8 @@ namespace MyGame
 
         void LateUpdate()
         {
-            // The fight: on while he's found and they're near.
-            bool on = !Hidden && IsAlive && target != null && target.IsAlive && Vector3.Distance(target.transform.position, transform.position) < leash;
+            // The fight: on from when he's first found (hidden again or not) while they're near.
+            bool on = Round >= 1 && IsAlive && target != null && target.IsAlive && Vector3.Distance(target.transform.position, transform.position) < leash;
             if (on)
                 BossFight.Begin(this);
             else if (fightOn)
@@ -247,13 +441,11 @@ namespace MyGame
         {
             if (state != State.Dying)
                 return;
-            // Beaten: his lantern goes out, and its Moths fall with it.
+            // Beaten: he burns down to nothing, and his lantern goes out.
             SetLantern(false);
-            foreach (var f in flocks ?? new MothFlock[0])
-                if (f != null && f.gameObject.activeSelf)
-                    foreach (var m in f.Moths)
-                        if (m != null && m.IsAlive)
-                            m.Slay(transform.position);
+            blaze.enabled = false;
+            for (int i = 0; i < 90; i++)
+                Effects.Instance?.Flame(transform.position + Vector3.up * 1.0f + Random.insideUnitSphere * 0.6f, Random.insideUnitSphere * 2f + Vector3.up * 2.5f, Random.Range(0.4f, 0.9f), Random.Range(0.2f, 0.4f));
             Effects.Instance?.Straw(transform.position + Vector3.up * 1.0f, 80);
             BossFight.Defeat(this);
             BossFight.End(this);
@@ -275,30 +467,38 @@ namespace MyGame
             }
         }
 
-        // One of them again, on his stake (in the place of another, at random), his lantern dark.
+        // One of them again, on his stake, his lantern dark.
         void Hide()
         {
             Hidden = true;
             passive = true;
-            spilled = false;
-            creepClock = Random.Range(creepEvery.x, creepEvery.y);
             SetLantern(false);
             Scarecrow.StandPole(pole, transform);
-            for (int i = 0; i < flockGone.Length; i++)
-                flockGone[i] = -1f;
+        }
+
+        void Douse()
+        {
+            var burning = GetComponent<Burning>();
+            if (burning != null)
+                burning.Douse();
+        }
+
+        static void Shuffle<T>(System.Collections.Generic.IList<T> list)
+        {
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
         }
 
         public override void Reform()
         {
-            // A new place among them: shuffled, each to a spot (he to one, the scarecrows to the rest).
-            var order = new int[spots.Length];
-            for (int i = 0; i < order.Length; i++)
-                order[i] = i;
-            for (int i = order.Length - 1; i > 0; i--)
-            {
-                int j = Random.Range(0, i + 1);
-                (order[i], order[j]) = (order[j], order[i]);
-            }
+            // A new place among them: shuffled, each to a spot (he to one, the scarecrows to the rest), all whole.
+            var order = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < spots.Length; i++)
+                order.Add(i);
+            Shuffle(order);
             SetSpawn(spots[order[0]].position, spots[order[0]].rotation);
             for (int i = 0; field != null && i < field.Length; i++)
             {
@@ -306,14 +506,23 @@ namespace MyGame
                 field[i].Reform();
             }
             base.Reform();
-            foreach (var f in flocks ?? new MothFlock[0])
-                if (f != null)
-                    f.Withdraw();
-            if (burning != null)
-                burning.Douse();
+            if (gutter != null)
+                StopCoroutine(gutter);
+            gutter = null;
+            Dim(1f);
+            Round = 0;
+            loseAt = -1f;
+            blaze.enabled = false;
+            Douse();
             Hide();
             BossFight.End(this);
             fightOn = false;
+        }
+
+        void OnDestroy()
+        {
+            if (moon != null)
+                Dim(1f); // (never leave the night dark)
         }
     }
 }

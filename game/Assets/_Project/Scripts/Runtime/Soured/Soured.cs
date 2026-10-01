@@ -475,12 +475,10 @@ namespace MyGame
         {
             if (!IsAlive)
                 return HitResult.Missed;
-            if (Absorbs(hit))
+            if (Absorbs(hit, false))
             {
                 dealt = 0f;
-                flashUntil = Time.time + 0.08f;
-                Sfx.Instance?.OarHit(transform.position + Vector3.up * 1.1f, hit.Heavy);
-                return HitResult.Landed;
+                return HitResult.Landed; // (it answers in its own way)
             }
             if (Unhittable)
             {
@@ -531,7 +529,7 @@ namespace MyGame
         {
             if (!IsAlive || Unhittable || damage <= 0f)
                 return false;
-            if (Absorbs(new Hit { Damage = damage, From = from }))
+            if (Absorbs(new Hit { Damage = damage, From = from }, true))
                 return true;
             damage *= fireWeakness * AreaTraits.FireHarm; // (a Moth: paper; the Orchard: dry as old leaves)
             Health -= damage;
@@ -549,8 +547,9 @@ namespace MyGame
 
         protected virtual bool BlocksHit(Hit hit) => false;
 
-        // A blow (or fire) it takes without harm, answering in its own way (the Watchman, found out: he tears free).
-        protected virtual bool Absorbs(Hit hit) => false;
+        // A blow (or `fire`) it takes without harm, answering in its own way (the Watchman: found out, he tears free;
+        // found, the oar goes through straw).
+        protected virtual bool Absorbs(Hit hit, bool fire) => false;
 
         // Whether the Apprentice is too far away to keep after (then it goes back to its post).
         protected virtual bool LosesTarget(float distance) => distance > (giveUpRange > 0f ? giveUpRange : aggroRadius * 1.5f);

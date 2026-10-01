@@ -6,7 +6,9 @@ the cuffs and hem (the pole it stands on is a prop of its own, so he can tear fr
 Clips: Idle (still, arms out, the faintest creaking sway), Lurch (a jerky hop forward, the coat dragging), Windup
 (0.6 s: the hook drawn back high, the body twisting away), Swing (0.3 s: the hook swept round across the front),
 Recover (0.9 s), Reveal (1.2 s: a jolt as he tears free, arms dropping, then up, the head snapping round), Thrash
-(alight: flailing, looping), Stagger, Death (he slumps down into his own straw).
+(alight: flailing, looping), Breathe (1 s: leaning back, his lantern raised to his face, drawing breath over its flame),
+Hold (1.9 s: the same, held, trembling: the feint), Spew (0.4 s: thrown forward, the lantern thrust out), Stagger, Death
+(he slumps down into his own straw).
 """
 import math
 
@@ -27,6 +29,8 @@ SWAY = {"Body": (0, 2, 0), "Head": (0, 0, 4)}
 LEAN = {"Body": (22, 0, 0), "Head": (-14, 0, 0), "ArmL": (0, 18, 10), "ArmR": (0, -18, -10), "Root": ((0, 0, 0), (0, -0.12, 0.08))}
 DRAWN = {"Body": (-8, 0, 40), "Head": (0, 0, -30), "ArmR": (0, -40, 70), "ArmL": (0, 30, 0)}
 SWEPT = {"Body": (12, 0, -45), "Head": (-6, 0, 30), "ArmR": (0, 20, -95), "ArmL": (0, 40, 0), "Root": ((0, 0, 0), (0, -0.2, 0))}
+DRAWING = {"Body": (-14, 0, 0), "Head": (-24, 0, 0), "ArmL": (0, 12, 85), "ArmR": (0, -10, 0)}
+SPEWING = {"Body": (24, 0, 0), "Head": (20, 0, 0), "ArmL": (0, 0, 95), "ArmR": (0, 10, 0), "Root": ((0, 0, 0), (0, -0.12, 0))}
 SLUMPED = {"Body": (40, 0, 8), "Head": (50, 0, 20), "ArmL": (0, 70, 0), "ArmR": (0, -70, 0), "Root": ((0, 0, 0), (0, 0, -0.55))}
 
 ACTIONS = {
@@ -40,6 +44,11 @@ ACTIONS = {
     "Thrash": ("BEZIER", [(1, {"ArmL": (0, -30, 40), "ArmR": (0, 40, -20), "Body": (0, 10, 10)}),
                           (5, {"ArmL": (0, 40, -20), "ArmR": (0, -30, 40), "Body": (0, -10, -10)}),
                           (9, {"ArmL": (0, -30, 40), "ArmR": (0, 40, -20), "Body": (0, 10, 10)})]),
+    "Breathe": ("BEZIER", [(1, REST), (16, DRAWING), (24, dict(DRAWING, Body=(-18, 0, 0), Head=(-30, 0, 0)))]),
+    "Hold": ("BEZIER", [(1, REST), (16, DRAWING), (24, dict(DRAWING, Body=(-18, 0, 0), Head=(-30, 0, 0))),
+                        (32, dict(DRAWING, Body=(-17, 0, 2), Head=(-29, 0, -3))), (40, dict(DRAWING, Body=(-19, 0, -2), Head=(-31, 0, 3))),
+                        (46, dict(DRAWING, Body=(-20, 0, 0), Head=(-32, 0, 0)))]),
+    "Spew": ("BEZIER", [(1, dict(DRAWING, Body=(-18, 0, 0), Head=(-30, 0, 0))), (4, SPEWING), (10, dict(SPEWING, Body=(20, 0, 0)))]),
     "Stagger": ("BEZIER", [(1, REST), (4, {"Body": (-18, 0, 10), "Head": (-20, 0, 0), "ArmL": (0, -20, 0), "ArmR": (0, 20, 0)}), (16, REST)]),
     "Death": ("BEZIER", [(1, REST), (6, {"Body": (-15, 0, 0), "ArmL": (0, 40, 0), "ArmR": (0, -40, 0)}), (20, SLUMPED)]),
 }

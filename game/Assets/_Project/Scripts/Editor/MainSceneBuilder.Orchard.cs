@@ -236,6 +236,7 @@ public static partial class MainSceneBuilder
             }
 
         // A lantern just inside the gate, and two left burning low in the far corners (the rest is the moon's: and his).
+        var lights = new System.Collections.Generic.List<Light>();
         foreach (var (at, yaw, range, intensity) in new[] {
                      (new Vector3(gateX - 2.6f, UpperTop, FieldZ + 1.0f), 20f, 6f, 1.8f),
                      (new Vector3(FieldX - FieldHalfWidth + 1.4f, UpperTop, FieldZ + FieldDepth - 1.4f), 135f, 8f, 1.4f),
@@ -243,10 +244,12 @@ public static partial class MainSceneBuilder
         {
             var lantern = Put("orchard_props_lantern", at, yaw);
             Vector3 lamp = GlowCentre(lantern, "OrchardLantern_Glow");
-            Flicker(PointLight(lantern.transform, lamp, range, intensity, LanternLight), 0.08f, 3f, 0.01f);
+            var light = PointLight(lantern.transform, lamp, range, intensity, LanternLight);
+            Flicker(light, 0.08f, 3f, 0.01f);
+            lights.Add(light);
         }
 
-        var watchman = TheWatchmansField(root);
+        var watchman = TheWatchmansField(root, lights.ToArray());
 
         // The gateway's two plank gates: open into the field; swung shut behind you once he's found.
         var gate = new GameObject("Field Gate").AddComponent<ArenaGate>();
@@ -269,9 +272,9 @@ public static partial class MainSceneBuilder
 
     static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
 
-    // The Watchman and the scarecrows he stands among, each on its stake, the scarecrows with Moths nesting in their
-    // straw; his lantern calls two flocks of its own.
-    static Watchman TheWatchmansField(Transform rows)
+    // The Watchman and the scarecrows he stands among, each on its stake: struck, a scarecrow goes up in flames; he's
+    // straw too, and only fire hurts him (his own, turned back, most of all).
+    static Watchman TheWatchmansField(Transform rows, Light[] fieldLights)
     {
         var root = new GameObject("The Watchman's Field").transform;
         root.SetParent(rows, true);
@@ -311,13 +314,11 @@ public static partial class MainSceneBuilder
             s.staggerCapacity = 999f;
             s.obols = 0;
             s.fareMotes = 0;          // (no soul in it: straw)
-            s.deathDuration = 0.6f;
-            s.dissolveDuration = 0.6f;
+            s.deathDuration = 1.0f;     // (catching, then going up)
+            s.dissolveDuration = 0.5f;
             s.fireWeakness = 2f;
             s.pole = Pole(at);
-            s.nest = MothFlockAt($"Moths (in scarecrow {i + 1})", at + Vector3.up * 1.6f, null, 3);
-            s.nest.transform.SetParent(root, true);
-            s.nest.gameObject.SetActive(false);
+            s.burstSound = Clips("scarecrow_burst");
         }
 
         var w = Figure<Watchman>("The Watchman", WatchmanSpots[0]);
@@ -336,7 +337,8 @@ public static partial class MainSceneBuilder
         w.giveUpRange = 22f;
         w.obols = 220;
         w.deathDuration = 1.0f;
-        w.fireWeakness = 1.6f;        // straw (and the Orchard's dry: more again)
+        w.fireWeakness = 0.6f;        // (the Orchard's dryness makes it about even: pitch and tar burn him a little)
+        w.fieldLights = fieldLights;
         w.primary = new SouredAttack
         {
             name = "Sweep", windupClip = "Windup", strikeClip = "Swing", recoverClip = "Recover",
@@ -346,8 +348,34 @@ public static partial class MainSceneBuilder
         w.primary.windupSound = Clips("watchman_windup");
         w.primary.swingSound = Clips("laden_swing");
         w.primary.swingPitch = 1.1f;
+        // His fire: breathed over his lantern (the tell: he leans back, the lantern to his face, its flame roaring up).
+        SouredAttack Fire(string name, string windup, float telegraph, float speed, float trackUntil) => new SouredAttack
+        {
+            name = name, windupClip = windup, strikeClip = "Spew", recoverClip = "Recover",
+            telegraph = telegraph, strike = 0.4f, recover = 0.9f, impactAt = 0.3f,
+            lunge = 0f, maxLunge = 0f, trackUntil = trackUntil, damage = 18f, reach = 15f, arc = 180f, knockback = 3f,
+            ranged = true, projectileSpeed = speed,
+            windupSound = Clips("watchman_breath"), releaseSound = Clips("fireball_whoosh"),
+        };
+        w.breath = Fire("Breath", "Breathe", 1.0f, 7f, 0.8f);
+        w.fan = Fire("Fan", "Breathe", 1.0f, 8f, 0.8f);
+        w.feint = Fire("Feint", "Hold", 1.9f, 9f, 0.92f);   // (held: let go late, and quicker)
+        w.flurry = Fire("Flurry", "Breathe", 0.8f, 8f, 0.85f);
+        w.flurry.strike = 1.3f;       // (long enough for all three)
+        w.flurry.impactAt = 0.1f;
+        w.flurry.volley = 3;
+        w.flurry.volleyInterval = 0.45f;
+        w.flurry.volleyTrack = 20f;
+        w.fireMaterial = GeneratedMaterial("M_Fireball", "MyGame/Toon");
+        w.fireMaterial.SetColor("_BaseColor", new Color(1f, 0.6f, 0.25f));
+        w.fireMaterial.SetColor("_EmissionColor", new Color(1.6f, 0.7f, 0.2f));
+        w.fireMaterial.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(w.fireMaterial);
         w.creakSound = Clips("watchman_creak");
         w.revealSound = Clips("watchman_reveal");
+        w.strawSound = Clips("straw_puff");
+        w.gutterSound = Clips("fireball_gutter");
+        w.scorchSound = Clips("watchman_scorch");
         w.music = new[] // (found: his own; at half, the same music, worse)
         {
             AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_watchman_1.wav"),
@@ -355,13 +383,6 @@ public static partial class MainSceneBuilder
         };
         w.lantern = PointLight(Bone(w.gameObject, "ArmL"), GlowCentre(w.gameObject, "WatchmanLanternGlass"), 7.5f, w.lanternIntensity, LanternLight);
         w.lantern.enabled = false;
-        w.flocks = new MothFlock[2];
-        for (int i = 0; i < 2; i++)
-        {
-            var flock = w.flocks[i] = MothFlockAt($"Moths (the Watchman's lantern, {(i == 0 ? "first" : "second")})", w.lantern.transform.position, w.lantern.transform, 4);
-            flock.transform.SetParent(root, true);
-            flock.gameObject.SetActive(false);
-        }
         Swoosh(w.gameObject, "ArmR", "HookIron", SouredSwoosh, 0.16f, "OrchardWood"); // (the hook's sweep)
         return w;
     }

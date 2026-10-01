@@ -1053,7 +1053,8 @@ namespace MyGame
             return true;
         }
 
-        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null)
+        // `blockable` false: no guard stops it (a gout of fire; only a dodge or a sidestep escapes it).
+        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null, bool blockable = true)
         {
             if (Invulnerable)
             {
@@ -1061,7 +1062,7 @@ namespace MyGame
                     Announce("dodged");
                 return Defence.Dodged;
             }
-            if (CurrentState == State.Blocking && Facing(attacker != null ? attacker.transform.position : transform.position - knock))
+            if (blockable && CurrentState == State.Blocking && Facing(attacker != null ? attacker.transform.position : transform.position - knock))
                 return Block(damage, knock, attacker);
             Health = Mathf.Max(0f, Health - damage);
             CloseMenu(); // a blow ends any browsing

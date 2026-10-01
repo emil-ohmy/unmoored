@@ -215,7 +215,35 @@ namespace MyGame.Tests
             apprentice.transform.rotation = Quaternion.LookRotation(facing ? -out_ : out_);
         }
 
-        // Found: struck once (no harm), he tears free; his Moths held out of it (pinned far off), so he's alone.
+        // Stands the Apprentice `distance` from him, facing him, with nothing between (no scarecrow in the line of fire).
+        void StandClear(Watchman w, float distance)
+        {
+            Vector3 at = w.transform.position;
+            for (int k = 0; k < 24; k++)
+            {
+                var dir = Quaternion.Euler(0f, k * 15f, 0f) * Vector3.back;
+                Vector3 p = at + dir * distance;
+                if (p.x < -12.5f || p.x > 8.5f || p.z < 19f || p.z > 33f)
+                    continue;
+                bool clear = w.field.All(s => !s.IsAlive || DistanceToSegment(s.transform.position, at, p) > 1.3f);
+                if (!clear)
+                    continue;
+                apprentice.Teleport(p + Vector3.up * 0.05f);
+                apprentice.transform.rotation = Quaternion.LookRotation(-dir);
+                return;
+            }
+            Assert.Fail("nowhere clear to stand");
+        }
+
+        static float DistanceToSegment(Vector3 point, Vector3 a, Vector3 b)
+        {
+            point.y = a.y = b.y = 0f;
+            Vector3 ab = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(point - a, ab) / ab.sqrMagnitude);
+            return Vector3.Distance(a + ab * t, point);
+        }
+
+        // Found: struck once (no harm), he tears free.
         IEnumerator Reveal(Watchman w)
         {
             StandBy(w, 1.6f, true);
@@ -223,42 +251,24 @@ namespace MyGame.Tests
             input.PressLight();
             yield return WaitFor(() => !w.Hidden, 1f, "him found");
             yield return new WaitForSeconds(1.4f); // (tearing free)
-            foreach (var f in w.flocks)
-                if (f.gameObject.activeSelf)
-                    foreach (var m in f.Moths)
-                        m.Pin(new Vector3(-14f, 6f, 16f));
         }
 
-        // The Unreaped Rows: in through the gateway from the orchard; found, he shuts it behind you (the gates swing to,
-        // and hold), and his own music plays; beaten, it opens again.
-        [UnityTest]
-        public IEnumerator TheField_FoundHeShutsTheGate_BeatenItOpens()
+        // Scorched (as by his own fire turned back) and lost again among them: found again.
+        IEnumerator ScorchAndFind(Watchman w)
         {
-            var w = Watchman();
-            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
-            Assert.IsNotNull(gate);
-            Assert.IsFalse(gate.Shut);
-            Assert.AreEqual(2, w.Music.Length, "his music, both halves");
-            Assert.IsTrue(w.Music.All(m => m != null));
-            // In from the orchard's top terrace, through the gateway, while it's open.
-            Vector3 way = gate.transform.position;
-            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z - 2f));
-            yield return Walk(Vector2.up, 1.6f);
-            Assert.Greater(apprentice.transform.position.z, way.z + 0.8f, $"through the gateway ({apprentice.transform.position})");
-            yield return Reveal(w);
-            Assert.IsTrue(gate.Shut, "shut behind you");
-            Assert.AreEqual(1f, gate.Closed, 0.01f, "swung to");
-            // Try to leave: the way's held.
-            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z + 1.5f));
-            yield return Walk(Vector2.down, 1.6f);
-            Assert.Greater(apprentice.transform.position.z, way.z, $"held in ({apprentice.transform.position})");
-            w.TakeHit(new Hit { Damage = w.maxHealth * 2f, From = apprentice.transform.position });
-            yield return new WaitForSeconds(2f);
-            Assert.IsFalse(gate.Shut, "beaten: open again");
-            Assert.AreEqual(0f, gate.Closed, 0.01f);
+            int round = w.Round;
+            w.Scorch(apprentice.transform.position);
+            if (round == 1)
+            {
+                yield return WaitFor(() => w.Hidden, 4f, "him hiding again");
+                yield return new WaitForSeconds(1.5f); // (the lanterns back)
+                yield return Reveal(w);
+            }
+            else
+                yield return new WaitForSeconds(1.5f);
         }
 
-        // Six scarecrows in the top rows, all alike: one of them is him, still hidden, his lantern dark; no fight yet.
+        // Six scarecrows in the field, all alike: one of them is him, still hidden, his lantern dark; no fight yet.
         [UnityTest]
         public IEnumerator TheWatchman_StandsAmongTheScarecrows_Hidden()
         {
@@ -266,59 +276,53 @@ namespace MyGame.Tests
             Assert.IsNotNull(w);
             Assert.AreEqual(5, w.field.Length);
             Assert.IsTrue(w.Hidden);
+            Assert.AreEqual(0, w.Round);
             Assert.IsFalse(w.lantern.enabled, "his lantern dark");
             Assert.IsNull(BossFight.Current);
             foreach (var s in w.field)
             {
-                Assert.AreEqual(w.transform.position.y, s.transform.position.y, 0.1f, "on the top terrace with him");
+                Assert.AreEqual(w.transform.position.y, s.transform.position.y, 0.1f, "in the field with him");
                 Assert.AreEqual(w.transform.eulerAngles.y, s.transform.eulerAngles.y, 1f, "facing the same way");
                 Assert.Greater(Vector3.Distance(w.transform.position, s.transform.position), 2.5f);
             }
             yield return null;
         }
 
-        // Watched (in front of the Apprentice), he never stirs; behind them, he creeps nearer, turning to them.
+        // Only one of them turns on its stake to watch you: him.
         [UnityTest]
-        public IEnumerator TheWatchman_Hidden_CreepsOnlyWhenBehindYou()
+        public IEnumerator TheWatchman_Hidden_OnlyHeTurnsToWatchYou()
         {
             var w = Watchman();
-            int crept = 0;
-            Action<Watchman> onCreep = _ => crept++;
-            global::MyGame.Watchman.Crept += onCreep;
-            try
-            {
-                StandBy(w, 5f, true);
-                Vector3 start = w.transform.position;
-                yield return new WaitForSeconds(4f);
-                Assert.AreEqual(0, crept, "watched: still");
-                Assert.Less(Vector3.Distance(start, w.transform.position), 0.05f);
-                StandBy(w, 5f, false);
-                yield return WaitFor(() => crept > 0, 4f, "him creeping, behind you");
-                Assert.Less(Vector3.Distance(w.transform.position, apprentice.transform.position), 4.95f, "nearer");
-                Assert.IsTrue(w.Hidden, "and still one of them");
-                Assert.IsTrue(w.field.All(s => s.IsAlive && Vector3.Distance(s.transform.position, s.pole.position) < 0.3f), "the rest unmoved");
-            }
-            finally { global::MyGame.Watchman.Crept -= onCreep; }
+            var yaws = w.field.Select(s => s.transform.eulerAngles.y).ToArray();
+            StandBy(w, 5f, false);
+            var a = apprentice.transform.position;
+            yield return new WaitForSeconds(4f);
+            Vector3 toYou = a - w.transform.position;
+            toYou.y = 0f;
+            Assert.Less(Vector3.Angle(w.transform.forward, toYou), 10f, "he's watching you");
+            for (int i = 0; i < yaws.Length; i++)
+                Assert.AreEqual(yaws[i], w.field[i].transform.eulerAngles.y, 0.5f, "the rest stare on as they were");
+            Assert.IsTrue(w.Hidden);
         }
 
-        // Strike the wrong one: it bursts into straw, and the Moths nesting in it come at you. He stays hidden.
+        // Strike the wrong one: it catches and goes up in flames, burning you. He stays hidden.
         [UnityTest]
-        public IEnumerator AScarecrowStruck_Bursts_AndMothsComeOut()
+        public IEnumerator AScarecrowStruck_GoesUpInFlames_AndBurnsYou()
         {
             var w = Watchman();
             var s = w.field[0];
             StandBy(s, 1.6f, true);
             yield return null;
+            float health = apprentice.Health;
             input.PressLight();
-            yield return WaitFor(() => !s.IsAlive, 1f, "it burst");
-            Assert.IsTrue(s.nest.gameObject.activeSelf, "its Moths out");
-            yield return WaitFor(() => s.nest.Chasing, 2f, "them coming");
+            yield return WaitFor(() => !s.IsAlive, 1f, "it struck");
+            yield return WaitFor(() => apprentice.Health < health, 1.5f, "its flames");
+            Assert.AreEqual(health - s.burstDamage, apprentice.Health, 0.5f);
             Assert.IsTrue(w.Hidden, "he's still one of them");
             Assert.IsNull(BossFight.Current);
         }
 
-        // Strike the right one: no harm done, but he's found: he tears free of his stake, his lantern flares, his Moths
-        // come to it, and his name plate and bar come up.
+        // Strike the right one: no harm done, but he's found: he tears free, his lantern lights, the fight is on.
         [UnityTest]
         public IEnumerator TheWatchmanStruck_TearsFree_TheFightBegins()
         {
@@ -328,37 +332,57 @@ namespace MyGame.Tests
             input.PressLight();
             yield return WaitFor(() => !w.Hidden, 1f, "him found");
             Assert.AreEqual(w.maxHealth, w.Health, "the blow that found him did no harm");
+            Assert.AreEqual(1, w.Round);
             yield return null;
             yield return null;
             Assert.AreSame(w, BossFight.Current, "his fight");
-            Assert.AreEqual("The Watchman", w.Title);
             Assert.IsTrue(w.lantern.enabled, "his lantern lit");
-            Assert.IsTrue(w.flocks[0].gameObject.activeSelf && !w.flocks[1].gameObject.activeSelf, "one flock to it");
             yield return new WaitForSeconds(1.4f);
             StandBy(w, 6f, false); // (back turned: he comes)
             yield return new WaitForSeconds(1.2f);
             Assert.Greater(Vector3.Distance(w.transform.position, w.pole.position), 0.3f, "torn free: the stake left standing");
         }
 
-        // Faced, he's stock still; turn away and he comes, in lurches.
+        // He's straw: the oar goes through him. Fire burns him (a little).
         [UnityTest]
-        public IEnumerator TheWatchman_Watched_StandsStill_Unwatched_Comes()
+        public IEnumerator TheWatchman_TheOarGoesThrough_FireBurns()
         {
             var w = Watchman();
             yield return Reveal(w);
-            StandBy(w, 6f, true);
-            Vector3 at = w.transform.position;
-            yield return new WaitForSeconds(2f);
-            Assert.IsTrue(w.Frozen, "watched");
-            Assert.Less(Vector3.Distance(at, w.transform.position), 0.05f, "not a step");
-            apprentice.transform.rotation = Quaternion.LookRotation(apprentice.transform.position - w.transform.position);
-            float before = Vector3.Distance(w.transform.position, apprentice.transform.position);
-            yield return new WaitForSeconds(1.5f);
-            Assert.IsFalse(w.Frozen);
-            Assert.Less(Vector3.Distance(w.transform.position, apprentice.transform.position), before - 1f, "on you, while your back's turned");
+            w.TakeHit(new Hit { Damage = 80f, Heavy = true, From = apprentice.transform.position });
+            Assert.AreEqual(w.maxHealth, w.Health, "straw");
+            w.TakeBurn(10f, apprentice.transform.position);
+            Assert.Less(w.Health, w.maxHealth, "fire");
+            Assert.Greater(w.Health, w.maxHealth - 30f, "a little");
         }
 
-        // Behind you, he sweeps his reaping hook.
+        // Faced, he stands still and breathes fire at you; turned back with a perfect block, it scorches a third of
+        // him away.
+        [UnityTest]
+        public IEnumerator TheWatchman_Watched_BreathesFire_TurnedBack_ItScorchesHim()
+        {
+            var w = Watchman();
+            yield return Reveal(w);
+            Fireball ball = null;
+            Action<Watchman, Fireball> onBreath = (_, f) => ball = f;
+            global::MyGame.Watchman.Breathed += onBreath;
+            try
+            {
+                StandClear(w, 7f);
+                Vector3 at = w.transform.position;
+                yield return WaitFor(() => ball != null, 6f, "his fire");
+                Assert.Less(Vector3.Distance(at, w.transform.position), 0.2f, "watched: not a step");
+                yield return WaitFor(() => ball == null || Vector3.Distance(ball.transform.position, apprentice.transform.position + Vector3.up * 0.7f) < 1.6f, 3f, "it close");
+                input.BlockHeld = true;
+                yield return WaitFor(() => ball == null || ball.Deflected, 1f, "it turned back");
+                input.BlockHeld = false;
+                yield return WaitFor(() => w.Health < w.maxHealth, 2f, "it striking him");
+                Assert.AreEqual(w.maxHealth * 2f / 3f, w.Health, 1f, "a third of him gone");
+            }
+            finally { global::MyGame.Watchman.Breathed -= onBreath; }
+        }
+
+        // Behind you, he comes, and sweeps his reaping hook.
         [UnityTest]
         public IEnumerator TheWatchman_Unwatched_SweepsHisHook()
         {
@@ -370,49 +394,83 @@ namespace MyGame.Tests
             Assert.AreEqual(health - w.primary.damage, apprentice.Health, 0.5f);
         }
 
-        // Alight, he can't hold still: watched or not, he comes.
+        // Scorched once, he flings himself back among them: in the dark they all move, then they all watch you; he's
+        // the one smouldering. Found again: round 2, his fire a fan of three (or held back).
         [UnityTest]
-        public IEnumerator TheWatchman_Alight_Thrashes_EvenWatched()
+        public IEnumerator TheWatchman_ScorchedOnce_HidesAgain_TheyAllWatch()
         {
             var w = Watchman();
             yield return Reveal(w);
-            StandBy(w, 6f, true);
-            yield return new WaitForSeconds(0.5f);
-            Vector3 at = w.transform.position;
-            Burning.Set(w, 4f, 2f);
-            yield return new WaitForSeconds(1.5f);
-            Assert.IsTrue(w.Thrashing);
-            Assert.Greater(Vector3.Distance(at, w.transform.position), 1f, "moving, though you're looking at him");
-            Assert.Less(w.Health, w.maxHealth, "the fire eating him");
+            var places = new[] { w.transform.position }.Concat(w.field.Select(s => s.transform.position)).ToArray();
+            int lost = 0;
+            Action<Watchman> onLost = _ => lost++;
+            global::MyGame.Watchman.Lost += onLost;
+            try
+            {
+                w.Scorch(apprentice.transform.position);
+                yield return WaitFor(() => lost > 0, 4f, "him lost among them");
+                Assert.IsTrue(w.Hidden);
+                Assert.AreEqual(2, w.Round);
+                Assert.AreSame(w, BossFight.Current, "the fight goes on (the gate stays shut)");
+                Assert.IsTrue(w.field.All(s => s.Follows), "they all watch you now");
+                Assert.IsTrue(places.Any(p => Vector3.Distance(new Vector3(p.x, 0f, p.z), new Vector3(w.transform.position.x, 0f, w.transform.position.z)) < 0.2f), "in one of their places");
+                yield return new WaitForSeconds(1.5f);
+                yield return Reveal(w);
+                Assert.AreEqual(2, w.Round);
+                int balls = 0;
+                Action<Watchman, Fireball> onBreath = (_, f) => balls++;
+                global::MyGame.Watchman.Breathed += onBreath;
+                try
+                {
+                    StandClear(w, 7f);
+                    yield return WaitFor(() => balls > 0, 6f, "his fire");
+                    yield return new WaitForSeconds(0.1f);
+                    Assert.IsTrue(balls == 1 || balls == 3, $"a fan of three, or one held back ({balls})");
+                }
+                finally { global::MyGame.Watchman.Breathed -= onBreath; }
+            }
+            finally { global::MyGame.Watchman.Lost -= onLost; }
         }
 
-        // Half way, his second flock comes; beaten, his farewell, and his lantern's Moths fall with him.
+        // Scorched twice: he tears free for good, alight, never still (watched or not), and his fire comes as two
+        // quick gouts no guard stops, then one to turn back. Scorched a third time: beaten, his farewell.
         [UnityTest]
-        public IEnumerator TheWatchman_AtHalf_ASecondFlock_Beaten_HisMothsFall()
+        public IEnumerator TheWatchman_Round3_Alight_NeverStill_ThenBeaten()
         {
             var w = Watchman();
             yield return Reveal(w);
-            foreach (var m in w.flocks[0].Moths)
-                m.Pin(apprentice.transform.position + Vector3.up * 2f + Vector3.right * 3f);
-            w.TakeHit(new Hit { Damage = w.maxHealth * 0.55f, From = apprentice.transform.position });
-            yield return WaitFor(() => w.flocks[1].gameObject.activeSelf, 1f, "the second flock");
-            Assert.AreEqual(2, w.Phase);
-            foreach (var m in w.flocks[1].Moths)
-                m.Pin(apprentice.transform.position + Vector3.up * 2f + Vector3.left * 3f);
+            yield return ScorchAndFind(w);
+            yield return ScorchAndFind(w);
+            Assert.AreEqual(3, w.Round);
+            Assert.IsTrue(w.Thrashing);
+            StandClear(w, 8f);
+            var balls = new System.Collections.Generic.List<Fireball>();
+            Action<Watchman, Fireball> onBreath = (_, f) => balls.Add(f);
+            global::MyGame.Watchman.Breathed += onBreath;
             IBoss beaten = null;
             Action<IBoss> onDefeat = b => beaten = b;
             BossFight.Defeated += onDefeat;
             try
             {
-                yield return new WaitForSeconds(1.2f);
-                w.TakeHit(new Hit { Damage = w.maxHealth, From = apprentice.transform.position });
+                Vector3 at = w.transform.position;
+                yield return new WaitForSeconds(1.0f);
+                Assert.Greater(Vector3.Distance(at, w.transform.position), 0.8f, "coming, though you face him");
+                StandClear(w, 9f);
+                yield return WaitFor(() => balls.Count >= 3, 8f, "his fire, three");
+                Assert.IsFalse(balls[0].parryable);
+                Assert.IsFalse(balls[1].parryable);
+                Assert.IsTrue(balls[2].parryable, "the last one, to turn back");
+                w.Scorch(apprentice.transform.position);
                 yield return null;
                 Assert.AreSame(w, beaten, "his farewell");
                 Assert.AreEqual("THE WATCH IS ENDED", w.Farewell);
-                Assert.IsTrue(w.flocks.SelectMany(f => f.Moths).All(m => !m.IsAlive), "his Moths fall with him");
                 Assert.IsFalse(w.lantern.enabled);
             }
-            finally { BossFight.Defeated -= onDefeat; }
+            finally
+            {
+                global::MyGame.Watchman.Breathed -= onBreath;
+                BossFight.Defeated -= onDefeat;
+            }
         }
 
         // A Rest: he's one of them again, somewhere among them (each spot taken once), the scarecrows whole.
@@ -426,9 +484,9 @@ namespace MyGame.Tests
             WorldState.Instance.ReformAllSoured();
             yield return null;
             Assert.IsTrue(w.Hidden);
+            Assert.AreEqual(0, w.Round);
             Assert.IsFalse(w.lantern.enabled);
-            Assert.IsTrue(w.field.All(s => s.IsAlive && !s.nest.gameObject.activeSelf), "the scarecrows whole");
-            Assert.IsTrue(w.flocks.All(f => !f.gameObject.activeSelf));
+            Assert.IsTrue(w.field.All(s => s.IsAlive && !s.Follows), "the scarecrows whole");
             var now = new[] { w }.Cast<Soured>().Concat(w.field).Select(s => s.transform.position).ToArray();
             foreach (var p in spots)
                 Assert.AreEqual(1, now.Count(q => Vector3.Distance(new Vector3(p.x, 0f, p.z), new Vector3(q.x, 0f, q.z)) < 0.2f), $"one at {p}");
@@ -471,10 +529,13 @@ namespace MyGame.Tests
             StandBy(s, 1.6f, true);
             yield return Frames(5);
             input.PressLight();
-            yield return Frames(12);
-            Shot("watchman-1-a-scarecrow-bursts");
-            foreach (var m in s.nest.Moths)
-                m.Slay(apprentice.transform.position);
+            for (int i = 0; i < 60 && s.IsAlive; i++)
+                yield return null;
+            yield return Frames(6);
+            Shot("watchman-1a-a-scarecrow-catches");
+            yield return Frames(9);
+            Shot("watchman-1b-and-goes-up");
+            yield return Frames(30);
             StandBy(w, 1.6f, true);
             yield return Frames(30);
             input.PressLight();
@@ -496,19 +557,43 @@ namespace MyGame.Tests
             RenderTexture.active = previousRt;
             File.WriteAllBytes(Path.Combine(outDir, "watchman-3b-the-gate-shut.png"), gateTex.EncodeToPNG());
             UnityEngine.Object.Destroy(gateCam.gameObject);
-            foreach (var m in w.flocks[0].Moths)
-                m.Pin(new Vector3(-14f, 6f, 16f));
-            StandBy(w, 2.2f, false);
+            // Faced: he draws breath over his lantern, and breathes fire.
+            StandClear(w, 5f);
             for (int i = 0; i < 150 && w.CurrentState != Soured.State.Telegraph; i++)
                 yield return null;
-            yield return Frames(10);
-            Shot("watchman-4-the-hook-drawn");
-            apprentice.transform.rotation = Quaternion.LookRotation(w.transform.position - apprentice.transform.position);
-            yield return Frames(20);
-            Shot("watchman-5-faced-stock-still");
-            Burning.Set(w, 4f, 2f);
+            yield return Frames(18);
+            Shot("watchman-4-drawing-breath");
+            for (int i = 0; i < 60 && Fireball.Live == 0; i++)
+                yield return null;
+            yield return Frames(5);
+            Shot("watchman-5-his-fire");
             yield return Frames(30);
-            Shot("watchman-6-alight");
+            // Scorched: he hides again in the dark; they all watch you; he smoulders.
+            w.Scorch(apprentice.transform.position);
+            yield return Frames(8);
+            Shot("watchman-6-scorched");
+            for (int i = 0; i < 120 && !w.Hidden; i++)
+                yield return null;
+            yield return Frames(4);
+            Shot("watchman-7-the-dark");
+            yield return Frames(60);
+            apprentice.Teleport(new Vector3(-2f, 3.35f, 24f), true, true);
+            yield return Frames(45);
+            Shot("watchman-8-they-all-watch");
+            // Round 3: alight, never still.
+            StandBy(w, 1.6f, true);
+            yield return Frames(3);
+            input.PressLight();
+            yield return Frames(45);
+            w.Scorch(apprentice.transform.position);
+            yield return Frames(60);
+            StandBy(w, 7f, true);
+            yield return Frames(20);
+            Shot("watchman-9-alight");
+            for (int i = 0; i < 200 && Fireball.Live == 0; i++)
+                yield return null;
+            yield return Frames(6);
+            Shot("watchman-10-the-flurry");
         }
 
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.
