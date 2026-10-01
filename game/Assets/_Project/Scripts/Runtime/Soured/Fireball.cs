@@ -30,7 +30,7 @@ namespace MyGame
         Renderer body;
         float size, emitDebt;
 
-        // Breathed from `from` along `direction` (flat) at `speed`.
+        // Breathed from `from` along `direction` (down to their chest as it comes, if it starts higher) at `speed`.
         public static Fireball Fire(Vector3 from, Vector3 direction, float speed, float size, Apprentice target, Soured owner, Material glob)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -45,7 +45,6 @@ namespace MyGame
                 ball.body.sharedMaterial = glob;
             ball.body.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             ball.Tint(new Color(1f, 0.6f, 0.25f), new Color(1.4f, 0.6f, 0.15f));
-            direction.y = 0f;
             ball.velocity = direction.normalized * speed;
             ball.start = from;
             ball.target = target;

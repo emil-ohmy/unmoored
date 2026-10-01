@@ -436,8 +436,9 @@ namespace MyGame.Tests
         IEnumerator Parry(Fireball ball, Watchman w)
         {
             bool done = false;
+            var outcome = Defence.Dodged;
             var previous = ball.Done;
-            ball.Done = (f, d) => { done = true; previous?.Invoke(f, d); };
+            ball.Done = (f, d) => { done = true; outcome = d; previous?.Invoke(f, d); };
             while (!done && ball != null && Vector3.Distance(ball.transform.position, apprentice.transform.position + Vector3.up * 0.7f) > 1.5f)
             {
                 Vector3 to = w.transform.position - apprentice.transform.position;
@@ -450,6 +451,7 @@ namespace MyGame.Tests
                 yield return null;
             input.BlockHeld = false;
             Assert.IsTrue(done, "it reached you");
+            Assert.AreEqual(Defence.Parried, outcome, "perfect-blocked (not over your head, nor past you)");
         }
 
         // Scorched twice: he tears free for good, alight, never still (watched or not). His fire comes three small
@@ -482,8 +484,7 @@ namespace MyGame.Tests
                 {
                     yield return WaitFor(() => balls.Count > i, 6f, $"small fire {i + 1}");
                     Assert.IsTrue(balls[i].glances, "a small one: knocked aside");
-                    yield return Parry(balls[i], w);
-                    Assert.IsTrue(balls[i] == null || balls[i].Deflected, $"knocked aside ({i + 1})");
+                    yield return Parry(balls[i], w); // (each one: parried, not missed)
                 }
                 yield return new WaitForSeconds(0.5f);
                 Assert.AreEqual(health, w.Health, 0.01f, "they glance off: none back at him");

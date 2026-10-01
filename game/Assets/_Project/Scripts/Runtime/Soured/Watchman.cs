@@ -235,14 +235,11 @@ namespace MyGame
 
         protected override void Shoot(SouredAttack attack, Vector3 direction, int index)
         {
+            // From his lantern, wherever his arm has it, straight at their chest: never over their head, nor short.
             Vector3 from = LanternPoint;
             Vector3 aim = direction;
             if (target != null)
-            {
-                aim = target.transform.position - from;
-                aim.y = 0f;
-                aim.Normalize();
-            }
+                aim = (target.transform.position + Vector3.up * 0.7f - from).normalized;
             if (attack == fan)
                 for (int k = -1; k <= 1; k++)
                     Breathe(from, Quaternion.Euler(0f, k * fanSpread, 0f) * aim, attack.projectileSpeed, 0.32f, fireDamage, true);
