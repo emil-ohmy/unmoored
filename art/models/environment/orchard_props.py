@@ -84,7 +84,7 @@ def build(variant):
     elif variant == "press":
         heavy = kit.mat("PressWood", "#4e3a2c")
         for s in (-1, 1):
-            parts.append(box("Upright", heavy, s * 0.7 - 0.12, s * 0.7 + 0.12, -0.12, 0.12, 0, 2.1))
+            parts.append(box("Upright", heavy, s * 0.7 - 0.12, s * 0.7 + 0.12, -0.12, 0.12, 0, 2.06))  # (under the head beam's top)
         parts.append(box("Head", heavy, -0.85, 0.85, -0.15, 0.15, 1.8, 2.1))
         parts.append(box("Bed", heavy, -0.85, 0.85, -0.6, 0.6, 0.35, 0.5))
         for s in ((-1, -1), (-1, 1), (1, -1), (1, 1)):

@@ -22,5 +22,5 @@ def build():
         for _ in range(3):
             e, n = rng.uniform(-0.9, 0.9), rng.uniform(i * RUN + 0.03, (i + 1) * RUN - 0.03)
             s = rng.uniform(0.09, 0.14)
-            parts.append(m.part("Leaf", m.kit.cube(), rng.choice(leaves), m.M((-e, -n, top + 0.006), rot=(0, 0, rng.uniform(0, 360)), scale=(s, s * 0.6, 0.008))))
+            parts.append(m.part("Leaf", m.kit.cube(), rng.choice(leaves), m.M((-e, -n, top + 0.006 + rng.uniform(0, 0.006)), rot=(0, 0, rng.uniform(0, 360)), scale=(s, s * 0.6, 0.008))))
     return [m.kit.join(parts, "OrchardSteps")]

@@ -641,7 +641,7 @@ namespace MyGame
         }
 
         // The poison build-up: in the middle of the screen, just under the Apprentice (who's always there), where it
-        // can't be missed; only while there's any. Its word over it.
+        // can't be missed; only while there's any. Its word beside it.
         void BuildPoison(Transform root)
         {
             var centre = new Vector2(0.5f, 0.5f);
@@ -650,8 +650,10 @@ namespace MyGame
             poisonFill = Fill(poisonFrame, PoisonGreen);
             poisonFillImage = poisonFill.GetComponent<Image>();
             poisonFillImage.sprite = UiKit.Sheen;
-            poisonLabel = UiKit.Text(poisonFrame, "Label", textFont, 22, PoisonGreen, TextAnchor.MiddleCenter, new Vector2(0.5f, 1f), new Vector2(0, 14), 2f);
-            poisonLabel.rectTransform.sizeDelta = new Vector2(300, 28);
+            // Its word to its left, level with it (not over it).
+            poisonLabel = UiKit.Text(poisonFrame, "Label", textFont, 22, PoisonGreen, TextAnchor.MiddleRight, new Vector2(0f, 0.5f), new Vector2(-10, 1), 1f);
+            poisonLabel.rectTransform.pivot = new Vector2(1f, 0.5f);
+            poisonLabel.rectTransform.sizeDelta = new Vector2(200, 28);
             poisonFrame.gameObject.SetActive(false);
         }
 

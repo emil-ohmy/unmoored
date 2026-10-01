@@ -15,6 +15,7 @@ art/prototypes/                   throwaway prototype sources (see branches prot
 tools/
   build-models.sh [names]         .py -> .blend + FBX into game/Assets/_Project/Art/Models/<Category>/
   preview-poses.sh <name>         contact sheet of a rig's animations (builds/poses-<name>.png; ZOOM=2 ACTIONS=A,B for close-ups)
+  find-coplanar.sh <name[:variant]> overlapping faces in one plane in a model (they flicker): check boxy architecture
   blender/kit.py                  modelling, rigging (poses in armature space), FBX export helpers
   build-audio.sh [names]          art/audio/<name>.py -> WAV into game/Assets/_Project/Audio/ (Blender's Python)
   audio/synth.py                  sound synthesis kit (noise, sweeps, filters, envelopes, loops)

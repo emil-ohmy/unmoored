@@ -42,7 +42,7 @@ def build(variant):
         for k in range(9):
             a = math.pi * (k + 0.5) / 9
             e, u = cx - math.cos(a) * (r + 0.12), spring + math.sin(a) * (r * 0.62 + 0.12)
-            parts.append(m.part("Voussoir", m.kit.cube(), stones[k % 3], m.M((-e, 0, u), rot=(0, 90 - math.degrees(a), 0), scale=(0.22, T + 0.06, 0.3))))
+            parts.append(m.part("Voussoir", m.kit.cube(), stones[k % 3], m.M((-e, 0, u), rot=(0, 90 - math.degrees(a), 0), scale=(0.22, T + 0.06 + (k % 2) * 0.03, 0.3))))
         parts.append(m.box("Keystone", m.mat(m.CAP), cx - 0.13, cx + 0.13, -T / 2 - 0.05, T / 2 + 0.05, spring + r * 0.62 + 0.05, spring + r * 0.62 + 0.42))
         # The gate, one leaf, hung on the west jamb and standing open into the far side (north).
         wood = m.kit.mat("GateWood", "#5a4434")
