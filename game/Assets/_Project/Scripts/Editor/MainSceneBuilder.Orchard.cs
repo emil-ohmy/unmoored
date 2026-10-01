@@ -56,7 +56,7 @@ public static partial class MainSceneBuilder
         traits.fireHarm = 1.75f;
         traits.burnLength = 1.5f;
 
-        FinishScene(scene, OrchardLabPath, start, apprentice, "music_drowned_dark"); // (no music of its own yet)
+        FinishScene(scene, OrchardLabPath, start, apprentice, "music_orchard"); // Last Autumn
     }
 
     // Three terraces up out of the water, steps between them, and walls along the high ends (too tall to drop from).

@@ -78,3 +78,4 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Spit striking (`spit_splat`, 2) | in game | Synth | a thick wet splat, and a small fizzing hiss as the poison eats at what it hit |
 | Moth diving (`moth_dive`, 2) | in game | Synth | a soft papery whirr of wings rising to a short dry hiss |
 | Moth scattered (`moth_release`, 6) | in game | Synth | a dry puff of dust and one soft music-box note, each variant a note of the same small tune (A minor) |
+| Music: Last Autumn (`Music/music_orchard`) | in game | Synth | 96 s loop, a slow waltz in A minor (60 bpm, 3/4): a reed-organ pad on Am - Fmaj7 - C - G - Am - Dm7 - E7 - Am, a plucked harp keeping the waltz, a low bowed hum on the roots, the tune on an old music box a few cents out of tune (silent through the middle, back for the last phrase, leaning on G# to pull round to A), leaves rustling in a breeze, a distant chime now and then; a warm middling hall |
