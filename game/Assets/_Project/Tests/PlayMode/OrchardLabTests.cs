@@ -140,6 +140,8 @@ namespace MyGame.Tests
             apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
             for (int i = 0; i < 3; i++)
                 moths[i].Pin(apprentice.transform.position + new Vector3(1.3f, 1.0f, (i - 1) * 0.6f));
+            for (int i = 4; i < moths.Count; i++)
+                moths[i].Pin(apprentice.transform.position + new Vector3(-6f, 3f, i)); // (the rest held out of it: no dive cutting in)
             yield return null;
             input.PressHeavy();
             yield return new WaitForSeconds(1.2f);
