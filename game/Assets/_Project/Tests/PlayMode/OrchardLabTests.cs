@@ -75,17 +75,19 @@ namespace MyGame.Tests
             Assert.IsTrue(apprentice.IsAlive && apprentice.CurrentState == Apprentice.State.Free, "no harm in it");
         }
 
-        // The press house: in at the west door, up the stair to the loft; inside, its roof fades (and the loft over you,
+        // The press house: up its stair (stepped onto from the floor beside it) to the loft; inside, its roof fades (and the loft over you,
         // down on the floor).
         [UnityTest]
         public IEnumerator ThePressHouse_UpTheStairToTheLoft_TheRoofFades()
         {
             var house = UnityEngine.Object.FindAnyObjectByType<Storeys>();
-            apprentice.Teleport(new Vector3(14.2f, 1.95f, 3.4f));
+            apprentice.Teleport(new Vector3(12.4f, 1.95f, 3.5f)); // (on the floor, beside the stair's foot)
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(0, house.Level, "inside, on the floor");
             Assert.IsFalse(house.Shown(2), "the roof gone");
             Assert.IsFalse(house.Shown(1), "and the loft over you");
+            yield return Walk(Vector2.right, 0.9f); // onto the stair from the side
+            Assert.Greater(apprentice.transform.position.x, 13.5f, $"onto the stair ({apprentice.transform.position})");
             yield return Walk(Vector2.up, 2.6f);
             Assert.AreEqual(4.3f, apprentice.transform.position.y, 0.25f, $"up in the loft ({apprentice.transform.position})");
             yield return new WaitForSeconds(0.4f);

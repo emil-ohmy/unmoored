@@ -47,7 +47,8 @@ def frame_wall(parts, e0, e1, n0, n1, u0, u1, openings=()):
     for b in (u0, (u0 + u1) / 2, u1 - 0.18):
         for lo, hi in zip(cuts, cuts[1:]):
             if not opened(lo, hi, b, b + 0.18):
-                piece("Rail", timber, lo, hi, b, b + 0.18)
+                piece("Rail", timber, lo + 0.09, hi - 0.09, b, b + 0.18, inset=0.02)  # (between the posts, set back a little:
+                                                                                      # no two faces in one plane to flicker)
 
 
 def build(variant):
@@ -70,7 +71,8 @@ def build(variant):
         timber = m.mat(m.TIMBER)
         for i in range(steps):
             parts.append(m.box("Stair", timber, STAIR_E0, STAIR_E1, foot + i * RUN, foot + (i + 1) * RUN, (i + 1) * RISE - 0.08, (i + 1) * RISE))
-            parts.append(m.box("Stringer", timber, STAIR_E0 - 0.08, STAIR_E0, foot + i * RUN, foot + (i + 1) * RUN, 0.0, (i + 1) * RISE + 0.05))
+            # (its side flush with the treads: open, so it can be stepped onto from the floor beside it)
+            parts.append(m.box("Stringer", timber, STAIR_E0 - 0.06, STAIR_E0, foot + i * RUN, foot + (i + 1) * RUN, 0.0, (i + 1) * RISE - 0.09))
         return [m.kit.join(parts, "PressHouse_ground")]
     if variant == "loft":
         m.planks(parts, E0 + T, E1 - T, LOFT_N0, N1 - T, LOFT, holes=[(STAIR_E0 - 0.05, E1 - T, LOFT_N0, LOFT_N0 + 0.05)])

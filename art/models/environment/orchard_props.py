@@ -1,6 +1,6 @@
 """The orchard's things, left where they were the night the harvest didn't come: "basket" (a picking basket heaped with
-apples), "crate" (a slatted apple crate, full), "ladder" (a tall picking ladder, leaning: the builder sets it against a
-tree), "well" (a round stone well with its roof frame, windlass and bucket), "skep" (a straw beehive on a stand,
+apples), "crate" (a slatted apple crate, full), "ladder" (a tall picking ladder; not set against trees: it looked climbable),
+"well" (a round stone well with its roof frame, windlass and bucket), "skep" (a straw beehive on a stand,
 silent), "scarecrow" (on its pole, in a coat and hat, arms out), "press" (the cider press: a heavy timber frame, its
 great wooden screw and the tub under it), "apples" (fallen fruit in the leaves) and "lantern" (a lantern hung from a
 shepherd's crook, warm: the orchard marks its ways with them). Origin at the base, game directions (see masonry.py)."""

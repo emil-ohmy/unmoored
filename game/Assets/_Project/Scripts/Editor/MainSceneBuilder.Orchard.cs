@@ -78,7 +78,8 @@ public static partial class MainSceneBuilder
         }
     }
 
-    // A tree, with only its trunk solid (the crown overhead stops nothing: arrows, the Hook, the camera's view).
+    // A tree, with only its trunk solid (the crown overhead stops nothing: arrows, the Hook). It doesn't open up for the
+    // camera as buildings do: a crown over the Apprentice hides little, and they can be seen through the leaves' gaps.
     static GameObject OrchardTree(string variant, Vector3 at, float yaw)
     {
         var go = Place("Environment/orchard_tree_" + variant, at, yaw);
@@ -94,7 +95,7 @@ public static partial class MainSceneBuilder
     static GameObject OrchardProp(string variant, Vector3 at, float yaw) => Place("Environment/orchard_props_" + variant, at, yaw);
 
     // The rows: apple trees on the bottom and middle terraces (in lines, a few old), the flooded ones standing in the
-    // water below; ladders against some, baskets and crates under them, fallen fruit in the leaves.
+    // water below; baskets and crates under them, fallen fruit in the leaves.
     static void OrchardRows()
     {
         var rng = new System.Random(7);
@@ -109,17 +110,7 @@ public static partial class MainSceneBuilder
         foreach (float x in new[] { -11f, -7f, -3f, 1f })
             OrchardTree(x == -7f ? "pear" : Apple(), new Vector3(x, MiddleTop, 8.2f), Yaw());
 
-        // Ladders still leaning in the crowns, baskets and crates waiting under them.
-        void Ladder(Vector3 tree, float towards)
-        {
-            var ladder = OrchardProp("ladder", tree + Quaternion.Euler(0f, towards, 0f) * Vector3.forward * 0.95f, 0f);
-            ladder.transform.rotation = Quaternion.LookRotation(Quaternion.Euler(0f, towards, 0f) * Vector3.forward) * Quaternion.Euler(-16f, 0f, 0f) * ladder.transform.rotation;
-            foreach (var c in ladder.GetComponentsInChildren<Collider>())
-                Object.DestroyImmediate(c); // (leaning in the tree: nothing to walk into)
-        }
-        Ladder(new Vector3(3f, GroundTop, -2.2f), 200f);
-        Ladder(new Vector3(-5f, MiddleTop, 4.6f), 160f);
-        Ladder(new Vector3(-3f, MiddleTop, 8.2f), 190f);
+        // Baskets and crates waiting under them.
         OrchardProp("basket", new Vector3(3.9f, GroundTop, -3.4f), 20f);
         OrchardProp("basket", new Vector3(-6.8f, GroundTop, -3.1f), -40f);
         OrchardProp("crate", new Vector3(8.6f, GroundTop, -3.3f), 12f);
