@@ -261,7 +261,7 @@ namespace MyGame.Tests
             if (round == 1)
             {
                 yield return WaitFor(() => w.Hidden, 4f, "him hiding again");
-                yield return new WaitForSeconds(1.5f); // (the lanterns back)
+                yield return new WaitForSeconds(3.8f); // (the lanterns back)
                 yield return Reveal(w);
             }
             else
@@ -414,7 +414,9 @@ namespace MyGame.Tests
                 Assert.AreSame(w, BossFight.Current, "the fight goes on (the gate stays shut)");
                 Assert.IsTrue(w.field.All(s => s.Follows), "they all watch you now");
                 Assert.IsTrue(places.Any(p => Vector3.Distance(new Vector3(p.x, 0f, p.z), new Vector3(w.transform.position.x, 0f, w.transform.position.z)) < 0.2f), "in one of their places");
-                yield return new WaitForSeconds(1.5f);
+                Assert.Less(apprentice.GetComponent<BowLantern>().Dimmed, 0.5f, "even your lantern burns low");
+                yield return new WaitForSeconds(3.8f);
+                Assert.AreEqual(1f, apprentice.GetComponent<BowLantern>().Dimmed, 0.01f, "the light back");
                 yield return Reveal(w);
                 Assert.AreEqual(2, w.Round);
                 int balls = 0;

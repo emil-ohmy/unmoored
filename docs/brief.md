@@ -206,8 +206,8 @@ little.
 - **Round 1.** He moves only while he isn't watched (the Apprentice facing him, 60° either side). Watched, he stands
   still and breathes fire at you: he leans back with his lantern to his face, its flame roaring up (the tell), and
   spews a slow ball of flame. Unwatched, he lurches at you and sweeps his reaping hook.
-- **Round 2.** Scorched, he flings himself back among the scarecrows. The lanterns gutter out; in the dark they all
-  move, and when the light comes back they all turn to watch you. He's the one still smouldering. Found again, his fire
+- **Round 2.** Scorched, he flings himself back among the scarecrows. The lanterns gutter out, and the moon and even your own lantern
+  with them; for a few seconds of dark (stakes creaking, straw rustling across the field) they all move, and when the light comes back they all turn to watch you. He's the one still smouldering. Found again, his fire
   comes as a fan of three (only the middle one at you), or held back and loosed late (a feint).
 - **Round 3.** Scorched again, he tears free for good, alight from head to foot: never still, watched or not, his hook
   up close. His fire comes three small balls at a time, a beat apart. A perfect block only knocks a small one aside (it

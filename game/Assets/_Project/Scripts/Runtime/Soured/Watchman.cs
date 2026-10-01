@@ -379,20 +379,32 @@ namespace MyGame
             }));
         }
 
+        public float darkFade = 0.6f, darkHold = 2.4f, darkReturn = 1.2f; // the lanterns guttering out, the dark, the light back
+
         IEnumerator GutterOut(System.Action atDarkest)
         {
             Sfx.Instance?.Attack(creakSound, transform.position + Vector3.up, 1f, "watchman_creak", 0.7f);
-            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.3f)
+            for (float t = 0f; t < 1f; t += Time.deltaTime / darkFade)
             {
-                Dim(1f - t * 0.94f);
+                Dim(1f - t * 0.95f);
                 yield return null;
             }
-            Dim(0.06f);
+            Dim(0.05f);
             atDarkest();
-            yield return new WaitForSeconds(0.7f);
-            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.6f)
+            // In the dark: stakes creaking and straw rustling here and there across the field, as they move.
+            for (float t = 0f; t < darkHold; t += Time.deltaTime)
             {
-                Dim(0.06f + t * 0.94f);
+                if (Random.value < 3f * Time.deltaTime && field != null && field.Length > 0)
+                {
+                    var s = field[Random.Range(0, field.Length)];
+                    Vector3 at = (s != null ? s.transform.position : transform.position) + Random.insideUnitSphere * 2f + Vector3.up;
+                    Sfx.Instance?.Attack(Random.value < 0.5f ? creakSound : strawSound, at, 0.5f, "watchman_creak");
+                }
+                yield return null;
+            }
+            for (float t = 0f; t < 1f; t += Time.deltaTime / darkReturn)
+            {
+                Dim(0.05f + t * 0.95f);
                 yield return null;
             }
             Dim(1f);
@@ -404,6 +416,9 @@ namespace MyGame
         {
             if (moon != null)
                 moon.intensity = moonIntensity * k;
+            var own = target != null ? target.GetComponent<BowLantern>() : null;
+            if (own != null)
+                own.Dimmed = Mathf.Lerp(0.15f, 1f, k); // (even theirs burns low: a small pool round their feet)
             for (int i = 0; fieldLights != null && i < fieldLights.Length; i++)
             {
                 if (fieldLights[i] == null)

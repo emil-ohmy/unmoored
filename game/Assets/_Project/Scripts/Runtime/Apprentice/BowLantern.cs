@@ -22,6 +22,7 @@ namespace MyGame
         float snuffAt = -1f, snuffTime = 1f, nextMote; // going out (the Apprentice has fallen)
 
         public float Lit { get; private set; } = 1f; // 1 burning, 0 out
+        public float Dimmed { get; set; } = 1f;      // turned down by something else (the Watchman's dark: the night itself guttering)
 
         // The Apprentice falls: a last flare, then after `delay` it gutters and goes out over `duration`, its light
         // drifting away as pale motes.
@@ -76,7 +77,7 @@ namespace MyGame
             if (lanternLight == null)
                 return;
             lanternLight.range = Mathf.Lerp(minRange, maxRange, Power) * (Wick ? wickRange : 1f);
-            float intensity = (Mathf.Lerp(minIntensity, maxIntensity, Power) * (Wick ? wickIntensity : 1f) + pulse) * Lit;
+            float intensity = (Mathf.Lerp(minIntensity, maxIntensity, Power) * (Wick ? wickIntensity : 1f) + pulse) * Lit * Dimmed;
             if (flicker != null)
                 flicker.BaseIntensity = intensity;
             else
