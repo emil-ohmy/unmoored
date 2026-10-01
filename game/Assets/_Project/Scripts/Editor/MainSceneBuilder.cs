@@ -252,6 +252,18 @@ public static partial class MainSceneBuilder
         {
             var model = Place($"Characters/{LedgerEntry.All[i].Model}", new Vector3(0f, -400f, 0f), 0f);
             model.name = $"{LedgerEntry.All[i].Name} (character screen)";
+            model.AddComponent<StagePose>(); // (standing as it idles)
+            if (LedgerEntry.All[i] == LedgerEntry.Unparted)
+            {
+                // The Unparted is two: Fast rides Hold's back, clinging, as in the fight.
+                var back = Bone(model, "Back");
+                var fast = Place("Characters/clinger", back.position, 0f);
+                fast.name = "Fast";
+                fast.transform.SetParent(back, true);
+                var pose = fast.AddComponent<StagePose>();
+                pose.clip = "Cling";
+                pose.at = 1f;
+            }
             foreach (var c in model.GetComponentsInChildren<Collider>())
                 UnityEngine.Object.DestroyImmediate(c);
             model.SetActive(false);

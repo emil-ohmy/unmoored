@@ -22,12 +22,14 @@ namespace MyGame
             Known = known;
         }
 
+        public bool Standing => this != Moths; // (on the page: a figure on its feet, facing you; a Moth's seen from above)
+
         public string KindLine => (Kind == Rank.Soured ? "Soured" : Kind == Rank.Miniboss ? "Miniboss" : "Boss") + "  ·  " + Area;
 
         const string DrownedCity = "The Drowned City", Orchard = "The Orchard of Last Autumn";
 
         public static readonly LedgerEntry Laden = new LedgerEntry("laden", "The Laden", Rank.Soured, DrownedCity, "laden",
-            "Couldn't let go of their things. Everything they owned rides on their back in a heap, and they lift it as a shield when you come close.",
+            "Each carries all it ever owned, roped in a heap on its back. Come close and it lifts the heap like a shield: it would sooner be crushed under it than set it down.",
             "Get round it: the heap guards only its front, and the slam leaves it open a long while. The Hook tears the heap away.");
 
         public static readonly LedgerEntry LadenArcher = new LedgerEntry("laden_archer", "The Laden archer", Rank.Soured, DrownedCity, "laden_archer",
@@ -35,23 +37,23 @@ namespace MyGame
             "Rush it: it has no guard, and less to it. A sidestep or a dash slips the arrows.");
 
         public static readonly LedgerEntry Clinger = new LedgerEntry("clinger", "The Clinger", Rank.Soured, DrownedCity, "clinger",
-            "Couldn't let go of a person. They come in twos, circling, and leap to cling to your back, holding on as they once held on to someone.",
+            "They come in twos, circling, and leap onto your back to hold on, the way they once held on to someone. It was never you they wanted.",
             "Dash to throw one off, even out of breath. Scatter one and the other grows frantic.");
 
         public static readonly LedgerEntry Drowned = new LedgerEntry("drowned", "The Drowned", Rank.Soured, DrownedCity, "drowned",
-            "Couldn't let go of life. They wait under the water, holding a breath they'll never let out, and rise to spit poison.",
+            "They wait under the water, holding the breath they took as it closed over them, and rise to spit poison at whoever comes too near.",
             "A perfect block turns the spit back, and its own spit is the end of it. Hide, and it comes ashore looking for you. The Hook hauls it out.");
 
         public static readonly LedgerEntry Unparted = new LedgerEntry("unparted", "The Unparted, of the Last Embrace", Rank.Miniboss, DrownedCity, "unparted",
-            "Two souls who never let each other go, grown into one great hunched thing: Hold, who carries, and Fast, who rides its back.",
+            "Two souls so long together that they grew into one great hunched thing: Hold, who carries, and Fast, who rides its back.",
             "Scatter Fast first and Hold goes berserk. Scatter Hold first and Fast weeps where it fell.");
 
         public static readonly LedgerEntry Anchoress = new LedgerEntry("anchoress", "The Antediluvian Anchoress, of Fleeting Memories", Rank.Boss, DrownedCity, "anchoress",
-            "A Laden who would not let the Ferryman go. She chained his ferry's anchor to herself, fastened with his stolen Hook, and keeps vigil in the drowned chapel.",
+            "She chained the Ferryman's anchor to herself, fastened with his stolen Hook, so his ferry could never leave her. She keeps vigil in the drowned chapel still.",
             "Her anchor reaches further than it looks. Beaten, she gave up the Hook.");
 
         public static readonly LedgerEntry Moths = new LedgerEntry("moths", "The Moths", Rank.Soured, Orchard, "moth",
-            "Couldn't let go of a memory. Pale and dusty, they circle a light, and come to yours. When one goes, the memory goes with it: a note, as from a music box.",
+            "Pale and dusty, they circle a light, and come to yours. Each carries a memory; when one goes, the memory goes with it: a note, as from a music box.",
             "One at a time, each stalls, flaring, before it dives. A heavy swing goes through several; fire takes the whole flock.");
 
         public static readonly LedgerEntry Watchman = new LedgerEntry("watchman", "Abner Wick, Who Merits Flame", Rank.Miniboss, Orchard, "watchman",

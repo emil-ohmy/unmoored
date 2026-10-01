@@ -197,8 +197,13 @@ namespace MyGame
                 foreach (var m in provisionModels)
                     stage.Add(m, 1.8f);
             if (ledgerModels != null)
-                foreach (var m in ledgerModels)
-                    stage.Add(m, 2.9f);
+                for (int i = 0; i < ledgerModels.Length && i < LedgerEntry.All.Length; i++)
+                {
+                    if (LedgerEntry.All[i].Standing)
+                        stage.Add(ledgerModels[i], 2.7f, byHeight: true); // (all the same height, whatever they carry)
+                    else
+                        stage.Add(ledgerModels[i], 2.9f);
+                }
             oarView.texture = stage.Texture;
             const float x = 260f;
             oarName = UiKit.Text(page, "Name", titleFont, 54, UiKit.Bone, TextAnchor.MiddleCenter, centre, new Vector2(x, 200), 3f);
@@ -707,8 +712,14 @@ namespace MyGame
                 ? (n == 1 ? "Scattered once." : $"Scattered {n} times.")
                 : (n == 1 ? "Beaten." : $"Beaten {n} times.");
             int kind = chosen != null ? System.Array.IndexOf(LedgerEntry.All, chosen) : -1;
+            // Standing ones face you, swaying a little to and fro (their faces, not their backs); a Moth turns, seen
+            // a little from above.
+            // The Unparted three-quarters on, a little from above: Fast, on Hold's back, peers over its shoulder.
+            bool standing = chosen != null && chosen.Standing;
+            bool two = chosen == LedgerEntry.Unparted;
             if (Current == Tab.Ledger)
-                stage.Show(ledgerModels != null && kind >= 0 && kind < ledgerModels.Length ? ledgerModels[kind] : null, Quaternion.Euler(14f, 0f, 0f));
+                stage.Show(ledgerModels != null && kind >= 0 && kind < ledgerModels.Length ? ledgerModels[kind] : null,
+                    Quaternion.Euler(two ? 18f : standing ? 6f : 14f, 0f, 0f), facing: standing, turnedBy: two ? 55f : 0f);
         }
 
         // Its row's name: the title, without the rest of a Boss's (the full name's on the right).
@@ -777,6 +788,8 @@ namespace MyGame
             readonly Camera camera;
             readonly List<GameObject> models = new List<GameObject>();
             Quaternion lean = Quaternion.identity;
+            bool facing;
+            float turned;
 
             public RenderTexture Texture { get; }
             public GameObject Shown { get; private set; }
@@ -815,8 +828,8 @@ namespace MyGame
                 lamp.shadows = LightShadows.None;
             }
 
-            // Onto the stage, fitted: its longest side `size` metres, its middle on the pivot. Hidden until shown.
-            public void Add(GameObject model, float size)
+            // Onto the stage, fitted: its longest side (or its height) `size` metres, its middle on the pivot. Hidden until shown.
+            public void Add(GameObject model, float size, bool byHeight = false)
             {
                 if (model == null)
                     return;
@@ -831,23 +844,43 @@ namespace MyGame
                 bool first = true;
                 foreach (var r in model.GetComponentsInChildren<Renderer>())
                 {
+                    var b = r is SkinnedMeshRenderer skinned ? Posed(skinned) : r.bounds; // (as it stands, not its rest pose)
                     if (first)
-                        bounds = r.bounds;
+                        bounds = b;
                     else
-                        bounds.Encapsulate(r.bounds);
+                        bounds.Encapsulate(b);
                     first = false;
                 }
-                float longest = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+                float longest = byHeight ? bounds.size.y : Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
                 model.transform.localPosition = -holder.InverseTransformPoint(bounds.center); // (its middle at the pivot)
                 holder.localScale = Vector3.one * (longest > 0.001f ? size / longest : 1f);
                 model.SetActive(false);
                 models.Add(model);
             }
 
+            // Where a skinned mesh is, in the pose it's in now (its own bounds are its rest pose's, or a guess).
+            static Bounds Posed(SkinnedMeshRenderer skinned)
+            {
+                var mesh = new Mesh();
+                skinned.BakeMesh(mesh, true);
+                var t = skinned.transform;
+                var verts = mesh.vertices;
+                Object.Destroy(mesh);
+                if (verts.Length == 0)
+                    return skinned.bounds;
+                var b = new Bounds(t.position + t.rotation * verts[0], Vector3.zero);
+                foreach (var v in verts)
+                    b.Encapsulate(t.position + t.rotation * v);
+                return b;
+            }
+
             // The one to show (null: none), leaning so, turning slowly about its own up.
-            public void Show(GameObject model, Quaternion leanedSo)
+            // (`facing`: towards the camera, swaying a little either way, instead of turning right round)
+            public void Show(GameObject model, Quaternion leanedSo, bool facing = false, float turnedBy = 0f)
             {
                 lean = leanedSo;
+                this.facing = facing;
+                turned = turnedBy;
                 if (Shown == model)
                     return;
                 Shown = model;
@@ -858,7 +891,8 @@ namespace MyGame
             public void Draw(bool on)
             {
                 camera.enabled = on && Shown != null;
-                pivot.localRotation = lean * Quaternion.Euler(0f, UiKit.Now * 40f, 0f);
+                float yaw = facing ? 180f + turned + 38f * Mathf.Sin(UiKit.Now * 0.55f) : UiKit.Now * 40f; // (a figure's front is its +z: away from the camera)
+                pivot.localRotation = lean * Quaternion.Euler(0f, yaw, 0f);
             }
 
             public void Release() => Texture.Release();
