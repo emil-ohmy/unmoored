@@ -215,6 +215,11 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
   autumn colours, lanterns and eyes.
 - **Darkness:** it is always night. A weak, cold moon; the world is revealed by its fires (torches, lanterns). Fog,
   film grain and a heavy vignette keep it gritty.
+- **Each Area has its own night** (moon, ambient, fog, grade), and light keeps its meaning in all of them:
+  - **The Drowned City:** a weak, cold moon high up and close fog.
+  - **The Orchard of Last Autumn:** a huge, low harvest moon, pale honey-silver, throwing long tree shadows across
+    the rows. A dusky violet ambient, the air clearer above and mist lying low in the rows, and leaves always
+    drifting down.
 - **Light carries meaning:** warm orange is the world and safety (torches, Mooring posts); sickly green is a Soured
   (their belt lanterns and eyes: green light in the dark means danger); cold pale blue is the Apprentice's bow lantern.
 - **Pipeline:** everything is modelled and animated from Blender scripts, and art direction happens by reacting to
