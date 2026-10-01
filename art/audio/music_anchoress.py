@@ -136,7 +136,7 @@ def surges(total, rng):
 
 def render(v, rng):
     base = np.random.default_rng(20260929)  # the layers both variants share: identical, so they crossfade in step
-    heavy = v >= 2
+    heavy = v >= 1  # (variants count from 0: the second is 1)
     total = LENGTH + FADE
     bars = np.arange(0, total, 4 * BEAT)
     dry = synth.pan(level(events(total, [b for b in bars] + [b + 2 * BEAT for b in bars], lambda at: drum(base)), -18), 0.0)
