@@ -381,6 +381,8 @@ public static partial class MainSceneBuilder
         w.strawSound = Clips("straw_puff");
         w.gutterSound = Clips("fireball_gutter");
         w.scorchSound = Clips("watchman_scorch");
+        w.chimeSound = Clips("watchman_chime"); // (in order: one, two, three, rising)
+        w.sourSound = Clips("watchman_sour");
         w.music = new[] // (found: his own; at half, the same music, worse)
         {
             AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_watchman_1.wav"),

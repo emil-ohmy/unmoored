@@ -485,7 +485,12 @@ namespace MyGame.Tests
                     yield return WaitFor(() => balls.Count > i, 6f, $"small fire {i + 1}");
                     Assert.IsTrue(balls[i].glances, "a small one: knocked aside");
                     yield return Parry(balls[i], w); // (each one: parried, not missed)
+                    Assert.AreEqual(1f - (i + 1) / 3f, w.Breath, 0.01f, "his breath, spent a step");
+                    if (i < 2)
+                        Assert.IsTrue(w.lantern.enabled);
                 }
+                yield return null;
+                Assert.IsFalse(w.lantern.enabled, "three: his lantern out, a beat");
                 yield return new WaitForSeconds(0.5f);
                 Assert.AreEqual(health, w.Health, 0.01f, "they glance off: none back at him");
                 Assert.AreEqual(3, w.Knocked);
@@ -527,9 +532,11 @@ namespace MyGame.Tests
                     if (i < 2)
                         yield return Parry(balls[i], w);
                 }
+                Assert.AreEqual(1f / 3f, w.Breath, 0.01f);
                 yield return WaitFor(() => balls[2] == null, 3f, "the third striking you");
                 yield return new WaitForSeconds(0.3f);
                 Assert.IsFalse(w.FinaleDrawn, "two of three: not enough");
+                Assert.AreEqual(1f, w.Breath, 0.01f, "the row broken: his lantern full again");
                 for (float t = 0f; t < 8f && balls.Count <= 3; t += Time.deltaTime)
                 {
                     if (Vector3.Distance(w.transform.position, apprentice.transform.position) < 5f)

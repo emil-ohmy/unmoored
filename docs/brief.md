@@ -210,9 +210,10 @@ little.
   comes as a fan of three (only the middle one at you), or held back and loosed late (a feint).
 - **Round 3.** Scorched again, he tears free for good, alight from head to foot: never still, watched or not, his hook
   up close. His fire comes three small balls at a time, a beat apart. A perfect block only knocks a small one aside (it
-  glances off sideways, never back at him). Knock all three aside, one after another, and he draws his last great
-  breath, his lantern blazing; turn that one back and he burns down to his stake. Miss one of the three and it's three
-  small ones again. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
+  glances off sideways, never back at him), and costs him breath: his lantern gutters down a step and a music-box note
+  rings, rising with each (A, C, E: Last Autumn's chord). Knock all three aside, one after another, and his lantern goes
+  out for a beat; then he draws his last great breath and it blazes. Turn that one back and he burns down to his
+  stake. Miss one of the three and a sour note sounds, his lantern flares back full, and it's three small ones again. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
 - **Lock-on** never picks a scarecrow, nor him while he's still one of them: only him, fighting.
 - **Fire turned back** goes to him, through anything in between: it's his.
 

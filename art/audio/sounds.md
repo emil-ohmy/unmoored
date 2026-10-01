@@ -90,3 +90,5 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Scarecrow going up (`scarecrow_burst`, 2) | in game | Synth | straw catching all at once: a great dry whoomph, crackling and roaring (Tar sizzle plays as it catches) |
 | The oar through straw (`straw_puff`, 3) | in game | Synth | the Watchman, struck: a soft dull thump into stuffing, a dry rustle out |
 | Watchman scorched (`watchman_scorch`) | in game | Synth | his own fire turned back on him: a rushing roar through the straw, the coat's seams going, a hollow cry through the sack |
+| Watchman's breath knocked aside (`watchman_chime`, 3) | in game | Synth | round 3, one per small fireball knocked aside in a row, rising: music-box notes of A minor (A5, C6, E6), each fuller; the third with the octave under it, a finish |
+| The row broken (`watchman_sour`) | in game | Synth | round 3, one not knocked aside: a dull wooden thud and a music-box note gone sour (two flat tines a semitone apart, beating) |

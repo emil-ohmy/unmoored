@@ -13,8 +13,10 @@ namespace MyGame
     // his reaping hook. Round 2: scorched, he flings himself back among them; the lanterns gutter out, and when they
     // come back they've all moved, and all of them turn to watch you: he's the one still smouldering. His fire comes
     // as a fan of three, or held back and loosed late. Round 3: he tears free for good, alight from head to foot, and
-    // never stops coming; his fire comes three small balls at a time, which a perfect block only knocks aside. Knock
-    // all three aside, one after another, and he draws the last great breath he has: turned back, it ends him.
+    // never stops coming; his fire comes three small balls at a time, which a perfect block only knocks aside. Each
+    // knocked aside costs him breath: his lantern gutters down a step, and a note rings (rising: one, two, three).
+    // Knock all three aside, one after another, and his lantern goes out a beat; then he draws the last great breath
+    // he has, and it blazes: turned back, it ends him. Miss one and a sour note sounds, and his lantern flares full.
     public sealed class Watchman : Soured, IBoss
     {
         [Header("The Watchman")]
@@ -51,6 +53,8 @@ namespace MyGame
         public float fireDamage = 18f, smallFireDamage = 10f, smallFireSpeed = 9f;
         public Material fireMaterial;
         public AudioClip[] creakSound, revealSound, strawSound, gutterSound, scorchSound;
+        public AudioClip[] chimeSound;        // round 3: one per small fireball knocked aside in a row, rising
+        public AudioClip[] sourSound;         // round 3: the row broken
 
         public int Round { get; private set; }     // 0: not found yet; 1, 2, 3
         public bool Hidden { get; private set; } = true;
@@ -58,6 +62,7 @@ namespace MyGame
         public bool Thrashing => Round == 3 && IsAlive;
         public int Knocked { get; private set; }   // round 3: of this flurry, how many knocked aside so far
         public bool FinaleDrawn => finaleReady;    // all three knocked aside: the great one's next
+        public float Breath => breathLeft;         // round 3: his lantern's breath (1; 2/3, 1/3 as they're knocked aside; 0)
         public override bool Lockable => Targetable && !Hidden; // (on his stake he's one of them: nothing to lock on to)
         public bool Frozen => !Hidden && Round < 3 && Watched && IsAlive
             && (CurrentState == State.Chase || (CurrentAttack == primary && (CurrentState == State.Telegraph || CurrentState == State.Strike || CurrentState == State.Recover)));
@@ -80,6 +85,8 @@ namespace MyGame
         float burstClock, nextFire, nextCreak, emitDebt, loseAt = -1f;
         bool fightOn, finaleReady;
         int flurryReleased, flurryDone;       // of this flurry: how many breathed out, how many done with
+        bool rowBroken;                       // of this flurry: one not knocked aside
+        float breathLeft = 1f, flareUntil, outUntil;
         Light blaze;                          // alight (reeling into round 2; all through round 3)
         Coroutine gutter;
         Light moon;
@@ -230,6 +237,8 @@ namespace MyGame
                 return finale;
             }
             Knocked = flurryReleased = flurryDone = 0;
+            rowBroken = false;
+            breathLeft = 1f;
             return flurry;
         }
 
@@ -266,8 +275,23 @@ namespace MyGame
         // Round 3: knock all three of a flurry aside, one after another, and he draws his last great breath.
         void OnSmallDone(Fireball ball, Defence defence)
         {
-            if (defence == Defence.Parried)
+            if (defence == Defence.Parried && !rowBroken)
+            {
                 Knocked++;
+                breathLeft = 1f - Knocked / (float)flurry.volley; // (his lantern gutters down a step)
+                var chime = chimeSound != null && chimeSound.Length > 0 ? chimeSound[Mathf.Clamp(Knocked - 1, 0, chimeSound.Length - 1)] : null;
+                if (chime != null)
+                    Sfx.Instance?.Attack(new[] { chime }, LanternPoint, 0.9f, "watchman_chime");
+                if (Knocked >= flurry.volley)
+                    outUntil = Time.time + 0.5f; // (out, a beat: then his last breath)
+            }
+            else if (!rowBroken && defence != Defence.Parried)
+            {
+                rowBroken = true;
+                breathLeft = 1f;
+                flareUntil = Time.time + 0.6f; // (it flares back full)
+                Sfx.Instance?.Attack(sourSound, LanternPoint, 0.9f, "watchman_sour");
+            }
             flurryDone++;
             if (flurryDone == flurry.volley && IsAlive) // (cut short, it never comes to anything)
             {
@@ -442,8 +466,20 @@ namespace MyGame
             // The lantern: steady while he's watched, guttering when he isn't; drawing breath, its flame roars up.
             bool drawing = CurrentState == State.Telegraph && CurrentAttack != null && CurrentAttack.ranged;
             if (lantern != null)
-                lantern.intensity = lanternIntensity * (drawing ? 1f + (CurrentAttack == finale ? 3f : 1.2f) * Mathf.Clamp01(StateTime / CurrentAttack.telegraph)
-                    : Frozen ? 0.8f : 0.55f + 0.45f * Mathf.PerlinNoise(Time.time * 14f, 0.7f));
+            {
+                float level = drawing ? 1f + (CurrentAttack == finale ? 3f : 1.2f) * Mathf.Clamp01(StateTime / CurrentAttack.telegraph)
+                    : Frozen ? 0.8f : 0.55f + 0.45f * Mathf.PerlinNoise(Time.time * 14f, 0.7f);
+                if (Round == 3 && CurrentAttack != finale)
+                {
+                    level *= Mathf.Lerp(0.12f, 1f, breathLeft); // (his breath, spent)
+                    if (Time.time < flareUntil)
+                        level *= 1f + 1.5f * (flareUntil - Time.time) / 0.6f;
+                }
+                bool spent = Time.time < outUntil;
+                lantern.enabled = !spent;
+                lantern.intensity = lanternIntensity * level;
+                SetGlass(!spent);
+            }
             if (drawing && Random.value < (CurrentAttack == finale ? 90f : 30f) * Time.deltaTime)
                 Effects.Instance?.Flame(LanternPoint + Random.insideUnitSphere * 0.08f, Vector3.up * Random.Range(0.6f, 1.4f), Random.Range(0.2f, 0.35f),
                     Mathf.Lerp(0.08f, 0.2f, StateTime / CurrentAttack.telegraph));
@@ -492,12 +528,16 @@ namespace MyGame
                 lantern.enabled = lit;
                 lantern.intensity = lanternIntensity;
             }
-            if (glassRenderer != null)
-            {
-                var materials = glassRenderer.sharedMaterials;
-                materials[glassSlot] = lit ? litGlass : darkGlass;
-                glassRenderer.sharedMaterials = materials;
-            }
+            SetGlass(lit);
+        }
+
+        void SetGlass(bool lit)
+        {
+            if (glassRenderer == null || glassRenderer.sharedMaterials[glassSlot] == (lit ? litGlass : darkGlass))
+                return;
+            var materials = glassRenderer.sharedMaterials;
+            materials[glassSlot] = lit ? litGlass : darkGlass;
+            glassRenderer.sharedMaterials = materials;
         }
 
         // One of them again, on his stake, his lantern dark.
@@ -547,6 +587,8 @@ namespace MyGame
             loseAt = -1f;
             finaleReady = false;
             Knocked = flurryReleased = flurryDone = 0;
+            breathLeft = 1f;
+            outUntil = flareUntil = 0f;
             blaze.enabled = false;
             Douse();
             Hide();
