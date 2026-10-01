@@ -449,17 +449,15 @@ namespace MyGame
                     nextCreak = Time.time + Random.Range(1.8f, 3.2f);
                     Sfx.Instance?.Attack(creakSound, transform.position + Vector3.up, 0.45f, "watchman_creak");
                 }
-                // Smouldering: embers rising off him, and the dull red glow of them on his coat and the ground.
+                // Smouldering: a thin thread of smoke off his shoulders and now and then an ember (no glow: in the
+                // dark field you see it only if you're near, looking).
                 bool smoulder = Round == 2;
-                if (smoulder && Random.value < 30f * Time.deltaTime)
-                    Effects.Instance?.Wisp(transform.position + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(0.6f, 1.7f), Random.Range(-0.3f, 0.3f)),
-                        new Color(1f, 0.45f, 0.12f), Vector3.up * Random.Range(0.5f, 1.1f) + Random.insideUnitSphere * 0.2f, Random.Range(0.9f, 1.6f));
-                blaze.enabled = smoulder;
-                if (smoulder)
-                {
-                    blaze.range = 3f;
-                    blaze.intensity = 0.7f + 0.35f * Mathf.PerlinNoise(Time.time * 3f, 0.6f);
-                }
+                blaze.enabled = false;
+                if (smoulder && Random.value < 6f * Time.deltaTime)
+                    Effects.Instance?.Smoke(transform.position + new Vector3(Random.Range(-0.2f, 0.2f), Random.Range(1.4f, 1.6f), Random.Range(-0.2f, 0.2f)));
+                if (smoulder && Random.value < 0.7f * Time.deltaTime)
+                    Effects.Instance?.Wisp(transform.position + new Vector3(Random.Range(-0.25f, 0.25f), Random.Range(0.8f, 1.5f), Random.Range(-0.25f, 0.25f)),
+                        new Color(1f, 0.45f, 0.12f) * 0.8f, Vector3.up * Random.Range(0.4f, 0.8f), Random.Range(0.6f, 1.0f));
                 return;
             }
             burstClock += dt;

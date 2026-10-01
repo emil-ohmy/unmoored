@@ -417,6 +417,8 @@ namespace MyGame.Tests
                 Assert.Less(apprentice.GetComponent<BowLantern>().Dimmed, 0.5f, "even your lantern burns low");
                 yield return new WaitForSeconds(3.8f);
                 Assert.AreEqual(1f, apprentice.GetComponent<BowLantern>().Dimmed, 0.01f, "the light back");
+                Assert.Greater(Effects.Instance.LiveSmoke, 0, "a thread of smoke off him");
+                Assert.IsFalse(w.GetComponentsInChildren<Light>().Any(l => l.enabled), "and no glow: nothing lit gives him away");
                 yield return Reveal(w);
                 Assert.AreEqual(2, w.Round);
                 int balls = 0;
@@ -708,10 +710,13 @@ namespace MyGame.Tests
                 yield return null;
             yield return Frames(4);
             Shot("watchman-7-the-dark");
-            yield return Frames(60);
+            yield return Frames(120);
             apprentice.Teleport(new Vector3(-2f, 3.35f, 24f), true, true);
             yield return Frames(45);
             Shot("watchman-8-they-all-watch");
+            StandBy(w, 2.2f, true);
+            yield return Frames(45);
+            Shot("watchman-8b-up-close-smouldering");
             // Round 3: alight, never still.
             StandBy(w, 1.6f, true);
             yield return Frames(3);

@@ -14,7 +14,7 @@ namespace MyGame
 
         ParticleSystem sparks, flash, fare, glints, wisps;
         ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
-        ParticleSystem flames, straw;
+        ParticleSystem flames, straw, smoke;
         Transform fareTarget;
         BowLantern fareLantern;
 
@@ -31,6 +31,7 @@ namespace MyGame
             wisps = BuildWisps();
             flames = BuildFlames();
             straw = BuildStraw();
+            smoke = BuildSmoke();
         }
 
         // Where a defeated Soured's fare flies to: the Apprentice's lantern.
@@ -210,6 +211,46 @@ namespace MyGame
         }
 
         public int LiveStraw => straw != null ? straw.particleCount : 0;
+
+        // A thread of smoke (something smouldering: the Watchman, hidden again): a faint grey puff, rising and
+        // spreading as it thins out. Lit, not light: barely there in the dark unless you're near.
+        public void Smoke(Vector3 at, float alpha = 0.45f)
+        {
+            if (smoke == null)
+                return;
+            smoke.Emit(new ParticleSystem.EmitParams
+            {
+                position = at + Random.insideUnitSphere * 0.05f,
+                velocity = new Vector3(Random.Range(-0.08f, 0.08f), Random.Range(0.35f, 0.6f), Random.Range(-0.08f, 0.08f)),
+                startColor = new Color(0.62f, 0.6f, 0.58f, alpha),
+                startSize = Random.Range(0.16f, 0.26f),
+                startLifetime = Random.Range(1.8f, 2.6f),
+                rotation = Random.Range(0f, 360f),
+                applyShapeToPosition = false,
+            }, 1);
+        }
+
+        public int LiveSmoke => smoke != null ? smoke.particleCount : 0;
+
+        ParticleSystem BuildSmoke()
+        {
+            var ps = Build("Smoke", strawMaterial != null ? strawMaterial : sparkMaterial, stretch: false);
+            var main = ps.main;
+            main.maxParticles = 200;
+            main.gravityModifier = 0f;
+            var size = ps.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 3.2f)); // (spreading)
+            var colour = ps.colorOverLifetime;
+            colour.enabled = true;
+            var fade = new Gradient();
+            fade.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                         new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.2f), new GradientAlphaKey(0f, 1f) });
+            colour.color = fade;
+            var trail = ps.trails;
+            trail.enabled = false;
+            return ps;
+        }
 
         ParticleSystem BuildStraw()
         {
