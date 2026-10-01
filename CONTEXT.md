@@ -168,7 +168,7 @@ _Avoid_: Elite, sub-boss, mid-boss
 The Drowned City's miniboss, in full "The Unparted, of the Last Embrace": two souls who never let each other go, grown into one great hunched Clinger. Hold carries; Fast rides its back, leaping down to cling to the Apprentice and climbing back up. Scatter Fast first and Hold goes berserk; scatter Hold first and Fast weeps where it fell.
 
 **The Watchman**:
-The Orchard's miniboss, in full "The Watchman, of the Unreaped Rows": the man who worked the orchard, a scarecrow among scarecrows in the Unreaped Rows, keeping watch over a harvest that never came. Straw: the oar goes through him, and only fire hurts him, his own (turned back) most of all. He moves only while he isn't watched.
+The Orchard's miniboss: the man who worked the orchard, now a scarecrow among scarecrows in the Unreaped Rows, keeping watch over a harvest that never came. His name plate reads "Abner Wick, Who Merits Flame" (Abner Wick: his name in life). Straw: the oar goes through him, and only fire hurts him, his own (turned back) most of all. He moves only while he isn't watched.
 
 **The Unreaped Rows**:
 The field above the Orchard, through the gateway in its wall, never harvested: the Watchman's arena. Its gates shut behind you while his fight is on.

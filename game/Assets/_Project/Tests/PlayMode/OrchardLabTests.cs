@@ -200,7 +200,7 @@ namespace MyGame.Tests
             finally { Moth.Dived -= onDive; }
         }
 
-        // ---- The Watchman, of the Unreaped Rows
+        // ---- The Watchman (Abner Wick, Who Merits Flame)
 
         Watchman Watchman() => UnityEngine.Object.FindAnyObjectByType<Watchman>();
 
@@ -502,7 +502,8 @@ namespace MyGame.Tests
                 yield return Parry(last, w);
                 yield return WaitFor(() => beaten != null, 3f, "it ending him");
                 Assert.AreSame(w, beaten, "his farewell");
-                Assert.AreEqual("THE WATCH IS ENDED", w.Farewell);
+                Assert.AreEqual("FLAME MERITED", w.Farewell);
+                Assert.AreEqual("Abner Wick", w.Title);
                 Assert.IsFalse(w.lantern.enabled);
             }
             finally

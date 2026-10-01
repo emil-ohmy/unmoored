@@ -1,4 +1,4 @@
-"""The Watchman, of the Unreaped Rows (the Orchard's miniboss), and the scarecrows he stands among (the same figure):
+"""The Watchman (the Orchard's miniboss: Abner Wick, Who Merits Flame), and the scarecrows he stands among (the same figure):
 a coat stuffed with straw, a hat, a sack for a face with two stitched eyes, arms out along the crossbar, a reaping hook
 in the right hand, a lantern (dark) hanging from the left. No legs: the coat hangs to the knees, straw poking out at
 the cuffs and hem (the pole it stands on is a prop of its own, so he can tear free of it). Origin at the ground.

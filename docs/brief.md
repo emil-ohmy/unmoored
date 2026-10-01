@@ -189,8 +189,9 @@ edge and gives them up, and nothing outside notices them while they're in it.
 City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused into one great Clinger. Its farewell:
 **"TILL DEATH DID THEY PART"** / *Again.*
 
-The Orchard's is **the Watchman, of the Unreaped Rows**: the man who worked the orchard, still keeping watch over a
-harvest that never came, as a scarecrow in the field above it. A puzzle-fight. He's straw: **the oar goes through him**
+The Orchard's is **the Watchman**, his name plate **Abner Wick, Who Merits Flame** (who he was, and what he's owed):
+the man who worked the orchard, still keeping watch over a harvest that never came, as a scarecrow in the field above
+it. A puzzle-fight. He's straw: **the oar goes through him**
 (a puff of straw, no harm). Only fire hurts him: his own most of all, breathed out of his lantern and turned back at
 him with a perfect block (each one burns a third of him away). Fire you bring (a Pitch Pot, Ember Tar) burns him a
 little.
@@ -213,7 +214,7 @@ little.
   glances off sideways, never back at him), and costs him breath: his lantern gutters down a step and a music-box note
   rings, rising with each (A, C, E: Last Autumn's chord). Knock all three aside, one after another, and his lantern goes
   out for a beat; then he draws his last great breath and it blazes. Turn that one back and he burns down to his
-  stake. Miss one of the three and a sour note sounds, his lantern flares back full, and it's three small ones again. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
+  stake. Miss one of the three and a sour note sounds, his lantern flares back full, and it's three small ones again. His farewell: **"FLAME MERITED"** / *He kept the light for no one.*
 - **Lock-on** never picks a scarecrow, nor him while he's still one of them: only him, fighting.
 - **Fire turned back** goes to him, through anything in between: it's his.
 

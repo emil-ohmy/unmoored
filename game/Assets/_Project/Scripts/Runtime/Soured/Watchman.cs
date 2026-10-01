@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // The Watchman, of the Unreaped Rows: the Orchard's miniboss. The man who worked this orchard and couldn't let go of
-    // it: a scarecrow in the field above it, among others like him (Scarecrow), still keeping watch over a harvest that
+    // The Watchman: the Orchard's miniboss. His name plate: Abner Wick, Who Merits Flame. The man who worked this
+    // orchard and couldn't let go of it: a scarecrow in the field above it, among others like him (Scarecrow), still keeping watch over a harvest that
     // never came. He's straw: the oar goes through him. Only fire hurts him, and the fire that hurts him most is his
     // own, breathed out of his lantern and turned back at him by a perfect block (Fireball): each one burns a third of
     // him away. Fire the Apprentice brings (pitch, tar) burns him a little.
@@ -20,10 +20,10 @@ namespace MyGame
     public sealed class Watchman : Soured, IBoss
     {
         [Header("The Watchman")]
-        public string title = "The Watchman";
-        public string epithet = "of the Unreaped Rows";
-        public string farewell = "THE WATCH IS ENDED";
-        public string farewellLine = "Nothing came.";
+        public string title = "Abner Wick";
+        public string epithet = "Who Merits Flame";
+        public string farewell = "FLAME MERITED";
+        public string farewellLine = "He kept the light for no one.";
         public AudioClip[] music;             // one track per phase (found; scorched once)
         [Range(0f, 180f)] public float watchHalfAngle = 60f;
         public float watchRange = 18f;
