@@ -4,8 +4,9 @@ namespace MyGame
 {
     // The Watchman's fire, breathed out of his lantern: a ball of flame flying flat and straight at the Apprentice,
     // licking flames behind it. A dash's i-frames let it pass, and so does a sidestep. A block stops it (a little
-    // gets through); a perfect block turns it back, pale, at him: and he's straw (Watchman.Scorch). The small quick
-    // ones (`parryable` false) no guard stops: only a dodge or a sidestep. It gutters out where it strikes the world.
+    // gets through); a perfect block turns it back, pale, straight at him (through anything between: it's his):
+    // and he's straw (Watchman.Scorch). A small one (`glances`) a perfect block only knocks aside, glancing off to
+    // one side to gutter out harmlessly. `parryable` false: no guard stops it. It gutters out where it strikes the world.
     public sealed class Fireball : MonoBehaviour
     {
         public static int Live { get; private set; }
@@ -14,6 +15,8 @@ namespace MyGame
         public const float MaxRange = 18f;
         public float damage = 18f, radius = 0.4f;
         public bool parryable = true;
+        public bool glances;                  // perfect-blocked, it's knocked aside (not back at him)
+        public System.Action<Fireball, Defence> Done; // what became of it, once (Dodged: it missed, or passed through a dash)
         public bool Deflected { get; private set; }
         public Soured Owner => owner;
 
@@ -22,7 +25,7 @@ namespace MyGame
         Vector3 velocity, start;
         Apprentice target;
         Soured owner;
-        bool passed;
+        bool passed, done;
         Light glow;
         Renderer body;
         float size, emitDebt;
@@ -83,9 +86,13 @@ namespace MyGame
             {
                 var defence = target.TakeHit(damage, velocity.normalized * 3f, owner, parryable);
                 Resolved?.Invoke(this, defence);
+                Finish(defence);
                 if (defence == Defence.Parried)
                 {
-                    Deflect(from);
+                    if (glances)
+                        Glance(from);
+                    else
+                        Deflect(from);
                     return;
                 }
                 if (defence == Defence.Dodged)
@@ -96,7 +103,7 @@ namespace MyGame
                     return;
                 }
             }
-            if (Deflected && StrikeSoured(from, to))
+            if (Deflected && !glances && Homing(dt, from) && StrikeSoured(from, to))
                 return;
             foreach (var hit in Physics.RaycastAll(from, step.normalized, step.magnitude, ~0, QueryTriggerInteraction.Ignore))
                 if (!(hit.collider is CharacterController))
@@ -107,6 +114,37 @@ namespace MyGame
             transform.position = to;
             if (Vector3.Distance(start, to) > MaxRange)
                 Gutter(to);
+        }
+
+        void Finish(Defence defence)
+        {
+            if (done)
+                return;
+            done = true;
+            Done?.Invoke(this, defence);
+        }
+
+        // Knocked aside by a perfect block: off to one side and a little back, pale, to gutter out on its own.
+        void Glance(Vector3 at)
+        {
+            Deflected = passed = true;
+            Vector3 back = -velocity.normalized;
+            Vector3 side = Vector3.Cross(Vector3.up, back) * (Random.value < 0.5f ? 1f : -1f);
+            velocity = (side * 0.85f + back * 0.5f).normalized * 9f;
+            start = at;
+            glow.color = DeflectedColour;
+            Tint(DeflectedColour, DeflectedColour * 1.6f);
+        }
+
+        // Turned back, it bends after him wherever he's got to.
+        bool Homing(float dt, Vector3 from)
+        {
+            if (owner != null && owner.IsAlive)
+            {
+                Vector3 aim = owner.transform.position + Vector3.up * 1.1f - from;
+                velocity = Vector3.RotateTowards(velocity, aim.normalized * velocity.magnitude, 6f * dt, 0f);
+            }
+            return true;
         }
 
         // Turned back by a perfect block: straight at the one who breathed it (where he is now), faster, pale.
@@ -120,30 +158,28 @@ namespace MyGame
             Tint(DeflectedColour, DeflectedColour * 1.6f);
         }
 
-        // Turned back, it strikes the first Soured in its way: the Watchman is scorched (a third of him burns away);
-        // anything else is set alight.
+        // Turned back, it strikes the one who breathed it (passing through anything else: it's his): the Watchman is
+        // scorched (a third of him burns away); any other is set alight.
         bool StrikeSoured(Vector3 from, Vector3 to)
         {
-            foreach (var soured in WorldState.AllSoured)
+            var soured = owner;
+            if (soured == null || !soured.IsAlive || !soured.isActiveAndEnabled
+                || !Near(from, to, soured.transform.position + Vector3.up * 1.0f, soured.radius + 0.45f))
+                return false;
+            if (soured is Watchman w)
+                w.Scorch(from);
+            else
             {
-                if (soured == null || !soured.IsAlive || !soured.isActiveAndEnabled
-                    || !Near(from, to, soured.transform.position + Vector3.up * 1.0f, soured.radius + 0.45f))
-                    continue;
-                if (soured is Watchman w)
-                    w.Scorch(from);
-                else
-                {
-                    soured.TakeBurn(12f, from);
-                    Burning.Set(soured, 2.5f, 5f);
-                }
-                Gutter(to);
-                return true;
+                soured.TakeBurn(12f, from);
+                Burning.Set(soured, 2.5f, 5f);
             }
-            return false;
+            Gutter(to);
+            return true;
         }
 
         void Gutter(Vector3 at)
         {
+            Finish(Defence.Dodged); // (if nothing else became of it: it missed)
             for (int i = 0; i < 18; i++)
                 Effects.Instance?.Flame(at + Random.insideUnitSphere * 0.3f, Random.insideUnitSphere * 2f + Vector3.up * 1.5f, Random.Range(0.25f, 0.5f), size * Random.Range(0.6f, 1f));
             Sfx.Instance?.Attack((owner as Watchman)?.gutterSound, at, 0.8f, "fireball_gutter");

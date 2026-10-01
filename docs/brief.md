@@ -182,6 +182,9 @@ back toward the Hub.
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
 
+**Boss arenas:** nothing that follows the Apprentice crosses into a Boss's (or miniboss's) arena. It stops at the
+edge and gives them up, and nothing outside notices them while they're in it.
+
 **Minibosses:** each Area has one, met on the way (a name plate, a bar and a farewell, but no Ability). The Drowned
 City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused into one great Clinger. Its farewell:
 **"TILL DEATH DID THEY PART"** / *Again.*
@@ -206,8 +209,12 @@ little.
   move, and when the light comes back they all turn to watch you. He's the one still smouldering. Found again, his fire
   comes as a fan of three (only the middle one at you), or held back and loosed late (a feint).
 - **Round 3.** Scorched again, he tears free for good, alight from head to foot: never still, watched or not, his hook
-  up close; and his fire comes in a rhythm: two quick small gouts no guard stops (sidestep them), then one big one to
-  turn back. The last one turned back burns him down to his stake. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
+  up close. His fire comes three small balls at a time, a beat apart. A perfect block only knocks a small one aside (it
+  glances off sideways, never back at him). Knock all three aside, one after another, and he draws his last great
+  breath, his lantern blazing; turn that one back and he burns down to his stake. Miss one of the three and it's three
+  small ones again. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
+- **Lock-on** never picks a scarecrow, nor him while he's still one of them: only him, fighting.
+- **Fire turned back** goes to him, through anything in between: it's his.
 
 The **Drowned** appear at water edges everywhere.
 

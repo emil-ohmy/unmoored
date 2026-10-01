@@ -147,6 +147,9 @@ namespace MyGame
         // Whether it can be locked on to, hooked, struck (a Drowned under the water can't).
         public virtual bool Targetable => IsAlive;
 
+        // Whether lock-on can choose it (a scarecrow never; the Watchman only while he's fighting you).
+        public virtual bool Lockable => Targetable;
+
         // Held up by the water (a Drowned) or the air (a Moth): no gravity, no feeling for footing; it keeps the height
         // it's given.
         protected virtual bool Floats => false;
@@ -184,7 +187,8 @@ namespace MyGame
                     break;
 
                 case State.Chase:
-                    if (!targetAlive || LosesTarget(toTarget.magnitude) || Flat(transform.position - Home).magnitude > leashRadius)
+                    if (!targetAlive || LosesTarget(toTarget.magnitude) || Flat(transform.position - Home).magnitude > leashRadius
+                        || Sheltered(target.transform.position))
                     {
                         Enter(State.Returning);
                         break;
@@ -359,6 +363,8 @@ namespace MyGame
             // does knockback (shoving one off the edge is fair play).
             if ((CurrentState == State.Chase || CurrentState == State.Returning) && !Floats)
                 planar = KeepFooting(planar);
+            if (!Sheltered(transform.position) && Sheltered(transform.position + (planar + knockback) * Mathf.Max(dt, 0.02f) + Flat(planar + knockback).normalized * radius))
+                planar = knockback = Vector3.zero; // (an arena it doesn't belong to: it never crosses in; hooked in, it walks out)
             knockback *= Mathf.Exp(-8f * dt);
             if (Drowned)
             {
@@ -648,8 +654,8 @@ namespace MyGame
         // The moment it becomes aware of the Apprentice: its eyes flare, then it gives chase.
         void Notice()
         {
-            if (passive || Held)
-                return;
+            if (passive || Held || (target != null && Sheltered(target.transform.position)))
+                return; // (and never while they're in an arena it doesn't belong to)
             Effects.Instance?.AlertFlare(transform.position + transform.forward * 0.35f + Vector3.up * eyeHeight);
             Enter(State.Chase);
         }
@@ -781,6 +787,9 @@ namespace MyGame
             point = at;
             return false;
         }
+
+        // Whether `at` is inside a Boss's arena this one doesn't belong to (ArenaZone).
+        protected bool Sheltered(Vector3 at) => ArenaZone.KeepsOut(spawnPosition, at);
 
         // The Apprentice on its own level (not a floor above or below, not down off a ledge).
         protected virtual bool OnItsLevel() => target != null && Mathf.Abs(target.transform.position.y - transform.position.y) < 1.3f;

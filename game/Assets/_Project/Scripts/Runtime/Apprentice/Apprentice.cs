@@ -619,7 +619,7 @@ namespace MyGame
 
             if (LockTarget != null)
             {
-                if (!LockTarget.Targetable || !LockTarget.isActiveAndEnabled)
+                if (!LockTarget.Lockable || !LockTarget.isActiveAndEnabled)
                     SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
                 else if (ToLockTarget().magnitude > lockBreakRange || OffScreenTooLong())
                     SetLockTarget(null);
@@ -665,7 +665,7 @@ namespace MyGame
             float bestScore = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == exclude || !s.Targetable || !s.isActiveAndEnabled)
+                if (s == exclude || !s.Lockable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -689,7 +689,7 @@ namespace MyGame
             float bestAngle = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == LockTarget || !s.Targetable || !s.isActiveAndEnabled)
+                if (s == LockTarget || !s.Lockable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;

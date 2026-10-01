@@ -432,10 +432,31 @@ namespace MyGame.Tests
             finally { global::MyGame.Watchman.Lost -= onLost; }
         }
 
-        // Scorched twice: he tears free for good, alight, never still (watched or not), and his fire comes as two
-        // quick gouts no guard stops, then one to turn back. Scorched a third time: beaten, his farewell.
+        // A perfect block on `ball`, raised just before it arrives, facing him all the while.
+        IEnumerator Parry(Fireball ball, Watchman w)
+        {
+            bool done = false;
+            var previous = ball.Done;
+            ball.Done = (f, d) => { done = true; previous?.Invoke(f, d); };
+            while (!done && ball != null && Vector3.Distance(ball.transform.position, apprentice.transform.position + Vector3.up * 0.7f) > 1.5f)
+            {
+                Vector3 to = w.transform.position - apprentice.transform.position;
+                to.y = 0f;
+                apprentice.transform.rotation = Quaternion.LookRotation(to);
+                yield return null;
+            }
+            input.BlockHeld = true;
+            for (float t = 0f; t < 1f && !done; t += Time.deltaTime)
+                yield return null;
+            input.BlockHeld = false;
+            Assert.IsTrue(done, "it reached you");
+        }
+
+        // Scorched twice: he tears free for good, alight, never still (watched or not). His fire comes three small
+        // balls at a time: knock all three aside (they glance off, never back at him) and he draws his last great
+        // breath; turned back, it ends him.
         [UnityTest]
-        public IEnumerator TheWatchman_Round3_Alight_NeverStill_ThenBeaten()
+        public IEnumerator TheWatchman_Round3_KnockThreeAside_ThenTurnBackHisLast()
         {
             var w = Watchman();
             yield return Reveal(w);
@@ -456,12 +477,24 @@ namespace MyGame.Tests
                 yield return new WaitForSeconds(1.0f);
                 Assert.Greater(Vector3.Distance(at, w.transform.position), 0.8f, "coming, though you face him");
                 StandClear(w, 9f);
-                yield return WaitFor(() => balls.Count >= 3, 8f, "his fire, three");
-                Assert.IsFalse(balls[0].parryable);
-                Assert.IsFalse(balls[1].parryable);
-                Assert.IsTrue(balls[2].parryable, "the last one, to turn back");
-                w.Scorch(apprentice.transform.position);
-                yield return null;
+                float health = w.Health;
+                for (int i = 0; i < 3; i++)
+                {
+                    yield return WaitFor(() => balls.Count > i, 6f, $"small fire {i + 1}");
+                    Assert.IsTrue(balls[i].glances, "a small one: knocked aside");
+                    yield return Parry(balls[i], w);
+                    Assert.IsTrue(balls[i] == null || balls[i].Deflected, $"knocked aside ({i + 1})");
+                }
+                yield return new WaitForSeconds(0.5f);
+                Assert.AreEqual(health, w.Health, 0.01f, "they glance off: none back at him");
+                Assert.AreEqual(3, w.Knocked);
+                if (Vector3.Distance(w.transform.position, apprentice.transform.position) < 5f)
+                    StandClear(w, 8f);
+                yield return WaitFor(() => balls.Count > 3, 6f, "his last great breath");
+                var last = balls[3];
+                Assert.IsFalse(last.glances, "the great one: to turn back");
+                yield return Parry(last, w);
+                yield return WaitFor(() => beaten != null, 3f, "it ending him");
                 Assert.AreSame(w, beaten, "his farewell");
                 Assert.AreEqual("THE WATCH IS ENDED", w.Farewell);
                 Assert.IsFalse(w.lantern.enabled);
@@ -471,6 +504,94 @@ namespace MyGame.Tests
                 global::MyGame.Watchman.Breathed -= onBreath;
                 BossFight.Defeated -= onDefeat;
             }
+        }
+
+        // Miss one of the three (it hits you) and there's no great breath: the next is three small ones again.
+        [UnityTest]
+        public IEnumerator TheWatchman_Round3_MissOne_NoLastBreath()
+        {
+            var w = Watchman();
+            yield return Reveal(w);
+            yield return ScorchAndFind(w);
+            yield return ScorchAndFind(w);
+            var balls = new System.Collections.Generic.List<Fireball>();
+            Action<Watchman, Fireball> onBreath = (_, f) => balls.Add(f);
+            global::MyGame.Watchman.Breathed += onBreath;
+            try
+            {
+                StandClear(w, 9f);
+                for (int i = 0; i < 3; i++)
+                {
+                    yield return WaitFor(() => balls.Count > i, 6f, $"small fire {i + 1}");
+                    if (i < 2)
+                        yield return Parry(balls[i], w);
+                }
+                yield return WaitFor(() => balls[2] == null, 3f, "the third striking you");
+                yield return new WaitForSeconds(0.3f);
+                Assert.IsFalse(w.FinaleDrawn, "two of three: not enough");
+                for (float t = 0f; t < 8f && balls.Count <= 3; t += Time.deltaTime)
+                {
+                    if (Vector3.Distance(w.transform.position, apprentice.transform.position) < 5f)
+                        StandClear(w, 9f); // (keeping out of his hook's reach)
+                    yield return null;
+                }
+                Assert.Greater(balls.Count, 3, "his fire again");
+                Assert.IsTrue(balls[3].glances, "three small ones again");
+            }
+            finally { global::MyGame.Watchman.Breathed -= onBreath; }
+        }
+
+        // Lock-on never picks a scarecrow, nor him while he's still one of them; found, it does.
+        [UnityTest]
+        public IEnumerator LockOn_NeverAScarecrow_OnlyHimFighting()
+        {
+            var w = Watchman();
+            StandBy(w.field[0], 2f, true);
+            yield return null;
+            input.PressLock();
+            yield return null;
+            yield return null;
+            Assert.IsNull(apprentice.LockTarget, "a scarecrow: nothing to lock on to");
+            StandBy(w, 2f, true);
+            yield return null;
+            input.PressLock();
+            yield return null;
+            yield return null;
+            Assert.IsNull(apprentice.LockTarget, "nor him, on his stake");
+            yield return Reveal(w);
+            StandBy(w, 3f, true);
+            input.PressLock();
+            yield return null;
+            yield return null;
+            Assert.AreSame(w, apprentice.LockTarget, "found: him");
+        }
+
+        // Nothing that follows you crosses into the field: it stops at the edge and gives you up.
+        [UnityTest]
+        public IEnumerator AnArena_WhatFollowsYouNeverCrossesIn()
+        {
+            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
+            Vector3 way = gate.transform.position;
+            var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            var laden = (Laden)post.spawner.SpawnAt("Laden", new Vector3(way.x, 3.35f, way.z - 5f), Vector3.forward);
+            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z - 2.2f));
+            yield return WaitFor(() => laden.CurrentState == Soured.State.Chase, 3f, "it after you");
+            float furthest = 0f;
+            input.Move = Vector2.up;
+            for (float t = 0f; t < 2.5f; t += Time.deltaTime)
+            {
+                furthest = Mathf.Max(furthest, laden.transform.position.z);
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Greater(apprentice.transform.position.z, way.z + 2f, "you're in the field");
+            for (float t = 0f; t < 3f; t += Time.deltaTime)
+            {
+                furthest = Mathf.Max(furthest, laden.transform.position.z);
+                yield return null;
+            }
+            Assert.Less(furthest, way.z + 0.6f, "it never crossed in");
+            Assert.AreNotEqual(Soured.State.Chase, laden.CurrentState, "it gave you up");
         }
 
         // A Rest: he's one of them again, somewhere among them (each spot taken once), the scarecrows whole.
@@ -593,7 +714,7 @@ namespace MyGame.Tests
             for (int i = 0; i < 200 && Fireball.Live == 0; i++)
                 yield return null;
             yield return Frames(6);
-            Shot("watchman-10-the-flurry");
+            Shot("watchman-10-three-small");
         }
 
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.

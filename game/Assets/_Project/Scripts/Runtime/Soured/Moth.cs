@@ -93,6 +93,8 @@ namespace MyGame
         {
             Vector3 to = place - transform.position;
             Vector3 step = Vector3.ClampMagnitude(to, flySpeed * dt);
+            if (!Sheltered(transform.position) && Sheltered(transform.position + step))
+                return; // (a Boss's arena: never in)
             PlaceAt(transform.position + step);
             Vector3 flat = new Vector3(step.x, 0f, step.z);
             if (flat.sqrMagnitude > 1e-5f)
@@ -115,6 +117,11 @@ namespace MyGame
         void Dive(float dt)
         {
             Vector3 next = transform.position + diveDir * diveSpeed * dt;
+            if (!Sheltered(transform.position) && Sheltered(next))
+            {
+                diveDir = new Vector3(-diveDir.x, 0.8f, -diveDir.z).normalized; // (it sheers off at the arena's edge)
+                return;
+            }
             if (next.y < (target != null ? target.transform.position.y + 0.3f : 0.3f))
                 diveDir = new Vector3(diveDir.x, Mathf.Max(diveDir.y, 0.4f), diveDir.z).normalized; // (pulling up off the ground)
             PlaceAt(next);

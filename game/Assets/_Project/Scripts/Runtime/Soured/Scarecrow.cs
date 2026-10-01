@@ -17,6 +17,7 @@ namespace MyGame
         public static event System.Action<Scarecrow> Burst; // (tests)
 
         public bool Follows { get; set; }
+        public override bool Lockable => false; // (so many alike: lock-on would only get in the way)
         bool burst;
 
         protected override void Awake()

@@ -13,7 +13,8 @@ namespace MyGame
     // his reaping hook. Round 2: scorched, he flings himself back among them; the lanterns gutter out, and when they
     // come back they've all moved, and all of them turn to watch you: he's the one still smouldering. His fire comes
     // as a fan of three, or held back and loosed late. Round 3: he tears free for good, alight from head to foot, and
-    // never stops coming: two quick gouts no guard stops (sidestep them), then one to turn back.
+    // never stops coming; his fire comes three small balls at a time, which a perfect block only knocks aside. Knock
+    // all three aside, one after another, and he draws the last great breath he has: turned back, it ends him.
     public sealed class Watchman : Soured, IBoss
     {
         [Header("The Watchman")]
@@ -43,10 +44,11 @@ namespace MyGame
         public SouredAttack breath = new SouredAttack();  // round 1: one, slow
         public SouredAttack fan = new SouredAttack();     // round 2: three abreast (the middle one at you)
         public SouredAttack feint = new SouredAttack();   // round 2: held, loosed late
-        public SouredAttack flurry = new SouredAttack();  // round 3: two small (no guard stops them), then one to turn back
+        public SouredAttack flurry = new SouredAttack();  // round 3: three small, one after another (knocked aside, not back)
+        public SouredAttack finale = new SouredAttack();  // round 3, all three knocked aside: one great one, to turn back
         public float fireCooldown = 2.4f;     // between one breath and the next
         public float fanSpread = 24f;
-        public float fireDamage = 18f, smallFireDamage = 10f, smallFireSpeed = 11f;
+        public float fireDamage = 18f, smallFireDamage = 10f, smallFireSpeed = 9f;
         public Material fireMaterial;
         public AudioClip[] creakSound, revealSound, strawSound, gutterSound, scorchSound;
 
@@ -54,6 +56,9 @@ namespace MyGame
         public bool Hidden { get; private set; } = true;
         public bool Watched { get; private set; }
         public bool Thrashing => Round == 3 && IsAlive;
+        public int Knocked { get; private set; }   // round 3: of this flurry, how many knocked aside so far
+        public bool FinaleDrawn => finaleReady;    // all three knocked aside: the great one's next
+        public override bool Lockable => Targetable && !Hidden; // (on his stake he's one of them: nothing to lock on to)
         public bool Frozen => !Hidden && Round < 3 && Watched && IsAlive
             && (CurrentState == State.Chase || (CurrentAttack == primary && (CurrentState == State.Telegraph || CurrentState == State.Strike || CurrentState == State.Recover)));
         public static event System.Action<Watchman> Revealed, Scorched, Lost; // (tests)
@@ -73,7 +78,8 @@ namespace MyGame
         Material darkGlass, litGlass;
         (Vector3 position, Quaternion rotation)[] spots; // where the field stands: his place and theirs
         float burstClock, nextFire, nextCreak, emitDebt, loseAt = -1f;
-        bool fightOn;
+        bool fightOn, finaleReady;
+        int flurryReleased, flurryDone;       // of this flurry: how many breathed out, how many done with
         Light blaze;                          // alight (reeling into round 2; all through round 3)
         Coroutine gutter;
         Light moon;
@@ -213,10 +219,18 @@ namespace MyGame
                 return null;
             if (distance <= attackRange && (!Watched || Thrashing))
                 return primary;
-            if (Time.time < nextFire || distance > breath.reach || !(Watched || (Thrashing && distance > attackRange)))
+            if (Time.time < nextFire || distance > breath.reach || !(Watched || (Thrashing && distance > attackRange)) || flurryDone < flurryReleased) // (not while his last are still in the air)
                 return null;
             nextFire = Time.time + fireCooldown;
-            return Round == 1 ? breath : Round == 2 ? (Random.value < 0.5f ? fan : feint) : flurry;
+            if (Round < 3)
+                return Round == 1 ? breath : Random.value < 0.5f ? fan : feint;
+            if (finaleReady)
+            {
+                finaleReady = false;
+                return finale;
+            }
+            Knocked = flurryReleased = flurryDone = 0;
+            return flurry;
         }
 
         protected override void Shoot(SouredAttack attack, Vector3 direction, int index)
@@ -232,18 +246,37 @@ namespace MyGame
             if (attack == fan)
                 for (int k = -1; k <= 1; k++)
                     Breathe(from, Quaternion.Euler(0f, k * fanSpread, 0f) * aim, attack.projectileSpeed, 0.32f, fireDamage, true);
-            else if (attack == flurry && index < attack.volley - 1)
-                Breathe(from, aim, smallFireSpeed, 0.2f, smallFireDamage, false); // (small and quick: sidestep it)
+            else if (attack == flurry)
+            {
+                flurryReleased++;
+                Breathe(from, aim, smallFireSpeed, 0.22f, smallFireDamage, true).glances = true; // (knocked aside, not back)
+            }
             else
-                Breathe(from, aim, attack.projectileSpeed, attack == flurry ? 0.42f : 0.34f, fireDamage, true);
+                Breathe(from, aim, attack.projectileSpeed, attack == finale ? 0.55f : 0.34f, fireDamage, true);
         }
 
-        void Breathe(Vector3 from, Vector3 direction, float speed, float size, float damage, bool parryable)
+        Fireball Breathe(Vector3 from, Vector3 direction, float speed, float size, float damage, bool parryable)
         {
             var ball = Fireball.Fire(from, direction, speed, size, target, this, fireMaterial);
             ball.damage = damage;
             ball.parryable = parryable;
+            if (CurrentAttack == flurry)
+                ball.Done = OnSmallDone;
             Breathed?.Invoke(this, ball);
+            return ball;
+        }
+
+        // Round 3: knock all three of a flurry aside, one after another, and he draws his last great breath.
+        void OnSmallDone(Fireball ball, Defence defence)
+        {
+            if (defence == Defence.Parried)
+                Knocked++;
+            flurryDone++;
+            if (flurryDone == flurry.volley && IsAlive) // (cut short, it never comes to anything)
+            {
+                finaleReady = Knocked >= flurry.volley;
+                nextFire = Time.time + (finaleReady ? 0.5f : fireCooldown);
+            }
         }
 
         // His own fire, turned back at him: a third of him burns away.
@@ -265,9 +298,12 @@ namespace MyGame
                 Slay(from);
                 return;
             }
-            LoseHealth(burn);
             if (Round == 3)
-                BeBusy("Stagger", 0.8f); // (reeling, still burning)
+            {
+                Slay(from); // (his last breath, turned back: he burns down to his stake)
+                return;
+            }
+            LoseHealth(burn);
         }
 
         // Scorched (or burnt) past a mark: round 2 (he hides again) or round 3 (he tears free for good, alight).
@@ -409,9 +445,9 @@ namespace MyGame
             // The lantern: steady while he's watched, guttering when he isn't; drawing breath, its flame roars up.
             bool drawing = CurrentState == State.Telegraph && CurrentAttack != null && CurrentAttack.ranged;
             if (lantern != null)
-                lantern.intensity = lanternIntensity * (drawing ? 1f + 1.2f * Mathf.Clamp01(StateTime / CurrentAttack.telegraph)
+                lantern.intensity = lanternIntensity * (drawing ? 1f + (CurrentAttack == finale ? 3f : 1.2f) * Mathf.Clamp01(StateTime / CurrentAttack.telegraph)
                     : Frozen ? 0.8f : 0.55f + 0.45f * Mathf.PerlinNoise(Time.time * 14f, 0.7f));
-            if (drawing && Random.value < 30f * Time.deltaTime)
+            if (drawing && Random.value < (CurrentAttack == finale ? 90f : 30f) * Time.deltaTime)
                 Effects.Instance?.Flame(LanternPoint + Random.insideUnitSphere * 0.08f, Vector3.up * Random.Range(0.6f, 1.4f), Random.Range(0.2f, 0.35f),
                     Mathf.Lerp(0.08f, 0.2f, StateTime / CurrentAttack.telegraph));
         }
@@ -512,6 +548,8 @@ namespace MyGame
             Dim(1f);
             Round = 0;
             loseAt = -1f;
+            finaleReady = false;
+            Knocked = flurryReleased = flurryDone = 0;
             blaze.enabled = false;
             Douse();
             Hide();

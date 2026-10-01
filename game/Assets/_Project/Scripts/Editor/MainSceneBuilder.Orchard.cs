@@ -250,6 +250,10 @@ public static partial class MainSceneBuilder
         }
 
         var watchman = TheWatchmansField(root, lights.ToArray());
+        var zone = new GameObject("Arena Zone (the Unreaped Rows)").AddComponent<ArenaZone>(); // (nothing follows you in)
+        zone.transform.SetParent(root, true);
+        zone.transform.position = new Vector3(FieldX, UpperTop + 1f, FieldZ + FieldDepth / 2f);
+        zone.size = new Vector3(FieldHalfWidth * 2f, 6f, FieldDepth);
 
         // The gateway's two plank gates: open into the field; swung shut behind you once he's found.
         var gate = new GameObject("Field Gate").AddComponent<ArenaGate>();
@@ -360,12 +364,13 @@ public static partial class MainSceneBuilder
         w.breath = Fire("Breath", "Breathe", 1.0f, 7f, 0.8f);
         w.fan = Fire("Fan", "Breathe", 1.0f, 8f, 0.8f);
         w.feint = Fire("Feint", "Hold", 1.9f, 9f, 0.92f);   // (held: let go late, and quicker)
-        w.flurry = Fire("Flurry", "Breathe", 0.8f, 8f, 0.85f);
-        w.flurry.strike = 1.3f;       // (long enough for all three)
-        w.flurry.impactAt = 0.1f;
+        w.flurry = Fire("Flurry", "Breathe", 0.8f, 9f, 0.85f); // (three small, a beat apart: each to knock aside)
+        w.flurry.strike = 2.0f;       // (long enough for all three)
+        w.flurry.impactAt = 0.05f;
         w.flurry.volley = 3;
-        w.flurry.volleyInterval = 0.45f;
+        w.flurry.volleyInterval = 0.8f;
         w.flurry.volleyTrack = 20f;
+        w.finale = Fire("Finale", "Hold", 1.7f, 7f, 0.9f); // (his last great breath: the lantern blazing)
         w.fireMaterial = GeneratedMaterial("M_Fireball", "MyGame/Toon");
         w.fireMaterial.SetColor("_BaseColor", new Color(1f, 0.6f, 0.25f));
         w.fireMaterial.SetColor("_EmissionColor", new Color(1.6f, 0.7f, 0.2f));
