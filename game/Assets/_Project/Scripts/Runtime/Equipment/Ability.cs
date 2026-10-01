@@ -1,0 +1,41 @@
+namespace MyGame
+{
+    // An Ability: a permanent new oar technique, with a use in a fight and a use for getting about (docs/brief.md).
+    // Defined here for the character screen's Abilities page (what it is, how it's used, what it's for); what it does
+    // lives where it takes effect (the Hook: Apprentice). More will come; the page lists however many are found.
+    public sealed class Ability
+    {
+        public readonly string Id, Name, Description;
+        public readonly string Keys, Pad;   // how it's used, on a keyboard and on a gamepad
+        public readonly string[] Uses;      // what it's for
+        readonly System.Func<Apprentice, bool> has;
+
+        Ability(string id, string name, string description, string keys, string pad, string[] uses, System.Func<Apprentice, bool> has)
+        {
+            Id = id;
+            Name = name;
+            Description = description;
+            Keys = keys;
+            Pad = pad;
+            Uses = uses;
+            this.has = has;
+        }
+
+        public bool FoundBy(Apprentice apprentice) => apprentice != null && has(apprentice);
+
+        public static readonly Ability Hook = new Ability("hook", "The Hook",
+            "The Ferryman's own: a small iron grappling hook on a length of chain. What he couldn't reach, he fetched.",
+            "Hold F to aim, let go to throw", "Hold RB to aim, let go to throw",
+            new[]
+            {
+                "Pull yourself to a hook post, across water or a gap.",
+                "Yank a Soured over to you, out of its guard.",
+                "Tear the heap off a Laden's back.",
+                "Whatever is too heavy to move is jerked off balance instead.",
+                "While aiming, steer to choose what it catches.",
+            },
+            a => a.HasHook);
+
+        public static readonly Ability[] All = { Hook };
+    }
+}

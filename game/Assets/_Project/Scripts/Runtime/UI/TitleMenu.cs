@@ -58,6 +58,7 @@ namespace MyGame
 
         void Update()
         {
+            InputDevice.Track();
             input.Tick();
             float age = Time.unscaledTime - shownAt; // the name fades up out of the dark first
             title.color = UiKit.Bone.WithAlpha(UiKit.Smooth(0.2f, 2.0f, age));
@@ -108,7 +109,8 @@ namespace MyGame
         {
             rows.Clear();
             actions.Clear();
-            string detail = "", hint = "Up / Down: choose     E / A: confirm     Esc / B: back";
+            bool pad = InputDevice.Gamepad; // (only the controls in use)
+            string detail = "", hint = pad ? "Up / Down: choose     A: confirm     B: back" : "Up / Down: choose     E: confirm     Esc: back";
             string heading = "";
             switch (page)
             {
@@ -119,7 +121,7 @@ namespace MyGame
                     Add("Play", null, () => Go(Page.Slots, 0));
                     Add("Settings", null, () => Go(Page.Settings, 0));
                     Add("Quit", null, Quit);
-                    hint = "Up / Down: choose     E / A: confirm";
+                    hint = pad ? "Up / Down: choose     A: confirm" : "Up / Down: choose     E: confirm";
                     break;
                 case Page.Slots:
                     heading = "Choose a Journey";
@@ -130,7 +132,7 @@ namespace MyGame
                         Add(Numeral(i) + (d != null ? "   " + d.area : "   An empty journey"), d != null ? Summary(d) : "New game", () => Play(slot));
                     }
                     Add("Back", null, () => Go(Page.Main, 0));
-                    hint = "E / A: begin or continue     X / Delete: delete     Esc / B: back";
+                    hint = pad ? "A: begin or continue     X: delete     B: back" : "E: begin or continue     Delete: delete     Esc: back";
                     break;
                 case Page.Delete:
                     heading = $"Delete Journey {Numeral(deleting)}?";
@@ -144,7 +146,7 @@ namespace MyGame
                     Add("Music", PauseMenu.Level(Settings.Music), null);
                     Add("Effects", PauseMenu.Level(Settings.Effects), null);
                     Add("Back", null, () => Go(Page.Main, 0));
-                    hint = "Left / Right: change     Esc / B: back";
+                    hint = pad ? "Left / Right: change     B: back" : "Left / Right: change     Esc: back";
                     break;
             }
             list.Set(heading, rows, selected, detail, hint);

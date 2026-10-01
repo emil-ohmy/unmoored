@@ -86,6 +86,7 @@ namespace MyGame
             ref Ghost ghost = ref pool[next];
             next = (next + 1) % pool.Length;
             skinned.BakeMesh(ghost.Mesh, true);
+            OarLook.HideOthers(ghost.Mesh, skinned.sharedMaterials, apprentice.Equipment.OarStep);
             ghost.Go.transform.SetPositionAndRotation(skinned.transform.position, skinned.transform.rotation);
             ghost.Born = Time.time;
             ghost.Go.SetActive(true);

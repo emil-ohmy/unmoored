@@ -5,7 +5,8 @@ using UnityEngine;
 
 // Import rules for FBX files built by tools/build-models.sh into Assets/_Project/Art/Models/:
 //  - Characters/ import with Legacy animation clips; Environment/ import static, with mesh colliders.
-//  - Blender's material colours become MyGame/Toon materials; names ending in _Glow become emissive.
+//  - Blender's material colours become MyGame/Toon materials; names ending in _Glow become emissive, and in _Metal
+//    metal (a glint from the moon and every lantern, a bright rim).
 //  - Unity does the axis conversion (bakeAxisConversion): rigged FBX are exported without Blender's
 //    bake_space_transform, which Blender flags as broken with armatures.
 //  - Smoothed normals are baked into the tangents for the Toon shader's outline pass.
@@ -19,12 +20,13 @@ public class ModelImportRules : AssetPostprocessor
     bool InScope => assetPath.StartsWith(Root) && assetPath.EndsWith(".fbx");
     bool IsCharacter => assetPath.StartsWith(Root + "Characters/");
 
+    // (Not thin posts: a Mooring post, a street lantern, a hook post, the far light. They hide nothing worth opening,
+    // and a hole in one just looks broken.)
     static readonly string[] Cutaway = { "house", "ruined_wall", "tower", "stone_block", "stone_stairs", "railing",
-                                         "drowned_chapel", "street_lantern", "far_light", "islet", "rock", "quay", "jetty",
-                                         "mooring_post", "hook_post", "shortcut_gate", "crate", "barrel" };
+                                         "drowned_chapel", "islet", "rock", "quay", "jetty", "shortcut_gate", "crate", "barrel" };
     bool IsArchitecture => !IsCharacter && System.Array.Exists(Cutaway, c => System.IO.Path.GetFileName(assetPath).StartsWith(c));
 
-    public override uint GetVersion() => 3; // (2: the cutaway flag; 3: environment meshes readable. Bumping re-imports every model)
+    public override uint GetVersion() => 5; // (2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts. Bumping re-imports every model)
 
     void OnPreprocessModel()
     {
@@ -57,6 +59,16 @@ public class ModelImportRules : AssetPostprocessor
             material.SetVector("_EmissionColor", colour * GlowIntensity);
             material.SetVector("_TipColor", new Vector4(colour.x, colour.y * 0.3f, colour.z * 0.2f, 1f) * GlowIntensity * 0.55f);
             return;
+        }
+        if (description.materialName.EndsWith("_Metal"))
+        {
+            // Metal: a glint, a bright rim, and deeper shadows (so its highlights stand out).
+            material.SetFloat("_Specular", 1.1f);
+            material.SetFloat("_SpecularSize", 0.1f);
+            material.SetFloat("_RimStrength", 0.45f);
+            material.SetVector("_RimColor", Vector4.Lerp(colour, Vector4.one, 0.5f));
+            material.SetVector("_ShadowTint", new Vector4(0.5f, 0.46f, 0.6f, 1f));
+            material.SetFloat("_AmbientStrength", 0.35f);
         }
         if (description.materialName.EndsWith("_Glow"))
         {

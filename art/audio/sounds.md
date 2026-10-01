@@ -68,3 +68,11 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Anchoress rises (`anchoress_rise`) | in game | Synth | 2.2 s: every link shaking, a swell under the floor, her voice climbing into a drowned many-voiced cry, peaking on the slam |
 | Music: The Anchoress (`Music/music_anchoress_1`, `_2`) | in game | Synth | 64 s loop, D minor, 60 bpm: a slow grinding march (deep drum, chain off-beats, bowed bass, drone, the Drowned Dark's choir); 2 is the same loop heavier (every beat, faster chain, a high wail, water surging) and crossfades in step when she rises |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |
+| Pitch Pot bursting (`pitch_burst`, 2) | in game | Synth | clay cracking, a deep whumpf as the pitch catches, fire roaring up and settling into a crackle |
+| Warm Broth drunk (`drink`) | in game | Synth | a cork's soft pop, three gulps through the mask, a small warm sigh |
+| Ember Tar on the oar (`tar_sizzle`) | in game | Synth | a wet slap, the tar catching with a hiss that swells into a low steady burn |
+| The Way Back (`way_back`) | in game | Synth | a knot pulled loose, a long breath of wind drawn backwards, a far soft bell as the black closes |
+| Drowned waiting (`drowned_bubbles`, 3) | in game | Synth | bubbles breaking the surface over a low muffled gurgle, like a breath it can't take |
+| Drowned rising (`drowned_rise`, 2) | in game | Synth | its tell: water surging up and pouring off it, a drowned groan swelling, wet and choked |
+| Drowned spitting (`drowned_spit`, 2) | in game | Synth | a wet gathering hawk in its throat, then the spit leaving with a thick "phtt" |
+| Spit striking (`spit_splat`, 2) | in game | Synth | a thick wet splat, and a small fizzing hiss as the poison eats at what it hit |

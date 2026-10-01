@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // A Healing charge piece: an ember kept in an iron dish, found behind a secret. Taking it adds a Healing charge for
+    // An Ember (a Healing charge piece): kept in an iron dish, found behind a secret. Taking it adds a Healing charge for
     // good (stats are never bought: they're found).
     public sealed class ChargePiece : MonoBehaviour, IInteractable
     {
@@ -19,6 +19,13 @@ namespace MyGame
         public float InteractRadius => interactRadius;
         public bool Available => !Taken;
         public string PromptLabel => "Take";
+
+        // (the lab) Where it was again, to be found again.
+        public void PutBack()
+        {
+            Taken = false;
+            gameObject.SetActive(true);
+        }
 
         // Loading a save: already taken.
         public void RestoreTaken()

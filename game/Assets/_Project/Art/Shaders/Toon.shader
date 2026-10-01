@@ -1,6 +1,7 @@
 // Toon shader for URP (the style locked in the art test, see docs/brief.md).
 // Stepped main-light shading with tinted shadows, stepped pools from point lights (Forward+), a soft rim,
-// emission, fog, and an inverted-hull outline. The outline pushes vertices along a SMOOTHED normal that
+// emission, fog, a hard-edged glint for metal (_Specular: from the main light and every lantern, so metal catches the
+// lamps it passes), and an inverted-hull outline. The outline pushes vertices along a SMOOTHED normal that
 // ModelImportRules bakes into the mesh tangents, so faceted meshes still get a closed outline and skinned
 // meshes keep it while animating. Meshes without baked tangents (e.g. Unity primitives) get no outline.
 // _Dissolve (0..1, set per renderer with a MaterialPropertyBlock) eats the surface away in a noise pattern with a
@@ -19,6 +20,8 @@ Shader "MyGame/Toon"
         _AmbientStrength("Ambient Strength", Range(0, 1)) = 0.5
         _RimColor("Rim Color", Color) = (0.8, 0.85, 1, 1)
         _RimStrength("Rim Strength", Range(0, 1)) = 0.12
+        _Specular("Specular (metal)", Range(0, 2)) = 0
+        _SpecularSize("Specular Size", Range(0.005, 0.5)) = 0.08
         [HDR] _EmissionColor("Emission", Color) = (0, 0, 0, 1)
         _OutlineColor("Outline Color", Color) = (0.07, 0.06, 0.09, 1)
         _OutlineWidth("Outline Width (px)", Range(0, 6)) = 1.6
@@ -43,6 +46,8 @@ Shader "MyGame/Toon"
             half _AmbientStrength;
             half4 _RimColor;
             half _RimStrength;
+            half _Specular;
+            half _SpecularSize;
             half4 _EmissionColor;
             half4 _OutlineColor;
             float _OutlineWidth;
@@ -163,6 +168,16 @@ Shader "MyGame/Toon"
                 half rim = pow(1.0 - saturate(dot(normalWS, viewDir)), 4.0) * _RimStrength * lit;
 
                 half3 color = direct + ambient + rim * _RimColor.rgb + _EmissionColor.rgb;
+                // Metal: a hard-edged glint, tinted by the metal (gold glints gold), and a darker body between.
+                half3 glintTint = lerp(albedo, 1.0, 0.45);
+                half glintEdge = 1.0 - _SpecularSize;
+                if (_Specular > 0.0)
+                {
+                    half nh = dot(normalWS, normalize(light.direction + viewDir));
+                    color += glintTint * light.color * _Specular * lit * smoothstep(glintEdge - 0.01, glintEdge + 0.01, nh);
+                    // (and a band from the sky above, so it reads as metal even away from any light)
+                    color += albedo * _Specular * 0.3 * smoothstep(0.6, 0.66, normalWS.y * 0.5 + 0.5);
+                }
 
             #if defined(_ADDITIONAL_LIGHTS)
                 // Lantern light: a soft-edged pool rather than a smooth falloff, to match the stepped look.
@@ -176,6 +191,11 @@ Shader "MyGame/Toon"
                     half atten = lamp.distanceAttenuation * lamp.shadowAttenuation;
                     half pool = smoothstep(0.03, 0.1, atten) * 0.55 + saturate(atten) * 0.45;
                     color += albedo * lamp.color * facing * pool;
+                    if (_Specular > 0.0)
+                    {
+                        half lh = dot(normalWS, normalize(lamp.direction + viewDir));
+                        color += glintTint * lamp.color * _Specular * saturate(atten * 2.0) * facing * smoothstep(glintEdge - 0.01, glintEdge + 0.01, lh);
+                    }
                 LIGHT_LOOP_END
             #endif
 

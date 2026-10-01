@@ -48,7 +48,7 @@ game/Assets/_Project/
   bone forward). From the game camera a forward-tipped prop foreshortens and reads as "down": check poses with
   `tools/preview-poses.sh` before importing.
 - Import rules (`ModelImportRules`): Blender material colours become `MyGame/Toon` materials; names ending in
-  `_Glow` become emissive; smoothed normals are baked into tangents for the outline. Rigged FBX skip Blender's
+  `_Glow` become emissive, and in `_Metal` metal (a hard glint from the moon and lanterns); smoothed normals are baked into tangents for the outline. Rigged FBX skip Blender's
   bake_space_transform (broken with armatures) and use Unity's bakeAxisConversion, so their roots keep a
   rotation: compose yaw with the prefab's root rotation when placing.
 - Sounds are code too: `art/audio/<name>.py` defines render(variant, rng) (+ VARIANTS, LOOP). The list of every

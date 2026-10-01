@@ -3,12 +3,13 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // The Tester's menu (the lab only). Two pages. Spawn: any kind of Soured (as many as chosen, aggressive or idle),
-    // clear them all, reset the readout, reset the Apprentice. Give: any Charm, a Charm slot, the Hook, Obols, a
-    // Healing charge. The rows are actions; confirming does them (a count or a mood cycles).
+    // The Tester's menu (the lab only). Spawn: any kind of Soured (as many as chosen, aggressive or idle), clear them
+    // all, reset the readout, reset the Apprentice. Formations: ready-made mixes. Give: any Charm, a Charm slot, the
+    // Hook, Obols. Strength: a Ferry Nail, a Warm Stone, a Held Breath, a Healing charge, a lantern level. The rows are
+    // actions; confirming does them (a count or a mood cycles).
     public sealed class TesterMenu : Menu
     {
-        enum Page { Spawn, Formations, Give }
+        enum Page { Spawn, Formations, Give, Strength }
 
         readonly TesterPost post;
         readonly Apprentice apprentice;
@@ -23,7 +24,13 @@ namespace MyGame
             Say("Nothing here is kept. Break whatever you like.");
         }
 
-        public override string Title => page == Page.Spawn ? "The Tester's Post" : page == Page.Formations ? "Formations" : "Give the Apprentice";
+        public override string Title => page switch
+        {
+            Page.Spawn => "The Tester's Post",
+            Page.Formations => "Formations",
+            Page.Give => "Give the Apprentice",
+            _ => "Make them stronger",
+        };
         public override string ConfirmLabel => "Do it";
         public override IReadOnlyList<Row> Rows
         {
@@ -68,14 +75,14 @@ namespace MyGame
                 Add("They start", Spawner.Aggressive ? "aggressive" : "idle", "Aggressive: they know you're there. Idle: they never notice you, and never fight back.",
                     () => Spawner.Aggressive = !Spawner.Aggressive);
                 Add("Formations...", "", "The miniboss, and ready-made mixes: shield and bow, Clingers with a Laden, everything at once.", () => Go(Page.Formations));
-                Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone.", () =>
+                Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone (and the readout's counts start again).", () =>
                 {
                     Spawner.ClearSpawned();
+                    post.readout?.ResetCounts();
                     Say("Cleared.");
                 });
-                Add("Reset the readout", "", "Start the damage counts again.", () => post.readout?.ResetCounts());
-                Add("Give the Apprentice...", "", "Charms, Charm slots, the Hook, Obols, Healing charges.", () => Go(Page.Give));
-                Add("Reset the Apprentice", "", "As they started: no Charms but the Tester's Knot, one slot, no Hook, no Obols, three Healing charges.", ResetApprentice);
+                Add("Give the Apprentice...", "", "Charms, Charm slots, the Hook, Obols; Ferry Nails, Warm Stones, Held Breaths, Healing charges.", () => Go(Page.Give));
+                Add("Reset the Apprentice", "", "As they started: no Charms but the Tester's Knot, one slot, no Hook, no Obols, three Healing charges, the first oar, nothing found (the pieces lie where they were again).", ResetApprentice);
             }
             else if (page == Page.Formations)
             {
@@ -90,6 +97,21 @@ namespace MyGame
                     });
                 }
                 Add("Back", "", "", () => Go(Page.Spawn));
+            }
+            else if (page == Page.Strength)
+            {
+                var equipment = apprentice.Equipment;
+                Add("A Ferry Nail", $"{equipment.FerryNails}", "For the oar: strengthen it at the Mooring post (1, 2, 3, then 4 nails a step).", () =>
+                    apprentice.AddFerryNail());
+                Add("A Warm Stone", $"{Mathf.RoundToInt(apprentice.maxHealth)}", $"{Mathf.RoundToInt(apprentice.healthPerStone)} more health, for good.", apprentice.AddWarmStone);
+                Add("A Held Breath", $"{Mathf.RoundToInt(apprentice.maxStamina)}", $"{Mathf.RoundToInt(apprentice.staminaPerBreath)} more stamina, for good.", apprentice.AddHeldBreath);
+                Add("A Healing charge", $"{apprentice.maxHealingCharges}", "One more flame to heal with (an Ember).", apprentice.AddHealingCharge);
+                Add("The lantern: a level", $"{Lantern.Level} of {Lantern.Levels}", "As if a quarter of the journey's Mooring posts were lit (dev). See the character screen (I).", () =>
+                {
+                    Lantern.DevLevels = Mathf.Min(Lantern.Levels - 1, Lantern.DevLevels + 1);
+                    Say(Lantern.Line);
+                }, Lantern.Level >= Lantern.Levels);
+                Add("Back", "", "", () => Go(Page.Give));
             }
             else
             {
@@ -110,7 +132,13 @@ namespace MyGame
                 }, equipment.charmSlots >= 3);
                 Add("The Hook", apprentice.HasHook ? "Owned" : "Take", "Pull to hook posts, yank Soured.", apprentice.GiveHook, apprentice.HasHook);
                 Add("500 Obols", $"{apprentice.Obols}", "Obols (souls, basically).", () => apprentice.GainObols(500));
-                Add("A Healing charge", $"{apprentice.maxHealingCharges}", "One more flame to heal with.", apprentice.AddHealingCharge);
+                Add("A full Satchel", $"{Provision.All.Length} kinds", "Every Provision, as many as the Satchel takes of each (and on the belt).", () =>
+                {
+                    foreach (var p in Provision.All)
+                        equipment.AddProvision(p, p.Cap);
+                    Say("Packed. Use them all, nobody's counting.");
+                });
+                Add("Strength...", "", "Ferry Nails for the oar, Warm Stones, Held Breaths, Healing charges, the lantern.", () => Go(Page.Strength));
                 Add("Back", "", "", () => Go(Page.Spawn));
             }
         }
@@ -132,6 +160,8 @@ namespace MyGame
         {
             apprentice.Equipment.ResetToStart();
             apprentice.Restore(0, 3, false);
+            Lantern.DevLevels = 0;
+            Object.FindAnyObjectByType<LabFinds>()?.PutBack(); // (everything found, where it was again)
             Say("As new. Or as new as anyone gets down here.");
         }
 

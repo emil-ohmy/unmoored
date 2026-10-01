@@ -39,8 +39,17 @@ namespace MyGame
         static readonly Color HealthRed = UiKit.Hex(0x8e2a22), StaminaMoss = UiKit.Hex(0x6f8a55);
         static readonly Color FlameOuter = UiKit.Hex(0xff9a45), FlameCore = UiKit.Hex(0xffe3a8), FlameSpent = UiKit.Hex(0x2a2629, 0.9f);
 
-        RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail;
-        CanvasGroup hudGroup, promptGroup;
+        RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail, hpFrame, staminaFrame, poisonFill, poisonFrame;
+        Image poisonFillImage;
+        Text poisonLabel;
+        static readonly Color PoisonGreen = new Color(0.52f, 0.78f, 0.26f);
+        public bool PoisonShown => poisonFrame.gameObject.activeSelf;
+        const float HealthWidth = 380f, StaminaWidth = 300f, LongestBar = 2.2f; // (at the start; a bar grows with its most, to 2.2 times)
+
+        bool barsSized;
+        public float HealthBarWidth => hpFrame.sizeDelta.x - 4f;
+        public float StaminaBarWidth => staminaFrame.sizeDelta.x - 4f;
+        CanvasGroup hudGroup, promptGroup, canvasGroup;
         Image restFlash, keyCap, buttonRing, ceremonyDim, dip;
         public float DipAlpha => dip != null ? dip.color.a : 0f;
         Text glyph, promptLabel, obolText, obolGain, obolNote;
@@ -59,7 +68,7 @@ namespace MyGame
         (RectTransform flame, Image outer, Image core, Image glow)[] charges;
         float hpTrailValue = 1f, hpLast = 1f, hpTrailHold, lockTrailValue, lockLast, lockTrailHold, restFlashAt = -100f;
         Soured barTarget;
-        bool usingGamepad;
+        static bool usingGamepad => InputDevice.Gamepad; // (the controls last touched)
 
         void Start()
         {
@@ -73,6 +82,8 @@ namespace MyGame
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
             canvasRect = (RectTransform)canvasGo.transform;
+            canvasGroup = canvasGo.AddComponent<CanvasGroup>();
+            canvasGroup.interactable = canvasGroup.blocksRaycasts = false;
 
             var hudRoot = UiKit.Stretch(UiKit.Rect(canvasRect, "HUD", Vector2.zero, Vector2.zero, Vector2.zero));
             hudGroup = hudRoot.gameObject.AddComponent<CanvasGroup>();
@@ -80,9 +91,13 @@ namespace MyGame
             hpFill = Bar(hudRoot, "Health", new Vector2(56, -46), 380, 14, HealthRed, out hpTrail);
             hpFillImage = hpFill.GetComponent<Image>();
             staminaFill = Bar(hudRoot, "Stamina", new Vector2(56, -70), 300, 8, StaminaMoss, out _);
+            BuildPoison(hudRoot);
+            hpFrame = (RectTransform)hpFill.parent;
+            staminaFrame = (RectTransform)staminaFill.parent;
             BuildCharges(hudRoot);
             BuildPrompt(hudRoot);
             BuildObols(hudRoot);
+            BuildBelt(hudRoot);
 
             // Washing ashore: a quick dip to black and back.
             dip = UiKit.Image(canvasRect, "Dip", null, Color.black.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -127,7 +142,6 @@ namespace MyGame
             Dialogue = new DialogueBox(canvasRect, titleFont, textFont);
             Death = new DeathScreen(canvasRect, titleFont, deathPhrase);
 
-            usingGamepad = Gamepad.current != null;
             apprentice.Died += OnDied;
             apprentice.Woke += OnWoke;
             apprentice.ObolsChanged += OnObolsChanged;
@@ -242,8 +256,22 @@ namespace MyGame
             float health = apprentice.Health / apprentice.maxHealth;
             hpFill.anchorMax = new Vector2(health, 1f);
             hpFillImage.color = Color.Lerp(HealthRed, UiKit.Ember, 0.8f * (1f - UiKit.Smooth(0.05f, 0.7f, now - healedAt))); // flares warm on a heal
+            // Poison: its build-up under the bars (only while there's any); poisoned, it pulses, and health goes sickly.
+            bool poisoned = apprentice.Poisoned;
+            poisonFrame.gameObject.SetActive(apprentice.Poison > 0.01f);
+            poisonLabel.text = poisoned ? "Poisoned" : "Poison";
+            poisonLabel.color = (poisoned ? new Color(0.8f, 1f, 0.5f) : PoisonGreen).WithAlpha(0.9f);
+            poisonFill.anchorMax = new Vector2(apprentice.PoisonFraction, 1f);
+            float pulse = poisoned ? 0.5f + 0.5f * Mathf.Sin(now * 6f) : 0f;
+            poisonFillImage.color = Color.Lerp(PoisonGreen, new Color(0.8f, 1f, 0.5f), pulse * 0.6f);
+            if (poisoned)
+                hpFillImage.color = Color.Lerp(hpFillImage.color, new Color(0.45f, 0.62f, 0.2f), 0.55f);
             hpTrail.anchorMax = new Vector2(Trail(health, ref hpLast, ref hpTrailValue, ref hpTrailHold), 1f);
             staminaFill.anchorMax = new Vector2(apprentice.Stamina / apprentice.maxStamina, 1f);
+            Grow(hpFrame, HealthWidth * apprentice.maxHealth / apprentice.BaseHealth);
+            Grow(staminaFrame, StaminaWidth * apprentice.maxStamina / apprentice.BaseStamina);
+            barsSized = true; // (from the first frame on, they grow; before it, a loaded journey's are simply that long)
+            UpdateBelt(now);
             UpdateCharges(now);
             UpdatePrompt();
             UpdateObols();
@@ -261,6 +289,8 @@ namespace MyGame
             Dialogue.Tick(talk, usingGamepad);
             Death.Tick();
             hudGroup.alpha = Death.HudAlpha * (Pause.IsPaused ? 0.2f : 1f); // (dimmed under the pause menu)
+            // Paused (the pause menu, the character screen), its messages go quiet too: nothing shows through a menu.
+            canvasGroup.alpha = Pause.IsPaused ? 0f : Mathf.MoveTowards(canvasGroup.alpha, 1f, UiKit.DeltaTime * 6f); // (gone at once; back softly)
             AreaTitle.Tick();
             LanternBanner.Tick();
             FoundBanner.Tick();
@@ -386,23 +416,7 @@ namespace MyGame
         }
 
         // Show the keys of whichever device was touched last.
-        void TrackDevice()
-        {
-            var pad = Gamepad.current;
-            if (pad != null && (pad.leftStick.ReadValue().sqrMagnitude > 0.25f || AnyButtonPressed(pad)))
-                usingGamepad = true;
-            else if ((Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame)
-                     || (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
-                usingGamepad = false;
-        }
-
-        static bool AnyButtonPressed(Gamepad pad)
-        {
-            foreach (var control in pad.allControls)
-                if (control is ButtonControl button && button.wasPressedThisFrame)
-                    return true;
-            return false;
-        }
+        static void TrackDevice() => InputDevice.Track();
 
         // With the Hook: a pale blue ring on the post it would pull to, dim; bright and pulsing while aiming.
         void BuildHookMarker(Transform root)
@@ -528,6 +542,119 @@ namespace MyGame
 
         // A framed bar at the top left: a thin bronze frame with a diamond at its left end, a dark back, a pale
         // trail (optional use) and the fill. Returns the fill; its anchorMax.x is the value.
+        // A bar is as long as its most: a Warm Stone or a Held Breath found lengthens it (quickly, not at once).
+        void Grow(RectTransform frame, float width)
+        {
+            float longest = (frame.name == "Health" ? HealthWidth : StaminaWidth) * LongestBar;
+            float target = Mathf.Min(width, longest) + 4f;
+            var size = frame.sizeDelta;
+            size.x = !barsSized || Mathf.Abs(size.x - target) < 0.5f ? target : Mathf.Lerp(size.x, target, 1f - Mathf.Exp(-8f * UiKit.DeltaTime));
+            frame.sizeDelta = size;
+        }
+
+        // ---- the belt: up to four Provisions in a row, bottom left; the chosen one bigger and bright, a caret over it
+        // (up uses it), its name above; left/right choose along it
+
+        (RectTransform slot, Image frame, Image icon, Text count)[] belt;
+        CanvasGroup beltGroup;
+        Text beltName;
+        Image beltCaret;
+        float beltUsedAt = -10f;
+        public string BeltText(int slot) => apprentice.Equipment.Belt[slot] is Provision p ? $"{p.Name} {belt[slot].count.text}" : "";
+        public string BeltChosenName => beltName.text;
+
+        void BuildBelt(Transform root)
+        {
+            var strip = UiKit.Rect(root, "Belt", new Vector2(0f, 0f), new Vector2(60, 70), new Vector2(10, 10));
+            strip.pivot = new Vector2(0f, 0.5f);
+            beltGroup = strip.gameObject.AddComponent<CanvasGroup>();
+            beltGroup.alpha = 0f;
+            belt = new (RectTransform, Image, Image, Text)[Provision.BeltSlots];
+            for (int i = 0; i < belt.Length; i++)
+            {
+                var slot = UiKit.Rect(strip, "Slot", new Vector2(0f, 0.5f), new Vector2(34 + i * 78, 0), new Vector2(64, 64));
+                UiKit.Image(slot, "Back", null, UiKit.Hex(0x0b0a0e, 0.7f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(44, 44))
+                    .rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                var frame = UiKit.Image(slot, "Frame", UiKit.KeyCap, UiKit.Bronze, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(64, 64));
+                frame.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+                var icon = UiKit.Image(slot, "Icon", null, Color.white, new Vector2(0.5f, 0.5f), new Vector2(0, 2), new Vector2(36, 36));
+                var count = UiKit.Text(slot, "Count", textFont, 22, UiKit.Bone, TextAnchor.LowerRight, new Vector2(0.5f, 0.5f), new Vector2(26, -20));
+                count.rectTransform.sizeDelta = new Vector2(40, 30);
+                count.rectTransform.pivot = new Vector2(1f, 0f);
+                belt[i] = (slot, frame, icon, count);
+            }
+            beltCaret = UiKit.Image(strip, "Caret", null, Color.clear, new Vector2(0f, 0.5f), new Vector2(34, 60), new Vector2(30, 14));
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var stroke = UiKit.Image(beltCaret.rectTransform, "Stroke", null, UiKit.Ember, new Vector2(0.5f, 0.5f), new Vector2(side * 6f, 0f), new Vector2(16, 3));
+                stroke.rectTransform.localRotation = Quaternion.Euler(0, 0, -30f * side);
+            }
+            beltName = UiKit.Text(strip, "Chosen", textFont, 26, UiKit.Bone, TextAnchor.MiddleLeft, new Vector2(0f, 0.5f), new Vector2(0, 94), 1f);
+            beltName.rectTransform.pivot = new Vector2(0f, 0.5f);
+            beltName.rectTransform.sizeDelta = new Vector2(400, 36);
+        }
+
+        public static Sprite IconOf(Provision p) =>
+            p == Provision.PitchPot ? UiKit.PotIcon : p == Provision.EmberTar ? UiKit.TinIcon : p == Provision.WayBack ? UiKit.CordIcon
+            : p == Provision.BitterRoot ? UiKit.RootIcon : UiKit.FlaskIcon;
+
+        public static Color ColourOf(Provision p) =>
+            p == Provision.PitchPot ? UiKit.Hex(0xc07a4e) : p == Provision.EmberTar ? UiKit.Hex(0xff8a3a) : p == Provision.WayBack ? UiKit.Hex(0xe0d4b6)
+            : p == Provision.BitterRoot ? UiKit.Hex(0xb9a36a) : UiKit.Hex(0xffc47a);
+
+        void UpdateBelt(float now)
+        {
+            var e = apprentice.Equipment;
+            if (apprentice.CurrentState == Apprentice.State.Provision && apprentice.StateTime < 0.05f)
+                beltUsedAt = now;
+            float flash = 1f - UiKit.Smooth(0f, 0.4f, now - beltUsedAt);
+            for (int i = 0; i < belt.Length; i++)
+            {
+                var (slot, frame, icon, count) = belt[i];
+                var p = e.Belt[i];
+                icon.enabled = p != null;
+                if (p == null)
+                {
+                    count.text = "";
+                    frame.color = UiKit.Bronze.WithAlpha(0.35f); // (an empty slot: left/right pass it by)
+                    slot.localScale = Vector3.one * 0.8f;
+                    continue;
+                }
+                bool chosen = i == e.BeltChosen, empty = e.Carried(p) <= 0;
+                icon.sprite = IconOf(p);
+                icon.color = ColourOf(p).WithAlpha(empty ? 0.25f : chosen ? 1f : 0.6f);
+                count.text = $"{e.Carried(p)}";
+                count.color = empty ? UiKit.Ash.WithAlpha(0.5f) : chosen ? UiKit.Bone : UiKit.Ash;
+                frame.color = chosen ? Color.Lerp(UiKit.Ember.WithAlpha(0.85f), Color.white, flash * 0.6f) : UiKit.Bronze.WithAlpha(0.7f);
+                float scale = chosen ? 1.15f + 0.12f * flash : 0.85f;
+                slot.localScale = Vector3.one * Mathf.Lerp(slot.localScale.x, scale, 1f - Mathf.Exp(-14f * UiKit.DeltaTime));
+            }
+            var c = e.Chosen;
+            beltCaret.enabled = c != null;
+            foreach (Transform stroke in beltCaret.transform)
+                stroke.gameObject.SetActive(c != null);
+            if (c != null)
+                beltCaret.rectTransform.anchoredPosition = new Vector2(34 + e.BeltChosen * 78, 60 + 4f * Mathf.Sin(now * 3f));
+            beltName.text = c != null ? c.Name : "";
+            beltName.color = c != null && e.Carried(c) > 0 ? UiKit.Bone.WithAlpha(0.85f) : UiKit.Ash.WithAlpha(0.6f);
+            beltGroup.alpha = Mathf.MoveTowards(beltGroup.alpha, e.BeltEmpty ? 0f : 1f, UiKit.DeltaTime * 4f);
+        }
+
+        // The poison build-up: in the middle of the screen, just under the Apprentice (who's always there), where it
+        // can't be missed; only while there's any. Its word over it.
+        void BuildPoison(Transform root)
+        {
+            var centre = new Vector2(0.5f, 0.5f);
+            poisonFrame = UiKit.Image(root, "Poison", null, UiKit.Bronze.WithAlpha(0.9f), centre, new Vector2(0, -110), new Vector2(164, 10)).rectTransform;
+            UiKit.Stretch(UiKit.Image(poisonFrame, "Back", null, UiKit.Hex(0x0b0a0e, 0.85f), Vector2.zero, Vector2.zero, Vector2.zero).rectTransform, 1f);
+            poisonFill = Fill(poisonFrame, PoisonGreen);
+            poisonFillImage = poisonFill.GetComponent<Image>();
+            poisonFillImage.sprite = UiKit.Sheen;
+            poisonLabel = UiKit.Text(poisonFrame, "Label", textFont, 22, PoisonGreen, TextAnchor.MiddleCenter, new Vector2(0.5f, 1f), new Vector2(0, 14), 2f);
+            poisonLabel.rectTransform.sizeDelta = new Vector2(300, 28);
+            poisonFrame.gameObject.SetActive(false);
+        }
+
         static RectTransform Bar(Transform parent, string name, Vector2 position, float width, float height, Color colour, out RectTransform trail)
         {
             var top = new Vector2(0, 1);

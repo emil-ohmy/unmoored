@@ -1272,6 +1272,202 @@ namespace MyGame.Tests
         }
 
         // The lab: the floor, the Tester's Post and its menu, a pair of Laden set down, the readout.
+        // The Drowned: bubbles, rising (its tell), the grab, dragging the Apprentice under.
+        [UnityTest]
+        public IEnumerator Capture_Drowned()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var drowned = UnityEngine.Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None).First(d => d.name == "Drowned (south edge)");
+            Spit spat = null;
+            System.Action<Drowned, Spit> onSpat = (d, sp) => { if (d == drowned) spat = sp; };
+            Drowned.Spat += onSpat;
+            apprentice.Teleport(new Vector3(10.5f, 0.55f, -2.2f));
+            for (int i = 0; i < 20 && drowned.CurrentState != Soured.State.Telegraph; i++)
+                yield return null;
+            Shot("drowned-0-waiting");
+            while (drowned.CurrentState == Soured.State.Telegraph && drowned.StateTime < 0.6f)
+                yield return null;
+            Shot("drowned-1-rising");
+            while (spat == null)
+                yield return null;
+            for (int i = 0; i < 6; i++)
+                yield return null;
+            Shot("drowned-2-spit");
+            for (int i = 0; i < 30; i++)
+                yield return null;
+            Shot("drowned-3-poisoned");
+            Drowned.Spat -= onSpat;
+        }
+
+        // The character screen's four pages, and the oar at each of its five steps (close up, from the front).
+        [UnityTest]
+        public IEnumerator Capture_Character()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
+            yield return null;
+            yield return null;
+            Time.captureFramerate = 30;
+            var apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name, Camera from)
+            {
+                from.Render();
+                var previous = RenderTexture.active;
+                RenderTexture.active = from.targetTexture;
+                var tex = new Texture2D(from.targetTexture.width, from.targetTexture.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            // Every kind of find, in their row.
+            var finds = UnityEngine.Object.FindAnyObjectByType<LabFinds>();
+            if (finds != null && finds.hookSpot != null)
+            {
+                apprentice.Teleport(new Vector3(7.2f, finds.hookSpot.position.y, 1.2f), true, true);
+                yield return Frames(40);
+                Shot("finds-row", cam);
+            }
+            var e = apprentice.Equipment;
+            apprentice.AddWarmStone();
+            apprentice.AddHeldBreath();
+            e.Own(Charm.EelSkin);
+            e.Toggle(Charm.EelSkin);
+            for (int i = 0; i < 3; i++)
+                apprentice.AddFerryNail();
+            e.Strengthen();
+            Lantern.DevLevels = 1;
+            apprentice.GiveHook();
+            foreach (var p in Provision.All)
+                e.AddProvision(p, 2);
+            yield return Frames(30);
+            var screen = UnityEngine.Object.FindAnyObjectByType<CharacterScreen>();
+            screen.Toggle(true);
+            for (int page = 0; page < CharacterScreen.TabNames.Length; page++)
+            {
+                yield return Frames(15);
+                Shot($"character-{page}-{screen.Current}", cam);
+                if (screen.Current == CharacterScreen.Tab.Satchel)
+                {
+                    screen.MoveSlot(1);
+                    yield return Frames(15);
+                    Shot($"character-{page}-{screen.Current}-1-slot2", cam);
+                    screen.SatchelConfirm();
+                    screen.ChooseProvision(1);
+                    yield return Frames(15);
+                    Shot($"character-{page}-{screen.Current}-2-choosing", cam);
+                    screen.SatchelBack();
+                }
+                screen.Turn(1);
+            }
+            screen.Turn(1);
+            for (int step = 2; step <= Oar.Last; step++)
+            {
+                e.Restore(step, 0, 1, 1);
+                yield return Frames(3);
+                Shot($"character-oar-{step}", cam);
+            }
+            screen.Toggle(false);
+            Lantern.DevLevels = 0;
+            yield return Frames(15);
+
+            // A Pitch Pot thrown at the training Laden, and the oar tarred.
+            var dummy = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).First(l => l.immortal);
+            apprentice.Teleport(dummy.transform.position - dummy.transform.forward * 4f);
+            apprentice.transform.rotation = Quaternion.LookRotation(dummy.transform.position - apprentice.transform.position);
+            yield return Frames(20);
+            Shot("provisions-0-belt", cam);
+            while (e.Chosen != Provision.PitchPot)
+                e.ChooseOnBelt(1);
+            input.PressBeltUse();
+            yield return Frames(8);
+            Shot("provisions-1-throw", cam);
+            yield return Frames(30);
+            Shot("provisions-2-pitch", cam);
+            yield return Frames(30);
+            Shot("provisions-3-burning", cam);
+            while (e.Chosen != Provision.EmberTar)
+                e.ChooseOnBelt(1);
+            yield return Frames(10);
+            Shot("provisions-3b-belt-tar", cam);
+            input.PressBeltUse();
+            yield return Frames(40);
+            Shot("provisions-4-tarred", cam);
+            yield return Frames(90);
+
+            // Strengthening it: held up high, changing in the flash.
+            e.Restore(2, 3, 1, 1);
+            yield return Frames(5);
+            Assert.IsTrue(apprentice.StrengthenOar());
+            foreach (float at in new[] { 0.2f, 0.32f, 0.45f, 0.7f })
+            {
+                while (apprentice.CurrentState == Apprentice.State.Ceremony && apprentice.StateTime < apprentice.ceremonyDuration * at)
+                    yield return null;
+                Shot($"ceremony-{Mathf.RoundToInt(at * 100)}", cam);
+            }
+            while (apprentice.CurrentState == Apprentice.State.Ceremony)
+                yield return null;
+
+            // The oar, close up.
+            var close = new GameObject("Close Camera").AddComponent<Camera>();
+            close.targetTexture = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            close.fieldOfView = 40f;
+            close.backgroundColor = new Color(0.1f, 0.1f, 0.12f);
+            close.clearFlags = CameraClearFlags.SolidColor;
+            close.enabled = false;
+            var light = new GameObject("Close Light").AddComponent<Light>();
+            light.type = LightType.Point;
+            light.range = 8f;
+            light.intensity = 3f;
+            for (int step = 0; step <= Oar.Last; step++)
+            {
+                e.Restore(step, 0, 1, 1);
+                yield return Frames(3);
+                Vector3 at = apprentice.transform.position + Vector3.up * 1.15f;
+                close.transform.position = at + apprentice.transform.forward * 3.2f + Vector3.up * 0.3f;
+                close.transform.LookAt(at);
+                light.transform.position = close.transform.position + Vector3.up;
+                Shot($"oar-{step}", close);
+            }
+            UnityEngine.Object.Destroy(close.gameObject);
+        }
+
         [UnityTest]
         public IEnumerator Capture_Lab()
         {
@@ -1360,7 +1556,7 @@ namespace MyGame.Tests
             apprentice.Teleport(new Vector3(4f, 0.55f, 0f));
             apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
             yield return Frames(10);
-            int kind = Array.FindIndex(post.spawner.kinds, k => k.name == "Clingers");
+            int kind = Array.FindIndex(post.spawner.kinds, k => k.name == "Clinger");
             post.spawner.Spawn(kind, apprentice);
             var pair = post.spawner.Spawned.OfType<Clinger>().ToArray();
             yield return Frames(10);

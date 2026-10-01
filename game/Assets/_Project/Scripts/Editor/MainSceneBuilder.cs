@@ -156,6 +156,7 @@ public static partial class MainSceneBuilder
         var effects = systems.AddComponent<Effects>();
         effects.sparkMaterial = sparkMaterial;
         effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
+        effects.flameMaterial = ParticleMaterial("M_Flame", FlameTexture("T_Flame"));
         var hud = systems.AddComponent<Hud>();
         hud.apprentice = apprentice;
         hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");
@@ -166,6 +167,29 @@ public static partial class MainSceneBuilder
         var pause = systems.AddComponent<PauseMenu>();
         pause.titleFont = hud.titleFont;
         pause.textFont = hud.textFont;
+        var character = systems.AddComponent<CharacterScreen>(); // I / C / Select: the Apprentice, the oar, Charms, the lantern
+        character.titleFont = hud.titleFont;
+        character.textFont = hud.textFont;
+        character.oarModels = new GameObject[Oar.Steps.Length]; // (turning on its Oar page; no colliders: they're not in the world)
+        for (int step = 0; step < Oar.Steps.Length; step++)
+        {
+            var oar = Place($"Environment/oar_display_{step}", new Vector3(0f, -400f, 0f), 0f);
+            oar.name = $"Oar {step} (character screen)";
+            foreach (var c in oar.GetComponentsInChildren<Collider>())
+                UnityEngine.Object.DestroyImmediate(c);
+            oar.SetActive(false);
+            character.oarModels[step] = oar;
+        }
+        character.provisionModels = new GameObject[Provision.All.Length]; // (turning on its Satchel page)
+        for (int i = 0; i < Provision.All.Length; i++)
+        {
+            var model = Place($"Environment/provision_{Provision.All[i].Id}", new Vector3(0f, -400f, 0f), 0f);
+            model.name = $"{Provision.All[i].Name} (character screen)";
+            foreach (var c in model.GetComponentsInChildren<Collider>())
+                UnityEngine.Object.DestroyImmediate(c);
+            model.SetActive(false);
+            character.provisionModels[i] = model;
+        }
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
@@ -194,6 +218,11 @@ public static partial class MainSceneBuilder
         sfx.murmur = Clips("lingerer_murmur");
         sfx.oarStroke = Clips("oar_stroke");
         sfx.bossFarewell = Clips("boss_farewell");
+        sfx.pitchBurst = Clips("pitch_burst");
+        sfx.drink = Clips("drink");
+        sfx.tarSizzle = Clips("tar_sizzle");
+        sfx.wayBack = Clips("way_back");
+        sfx.spitSplat = Clips("spit_splat");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
         music.AddComponent<MusicPlayer>();
@@ -252,8 +281,10 @@ public static partial class MainSceneBuilder
         var apprentice = go.AddComponent<Apprentice>();
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
-        Swoosh(go, "Oar", "OarBlade", ApprenticeSwoosh, 0.16f, towardsPivot: 0.55f); // from the tip to half-way down the shaft: a wide crescent
+        go.AddComponent<OarLook>(); // the oar's step: its trims and its wood
+        Swoosh(go, "Oar", "Oar0Blade", ApprenticeSwoosh, 0.16f, towardsPivot: 0.55f); // from the tip to half-way down the shaft: a wide crescent
         apprentice.hookHeadModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
+        apprentice.pitchPotModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/provision_pitch_pot.fbx");
         var lantern = PointLight(Bone(go, "Body"), GlowCentre(go, "SoulLantern_Glow"), 3.5f, 2.2f, BowLanternLight);
         Flicker(lantern, 0.06f, 2f, 0.01f); // a slow, steady pulse, not a flame
         go.AddComponent<BowLantern>().lanternLight = lantern;
@@ -446,6 +477,47 @@ public static partial class MainSceneBuilder
         BeltLantern(go, laden);
         Swoosh(go, "Heap", "FrameGold", SouredSwoosh, 0.18f, "HeapWood"); // the whole heap, top to chest: a big heavy smear
         return laden;
+    }
+
+    // The Drowned: waits under the water, rises to spit poison at you (a perfect block turns it back: it's slain by its
+    // own spit); hide from it and it comes to the shore, open to the oar; hooked out, it's stranded on the ground.
+    // `position`: where it waits (at the water's surface; it sinks out of sight).
+    static Drowned Drowned(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/drowned", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.55f, 0f);
+        controller.height = 1.1f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var drowned = go.AddComponent<Drowned>();
+        drowned.maxHealth = 70f;
+        drowned.radius = 0.45f;
+        drowned.staggerCapacity = 40f;
+        drowned.staggerDuration = 1.0f;
+        drowned.aggroRadius = 9f;         // (it feels you come near its water)
+        drowned.viewHalfAngle = 180f;     // (under the water, it senses all round)
+        drowned.noticeCloseRadius = 9f;
+        drowned.leashRadius = 9f;         // its stretch of water
+        drowned.giveUpRange = 13f;
+        drowned.chaseSpeed = 3f;
+        drowned.turnSpeed = 540f;
+        drowned.attackRange = 2.0f;
+        drowned.obols = 35;
+        drowned.eyeHeight = 0.9f;
+        drowned.barHeight = 1.5f;
+        drowned.primary = new SouredAttack
+        {
+            name = "Spit", windupClip = "Rise", strikeClip = "Spit", recoverClip = "Clutch",
+            telegraph = 0.85f, strike = 0.3f, recover = 0.9f, impactAt = 0.35f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.75f, damage = 6f, reach = 9f, arc = 180f, knockback = 2f,
+            ranged = true, projectileSpeed = 9f,
+        };
+        drowned.primary.windupSound = Clips("drowned_rise");
+        drowned.primary.releaseSound = Clips("drowned_spit");
+        drowned.bubbleSound = Clips("drowned_bubbles");
+        return drowned;
     }
 
     // The Clinger: fast, fragile, always two. Circles, leaps, clings to your back; dash it off.
@@ -1139,6 +1211,31 @@ public static partial class MainSceneBuilder
                 float d = new Vector2(x + 0.5f - size / 2f, y + 0.5f - size / 2f).magnitude / (size / 2f);
                 float a = ring ? Mathf.Clamp01(1f - Mathf.Abs(d - 0.8f) / 0.12f) : Mathf.Clamp01(1f - d);
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, a * a));
+            }
+        tex.Apply();
+        AssetDatabase.CreateAsset(tex, path);
+        return tex;
+    }
+
+    // A 64x96 alpha texture: a tongue of flame, round and dense at the foot, drawn up into a wavering point.
+    static Texture2D FlameTexture(string name)
+    {
+        string path = $"{Generated}/{name}.asset";
+        var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (existing != null)
+            return existing;
+        const int w = 64, h = 96;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = name };
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float u = (x + 0.5f) / w - 0.5f, v = (y + 0.5f) / h;
+                float wave = 0.04f * Mathf.Sin(v * 11f) * v;
+                float half = v < 0.3f ? Mathf.Sqrt(Mathf.Max(0f, 1f - Mathf.Pow((0.3f - v) / 0.3f, 2f))) * 0.4f
+                                      : 0.4f * Mathf.Pow(1f - (v - 0.3f) / 0.7f, 1.2f);
+                float d = Mathf.Abs(u - wave) / Mathf.Max(0.001f, half);
+                float a = Mathf.Clamp01(1f - d) * Mathf.Clamp01(1.2f - v * 0.9f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, a)));
             }
         tex.Apply();
         AssetDatabase.CreateAsset(tex, path);

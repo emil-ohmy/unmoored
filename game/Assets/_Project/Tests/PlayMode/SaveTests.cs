@@ -101,6 +101,44 @@ namespace MyGame.Tests
             Assert.AreEqual(0, apprentice.Obols);
         }
 
+        // The oar's step, the Ferry Nails carried, and the Warm Stones and Held Breaths found are kept.
+        [UnityTest]
+        public IEnumerator TheOar_WhatsFound_AndTheSatchel_AreKept()
+        {
+            SaveSlots.Current = 0;
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            var apprentice = Object.FindAnyObjectByType<Apprentice>();
+            apprentice.Input = new ScriptedInput();
+            for (int i = 0; i < 4; i++)
+                apprentice.AddFerryNail();
+            Assert.IsTrue(apprentice.Equipment.Strengthen() && apprentice.Equipment.Strengthen());
+            apprentice.AddWarmStone();
+            apprentice.AddHeldBreath();
+            apprentice.AddHeldBreath();
+            apprentice.Equipment.AddProvision(Provision.PitchPot, 3);
+            apprentice.Equipment.AddProvision(Provision.WarmBroth, 1);
+            apprentice.Equipment.ChooseOnBelt(1);
+            float health = apprentice.maxHealth, stamina = apprentice.maxStamina;
+            SaveSystem.Instance.SaveNow();
+
+            yield return SceneManager.LoadSceneAsync("Main");
+            yield return new WaitForSeconds(0.3f);
+            apprentice = Object.FindAnyObjectByType<Apprentice>();
+            var e = apprentice.Equipment;
+            Assert.AreEqual(2, e.OarStep);
+            Assert.AreEqual(1, e.FerryNails);
+            Assert.AreEqual(1, e.WarmStones);
+            Assert.AreEqual(2, e.HeldBreaths);
+            Assert.AreEqual(health, apprentice.maxHealth);
+            Assert.AreEqual(stamina, apprentice.maxStamina);
+            Assert.AreEqual(2, apprentice.GetComponent<OarLook>().ShownStep, "and it looks it");
+            Assert.AreEqual(3, e.Carried(Provision.PitchPot), "the Satchel as it was");
+            Assert.AreEqual(1, e.Carried(Provision.WarmBroth));
+            CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth, null, null }, e.Belt, "and the belt");
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "the same one chosen");
+        }
+
         // A Lingerer's business is kept: the keepsake carried (and taken from where it lay), then where she stands with
         // it: given, her fare paid, waiting by the boat.
         [UnityTest]

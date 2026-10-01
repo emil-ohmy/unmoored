@@ -139,7 +139,13 @@ namespace MyGame
         void OnEnable() => WorldState.Register(this);
         void OnDisable() => WorldState.Unregister(this);
 
-        void Start() => target = FindAnyObjectByType<Apprentice>();
+        protected virtual void Start() => target = FindAnyObjectByType<Apprentice>();
+
+        // Whether it can be locked on to, hooked, struck (a Drowned under the water can't).
+        public virtual bool Targetable => IsAlive;
+
+        // Held up by the water (a Drowned): no gravity, no feeling for footing; it keeps the height it's given.
+        protected virtual bool Floats => false;
 
         void Update()
         {
@@ -334,7 +340,7 @@ namespace MyGame
                 swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
             // Walking and chasing keep to solid ground. A lunge doesn't (overshooting the edge is its own mistake), nor
             // does knockback (shoving one off the edge is fair play).
-            if (CurrentState == State.Chase || CurrentState == State.Returning)
+            if ((CurrentState == State.Chase || CurrentState == State.Returning) && !Floats)
                 planar = KeepFooting(planar);
             knockback *= Mathf.Exp(-8f * dt);
             if (Drowned)
@@ -342,6 +348,8 @@ namespace MyGame
                 planar = knockback = Vector3.zero;
                 verticalVelocity = -0.6f; // sinks slowly while it dissolves, instead of falling forever
             }
+            else if (Floats)
+                verticalVelocity = 0f;
             else
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
             controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
@@ -415,6 +423,18 @@ namespace MyGame
                 Stun();
         }
 
+        // Slain outright (a Drowned struck by its own spit, turned back): down at once, whatever its health.
+        public void Slay(Vector3 from)
+        {
+            if (!IsAlive || immortal)
+                return;
+            Health = 0f;
+            dealt = maxHealth;
+            flashUntil = Time.time + 0.1f;
+            Struck?.Invoke(this, HitResult.Landed, maxHealth);
+            Die(new Hit { Damage = maxHealth, From = from, Knockback = Flat(transform.position - from).normalized * 3f });
+        }
+
         // A perfect block turns the blow back: the Soured reels, open to a riposte.
         public void Stun()
         {
@@ -481,6 +501,25 @@ namespace MyGame
             return HitResult.Landed;
         }
 
+        // Burning (burning pitch underfoot, the flames of an Ember-tarred oar): harm no guard stops, a little at a time;
+        // no stagger, no knockback. False if there's nothing to burn.
+        public bool TakeBurn(float damage, Vector3 from)
+        {
+            if (!IsAlive || Unhittable || damage <= 0f)
+                return false;
+            Health -= damage;
+            dealt = damage;
+            if (immortal && Health <= 0f)
+                Health = maxHealth;
+            flashUntil = Time.time + 0.05f;
+            Struck?.Invoke(this, HitResult.Landed, damage);
+            if (Health <= 0f)
+                Die(new Hit { Damage = damage, From = from });
+            else if (CurrentState == State.Idle)
+                Notice();
+            return true;
+        }
+
         protected virtual bool BlocksHit(Hit hit) => false;
 
         // Whether the Apprentice is too far away to keep after (then it goes back to its post).
@@ -528,6 +567,9 @@ namespace MyGame
         }
 
         public bool Yanked => CurrentState == State.Yanked;
+
+        // (a subclass) Where the yank it's on lands it instead (a Drowned: hauled right out, onto dry ground).
+        protected void RetargetYank(Vector3 to) => yankTo = to;
 
         protected void LoseHealth(float amount) => Health = Mathf.Max(1f, Health - amount); // (never a kill)
 
@@ -712,7 +754,7 @@ namespace MyGame
         }
 
         // The Apprentice on its own level (not a floor above or below, not down off a ledge).
-        protected bool OnItsLevel() => target != null && Mathf.Abs(target.transform.position.y - transform.position.y) < 1.3f;
+        protected virtual bool OnItsLevel() => target != null && Mathf.Abs(target.transform.position.y - transform.position.y) < 1.3f;
 
         // Knocked (or fallen) into the water: a splash, and it goes under.
         void Drown()

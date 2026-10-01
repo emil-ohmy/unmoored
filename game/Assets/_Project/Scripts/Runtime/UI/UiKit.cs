@@ -137,6 +137,50 @@ namespace MyGame
                 return 0.55f + 0.35f * rim + 0.25f * stamp + 0.15f * (v - 0.5f);
             });
 
+        // Provision icons (the belt, the Satchel): a round-bellied pot with a neck, a flask with a cork, a squat tin, a
+        // knotted loop of cord. Shading in the grey channel (lit from above), for tinting.
+        public static Sprite PotIcon => Cached("PotIcon", 64, 64, (u, v) =>
+        {
+            float belly = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.4f)) - 0.3f;
+            float neck = Mathf.Max(Mathf.Abs(u - 0.5f) - 0.1f, Mathf.Abs(v - 0.75f) - 0.12f);
+            float rim = Mathf.Max(Mathf.Abs(u - 0.5f) - 0.15f, Mathf.Abs(v - 0.86f) - 0.04f);
+            return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(belly, Mathf.Min(neck, rim)));
+        }, (u, v) => Mathf.Lerp(0.6f, 1f, v));
+
+        public static Sprite FlaskIcon => Cached("FlaskIcon", 64, 64, (u, v) =>
+        {
+            float body = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.38f)) - 0.27f;
+            float neck = Mathf.Max(Mathf.Abs(u - 0.5f) - 0.07f, Mathf.Abs(v - 0.7f) - 0.12f);
+            float cork = Mathf.Max(Mathf.Abs(u - 0.5f) - 0.09f, Mathf.Abs(v - 0.86f) - 0.06f);
+            return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(body, Mathf.Min(neck, cork)));
+        }, (u, v) => v > 0.8f ? 0.55f : Mathf.Lerp(0.7f, 1f, v));
+
+        public static Sprite TinIcon => Cached("TinIcon", 64, 64, (u, v) =>
+        {
+            float qx = Mathf.Abs(u - 0.5f) - 0.28f, qy = Mathf.Abs(v - 0.42f) - 0.18f;
+            float d = new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude + Mathf.Min(Mathf.Max(qx, qy), 0f) - 0.04f;
+            return 1f - Smooth(-0.01f, 0.01f, d);
+        }, (u, v) => v > 0.55f ? 1f : 0.65f);
+
+        public static Sprite CordIcon => Cached("CordIcon", 64, 64, (u, v) =>
+        {
+            float d = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f));
+            float loop = Mathf.Abs(d - 0.3f) - 0.05f;
+            float knot = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.2f)) - 0.1f;
+            float tail = Mathf.Max(Mathf.Abs(u - 0.62f - (0.2f - v) * 0.5f) - 0.035f, Mathf.Abs(v - 0.1f) - 0.1f);
+            return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(loop, Mathf.Min(knot, tail)));
+        });
+
+        // A gnarled root, forked at the foot, a twist of twine round its neck.
+        public static Sprite RootIcon => Cached("RootIcon", 64, 64, (u, v) =>
+        {
+            float stem = Mathf.Abs(u - 0.5f - 0.06f * Mathf.Sin(v * 9f)) - (0.07f + 0.05f * v);
+            stem = Mathf.Max(stem, Mathf.Max(0.2f - v, v - 0.88f));
+            float forkL = Mathf.Abs(u - 0.5f + (0.3f - v) * 0.9f) - 0.04f, forkR = Mathf.Abs(u - 0.5f - (0.3f - v) * 0.7f) - 0.035f;
+            float fork = Mathf.Max(Mathf.Min(forkL, forkR), Mathf.Max(v - 0.32f, 0.06f - v));
+            return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(stem, fork));
+        }, (u, v) => Mathf.Abs(v - 0.7f) < 0.04f ? 0.55f : Mathf.Lerp(0.65f, 1f, v));
+
         // Lighter at the top than the bottom: gives a bar's fill a little body.
         public static Sprite Sheen => Cached("Sheen", 4, 32, (u, v) => 1f, (u, v) => Mathf.Lerp(0.62f, 1f, Mathf.Pow(v, 0.7f)));
 

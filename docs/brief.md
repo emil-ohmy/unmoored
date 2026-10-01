@@ -70,6 +70,20 @@ business and pay their fare to row them across.
   the Soured is staggered and its attack is interrupted.
 - **Feel:** hit-stop, knockback and shake on every hit.
 - **Telegraphs:** readable body wind-ups in animation only. No ground markers.
+- **Poison** (a Drowned's spit): it builds up in a meter in the middle of the screen, under the Apprentice. Two spits
+  taken fill it (a plain block lets a little through), and it ebbs if you keep clear. Full, you're poisoned: about 40 health over 20 s, unless you cure it with a Bitter Root or
+  a Rest.
+- **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
+  LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
+  - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on
+    RT (heavy stays on Y alone), and the Vault then an attack for its slam.
+  - **The rest extend what's there,** by context and combination (held or tapped, in the air, while rowing, locked
+    on). The Stroke needs no button: the heavy attack while rowing is its wave. The Hook already does this, doing a
+    different thing for a post, a Soured and something too heavy.
+  - **The d-pad is for Provisions:** left/right choose along the belt, up uses (down is free for now). On a
+    keyboard, the arrow keys; so the arrows don't move the Apprentice (WASD does).
+  - **Rebindable before release.** Every binding lives in one place.
+  - **Hints show the controls last used:** a gamepad's buttons or the keyboard's keys, never both.
 
 ## Death, rest and healing
 
@@ -91,18 +105,58 @@ business and pay their fare to row them across.
   - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
     in Area 3, which hints where it is.
 - **Bow lantern:** never required. Carried at the Apprentice's hip on land and hung on the bow when rowing; its cold
-  light grows with every lit Mooring post and burns through fog to optional routes and secrets. Fully powered, it
-  unlocks a secret ending.
-- **Oar attachments,** one fitted at a time and swapped at posts. The Plain blade you start with, plus:
-  - **Iron blade:** heavy, big stagger.
-  - **Light blade:** fast, and carries the third light swing.
-  - **Long shaft:** reach.
-  - **Barbed blade:** slows the stagger meter's drain.
-  - Three are found, one per Area, and one is sold.
+  light grows with every lit Mooring post and burns through fog to optional routes and secrets. It has five levels,
+  counted against every Mooring post in the game. Fully powered, it is the key to a secret last Boss and ending; the
+  game never says so.
+- **One oar, strengthened.** No other oars and no attachments: the oar itself is made stronger in five steps, each
+  with its own look, name and description (the game's voice, dry). Each step costs **Ferry Nails** (1, 2, 3, then 4:
+  ten in all), spent at a Mooring post. Steps go in order, so however many nails are found early, no step is skipped.
+  Each step is a moment, like taking an Ability: the Apprentice holds the oar up high, the world dims, and the oar
+  changes in the flash.
+  Each hits harder and staggers more (x1, 1.2, 1.45, 1.7, 2).
+  Each step looks more over the top than the last, and from the second on it's fitted in metal:
+  1. **The Apprentice's Oar:** plain wood, worn smooth, with a red band.
+  2. **The Oarhand's Oar:** tarred and bound with twine, with brass at the butt, the neck and across the blade, and a
+     red ribbon.
+  3. **The Boatman's Oar:** banded in iron. The blade is broader, with an iron rim, a point and rivets, and there's a
+     boat-hook at the neck.
+  4. **The Steersman's Oar:** black wood with a notch for every crossing, wound in silver wire. The leaf-shaped blade
+     is framed in silver, with a crescent on each face and fins at its neck, and two Obols hang on cords.
+  5. **The Ferryman's Oar:** solid gold. It has a spiral ridge, a gold ring round the shaft (his mark, made whole) and
+     a great flared blade with his mark glowing on both faces.
 - **Charms:** about 8, some with trade-offs. 1 slot at the start, plus 2 bought. Half are found, half sold.
-- **Stats are never bought.** Max-HP and Healing-charge pieces are found behind secrets.
+- **Stats are never bought.** What makes the Apprentice stronger for good is found, often behind secrets:
+  - **Ferry Nails:** for the oar.
+  - **Warm Stones:** more health (+10 each).
+  - **Held Breaths:** more stamina (+10 each).
+  - **Embers:** one more Healing charge each.
+  The starting health and stamina (100) and the bonus each piece gives are placeholders, to be balanced together.
+- **Provisions:** things used up, carried in **the Satchel**, and used from **the belt**: up to four in a row at the
+  HUD's bottom left. Left/right on the d-pad (the arrow keys) choose along it, and up uses the chosen one. They're tools, not a second supply of healing (bar one gentle one).
+  - Bought from the merchant soul with Obols, and found in the world. Each kind has a carry cap, and Resting doesn't
+    refill them.
+  - **Pitch Pot** (5): thrown ahead, or at what you're locked on to. It bursts into a pool of burning pitch, and
+    whatever stands in it burns; no guard stops fire.
+  - **Ember Tar** (3): the oar burns for 30 s. Blows land harder (×1.3) and set the Soured alight.
+  - **The Way Back** (3): to black, and back at the last Mooring post you Rested at. Not in a Boss's arena, and not
+    on the water.
+  - **Warm Broth** (3): mends 30 health over 10 s, and a blow doesn't stop it.
+  - **Bitter Root** (3): cures poison and empties its build-up.
+  - The belt has four slots that keep their places; an empty one is passed by. The first of a kind goes in the first
+    empty slot. The Satchel page works slot-first: pick a slot (left/right), then choose what goes in it (up/down,
+    with the chosen one turning, as the Oar page shows the oar). One put in another's slot swaps with it, and "empty"
+    clears a slot.
+- **The character screen** (I or C; Select on a gamepad) pauses the game. LB / RB (Q / R) turn its pages, which leaves
+  left/right for moving within a page. It has six pages:
+  - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
+  - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.
+  - **Abilities:** each one found, with what it is, how it's used (keyboard and gamepad) and what it's for. The list
+    scrolls, since how many there will be isn't settled.
+  - **The Satchel:** the Provisions carried, how many of each, what they do, and which go on the belt.
+  - **Charms:** those found and those fitted, the slots, and a dark socket for each still to find.
+  - **The Lantern:** a glow, five flames and one line. It says as little as it can.
 - **Obols**, the fare of the dead, buy:
-  - Oar attachments, Charms and slots from the merchant soul in the Hub
+  - Charms and slots from the merchant soul in the Hub
   - consumables
   - **passage for souls**
 
@@ -151,7 +205,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Clinger | a person | Fast pairs that circle, leap and cling to your back: stamina drains (and a little health), you slow; dash to throw off (even spent). Scatter one and the other turns frantic | Stroke |
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
 | Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |
-| Drowned | life | Drags you under water: damage, then you wash ashore (not death) | Hook |
+| Drowned | life | Waits under the water (only bubbles show), out of reach. Seeing you, it rises and spits poison, then sinks and spits again. A perfect block turns the spit back, and a Drowned struck by its own spit dies outright. Hide from it and it comes to the shore to look for you, open to the oar | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
 
 ## Art direction
 
@@ -184,10 +238,10 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 
 A 1–2 hour game:
 - the Hub and 3 Areas
-- 3 Bosses and the Ferryman
+- 3 Bosses and the Ferryman (and a secret last Boss, opened by the fully lit bow lantern)
 - 3 Abilities and the bow lantern
-- the Plain blade and 4 attachments
-- about 8 Charms
+- one oar, strengthened in 5 steps (10 Ferry Nails)
+- about 8 Charms, and Warm Stones, Held Breaths and Embers to find
 - 5–7 Lingerers
 - 5 Soured families
 

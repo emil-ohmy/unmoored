@@ -16,20 +16,22 @@ namespace MyGame
         bool HookHeld { get; } // hold to aim the Hook, release to throw it
         bool BlockHeld { get; }
         int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
+        int BeltStep { get; }         // the belt: -1 / +1 to choose the one before / after (d-pad or arrow left, right), 0 none
+        bool BeltUsePressed { get; }  // use the chosen one (d-pad or arrow up)
     }
 
     // Keyboard/mouse and gamepad bindings (gamepad-first).
     public sealed class GameInput : IApprenticeInput, System.IDisposable
     {
         readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll;
+        readonly InputAction[] beltSlots;
         bool stickArmed = true;
 
         public GameInput()
         {
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s").With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
-            move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/upArrow").With("Down", "<Keyboard>/downArrow").With("Left", "<Keyboard>/leftArrow").With("Right", "<Keyboard>/rightArrow");
-            move.AddBinding("<Gamepad>/leftStick");
+            move.AddBinding("<Gamepad>/leftStick"); // (not the arrow keys: they're the belt)
             dash = Button("Dash", "<Keyboard>/space", "<Gamepad>/buttonEast");
             lightAttack = Button("Light", "<Keyboard>/j", "<Mouse>/leftButton", "<Gamepad>/buttonWest");
             heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth", "<Gamepad>/rightTrigger");
@@ -40,6 +42,12 @@ namespace MyGame
             hook = Button("Hook", "<Keyboard>/f", "<Gamepad>/rightShoulder");
             switchStick = new InputAction("SwitchStick", InputActionType.Value, "<Gamepad>/rightStick/x");
             switchScroll = new InputAction("SwitchScroll", InputActionType.Value, "<Mouse>/scroll/y");
+            beltSlots = new[]
+            {
+                Button("Belt Use", "<Keyboard>/upArrow", "<Gamepad>/dpad/up"),
+                Button("Belt Next", "<Keyboard>/rightArrow", "<Gamepad>/dpad/right"),
+                Button("Belt Before", "<Keyboard>/leftArrow", "<Gamepad>/dpad/left"),
+            };
             foreach (var action in All)
                 action.Enable();
         }
@@ -62,6 +70,9 @@ namespace MyGame
         public bool BlockHeld => block.IsPressed();
         public bool HookHeld => hook.IsPressed();
 
+        public bool BeltUsePressed => beltSlots[0].WasPressedThisFrame();
+        public int BeltStep => beltSlots[1].WasPressedThisFrame() ? 1 : beltSlots[2].WasPressedThisFrame() ? -1 : 0;
+
         public int SwitchTarget
         {
             get
@@ -80,7 +91,15 @@ namespace MyGame
             }
         }
 
-        InputAction[] All => new[] { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll };
+        InputAction[] All
+        {
+            get
+            {
+                var list = new System.Collections.Generic.List<InputAction> { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll };
+                list.AddRange(beltSlots);
+                return list.ToArray();
+            }
+        }
 
         public void Dispose()
         {
@@ -103,6 +122,21 @@ namespace MyGame
         public void PressInteract() => interact = true;
         public void PressLock() => lockOn = true;
         public void Switch(int direction) => switchTarget = direction;
+        public void PressBeltUse() => beltUse = true;
+        public void StepBelt(int by) => beltStep = by;
+        bool beltUse;
+        int beltStep;
+
+        public bool BeltUsePressed => Take(ref beltUse);
+        public int BeltStep
+        {
+            get
+            {
+                int value = beltStep;
+                beltStep = 0;
+                return value;
+            }
+        }
 
         public bool DashPressed => Take(ref dash);
         public bool LightPressed => Take(ref lightAttack);

@@ -9,9 +9,11 @@ namespace MyGame
 
         public Material sparkMaterial; // MyGame/Particle with a soft dot
         public Material flashMaterial; // MyGame/Particle with a ring
+        public Material flameMaterial; // MyGame/Particle with a tongue of flame (burning: pitch, a Soured alight, a tarred oar)
 
         ParticleSystem sparks, flash, fare, glints, wisps;
         ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
+        ParticleSystem flames;
         Transform fareTarget;
         BowLantern fareLantern;
 
@@ -26,6 +28,7 @@ namespace MyGame
             fare = BuildFare();
             glints = BuildGlints();
             wisps = BuildWisps();
+            flames = BuildFlames();
         }
 
         // Where a defeated Soured's fare flies to: the Apprentice's lantern.
@@ -171,6 +174,45 @@ namespace MyGame
         }
 
         public int LiveWisps => wisps != null ? wisps.particleCount : 0;
+
+        // A lick of flame (burning pitch, a Soured alight, a tarred oar): bright, rising fast, dwindling to nothing.
+        public void Flame(Vector3 at, Vector3 velocity, float lifetime, float size)
+        {
+            if (flames == null)
+                return;
+            flames.Emit(new ParticleSystem.EmitParams
+            {
+                position = at, velocity = velocity, startLifetime = lifetime, startSize3D = new Vector3(size, size * 1.6f, size), // (a tongue: taller than wide)
+                startColor = Color.Lerp(new Color(1f, 0.8f, 0.55f), Color.white, Random.value),
+                applyShapeToPosition = false,
+            }, 1);
+        }
+
+        public int LiveFlames => flames != null ? flames.particleCount : 0;
+
+        ParticleSystem BuildFlames()
+        {
+            var ps = Build("Flames", flameMaterial != null ? flameMaterial : sparkMaterial, stretch: false);
+            var main = ps.main;
+            main.maxParticles = 700;
+            main.gravityModifier = 0f;
+            main.startRotation = new ParticleSystem.MinMaxCurve(-0.25f, 0.25f); // (a little lean either way)
+            main.startSize3D = true;
+            var size = ps.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.1f));
+            var trail = ps.trails;
+            trail.enabled = false;
+            var colour = ps.colorOverLifetime;
+            colour.enabled = true;
+            var fade = new Gradient();
+            // Burning out: a pale yellow core, then orange, then a deep red as it dies, fading.
+            fade.SetKeys(new[] { new GradientColorKey(new Color(1f, 0.95f, 0.75f), 0f), new GradientColorKey(new Color(1f, 0.62f, 0.25f), 0.35f),
+                                 new GradientColorKey(new Color(0.75f, 0.18f, 0.08f), 1f) },
+                         new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.08f), new GradientAlphaKey(0.75f, 0.5f), new GradientAlphaKey(0f, 1f) });
+            colour.color = fade;
+            return ps;
+        }
 
         ParticleSystem BuildWisps()
         {

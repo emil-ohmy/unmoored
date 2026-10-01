@@ -16,6 +16,9 @@ namespace MyGame
 
     public static class Interactables
     {
+        // Only on its own level: never through a floor (a storey above or below is at least 2.4 m off).
+        public const float LevelTolerance = 1.4f;
+
         static readonly List<IInteractable> all = new List<IInteractable>();
 
         public static void Register(IInteractable i)
@@ -35,6 +38,8 @@ namespace MyGame
                 if (i == null || (i is Object o && o == null) || !i.Available)
                     continue;
                 Vector3 to = i.InteractPosition - position;
+                if (Mathf.Abs(to.y) > LevelTolerance)
+                    continue;
                 to.y = 0f;
                 float d = to.magnitude;
                 if (d <= i.InteractRadius && d < bestDistance)

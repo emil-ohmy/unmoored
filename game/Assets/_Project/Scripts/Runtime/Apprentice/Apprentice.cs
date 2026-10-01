@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -60,7 +60,9 @@ namespace MyGame
         public float heavyHitStop = 0.14f;
 
         [Header("Health")]
-        public float maxHealth = 100f;
+        public float maxHealth = 100f;   // (its start; each Warm Stone found adds healthPerStone)
+        public float healthPerStone = 10f;
+        public float staminaPerBreath = 10f; // each Held Breath found
         public float staggerDuration = 0.35f;
         public float recoilDuration = 0.35f; // when a hit bounces off a Laden's heap
         public float recoilPush = 14f; // ~1.4 m shove: knockback decays at 10/s
@@ -103,6 +105,18 @@ namespace MyGame
         [Header("Hook visuals")]
         public GameObject hookHeadModel; // the Hook's head in flight (spawned per throw)
 
+        [Header("Poison (a Drowned's spit): it builds up; full, you're poisoned a while")]
+        public float poisonMax = 100f;
+        public float poisonDecayDelay = 2.5f, poisonDecayPerSecond = 8f; // (the build-up ebbs if you keep clear)
+        public float poisonedTime = 20f, poisonPerSecond = 2f;             // poisoned: about 40 health, unless cured
+
+        [Header("Provisions (the belt)")]
+        public GameObject pitchPotModel;      // a Pitch Pot in flight
+        public float throwRange = 5.5f;       // a Pitch Pot lands this far ahead (or on what's locked on to, if nearer)
+        public float throwTime = 0.4f, drinkTime = 0.7f, wayBackTime = 1.4f;
+        public float tarDuration = 30f, tarDamage = 1.3f, tarBurnSeconds = 2.5f, tarBurnPerSecond = 5f;
+        public float brothAmount = 30f, brothDuration = 10f;
+
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
         public float ceremonyDuration = 2.4f; // a key item held up
@@ -132,7 +146,8 @@ namespace MyGame
         public Equipment Equipment { get; private set; }
         public Menu OpenMenu { get; private set; } // while open, the Apprentice stands still and input drives the menu
         public float DashCost => dashStaminaCost * (Equipment.IsFitted(Charm.EelSkin) ? 0.5f : 1f);
-        public float DamageFactor => Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f; // (a development Charm)
+        // Its blows: the oar's strength (its step), and the Tester's Knot (a development Charm).
+        public float DamageFactor => Equipment.Oar.Strength * (Equipment.IsFitted(Charm.TestersKnot) ? 4f : 1f) * (Tarred ? tarDamage : 1f);
         public Soured LockTarget { get; private set; }
         public string LastEvent { get; private set; } = ""; // what just happened, for debugging (not shown)
         public float LastEventTime { get; private set; } = -10f;
@@ -162,6 +177,8 @@ namespace MyGame
         // How dark the screen dips around washing ashore: to black as you go under, back as you come up (the HUD).
         public float Dip => CurrentState == State.Sinking
             ? UiKit.Smooth(0.05f, sinkTime * 0.9f, stateTime)
+            : CurrentState == State.Provision && usingProvision == MyGame.Provision.WayBack
+            ? UiKit.Smooth(0.35f, wayBackTime * 0.95f, stateTime) // (the cord pulled: to black, and back at the post)
             : 1f - UiKit.Smooth(0.1f, 0.7f, Time.time - washedAt);
 
         CharacterController controller;
@@ -171,6 +188,7 @@ namespace MyGame
         Act buffered;
         float bufferedAt;
         float stateTime;
+        public float StateTime => stateTime; // (how long in the current state: captures)
         float stateDuration;
         bool snuffSounded;
         float lastStaminaUse = -10f;
@@ -193,6 +211,7 @@ namespace MyGame
         {
             controller = GetComponent<CharacterController>();
             clips = new ClipPlayer(GetComponentInChildren<Animation>());
+            TakeBase();
             Health = maxHealth;
             Stamina = maxStamina;
             HealingCharges = maxHealingCharges;
@@ -237,6 +256,7 @@ namespace MyGame
             if (Pause.IsPaused)
                 return; // (the pause menu has the controls)
             float dt = Time.deltaTime;
+            UpdateProvisionEffects(dt);
             if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free && CurrentState != State.Rowing))
                 CloseMenu(); // (a talk on the water stays open)
             bool inMenu = OpenMenu != null;
@@ -244,6 +264,12 @@ namespace MyGame
             {
                 ReadInput();
                 UpdateLockOn();
+                int beltStep = IsAlive ? Input.BeltStep : 0; // (choosing along the belt: whenever, even mid-swing)
+                if (beltStep != 0 && !Equipment.BeltEmpty)
+                {
+                    Equipment.ChooseOnBelt(beltStep);
+                    Sfx.Instance?.UiTick();
+                }
             }
             stateTime += dt;
             Vector3 planar = Vector3.zero;
@@ -253,7 +279,7 @@ namespace MyGame
                 case State.Free when inMenu:
                     clips.Loop("Idle", 0.1f);
                     OpenMenu.Tick(Input);
-                    if (!OpenMenu.IsOpen)
+                    if (OpenMenu != null && !OpenMenu.IsOpen) // (a choice in it may close it: the oar strengthened)
                         OpenMenu = null;
                     break;
 
@@ -295,6 +321,8 @@ namespace MyGame
                     Vector3 aim = move.sqrMagnitude > 0.01f ? move : transform.forward;
                     HookFoe = HasHook ? FoeInReach(aim) : null;
                     HookTarget = HasHook && HookFoe == null ? HookPost.Best(transform.position, aim, hookRange, hookAimAngle) : null;
+                    if (Input.BeltUsePressed && TryUseBelt())
+                        break;
                     if (Input.HealPressed)
                         TryHeal();
                     else if (Input.BlockHeld)
@@ -338,6 +366,10 @@ namespace MyGame
                         Healed?.Invoke();
                         ToFreeAndConsume();
                     }
+                    break;
+
+                case State.Provision:
+                    UpdateProvision();
                     break;
 
                 case State.Staggered:
@@ -505,7 +537,7 @@ namespace MyGame
             float arc = isHeavy ? heavyArc : lightArc;
             foreach (var collider in Physics.OverlapSphere(transform.position, reach + 1f))
             {
-                if (!collider.TryGetComponent(out Soured soured) || !soured.IsAlive)
+                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable)
                     continue;
                 Vector3 to = soured.transform.position - transform.position;
                 to.y = 0f;
@@ -517,7 +549,7 @@ namespace MyGame
                 var result = soured.TakeHit(new Hit
                 {
                     Damage = (isHeavy ? heavyDamage : lightDamage) * DamageFactor,
-                    Stagger = isHeavy ? heavyStagger : lightStagger,
+                    Stagger = (isHeavy ? heavyStagger : lightStagger) * Equipment.Oar.Strength,
                     Knockback = to.normalized * (isHeavy ? heavyKnockback : lightKnockback),
                     From = transform.position,
                     Heavy = isHeavy,
@@ -526,6 +558,8 @@ namespace MyGame
                     Recoil(to.normalized);
                 else
                 {
+                    if (Tarred)
+                        Burning.Set(soured, tarBurnSeconds, tarBurnPerSecond); // (the tar's flames catch)
                     HitStop.Trigger(riposte ? 0.16f : isHeavy ? heavyHitStop : lightHitStop);
                     CameraRig.Instance?.Shake(riposte || isHeavy ? 0.25f : 0.1f);
                     Announce(riposte ? "RIPOSTE" : isHeavy ? "HEAVY HIT" : "hit");
@@ -583,7 +617,7 @@ namespace MyGame
 
             if (LockTarget != null)
             {
-                if (!LockTarget.IsAlive || !LockTarget.isActiveAndEnabled)
+                if (!LockTarget.Targetable || !LockTarget.isActiveAndEnabled)
                     SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
                 else if (ToLockTarget().magnitude > lockBreakRange || OffScreenTooLong())
                     SetLockTarget(null);
@@ -629,7 +663,7 @@ namespace MyGame
             float bestScore = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == exclude || !s.IsAlive || !s.isActiveAndEnabled)
+                if (s == exclude || !s.Targetable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -653,7 +687,7 @@ namespace MyGame
             float bestAngle = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == LockTarget || !s.IsAlive || !s.isActiveAndEnabled)
+                if (s == LockTarget || !s.Targetable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -780,6 +814,198 @@ namespace MyGame
             CameraRig.Instance?.Shake(0.15f);
             Announce("threw them off");
         }
+
+        // ------------------------------------------------------------ Provisions (the belt)
+
+        MyGame.Provision usingProvision;
+        bool provisionDone;
+        float tarUntil = -1f, brothUntil = -1f, nextMote;
+
+        public MyGame.Provision UsingProvision => CurrentState == State.Provision ? usingProvision : null;
+        public bool Tarred => Time.time < tarUntil;       // the oar burning (Ember Tar)
+        public bool Mending => Time.time < brothUntil;    // mending slowly (Warm Broth)
+        public float TarLeft => Mathf.Max(0f, tarUntil - Time.time);
+        public event System.Action<PitchPot> Threw;       // (tests)
+
+        // The belt's chosen one, used (one used up); false if there's nothing to use, or it can't be used here (then a
+        // word says why).
+        public bool TryUseBelt()
+        {
+            var p = Equipment.Chosen;
+            if (p == null)
+            {
+                Announce("nothing on the belt");
+                return false;
+            }
+            if (Equipment.Carried(p) <= 0)
+            {
+                Announce($"no {p.Name} left");
+                return false;
+            }
+            if (p == MyGame.Provision.WayBack && (BossFight.Current != null || WorldState.Instance == null))
+            {
+                Found?.Invoke(p.Name, "It won't take you back from here");
+                return false;
+            }
+            Equipment.SpendProvision(p);
+            usingProvision = p;
+            provisionDone = false;
+            buffered = Act.None;
+            Enter(State.Provision);
+            if (p == MyGame.Provision.PitchPot)
+            {
+                Vector3 aim = LockTarget != null ? ToLockTarget() : MoveDirection().sqrMagnitude > 0.01f ? MoveDirection() : transform.forward;
+                aim.y = 0f;
+                if (aim.sqrMagnitude > 0.001f)
+                    transform.rotation = Quaternion.LookRotation(aim);
+                clips.PlayOnce("Toss", throwTime);
+                Sfx.Instance?.HookThrow(transform.position + Vector3.up);
+            }
+            else
+            {
+                clips.PlayOnce("Heal", p == MyGame.Provision.WayBack ? wayBackTime * 0.6f : drinkTime);
+                if (p == MyGame.Provision.WarmBroth || p == MyGame.Provision.BitterRoot)
+                    Sfx.Instance?.Drink(transform.position + Vector3.up * 0.8f);
+                else if (p == MyGame.Provision.EmberTar)
+                    Sfx.Instance?.TarSizzle(transform.position + Vector3.up);
+                else
+                    Sfx.Instance?.WayBack(transform.position + Vector3.up);
+            }
+            return true;
+        }
+
+        float ProvisionTime => usingProvision == MyGame.Provision.PitchPot ? throwTime
+            : usingProvision == MyGame.Provision.WayBack ? wayBackTime : drinkTime;
+
+        void UpdateProvision()
+        {
+            float time = ProvisionTime;
+            if (!provisionDone && stateTime >= time * (usingProvision == MyGame.Provision.PitchPot ? 0.45f : 0.7f))
+            {
+                provisionDone = true;
+                if (usingProvision == MyGame.Provision.PitchPot)
+                {
+                    float range = throwRange;
+                    if (LockTarget != null)
+                        range = Mathf.Min(range, Vector3.Distance(Flat(LockTarget.transform.position), Flat(transform.position)));
+                    var pot = PitchPot.Throw(pitchPotModel, transform.position + Vector3.up * 1.2f + transform.forward * 0.3f,
+                        transform.position + transform.forward * Mathf.Max(1.5f, range));
+                    Threw?.Invoke(pot);
+                }
+                else if (usingProvision == MyGame.Provision.EmberTar)
+                {
+                    tarUntil = Time.time + tarDuration;
+                    BurstAlongOar(24);
+                }
+                else if (usingProvision == MyGame.Provision.WarmBroth)
+                    brothUntil = Time.time + brothDuration;
+                else if (usingProvision == MyGame.Provision.BitterRoot)
+                {
+                    bool was = Poisoned || Poison > 0f;
+                    CurePoison();
+                    Found?.Invoke(usingProvision.Name, was ? "The poison's gone. So is the taste of anything else" : "Nothing to cure. Still tastes awful");
+                }
+            }
+            if (stateTime < time)
+                return;
+            if (usingProvision == MyGame.Provision.WayBack && WorldState.Instance != null)
+            {
+                SetLockTarget(null);
+                Teleport(WorldState.Instance.RespawnPosition, true, true);
+                washedAt = Time.time; // (and up out of the black)
+                Found?.Invoke(usingProvision.Name, "Back where you last Rested");
+            }
+            ToFreeAndConsume();
+        }
+
+        // ------------------------------------------------------------ poison
+
+        float poisonedUntil = -1f, lastPoisonAt = -10f, nextPoisonMote;
+
+        public float Poison { get; private set; }                 // the build-up, 0 .. poisonMax
+        public bool Poisoned => Time.time < poisonedUntil;          // full: losing health until it wears off (or is cured)
+        public float PoisonFraction => Mathf.Clamp01(Poison / poisonMax);
+
+        // Poison taken in (a Drowned's spit). Full, you're poisoned. (Already poisoned, more changes nothing.)
+        public void AddPoison(float amount)
+        {
+            if (!IsAlive || amount <= 0f || Poisoned)
+                return;
+            lastPoisonAt = Time.time;
+            Poison = Mathf.Min(poisonMax, Poison + amount);
+            if (Poison >= poisonMax)
+            {
+                poisonedUntil = Time.time + poisonedTime;
+                Found?.Invoke("Poisoned", "A Bitter Root cures it. So does a Rest");
+            }
+        }
+
+        public void CurePoison()
+        {
+            Poison = 0f;
+            poisonedUntil = -1f;
+        }
+
+        void UpdatePoison(float dt)
+        {
+            if (Poisoned)
+            {
+                Health = Mathf.Max(0f, Health - poisonPerSecond * dt);
+                Poison = poisonMax * Mathf.Clamp01((poisonedUntil - Time.time) / poisonedTime); // (draining as it wears off)
+                if (Time.time >= nextPoisonMote)
+                {
+                    nextPoisonMote = Time.time + 0.18f;
+                    Effects.Instance?.Wisp(transform.position + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(0.3f, 1f), Random.Range(-0.3f, 0.3f)),
+                        new Color(0.55f, 0.9f, 0.3f), Vector3.up * 0.6f, 0.7f);
+                }
+                if (Health <= 0f)
+                    Die();
+                else if (!Poisoned)
+                    CurePoison();
+            }
+            else if (Poison > 0f && Time.time - lastPoisonAt > poisonDecayDelay)
+                Poison = Mathf.Max(0f, Poison - poisonDecayPerSecond * dt);
+        }
+
+        // What lasts after a Provision: the tar's flames along the blade, the broth's slow mending.
+        void UpdateProvisionEffects(float dt)
+        {
+            if (!IsAlive)
+            {
+                tarUntil = brothUntil = -1f;
+                return;
+            }
+            UpdatePoison(dt);
+            if (Mending)
+            {
+                Health = Mathf.Min(maxHealth, Health + brothAmount / brothDuration * dt);
+                if (Time.time >= nextMote)
+                {
+                    nextMote = Time.time + 0.2f;
+                    Effects.Instance?.Wisp(transform.position + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(0.3f, 0.9f), Random.Range(-0.3f, 0.3f)),
+                        new Color(1f, 0.72f, 0.4f), Vector3.up * 0.8f, 0.8f);
+                }
+            }
+            if (Tarred)
+                BurstAlongOar(Time.deltaTime * 22f);
+        }
+
+        float oarEmitDebt;
+
+        // Flames licking along the oar's blade (and up its neck).
+        void BurstAlongOar(float count)
+        {
+            if (swingTrail == null || swingTrail.tip == null || swingTrail.inner == null)
+                return;
+            oarEmitDebt += count;
+            for (; oarEmitDebt >= 1f; oarEmitDebt -= 1f)
+            {
+                Vector3 at = Vector3.Lerp(swingTrail.inner.position, swingTrail.tip.position, Random.Range(0.35f, 1f));
+                Effects.Instance?.Flame(at, Vector3.up * Random.Range(0.6f, 1.4f), Random.Range(0.2f, 0.4f), Random.Range(0.08f, 0.16f));
+            }
+        }
+
+        static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
 
         void TryHeal()
         {
@@ -917,6 +1143,7 @@ namespace MyGame
         // away; they slump, and their Shade rises from the body. Then the phrase, and the dark.
         void Die()
         {
+            CurePoison();
             Enter(State.Dead);
             snuffSounded = false;
             clips.PlayOnce("Death", deathDuration);
@@ -970,7 +1197,8 @@ namespace MyGame
 
         System.Action pendingTake;
         string ceremonyTitle, ceremonyHint;
-        bool ceremonyAnnounced, ceremonyFlashed;
+        bool ceremonyAnnounced, ceremonyFlashed, ceremonyOar;
+        System.Action ceremonyGrant; // (given at the flash: the oar changes in the light)
         Light ceremonyLight;
 
         // Stoop to pick an item up; it's taken (`take`) at the bottom of the stoop. A blow before then leaves it there.
@@ -988,16 +1216,35 @@ namespace MyGame
 
         // A key item (an Ability): held up high for a moment, the world dimming and the camera easing in, a cold burst
         // of light and its motif; then its banner. Untouchable meanwhile.
-        public void ReceiveKeyItem(string title, string hint, System.Action grant)
+        public void ReceiveKeyItem(string title, string hint, System.Action grant) => Ceremony(title, hint, grant, false);
+
+        // At a Mooring post, with the Ferry Nails for it: the oar's next step, as a key item is received. It's hoisted
+        // high, and in the flash at the top it becomes the next oar; then its name.
+        public bool StrengthenOar()
         {
-            grant();
+            var next = Equipment.NextOar;
+            if (!Equipment.CanStrengthen || !IsAlive)
+                return false;
+            CloseMenu();
+            Ceremony(next.Name, next.FoundLine, () => Equipment.Strengthen(), true);
+            return true;
+        }
+
+        void Ceremony(string title, string hint, System.Action grant, bool oar)
+        {
+            ceremonyOar = oar;
+            ceremonyGrant = null;
+            if (oar)
+                ceremonyGrant = grant;
+            else
+                grant();
             ceremonyTitle = title;
             ceremonyHint = hint;
             ceremonyAnnounced = ceremonyFlashed = false;
             buffered = Act.None;
             SetLockTarget(null);
             Enter(State.Ceremony);
-            clips.PlayOnce("RaiseItem", ceremonyDuration);
+            clips.PlayOnce(oar ? "RaiseOar" : "RaiseItem", ceremonyDuration);
             Sfx.Instance?.KeyItem(transform.position + Vector3.up);
             CameraRig.Instance?.SetZoom(0.72f);
             if (ceremonyLight == null)
@@ -1016,7 +1263,8 @@ namespace MyGame
         void UpdateCeremony()
         {
             float t = stateTime / ceremonyDuration;
-            Vector3 held = hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
+            Vector3 held = ceremonyOar ? transform.position + Vector3.up * 2.6f // (the blade, held high)
+                : hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
             ceremonyLight.transform.position = held + Vector3.up * 0.2f;
             // The light swells as it's lifted, flares at the top, and eases away as it's lowered.
             ceremonyLight.intensity = t < 0.3f ? 6f * (t / 0.3f) * (t / 0.3f) : 6f * Mathf.Clamp01((0.95f - t) / 0.65f);
@@ -1024,6 +1272,8 @@ namespace MyGame
             {
                 ceremonyFlashed = true;
                 Effects.Instance?.KeyItemRing(held);
+                ceremonyGrant?.Invoke();
+                ceremonyGrant = null;
             }
             if (!ceremonyAnnounced && t >= 0.4f)
             {
@@ -1044,6 +1294,7 @@ namespace MyGame
         // Loading a save: the Obols carried, the most Healing charges they can carry, the Hook; health and charges full.
         public void Restore(int obols, int healingChargeMax, bool hook)
         {
+            ApplyUpgrades(); // (the Warm Stones and Held Breaths its Equipment was given back)
             Obols = Mathf.Max(0, obols);
             maxHealingCharges = Mathf.Max(1, healingChargeMax);
             HasHook = hook;
@@ -1054,7 +1305,54 @@ namespace MyGame
         {
             maxHealingCharges++;
             HealingCharges = Mathf.Min(HealingCharges + 1, maxHealingCharges);
-            Found?.Invoke("A Healing Charge", "One more flame to heal with");
+            Found?.Invoke("An Ember", "One more flame to heal with");
+        }
+
+        float baseHealth = -1f, baseStamina = -1f; // (the start, before any Warm Stone or Held Breath)
+
+        public float BaseHealth { get { TakeBase(); return baseHealth; } }
+        public float BaseStamina { get { TakeBase(); return baseStamina; } }
+
+        void TakeBase()
+        {
+            if (baseHealth < 0f)
+            {
+                baseHealth = maxHealth;
+                baseStamina = maxStamina;
+            }
+        }
+
+        // What's been found, in health and stamina (and the lot, whole).
+        void ApplyUpgrades()
+        {
+            TakeBase();
+            maxHealth = baseHealth + Equipment.WarmStones * healthPerStone;
+            maxStamina = baseStamina + Equipment.HeldBreaths * staminaPerBreath;
+        }
+
+        public void AddWarmStone()
+        {
+            Equipment.AddWarmStone();
+            ApplyUpgrades();
+            Health = Mathf.Min(maxHealth, Health + healthPerStone);
+            Found?.Invoke("A Warm Stone", "More health, for good");
+        }
+
+        public void AddHeldBreath()
+        {
+            Equipment.AddHeldBreath();
+            ApplyUpgrades();
+            Stamina = Mathf.Min(maxStamina, Stamina + staminaPerBreath);
+            Found?.Invoke("A Held Breath", "More stamina, for good");
+        }
+
+        public void AddFerryNail()
+        {
+            Equipment.AddFerryNail();
+            var next = Equipment.NextOar;
+            Found?.Invoke("A Ferry Nail", next == null ? "The oar will grow no stronger. You keep it anyway."
+                : Equipment.CanStrengthen ? "Enough to strengthen the oar, at a Mooring post"
+                : $"{Equipment.FerryNails} of the {next.Cost} the oar's next step asks");
         }
 
         // The Soured the Hook would catch: the one locked on to (in reach), or the nearest in reach ahead, in the open.
@@ -1063,7 +1361,7 @@ namespace MyGame
             facing.y = 0f;
             bool Reachable(Soured s)
             {
-                if (s == null || !s.IsAlive || !s.isActiveAndEnabled)
+                if (s == null || !s.Targetable || !s.isActiveAndEnabled)
                     return false;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -1361,6 +1659,7 @@ namespace MyGame
 
         public void RestoreFully()
         {
+            CurePoison();
             Health = maxHealth;
             Stamina = maxStamina;
             HealingCharges = maxHealingCharges;

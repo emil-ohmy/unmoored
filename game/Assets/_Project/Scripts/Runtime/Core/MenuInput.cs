@@ -4,10 +4,11 @@ using UnityEngine.InputSystem;
 namespace MyGame
 {
     // The controls in a menu (the title screen, the pause menu): up/down/left/right (keys, d-pad or stick, repeating
-    // while held), confirm, back, and pause. Works on real time, so it runs while the game is paused.
+    // while held), confirm, back, pause, the character screen, and turning its pages (LB / RB, Q / R). Works on real
+    // time, so it runs while the game is paused.
     public sealed class MenuInput : System.IDisposable
     {
-        readonly InputAction move, confirm, back, pause, delete;
+        readonly InputAction move, confirm, back, pause, delete, character, pagePrev, pageNext;
         Vector2Int held;
         float nextRepeat;
 
@@ -16,6 +17,8 @@ namespace MyGame
         public bool Back => back.WasPressedThisFrame();
         public bool PausePressed => pause.WasPressedThisFrame();
         public bool Delete => delete.WasPressedThisFrame();
+        public bool CharacterPressed => character.WasPressedThisFrame();
+        public int PageStep => pageNext.WasPressedThisFrame() ? 1 : pagePrev.WasPressedThisFrame() ? -1 : 0;
 
         public MenuInput()
         {
@@ -28,7 +31,10 @@ namespace MyGame
             back = Button("<Keyboard>/escape", "<Keyboard>/backspace", "<Gamepad>/buttonEast");
             pause = Button("<Keyboard>/escape", "<Gamepad>/start");
             delete = Button("<Keyboard>/delete", "<Keyboard>/x", "<Gamepad>/buttonWest");
-            foreach (var a in new[] { move, confirm, back, pause, delete })
+            character = Button("<Keyboard>/i", "<Keyboard>/c", "<Gamepad>/select");
+            pagePrev = Button("<Keyboard>/q", "<Gamepad>/leftShoulder");
+            pageNext = Button("<Keyboard>/r", "<Gamepad>/rightShoulder");
+            foreach (var a in new[] { move, confirm, back, pause, delete, character, pagePrev, pageNext })
                 a.Enable();
         }
 
@@ -64,7 +70,7 @@ namespace MyGame
 
         public void Dispose()
         {
-            foreach (var a in new[] { move, confirm, back, pause, delete })
+            foreach (var a in new[] { move, confirm, back, pause, delete, character, pagePrev, pageNext })
                 a.Dispose();
         }
     }

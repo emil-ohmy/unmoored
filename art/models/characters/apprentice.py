@@ -9,6 +9,8 @@ import math
 
 from mathutils import Vector
 
+import oars
+
 M, part = kit.M, kit.part  # `kit` is injected by build_model.py
 
 # Oar placement at rest: foot of the oar near the ground, leaning out to the right and slightly forward.
@@ -81,6 +83,8 @@ HOOK_WHIRL = [
                                            HOOK_WHIRL_CENTRE[2]))))
     for k in range(5)
 ]
+OAR_RAISED = {"Pivot": (-5, 0, 0), "Body": (-10, 0, 0), "Head": (-24, 0, 0), "Oar": ((-6, -8, 0), (-0.19, 0.02, 0.94)),
+              "Root": ((0, 0, 0), (0, 0, 0.03))}
 RAISED = {"Pivot": (-4, 0, 0), "Body": (-8, 0, 0), "Head": (-20, 0, 0), "Oar": (12, 0, -24),
           "Hook": ((0, 0, 0), (-0.22, -0.2, 0.86)), "Root": ((0, 0, 0), (0, 0, 0.02))}
 
@@ -175,6 +179,26 @@ ACTIONS = {
         (46, RAISED),
         (58, REST),
     ]),
+    # A Pitch Pot tossed (0.4 s): a wind back, the body swung forward and round as it lets go (at ~45%), the oar
+    # held back out of the way, then settled.
+    "Toss": ("BEZIER", [
+        (1, REST),
+        (3, {"Pivot": (-6, 0, 0), "Body": (-14, 0, -24), "Head": (6, 0, 16), "Oar": (-10, 0, 10), "Root": ((0, 0, 0), (0, 0.04, -0.02))}),
+        (5, {"Pivot": (10, 0, 0), "Body": (18, 0, 20), "Head": (-10, 0, -14), "Oar": (-14, 0, 14), "Root": ((0, 0, 0), (0, -0.06, -0.02))}),
+        (7, {"Pivot": (8, 0, 0), "Body": (12, 0, 12), "Head": (-6, 0, -8), "Oar": (-10, 0, 8), "Root": ((0, 0, 0), (0, -0.04, -0.01))}),
+        (10, REST),
+    ]),
+    # The oar strengthened (2.4 s): a crouch, then the oar hoisted straight up high beside the head, blade to the sky,
+    # the head tipped back to look up at it; a small pump at the top (its new look arrives there), then lowered.
+    "RaiseOar": ("BEZIER", [
+        (1, REST),
+        (8, {"Pivot": (10, 0, 0), "Head": (8, 0, 0), "Oar": ((10, 0, -10), (-0.1, 0.0, -0.08)), "Root": ((0, 0, 0), (0, 0, -0.08))}),
+        (15, OAR_RAISED),
+        (22, dict(OAR_RAISED, Oar=((-6, -8, 0), (-0.19, 0.02, 1.03)))),
+        (30, OAR_RAISED),
+        (46, OAR_RAISED),
+        (58, REST),
+    ]),
     "Heal": ("BEZIER", [  # bows its head to the mask, a small glow of relief (0.7 s)
         (1, REST),
         (8, {"Body": (14, 0, 0), "Head": (22, 0, 0), "Oar": (-8, 0, 0), "Root": ((0, 0, 0), (0, 0, -0.04))}),
@@ -225,7 +249,6 @@ ACTIONS = {
 def build():
     cloak, cloak_dark = kit.mat("Cloak", "#9c3b2b"), kit.mat("CloakDark", "#74291f")
     mask, ink, mark = kit.mat("Mask", "#ece4d0"), kit.mat("Ink", "#1a1622"), kit.mat("MaskMark", "#b8352b")
-    wood, blade = kit.mat("OarWood", "#b08a5c"), kit.mat("OarBlade", "#8f6d48")
     rng = kit.rng
 
     def cloak_body(bm):
@@ -243,11 +266,11 @@ def build():
         part("HoodTip", kit.cone(8, 0.11, 0.0, 0.34), cloak, M((0, 0.14, 1.03), rot=(-55, 0, 0)), smooth=True, group="Head"),
         part("Mask", kit.sphere(12, 8), mask, M((0, -0.2, 0.83), scale=(0.17, 0.06, 0.21)), smooth=True, group="Head"),
         part("Mark", kit.cube(), mark, M((0, -0.262, 0.765), scale=(0.018, 0.012, 0.07)), group="Head"),
-        part("OarShaft", kit.cylinder(6, 0.028, 2.1), wood, OAR @ M((0, 0, 1.05)), group="Oar"),
-        part("OarBlade", kit.cube(), blade, OAR @ M((0, 0, 1.95), scale=(0.17, 0.035, 0.55)), group="Oar"),
-        part("OarBand", kit.cylinder(6, 0.036, 0.05), mark, OAR @ M((0, 0, 1.62)), group="Oar"),
         part("Hand", kit.sphere(8, 6, 0.065), cloak_dark, OAR @ M((0, 0, 0.6)), smooth=True, group="Oar"),
     ]
+    # The oar at each of its five steps, all carried; the game shows the one it's at (tools/blender/oars.py, OarLook.cs).
+    for step in range(5):
+        parts += oars.build(step, OAR, group="Oar")
     # The bow lantern, carried at the left hip on land (it hangs on the boat's bow when rowing). Cold, pale light.
     metal, soul = kit.mat("LanternMetal", "#2c2b31"), kit.mat("SoulLantern_Glow", "#cfe6ff")
     lx, ly, lz = -0.36, -0.06, 0.38

@@ -29,6 +29,10 @@ namespace MyGame.Tests
             post = Object.FindObjectsByType<TesterPost>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).First(); // (the west one)
             readout = Object.FindAnyObjectByType<LabReadout>();
             dummy = Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).First(l => l.immortal);
+            // (the lab's Drowned spit at anyone in sight of their water: only a test about them lets them)
+            if (!NUnit.Framework.TestContext.CurrentContext.Test.Name.Contains("Drowned"))
+                foreach (var d in Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None))
+                    d.passive = true;
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -134,14 +138,27 @@ namespace MyGame.Tests
             Menu.Do("A Charm slot");
             Menu.Do("The Hook");
             Menu.Do("500 Obols");
+            Menu.Do("Strength...");
+            Assert.AreEqual("Strength", Menu.PageName);
             Menu.Do("A Healing charge");
+            Menu.Do("A Ferry Nail");
+            Menu.Do("A Warm Stone");
+            Menu.Do("A Held Breath");
+            Menu.Do("The lantern: a level");
+            Assert.AreEqual(1, apprentice.Equipment.FerryNails);
+            Assert.AreEqual(1, apprentice.Equipment.WarmStones);
+            Assert.AreEqual(1, apprentice.Equipment.HeldBreaths);
+            Assert.AreEqual(2, Lantern.Level);
             Assert.IsTrue(apprentice.Equipment.Owns(Charm.HespersWick) && apprentice.Equipment.Owns(Charm.EelSkin));
             Assert.AreEqual(2, apprentice.Equipment.charmSlots);
             Assert.IsTrue(apprentice.HasHook);
             Assert.AreEqual(500, apprentice.Obols);
             Assert.AreEqual(4, apprentice.maxHealingCharges);
             Menu.Do("Back");
+            Menu.Do("Back");
             Menu.Do("Reset the Apprentice");
+            Assert.AreEqual(0, apprentice.Equipment.WarmStones + apprentice.Equipment.HeldBreaths + apprentice.Equipment.FerryNails);
+            Assert.AreEqual(1, Lantern.Level);
             Assert.IsFalse(apprentice.Equipment.Owns(Charm.HespersWick));
             Assert.IsTrue(apprentice.Equipment.Owns(Charm.TestersKnot), "the Tester's Knot stays");
             Assert.AreEqual(1, apprentice.Equipment.charmSlots);
@@ -762,5 +779,585 @@ namespace MyGame.Tests
             Assert.Less(nearest, 2.5f, $"it followed you all the way into the tower (it got to {laden.transform.position}, {laden.CurrentState}; you're at {apprentice.transform.position})");
         }
 
+
+        // The oar is strengthened a step at a time, with Ferry Nails at a Mooring post (1, 2, 3, then 4 of them): no
+        // step skipped however many are carried. Each step hits harder, and looks it.
+        [UnityTest]
+        public IEnumerator TheOar_IsStrengthenedInOrder_AtAMooringPost()
+        {
+            var e = apprentice.Equipment;
+            var look = apprentice.GetComponent<OarLook>();
+            Assert.AreEqual(0, e.OarStep);
+            Assert.AreEqual("The Apprentice's Oar", e.Oar.Name);
+            Assert.IsFalse(e.Strengthen(), "nothing to strengthen it with");
+            var materials = apprentice.GetComponentInChildren<SkinnedMeshRenderer>().sharedMaterials;
+            for (int step = 0; step <= Oar.Last; step++)
+                Assert.Greater(look.SlotsOf(step), 0, $"the model carries the oar at step {step}");
+            Assert.IsTrue(materials.Any(m => m.name.StartsWith("Oar4Gold_Metal")), "the Ferryman's is gold");
+            void AssertShows(int step)
+            {
+                Assert.AreEqual(step, look.ShownStep);
+                for (int i = 0; i < materials.Length; i++)
+                    if (OarLook.StepOf(materials[i]) >= 0)
+                        Assert.AreEqual(OarLook.StepOf(materials[i]) == step, look.Showing(i), $"{materials[i].name} at step {step}");
+            }
+            AssertShows(0);
+            float plain = apprentice.DamageFactor;
+
+            for (int i = 0; i < 4; i++)
+                apprentice.AddFerryNail();
+            var mooring = Object.FindAnyObjectByType<MooringPost>();
+            apprentice.Teleport(mooring.RespawnPoint);
+            yield return new WaitForSeconds(0.2f);
+            input.PressInteract();
+            yield return null;
+            Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "Resting opens the post's menu: the oar's row first");
+            Assert.AreEqual(0, apprentice.OpenMenu.Selected);
+            StringAssert.Contains("Strengthen", apprentice.OpenMenu.Rows[0].Label);
+            // Strengthening is a moment of its own: the menu closes, the oar is held up high, and it changes at the top.
+            string found = null;
+            apprentice.Found += (title, hint) => found = title;
+            input.PressInteract();
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Ceremony, apprentice.CurrentState, "held up, as a key item is");
+            Assert.IsNull(apprentice.OpenMenu, "the post's menu closes for it");
+            Assert.AreEqual(0, e.OarStep, "not yet: it changes in the flash at the top");
+            yield return new WaitForSeconds(apprentice.ceremonyDuration * 0.5f);
+            Assert.AreEqual(1, e.OarStep, "one step (one nail)");
+            Assert.AreEqual(3, e.FerryNails);
+            AssertShows(1);
+            Assert.AreEqual("The Oarhand's Oar", found, "and its name");
+            yield return new WaitForSeconds(apprentice.ceremonyDuration * 0.5f + 0.2f);
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+
+            IEnumerator StrengthenAtThePost()
+            {
+                input.PressInteract(); // (Rest again)
+                yield return null;
+                Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu);
+                input.PressInteract();
+                yield return null;
+                yield return new WaitForSeconds(apprentice.ceremonyDuration + 0.2f);
+            }
+            yield return StrengthenAtThePost();
+            Assert.AreEqual(2, e.OarStep, "the next (two nails)");
+            Assert.AreEqual(1, e.FerryNails);
+            yield return StrengthenAtThePost();
+            Assert.AreEqual(2, e.OarStep, "three nails for the next: one isn't enough");
+            Assert.IsInstanceOf<PostMenu>(apprentice.OpenMenu, "(the menu stays, and says so)");
+            Assert.AreEqual("The Boatman's Oar", e.Oar.Name);
+            Assert.AreEqual(plain * Oar.Steps[2].Strength, apprentice.DamageFactor, 0.001f, "it hits harder");
+            AssertShows(2);
+            input.PressDash();
+            yield return null;
+
+            for (int i = 0; i < 7; i++)
+                apprentice.AddFerryNail();
+            Assert.IsTrue(e.Strengthen() && e.Strengthen() && !e.Strengthen(), "the last two steps, then no more");
+            Assert.AreEqual(Oar.Last, e.OarStep);
+            Assert.AreEqual("The Ferryman's Oar", e.Oar.Name);
+            Assert.AreEqual(1, e.FerryNails);
+            AssertShows(Oar.Last);
+        }
+
+        // The pieces that make the Apprentice stronger for good lie about the heights: taken with a stoop, each adds
+        // what it's for; resetting the Apprentice puts them back.
+        [UnityTest]
+        public IEnumerator UpgradePieces_AreFound_AndMakeTheApprenticeStronger()
+        {
+            var pieces = Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None);
+            Assert.AreEqual(4, pieces.Count(p => p.kind == UpgradePiece.Kind.FerryNail), "three about the heights, one in the row");
+            Assert.AreEqual(2, pieces.Count(p => p.kind == UpgradePiece.Kind.WarmStone));
+            Assert.AreEqual(2, pieces.Count(p => p.kind == UpgradePiece.Kind.HeldBreath));
+            float health = apprentice.maxHealth, stamina = apprentice.maxStamina;
+            var hud = Object.FindAnyObjectByType<Hud>();
+            float healthBar = hud.HealthBarWidth, staminaBar = hud.StaminaBarWidth;
+            foreach (var kind in new[] { UpgradePiece.Kind.FerryNail, UpgradePiece.Kind.WarmStone, UpgradePiece.Kind.HeldBreath })
+            {
+                var piece = pieces.First(p => p.kind == kind);
+                apprentice.Teleport(piece.transform.position + Vector3.right * 0.6f);
+                yield return new WaitForSeconds(0.2f);
+                yield return null;
+                Assert.AreEqual(piece, apprentice.Nearby, $"the {kind} is right there");
+                input.PressInteract();
+                yield return null;
+                Assert.AreEqual(Apprentice.State.PickingUp, apprentice.CurrentState, "it stoops to pick it up");
+                yield return new WaitForSeconds(0.8f);
+                Assert.IsTrue(piece.Taken && !piece.gameObject.activeSelf);
+            }
+            Assert.AreEqual(1, apprentice.Equipment.FerryNails);
+            Assert.AreEqual(health + apprentice.healthPerStone, apprentice.maxHealth, "a Warm Stone: more health");
+            Assert.AreEqual(stamina + apprentice.staminaPerBreath, apprentice.maxStamina, "a Held Breath: more stamina");
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(healthBar * apprentice.maxHealth / health, hud.HealthBarWidth, 1f, "the health bar grows with it");
+            Assert.AreEqual(staminaBar * apprentice.maxStamina / stamina, hud.StaminaBarWidth, 1f, "and the stamina bar");
+
+            yield return OpenTheMenu();
+            Menu.Do("Reset the Apprentice");
+            Assert.AreEqual(health, apprentice.maxHealth);
+            Assert.AreEqual(stamina, apprentice.maxStamina);
+            Assert.IsTrue(Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Length == pieces.Length, "back where they were");
+        }
+
+        // Every kind of find lies in a row on the quay; taken, they come back when the Apprentice is reset.
+        [UnityTest]
+        public IEnumerator EveryKindOfFind_LiesInARow_AndComesBack()
+        {
+            yield return null;
+            var finds = Object.FindAnyObjectByType<LabFinds>();
+            Assert.IsNotNull(finds);
+            foreach (UpgradePiece.Kind kind in System.Enum.GetValues(typeof(UpgradePiece.Kind)))
+                Assert.IsTrue(Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Any(p => p.kind == kind), $"a {kind}");
+            foreach (var p in Provision.All)
+                Assert.IsTrue(Object.FindObjectsByType<ProvisionFind>(FindObjectsSortMode.None).Any(f => f.Kind == p), p.Name);
+            Assert.IsNotNull(Object.FindAnyObjectByType<ChargePiece>(), "an Ember");
+            Assert.IsNotNull(Object.FindAnyObjectByType<ObolCache>(), "an Obol Cache");
+            Assert.IsNotNull(Object.FindAnyObjectByType<Keepsake>(), "a keepsake");
+            var hook = Object.FindAnyObjectByType<FerrymansHook>();
+            Assert.IsTrue(hook != null && hook.Available, "and the Hook, to take");
+
+            // Take the Hook and the Ember, then reset: both are back.
+            apprentice.Teleport(hook.transform.position + Vector3.right * 0.6f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(hook, apprentice.Nearby);
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.ceremonyDuration + 0.3f);
+            Assert.IsTrue(apprentice.HasHook, "the Hook, held up");
+            var ember = Object.FindAnyObjectByType<ChargePiece>();
+            apprentice.Teleport(ember.transform.position + Vector3.right * 0.6f);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(ember.Taken);
+            yield return OpenTheMenu();
+            Menu.Do("Reset the Apprentice");
+            yield return null;
+            Assert.IsFalse(apprentice.HasHook);
+            Assert.IsFalse(ember.Taken, "the Ember's back");
+            var again = Object.FindObjectsByType<FerrymansHook>(FindObjectsSortMode.None).FirstOrDefault(h => h.Available);
+            Assert.IsNotNull(again, "and the Hook");
+        }
+
+        // Nothing is reached through a floor: under the Held Breath, on the storey below, it's neither in reach nor
+        // shining (its storey, lamps and all, is hidden). And thin posts never open up for the camera, as walls do.
+        [UnityTest]
+        public IEnumerator ThingsOnAnotherStorey_AreOutOfReach_AndThinPostsStayWhole()
+        {
+            var breath = Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None)
+                .Where(p => p.kind == UpgradePiece.Kind.HeldBreath).OrderByDescending(p => p.transform.position.y).First(); // (the tower's, upstairs)
+            var below = breath.transform.position;
+            below.y = Object.FindAnyObjectByType<Storeys>().transform.position.y + 0.08f; // the ground floor's flagstones
+            apprentice.Teleport(below);
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreNotEqual(breath, apprentice.Nearby, "not through the ceiling");
+            Assert.IsFalse(breath.GetComponentInChildren<Light>().enabled, "and its glow is hidden with its storey");
+            apprentice.Teleport(breath.transform.position + Vector3.right * 0.6f);
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(breath, apprentice.Nearby, "on its own floor, it's there");
+
+            foreach (var post in Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None))
+                foreach (var r in post.GetComponentsInChildren<Renderer>())
+                    foreach (var m in r.sharedMaterials)
+                        if (m != null && m.HasProperty("_Cutaway"))
+                            Assert.AreEqual(0f, m.GetFloat("_Cutaway"), $"{m.name}: a post isn't cut away");
+        }
+
+        // The Satchel: each Provision up to its cap. The belt: four slots; the first of a kind goes in the first empty
+        // one; putting one in another's slot swaps them; left/right pass the empty slots by.
+        [Test]
+        public void TheSatchel_HoldsUpToACap_AndFillsTheBelt()
+        {
+            var e = apprentice.Equipment;
+            Assert.AreEqual(Provision.PitchPot.Cap, e.AddProvision(Provision.PitchPot, 99), "no more than it takes");
+            Assert.AreEqual(0, e.AddProvision(Provision.PitchPot), "full");
+            e.AddProvision(Provision.WarmBroth);
+            CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth, null, null }, e.Belt);
+            Assert.AreEqual(Provision.PitchPot, e.Chosen);
+            e.SetBeltSlot(3, Provision.PitchPot);
+            CollectionAssert.AreEqual(new[] { null, Provision.WarmBroth, null, Provision.PitchPot }, e.Belt, "moved (into an empty slot)");
+            e.SetBeltSlot(1, Provision.PitchPot);
+            CollectionAssert.AreEqual(new[] { null, Provision.PitchPot, null, Provision.WarmBroth }, e.Belt, "swapped");
+            e.ChooseOnBelt(1);
+            Assert.AreEqual(3, e.BeltChosen, "past the empty slot");
+            e.ChooseOnBelt(1);
+            Assert.AreEqual(1, e.BeltChosen, "round again, past the empty first");
+            e.SetBeltSlot(1, null);
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "an emptied slot passes the choice on");
+            Assert.IsTrue(e.SpendProvision(Provision.WarmBroth));
+            Assert.IsFalse(e.SpendProvision(Provision.WarmBroth), "none left");
+            Assert.AreEqual(Provision.WarmBroth, e.Chosen, "an empty one stays in its slot");
+        }
+
+        IEnumerator UseFromTheBelt(Provision p)
+        {
+            apprentice.Equipment.AddProvision(p);
+            for (int i = 0; i < Provision.BeltSlots && apprentice.Equipment.Chosen != p; i++)
+            {
+                input.StepBelt(1); // (right along the belt)
+                yield return null;
+            }
+            Assert.AreEqual(p, apprentice.Equipment.Chosen);
+            input.PressBeltUse();
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Provision, apprentice.CurrentState, $"{p.Name}: used");
+        }
+
+        // A Pitch Pot, thrown at a Laden behind its heap: fire goes round a guard. It burns, and burns on a while.
+        [UnityTest]
+        public IEnumerator APitchPot_BurnsASouredThroughItsGuard()
+        {
+            float burnt = 0f;
+            System.Action<Soured, HitResult, float> count = (s, r, d) => { if (s == dummy) burnt += d; };
+            Soured.Struck += count;
+            try
+            {
+                apprentice.Teleport(dummy.transform.position - dummy.transform.forward * 4f);
+                apprentice.transform.rotation = Quaternion.LookRotation(dummy.transform.position - apprentice.transform.position);
+                yield return new WaitForSeconds(0.2f);
+                PitchPot pot = null;
+                apprentice.Threw += p => pot = p;
+                yield return UseFromTheBelt(Provision.PitchPot);
+                yield return new WaitForSeconds(1.2f);
+                Assert.IsNotNull(pot, "thrown");
+                Assert.IsTrue(pot.Burst, "and burst");
+                Assert.IsTrue(dummy.GetComponent<Burning>() != null && dummy.GetComponent<Burning>().Alight, "the Laden's alight");
+                float soon = burnt;
+                Assert.Greater(soon, 0f, "and hurt, heap or no heap");
+                yield return new WaitForSeconds(2f);
+                Assert.Greater(burnt, soon, "and burning on");
+                Assert.Greater(Effects.Instance.LiveFlames, 0, "flames to see");
+            }
+            finally { Soured.Struck -= count; }
+        }
+
+        // Ember Tar: for a while the oar hits harder, and what it hits catches fire.
+        [UnityTest]
+        public IEnumerator EmberTar_MakesTheOarBurn()
+        {
+            float plain = apprentice.DamageFactor;
+            yield return UseFromTheBelt(Provision.EmberTar);
+            yield return new WaitForSeconds(apprentice.drinkTime + 0.1f);
+            Assert.IsTrue(apprentice.Tarred);
+            Assert.AreEqual(plain * apprentice.tarDamage, apprentice.DamageFactor, 0.001f);
+            apprentice.Teleport(dummy.transform.position + dummy.transform.forward * 1.2f);
+            apprentice.transform.rotation = Quaternion.LookRotation(dummy.transform.position - apprentice.transform.position);
+            yield return new WaitForSeconds(0.2f);
+            input.PressLight();
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsTrue(dummy.GetComponent<Burning>() != null && dummy.GetComponent<Burning>().Alight, "it caught");
+        }
+
+        // Warm Broth: health mended slowly, a little at a time.
+        [UnityTest]
+        public IEnumerator WarmBroth_MendsSlowly()
+        {
+            apprentice.TakeTickDamage(60f);
+            float hurt = apprentice.Health;
+            yield return UseFromTheBelt(Provision.WarmBroth);
+            yield return new WaitForSeconds(apprentice.drinkTime + 1f);
+            Assert.Less(apprentice.Health, hurt + apprentice.brothAmount * 0.5f, "not all at once");
+            Assert.Greater(apprentice.Health, hurt, "but mending");
+            yield return new WaitForSeconds(apprentice.brothDuration);
+            Assert.AreEqual(hurt + apprentice.brothAmount, apprentice.Health, 1f, "all of it, in the end");
+        }
+
+        // The Way Back: to black, and back at the last Mooring post Rested at.
+        [UnityTest]
+        public IEnumerator TheWayBack_TakesYouToThePost()
+        {
+            var mooring = Object.FindAnyObjectByType<MooringPost>();
+            apprentice.Teleport(mooring.RespawnPoint);
+            yield return new WaitForSeconds(0.2f);
+            input.PressInteract();
+            yield return null;
+            input.PressDash(); // (stand up)
+            yield return new WaitForSeconds(0.3f);
+            apprentice.Teleport(new Vector3(30f, apprentice.transform.position.y, 0f));
+            yield return new WaitForSeconds(0.2f);
+            yield return UseFromTheBelt(Provision.WayBack);
+            yield return new WaitForSeconds(apprentice.wayBackTime * 0.8f);
+            Assert.Greater(apprentice.Dip, 0.5f, "going dark");
+            yield return new WaitForSeconds(apprentice.wayBackTime * 0.2f + 0.2f);
+            Assert.Less(Vector3.Distance(apprentice.transform.position, mooring.RespawnPoint), 1f, "at the post");
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+            Assert.AreEqual(0, apprentice.Equipment.Carried(Provision.WayBack), "used up");
+        }
+
+        // The Satchel page: pick a belt slot (left/right), confirm, choose what goes in it (up/down), confirm; back
+        // leaves the slot as it was. The one in question turns beside it.
+        [UnityTest]
+        public IEnumerator TheSatchelPage_FillsABeltSlot()
+        {
+            var screen = Object.FindAnyObjectByType<CharacterScreen>();
+            yield return null;
+            var e = apprentice.Equipment;
+            e.AddProvision(Provision.PitchPot, 2);
+            e.AddProvision(Provision.WarmBroth, 1);
+            screen.Toggle(true);
+            while (screen.Current != CharacterScreen.Tab.Satchel)
+                screen.Turn(1);
+            yield return null;
+            Assert.AreEqual(0, screen.SatchelSlot);
+            StringAssert.Contains("Pitch Pot", screen.ShownModel.name, "the pot in the first slot, turning");
+            screen.MoveSlot(1);
+            screen.MoveSlot(1);
+            Assert.AreEqual(2, screen.SatchelSlot);
+            Assert.IsNull(screen.ShownModel, "an empty slot: nothing to show");
+            screen.SatchelConfirm();
+            Assert.IsTrue(screen.SatchelPicking, "choosing what goes in it");
+            Assert.AreEqual("(empty)", screen.SatchelRows[0]);
+            Assert.AreEqual(Provision.PitchPot.Name, screen.SatchelRows[1]);
+            screen.ChooseProvision(1);
+            StringAssert.Contains("burning pitch", screen.SatchelDetail, "the pot, as it's chosen");
+            screen.SatchelConfirm();
+            Assert.IsFalse(screen.SatchelPicking);
+            CollectionAssert.AreEqual(new[] { null, Provision.WarmBroth, Provision.PitchPot, null }, e.Belt, "the pot moved into slot 3 (it was empty)");
+            screen.SatchelConfirm();
+            screen.ChooseProvision(-1);
+            Assert.IsTrue(screen.SatchelBack(), "back: nothing changed");
+            CollectionAssert.AreEqual(new[] { null, Provision.WarmBroth, Provision.PitchPot, null }, e.Belt);
+            screen.MoveSlot(-1);
+            screen.SatchelConfirm();
+            screen.ChooseProvision(-1); // (up from the broth: the pot)
+            screen.SatchelConfirm();
+            CollectionAssert.AreEqual(new[] { null, Provision.PitchPot, Provision.WarmBroth, null }, e.Belt, "put in the broth's slot: they swap");
+            InputDevice.Set(true);
+            yield return null;
+            StringAssert.Contains("LB / RB", screen.Hints, "the gamepad's buttons");
+            InputDevice.Set(false);
+            yield return null;
+            StringAssert.Contains("Q / R", screen.Hints, "or the keyboard's");
+            screen.Toggle(false);
+            yield return null;
+            var hud = Object.FindAnyObjectByType<Hud>();
+            StringAssert.Contains("Pitch Pot 2", hud.BeltText(1), "the belt shows it, and how many");
+        }
+
+        Drowned SouthDrowned => Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None).First(d => d.name == "Drowned (south edge)");
+        static readonly Vector3 AtTheEdge = new Vector3(9f, 0.55f, -4.6f); // (the quay's south edge, over it)
+
+        IEnumerator WaitFor(System.Func<bool> done, float seconds, string what)
+        {
+            for (float t = 0f; t < seconds && !done(); t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(done(), $"waited {seconds} s for {what}");
+        }
+
+        // The Tester's Post sets a Drowned down in the water nearest you, never on the quay.
+        [UnityTest]
+        public IEnumerator TestersPost_SetsADrownedInTheWater()
+        {
+            yield return OpenTheMenu();
+            Menu.Do("Drowned");
+            var set = post.spawner.Spawned.OfType<Drowned>().Single();
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(Drowned.IsOpenWater(set.transform.position, 0.3f), $"in the water ({set.transform.position})");
+        }
+
+        // A Drowned waits under the water, out of reach (no lock-on, no blows); when it sees you, it rises and spits:
+        // the spit hurts a little, and builds poison.
+        [UnityTest]
+        public IEnumerator TheDrowned_RisesAndSpitsPoison()
+        {
+            var drowned = SouthDrowned;
+            Assert.IsTrue(drowned.Submerged && !drowned.Targetable, "under, and out of reach");
+            Spit spat = null;
+            Defence? what = null;
+            System.Action<Drowned, Spit> onSpat = (d, sp) => { if (d == drowned) spat = sp; };
+            System.Action<Spit, Defence> onResolved = (sp, r) => { if (sp == spat) what = r; };
+            Drowned.Spat += onSpat;
+            Spit.Resolved += onResolved;
+            try
+            {
+                float health = apprentice.Health;
+                apprentice.Teleport(new Vector3(9f, 0.55f, -1.5f));
+                yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph, 4f, "it rising to spit");
+                yield return WaitFor(() => !drowned.Submerged, 1f, "it up out of the water");
+                Assert.IsTrue(drowned.Targetable, "up, it can be reached");
+                yield return WaitFor(() => spat != null, 2f, "the spit");
+                yield return WaitFor(() => what != null, 2f, "it reaching you");
+                Assert.AreEqual(Defence.Taken, what);
+                Assert.Less(apprentice.Health, health, "it hurts a little");
+                Assert.Greater(apprentice.Poison, 30f, "and builds poison");
+                yield return null;
+                yield return null; // (the HUD draws after gameplay)
+                Assert.IsTrue(Object.FindAnyObjectByType<Hud>().PoisonShown, "the meter shows");
+                yield return WaitFor(() => drowned.Submerged, 4f, "and it sinks back");
+            }
+            finally
+            {
+                Drowned.Spat -= onSpat;
+                Spit.Resolved -= onResolved;
+            }
+        }
+
+        // Poison builds up, and ebbs if you keep clear; full, you're poisoned, losing health, until a Bitter Root (or a
+        // Rest) cures it.
+        [UnityTest]
+        public IEnumerator Poison_BuildsUp_Poisons_AndABitterRootCuresIt()
+        {
+            apprentice.AddPoison(40f);
+            yield return new WaitForSeconds(apprentice.poisonDecayDelay + 1.5f);
+            Assert.Less(apprentice.Poison, 40f, "it ebbs, kept clear");
+            Assert.IsFalse(apprentice.Poisoned);
+            apprentice.AddPoison(70f);
+            apprentice.AddPoison(70f);
+            Assert.IsTrue(apprentice.Poisoned, "full: poisoned");
+            float health = apprentice.Health;
+            yield return new WaitForSeconds(2f);
+            Assert.AreEqual(health - apprentice.poisonPerSecond * 2f, apprentice.Health, 1f, "losing health");
+            yield return UseFromTheBelt(Provision.BitterRoot);
+            yield return new WaitForSeconds(apprentice.drinkTime + 0.1f);
+            Assert.IsFalse(apprentice.Poisoned, "cured");
+            Assert.AreEqual(0f, apprentice.Poison, "and the build-up gone");
+            apprentice.AddPoison(200f);
+            apprentice.RestoreFully();
+            Assert.IsFalse(apprentice.Poisoned, "a Rest cures it too");
+        }
+
+        // A perfect block turns its spit back, and a Drowned struck by its own spit is slain outright.
+        [UnityTest]
+        public IEnumerator TheDrowned_SpitTurnedBack_SlaysIt()
+        {
+            var drowned = SouthDrowned;
+            Spit spat = null;
+            System.Action<Drowned, Spit> onSpat = (d, sp) => { if (d == drowned) spat = sp; };
+            Drowned.Spat += onSpat;
+            try
+            {
+                apprentice.Teleport(new Vector3(9f, 0.55f, -1.5f));
+                var toIt = drowned.transform.position - apprentice.transform.position;
+                apprentice.transform.rotation = Quaternion.LookRotation(new Vector3(toIt.x, 0f, toIt.z));
+                yield return WaitFor(() => spat != null, 6f, "the spit");
+                // Raised on time: just before it arrives.
+                yield return WaitFor(() => spat == null || Vector3.Distance(spat.transform.position, apprentice.transform.position + Vector3.up * 0.6f) < 1.5f, 2f, "it close");
+                input.BlockHeld = true;
+                yield return WaitFor(() => !drowned.IsAlive, 2f, "it struck by its own spit");
+                input.BlockHeld = false;
+                Assert.AreEqual(0f, apprentice.Poison, "nothing got through");
+            }
+            finally { Drowned.Spat -= onSpat; }
+        }
+
+        // Out of its sight (behind something), it comes to the shore nearest you and looks for you there: open to the oar.
+        [UnityTest]
+        public IEnumerator TheDrowned_YouHide_ItComesAshore()
+        {
+            var drowned = SouthDrowned;
+            var cover = GameObject.CreatePrimitive(PrimitiveType.Cube); // (a wall between it and you)
+            cover.transform.position = new Vector3(9f, 1.2f, -4.6f);
+            cover.transform.localScale = new Vector3(4f, 1.4f, 0.3f);
+            apprentice.Teleport(new Vector3(9f, 0.55f, -3.2f));
+            yield return WaitFor(() => drowned.Ashore && !drowned.Submerged, 6f, "it coming ashore, looking");
+            Assert.IsTrue(drowned.Targetable);
+            Object.Destroy(cover);
+            apprentice.Teleport(new Vector3(drowned.transform.position.x, 0.55f, -4.9f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            yield return null;
+            input.PressLight();
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(drowned.Health, drowned.maxHealth, "whacked while it's up");
+        }
+
+        // Weak to the Hook: caught while it's up, it's hauled out onto the quay, stranded and reeling; then it crawls
+        // back to the water and slips in.
+        [UnityTest]
+        public IEnumerator TheDrowned_Hooked_IsStrandedOnTheQuay()
+        {
+            var drowned = SouthDrowned;
+            apprentice.GiveHook();
+            apprentice.Teleport(AtTheEdge);
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Telegraph && !drowned.Submerged, 5f, "it rising");
+            input.HookHeld = true;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(drowned, apprentice.HookFoe, "the Hook aims at it, up");
+            input.HookHeld = false;
+            yield return WaitFor(() => drowned.Stranded, 1f, "hauled out");
+            yield return WaitFor(() => drowned.CurrentState == Soured.State.Staggered, 2f, "landed, reeling");
+            Assert.Greater(drowned.transform.position.y, 0.3f, "up on the quay");
+            Assert.Greater(drowned.transform.position.z, apprentice.transform.position.z, "beyond you, away from the water");
+            yield return WaitFor(() => !drowned.Stranded, 10f, "it crawling back in");
+            yield return WaitFor(() => drowned.Submerged, 3f, "under again");
+        }
+
+        // A long list keeps its chosen row in view, moving as little as it can.
+        [Test]
+        public void ScrollRows_KeepTheChosenOneInView()
+        {
+            Assert.AreEqual(0, CharacterScreen.ScrollRows.Window(0, 3, 12, 5), "in view already");
+            Assert.AreEqual(2, CharacterScreen.ScrollRows.Window(0, 6, 12, 5), "down past the bottom: one row at a time");
+            Assert.AreEqual(4, CharacterScreen.ScrollRows.Window(6, 4, 12, 5), "up past the top");
+            Assert.AreEqual(7, CharacterScreen.ScrollRows.Window(0, 11, 12, 5), "wrapped round to the last");
+            Assert.AreEqual(0, CharacterScreen.ScrollRows.Window(4, 1, 3, 5), "a short list never scrolls");
+        }
+
+        // The character screen: I / C / Select pauses the world behind four pages, left and right between them.
+        [UnityTest]
+        public IEnumerator TheCharacterScreen_Pauses_AndShowsItsPages()
+        {
+            var screen = Object.FindAnyObjectByType<CharacterScreen>();
+            Assert.IsNotNull(screen);
+            yield return null;
+            apprentice.AddWarmStone();
+            apprentice.AddFerryNail();
+            screen.Toggle(true);
+            Assert.IsTrue(screen.Open && Pause.IsPaused, "the world stops");
+            Assert.IsTrue(CharacterScreen.Blocks, "Esc belongs to it, not the pause menu");
+            yield return null;
+            Assert.AreEqual(CharacterScreen.Tab.Apprentice, screen.Current);
+            Assert.AreEqual($"{Mathf.RoundToInt(apprentice.maxHealth)}", screen.StatValue(0));
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Oar, screen.Current);
+            Assert.AreEqual("The Apprentice's Oar", screen.OarName);
+            StringAssert.Contains("???", screen.OarNext, "the next step, unnamed");
+            StringAssert.Contains("1 Ferry Nail", screen.OarNext);
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Abilities, screen.Current);
+            Assert.AreEqual(0, screen.AbilityRows.Count, "none found yet");
+            apprentice.GiveHook();
+            yield return null;
+            Assert.AreEqual("The Hook", screen.AbilityRows[0]);
+            Assert.AreEqual("The Hook", screen.AbilityName);
+            InputDevice.Set(false);
+            yield return null;
+            StringAssert.Contains("Hold F", screen.AbilityHow, "how it's used, on the keyboard");
+            InputDevice.Set(true);
+            yield return null;
+            StringAssert.Contains("Hold RB", screen.AbilityHow, "and on a gamepad: only the controls in use");
+            StringAssert.Contains("hook post", screen.AbilityHow, "and what for");
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Satchel, screen.Current);
+            Assert.AreEqual(1, screen.SatchelRows.Count, "nothing carried yet (only \"empty\")");
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Charms, screen.Current);
+            Assert.AreEqual(Charm.TestersKnot.Name, screen.CharmRows[0]);
+            Assert.AreEqual(Charm.All.Length, screen.CharmRows.Count, "those found, then a socket for each still to find");
+            Assert.AreEqual(Charm.TestersKnot.Description, screen.CharmDetail);
+            screen.ChooseCharm(1);
+            StringAssert.Contains("Somewhere", screen.CharmDetail);
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Lantern, screen.Current);
+            Assert.AreEqual(Lantern.Lines[0], screen.LanternLine);
+            Lantern.DevLevels = Lantern.Levels - 1;
+            yield return null;
+            Assert.AreEqual("It's ready.", screen.LanternLine);
+            Lantern.DevLevels = 0;
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Apprentice, screen.Current, "round again");
+
+            screen.Toggle(false);
+            Assert.IsFalse(Pause.IsPaused);
+            // Not over a menu in the world.
+            yield return OpenTheMenu();
+            screen.Toggle(true);
+            Assert.IsFalse(screen.Open, "not while a post's menu is open");
+        }
     }
 }

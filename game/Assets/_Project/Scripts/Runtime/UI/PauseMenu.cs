@@ -30,16 +30,17 @@ namespace MyGame
         // (keyboard, gamepad) for each action, as GameInput binds them.
         public static readonly (string action, string keys, string pad)[] Controls =
         {
-            ("Move / Row", "W A S D / Arrows", "Left stick"),
+            ("Move / Row", "W A S D", "Left stick"),
             ("Dash", "Space", "B"),
             ("Light attack", "J / Left click", "X"),
             ("Heavy attack", "K / Right click", "Y / RT"),
             ("Block (on time: perfect)", "L", "LT"),
             ("Heal", "Q", "LB"),
             ("Interact / Rest / Row", "E", "A"),
-            ("Lock on", "Tab / Middle click", "R3"),
-            ("Switch target", "Scroll", "Right stick"),
+            ("Lock on / switch target", "Tab / Middle click, Scroll", "R3, Right stick"),
             ("Hook: hold to aim, let go", "F", "RB"),
+            ("The belt: choose / use", "Left, Right / Up arrow", "D-pad left, right / up"),
+            ("The Apprentice (character)", "I / C", "Select"),
             ("Pause", "Esc", "Start"),
         };
 
@@ -70,10 +71,11 @@ namespace MyGame
 
         void Update()
         {
+            InputDevice.Track();
             input.Tick();
             if (!Open)
             {
-                if (input.PausePressed)
+                if (input.PausePressed && !CharacterScreen.Blocks)
                     PausePressed();
             }
             else
@@ -182,7 +184,8 @@ namespace MyGame
         void Draw()
         {
             rows.Clear();
-            string detail = "", hint = "Up / Down: choose     E / A: confirm     Esc / B: back";
+            bool pad = InputDevice.Gamepad; // (only the controls in use)
+            string detail = "", hint = pad ? "Up / Down: choose     A: confirm     B: back" : "Up / Down: choose     E: confirm     Esc: back";
             switch (page)
             {
                 case Page.Main:
@@ -192,16 +195,16 @@ namespace MyGame
                     list.Set("Paused", rows, selected, detail, hint);
                     return;
                 case Page.Controls:
-                    foreach (var (action, keys, pad) in Controls)
-                        rows.Add(new ScreenList.Row { Label = action, Value = $"{keys}   ·   {pad}" });
-                    list.Set("Controls", rows, -1, "", "Esc / B: back");
+                    foreach (var (action, keys, button) in Controls)
+                        rows.Add(new ScreenList.Row { Label = action, Value = pad ? button : keys });
+                    list.Set(pad ? "Controls (gamepad)" : "Controls (keyboard)", rows, -1, "", pad ? "B: back" : "Esc: back");
                     return;
                 default:
                     rows.Add(new ScreenList.Row { Label = "Master volume", Value = Level(Settings.Master) });
                     rows.Add(new ScreenList.Row { Label = "Music", Value = Level(Settings.Music) });
                     rows.Add(new ScreenList.Row { Label = "Effects", Value = Level(Settings.Effects) });
                     rows.Add(new ScreenList.Row { Label = "Back" });
-                    list.Set("Settings", rows, selected, "", "Left / Right: change     Esc / B: back");
+                    list.Set("Settings", rows, selected, "", pad ? "Left / Right: change     B: back" : "Left / Right: change     Esc: back");
                     return;
             }
         }
