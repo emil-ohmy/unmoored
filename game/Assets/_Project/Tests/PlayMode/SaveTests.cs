@@ -119,6 +119,9 @@ namespace MyGame.Tests
             apprentice.Equipment.AddProvision(Provision.PitchPot, 3);
             apprentice.Equipment.AddProvision(Provision.WarmBroth, 1);
             apprentice.Equipment.ChooseOnBelt(1);
+            apprentice.Equipment.Record(LedgerEntry.Laden);
+            apprentice.Equipment.Record(LedgerEntry.Laden);
+            apprentice.Equipment.Record(LedgerEntry.Anchoress);
             float health = apprentice.maxHealth, stamina = apprentice.maxStamina;
             SaveSystem.Instance.SaveNow();
 
@@ -137,6 +140,9 @@ namespace MyGame.Tests
             Assert.AreEqual(1, e.Carried(Provision.WarmBroth));
             CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth, null, null }, e.Belt, "and the belt");
             Assert.AreEqual(Provision.WarmBroth, e.Chosen, "the same one chosen");
+            Assert.AreEqual(2, e.Scattered(LedgerEntry.Laden), "the Ledger as it was");
+            Assert.AreEqual(1, e.Scattered(LedgerEntry.Anchoress));
+            Assert.IsFalse(e.Met(LedgerEntry.Clinger));
         }
 
         // A Lingerer's business is kept: the keepsake carried (and taken from where it lay), then where she stands with

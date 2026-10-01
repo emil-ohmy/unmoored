@@ -147,13 +147,18 @@ business and pay their fare to row them across.
     with the chosen one turning, as the Oar page shows the oar). One put in another's slot swaps with it, and "empty"
     clears a slot.
 - **The character screen** (I or C; Select on a gamepad) pauses the game. LB / RB (Q / R) turn its pages, which leaves
-  left/right for moving within a page. It has six pages:
+  left/right for moving within a page. It has seven pages:
   - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
   - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.
   - **Abilities:** each one found, with what it is, how it's used (keyboard and gamepad) and what it's for. The list
     scrolls, since how many there will be isn't settled.
   - **The Satchel:** the Provisions carried, how many of each, what they do, and which go on the belt.
   - **Charms:** those found and those fitted, the slots, and a dark socket for each still to find.
+  - **The Ledger:** every kind of Soured scattered, and every miniboss and Boss beaten, written in the first time,
+    in the order they're met: its model turning, what it is and where, what it couldn't let go of, what's known of how
+    to deal with it, and how many times. Only those met are listed (how many there are isn't said). A new Soured gets
+    a quiet line as it's written in ("Written in the Ledger: the Laden"); a Boss's farewell is enough. The lab's
+    Tester's Post can write in the whole Ledger.
   - **The Lantern:** a glow, five flames and one line. It says as little as it can.
 - **Obols**, the fare of the dead, buy:
   - Charms and slots from the merchant soul in the Hub

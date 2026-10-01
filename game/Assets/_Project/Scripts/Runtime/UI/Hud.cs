@@ -147,6 +147,8 @@ namespace MyGame
             apprentice.ObolsChanged += OnObolsChanged;
             apprentice.Healed += OnHealed;
             apprentice.Found += OnFound;
+            if (apprentice.Equipment != null)
+                apprentice.Equipment.Written += OnWritten;
             obolsShown = apprentice.Obols;
             MooringPost.Rested += OnRested;
             AreaEntrance.Entered += OnAreaEntered;
@@ -193,6 +195,8 @@ namespace MyGame
                 apprentice.ObolsChanged -= OnObolsChanged;
                 apprentice.Healed -= OnHealed;
                 apprentice.Found -= OnFound;
+                if (apprentice.Equipment != null)
+                    apprentice.Equipment.Written -= OnWritten;
             }
             MooringPost.Rested -= OnRested;
             AreaEntrance.Entered -= OnAreaEntered;
@@ -210,6 +214,18 @@ namespace MyGame
             if (!string.IsNullOrEmpty(hint))
                 foundHint.Show(hint.Replace("{hook}", usingGamepad ? "RB" : "F"));
         }
+
+        // A kind of Soured met (scattered) for the first time: a quiet line (a Boss's is its farewell).
+        void OnWritten(LedgerEntry entry)
+        {
+            if (entry.Kind != LedgerEntry.Rank.Soured)
+                return;
+            string name = entry.Name.StartsWith("The ") ? "the " + entry.Name.Substring(4) : entry.Name;
+            LastWritten = $"Written in the Ledger: {name}";
+            foundHint.Show(LastWritten);
+        }
+
+        public string LastWritten { get; private set; } // (tests)
 
         void OnObolsChanged(int delta)
         {

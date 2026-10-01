@@ -1083,6 +1083,67 @@ namespace MyGame.Tests
             Assert.AreEqual(0, apprentice.Equipment.Carried(Provision.WayBack), "used up");
         }
 
+        // The Ledger: scatter a kind of Soured and it's written in (a quiet line says so), with how many times; the
+        // page shows it turning, what it is and what's known. A Boss beaten is written in too.
+        [UnityTest]
+        public IEnumerator TheLedger_WritesInWhatYouScatter()
+        {
+            var e = apprentice.Equipment;
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Assert.IsFalse(e.Met(LedgerEntry.Laden));
+            var laden = post.spawner.SpawnAt("Laden", apprentice.transform.position + Vector3.forward * 4f, Vector3.forward);
+            laden.passive = true;
+            yield return null;
+            laden.Slay(apprentice.transform.position);
+            yield return null;
+            Assert.IsTrue(e.Met(LedgerEntry.Laden));
+            Assert.AreEqual(1, e.Scattered(LedgerEntry.Laden));
+            Assert.AreEqual("Written in the Ledger: the Laden", hud.LastWritten);
+            var another = post.spawner.SpawnAt("Laden", apprentice.transform.position + Vector3.forward * 4f, Vector3.forward);
+            another.passive = true;
+            yield return null;
+            another.Slay(apprentice.transform.position);
+            Assert.AreEqual(2, e.Scattered(LedgerEntry.Laden), "counted, not written in twice");
+            Assert.IsFalse(e.Met(LedgerEntry.Clinger));
+
+            var screen = Object.FindAnyObjectByType<CharacterScreen>();
+            screen.Toggle(true);
+            while (screen.Current != CharacterScreen.Tab.Ledger)
+                screen.Turn(1);
+            yield return null;
+            CollectionAssert.AreEqual(new[] { "The Laden" }, screen.LedgerRows);
+            StringAssert.Contains(LedgerEntry.Laden.Description, screen.LedgerDetail);
+            StringAssert.Contains("Scattered 2 times.", screen.LedgerDetail);
+            StringAssert.Contains("The Laden", screen.ShownModel.name, "it, turning");
+            screen.Toggle(false);
+        }
+
+        // (the lab) The Tester's Post writes the whole Ledger in, so every page can be seen.
+        [UnityTest]
+        public IEnumerator TestersPost_WritesInTheWholeLedger()
+        {
+            yield return OpenTheMenu();
+            Menu.Do("Give the Apprentice...");
+            Menu.Do("The whole Ledger");
+            var e = apprentice.Equipment;
+            Assert.IsTrue(LedgerEntry.All.All(entry => e.Met(entry)));
+            apprentice.OpenMenu.Close();
+            yield return null;
+            var screen = Object.FindAnyObjectByType<CharacterScreen>();
+            screen.Toggle(true);
+            while (screen.Current != CharacterScreen.Tab.Ledger)
+                screen.Turn(1);
+            yield return null;
+            Assert.AreEqual(LedgerEntry.All.Length, screen.LedgerRows.Count);
+            for (int i = 0; i < LedgerEntry.All.Length; i++)
+            {
+                Assert.IsNotNull(screen.ShownModel, $"{LedgerEntry.All[i].Name}: its model");
+                StringAssert.Contains(LedgerEntry.All[i].Name, screen.ShownModel.name);
+                screen.ChooseEntry(1);
+            }
+            screen.Toggle(false);
+        }
+
         // The Satchel page: pick a belt slot (left/right), confirm, choose what goes in it (up/down), confirm; back
         // leaves the slot as it was. The one in question turns beside it.
         [UnityTest]
@@ -1341,6 +1402,10 @@ namespace MyGame.Tests
             Assert.AreEqual(Charm.TestersKnot.Description, screen.CharmDetail);
             screen.ChooseCharm(1);
             StringAssert.Contains("Somewhere", screen.CharmDetail);
+
+            screen.Turn(1);
+            Assert.AreEqual(CharacterScreen.Tab.Ledger, screen.Current);
+            Assert.AreEqual(0, screen.LedgerRows.Count, "no one met yet");
 
             screen.Turn(1);
             Assert.AreEqual(CharacterScreen.Tab.Lantern, screen.Current);

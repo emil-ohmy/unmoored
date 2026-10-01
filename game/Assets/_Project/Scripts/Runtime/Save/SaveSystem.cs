@@ -116,6 +116,7 @@ namespace MyGame
             d.warmStones = apprentice.Equipment.WarmStones;
             d.heldBreaths = apprentice.Equipment.HeldBreaths;
             (d.provisions, d.provisionCounts, d.belt, d.beltChosen) = apprentice.Equipment.SatchelForSave();
+            (d.ledger, d.ledgerCounts) = apprentice.Equipment.LedgerForSave();
             d.taken = FindObjectsByType<ObolCache>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(c => c.Taken).Select(c => c.SaveId)
                 .Concat(FindObjectsByType<ChargePiece>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(c => c.Taken).Select(c => c.SaveId))
                 .Concat(FindObjectsByType<Keepsake>(FindObjectsInactive.Include, FindObjectsSortMode.None).Where(k => k.Taken).Select(k => k.SaveId))
@@ -151,6 +152,7 @@ namespace MyGame
                     find.RestoreTaken();
             apprentice.Equipment.Restore(d.oarStep, d.ferryNails, d.warmStones, d.heldBreaths);
             apprentice.Equipment.RestoreSatchel(d.provisions, d.provisionCounts, d.belt, d.beltChosen);
+            apprentice.Equipment.RestoreLedger(d.ledger, d.ledgerCounts);
             foreach (var keepsake in FindObjectsByType<Keepsake>(FindObjectsSortMode.None))
                 if (d.taken.Contains(keepsake.SaveId))
                     keepsake.RestoreTaken();

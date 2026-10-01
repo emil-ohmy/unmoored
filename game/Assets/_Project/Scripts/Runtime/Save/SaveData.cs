@@ -38,6 +38,8 @@ namespace MyGame
         public string[] lingerers = new string[0];  // each Lingerer's business: "id=State" (Waiting, Given, Paid)
         public string[] opened = new string[0];     // gates opened (shortcuts)
         public string[] beaten = new string[0];     // Bosses beaten
+        public string[] ledger = new string[0];     // the Ledger: each kind met (its id), and how many times scattered
+        public int[] ledgerCounts = new int[0];
     }
 
     // A stable name for something in the world, for the save: its kind, its name and where it stands (to a decimetre).

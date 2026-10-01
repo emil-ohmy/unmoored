@@ -1394,6 +1394,16 @@ namespace MyGame.Tests
                     Shot($"character-{page}-{screen.Current}-2-choosing", cam);
                     screen.SatchelBack();
                 }
+                if (screen.Current == CharacterScreen.Tab.Ledger)
+                {
+                    e.FillLedger();
+                    for (int i = 0; i < LedgerEntry.All.Length; i++)
+                    {
+                        yield return Frames(15);
+                        Shot($"character-{page}-{screen.Current}-{i}-{LedgerEntry.All[i].Id}", cam);
+                        screen.ChooseEntry(1);
+                    }
+                }
                 screen.Turn(1);
             }
             screen.Turn(1);

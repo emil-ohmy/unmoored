@@ -26,6 +26,7 @@ namespace MyGame
 
         // Every blow that reaches a Soured, landed or blocked, and the damage it did (the lab's readout listens).
         public static event System.Action<Soured, HitResult, float> Struck;
+        public static event System.Action<Soured> Fell; // scattered (the Ledger writes it in)
         public float radius = 0.6f;
         [Range(0f, 1f)] public float knockbackResistance = 0f;
 
@@ -663,6 +664,7 @@ namespace MyGame
         void Die(Hit hit)
         {
             TimesDefeated++;
+            Fell?.Invoke(this);
             Enter(State.Dying);
             dissolve = 0f;
             faresReleased = 0;

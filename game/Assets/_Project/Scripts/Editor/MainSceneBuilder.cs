@@ -247,6 +247,16 @@ public static partial class MainSceneBuilder
             model.SetActive(false);
             character.provisionModels[i] = model;
         }
+        character.ledgerModels = new GameObject[LedgerEntry.All.Length]; // (turning on its Ledger page)
+        for (int i = 0; i < LedgerEntry.All.Length; i++)
+        {
+            var model = Place($"Characters/{LedgerEntry.All[i].Model}", new Vector3(0f, -400f, 0f), 0f);
+            model.name = $"{LedgerEntry.All[i].Name} (character screen)";
+            foreach (var c in model.GetComponentsInChildren<Collider>())
+                UnityEngine.Object.DestroyImmediate(c);
+            model.SetActive(false);
+            character.ledgerModels[i] = model;
+        }
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");

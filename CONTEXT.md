@@ -105,7 +105,11 @@ How far the Bow lantern has grown, 1 to 5, from the Mooring posts lit across the
 _Avoid_: Lamp level, light level
 
 **Character screen**:
-The paused screen with six pages: the Apprentice, the Oar, Abilities, the Satchel, Charms and the Lantern.
+The paused screen with seven pages: the Apprentice, the Oar, Abilities, the Satchel, Charms, the Ledger and the Lantern.
+
+**Ledger**:
+The character screen's record of every kind of Soured the Apprentice has scattered, and every miniboss and Boss beaten: what each is, what it couldn't let go of, what's known of it, and how many times. Written in the first time one is met and scattered.
+_Avoid_: Bestiary, codex, journal, compendium
 _Avoid_: Inventory, status menu
 
 **Provision**:
