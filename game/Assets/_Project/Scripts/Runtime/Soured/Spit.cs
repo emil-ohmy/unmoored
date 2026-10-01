@@ -12,7 +12,7 @@ namespace MyGame
         public static event System.Action<Spit, Defence> Resolved; // what the Apprentice did about it (tests)
 
         public const float Radius = 0.4f, MaxRange = 16f;
-        public float damage = 6f, poisonTaken = 38f, poisonBlocked = 12f;
+        public float damage = 6f, poisonTaken = 55f, poisonBlocked = 15f; // (two taken: poisoned)
         public bool Deflected { get; private set; }
         public Soured Owner => owner;
 

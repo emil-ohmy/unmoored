@@ -70,8 +70,8 @@ business and pay their fare to row them across.
   the Soured is staggered and its attack is interrupted.
 - **Feel:** hit-stop, knockback and shake on every hit.
 - **Telegraphs:** readable body wind-ups in animation only. No ground markers.
-- **Poison** (a Drowned's spit): it builds up in a meter under the bars (a plain block lets a little through) and
-  ebbs if you keep clear. Full, you're poisoned: about 40 health over 20 s, unless you cure it with a Bitter Root or
+- **Poison** (a Drowned's spit): it builds up in a meter in the middle of the screen, under the Apprentice. Two spits
+  taken fill it (a plain block lets a little through), and it ebbs if you keep clear. Full, you're poisoned: about 40 health over 20 s, unless you cure it with a Bitter Root or
   a Rest.
 - **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
   LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.

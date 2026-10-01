@@ -41,7 +41,7 @@ namespace MyGame
 
         RectTransform canvasRect, hpFill, hpTrail, staminaFill, lockBar, lockFill, lockTrail, hpFrame, staminaFrame, poisonFill, poisonFrame;
         Image poisonFillImage;
-        GameObject poisonCap;
+        Text poisonLabel;
         static readonly Color PoisonGreen = new Color(0.52f, 0.78f, 0.26f);
         public bool PoisonShown => poisonFrame.gameObject.activeSelf;
         const float HealthWidth = 380f, StaminaWidth = 300f, LongestBar = 2.2f; // (at the start; a bar grows with its most, to 2.2 times)
@@ -91,10 +91,7 @@ namespace MyGame
             hpFill = Bar(hudRoot, "Health", new Vector2(56, -46), 380, 14, HealthRed, out hpTrail);
             hpFillImage = hpFill.GetComponent<Image>();
             staminaFill = Bar(hudRoot, "Stamina", new Vector2(56, -70), 300, 8, StaminaMoss, out _);
-            poisonFill = Bar(hudRoot, "Poison", new Vector2(56, -88), 200, 6, PoisonGreen, out _);
-            poisonFrame = (RectTransform)poisonFill.parent;
-            poisonFillImage = poisonFill.GetComponent<Image>();
-            poisonCap = hudRoot.Find("Poison Cap").gameObject;
+            BuildPoison(hudRoot);
             hpFrame = (RectTransform)hpFill.parent;
             staminaFrame = (RectTransform)staminaFill.parent;
             BuildCharges(hudRoot);
@@ -262,7 +259,8 @@ namespace MyGame
             // Poison: its build-up under the bars (only while there's any); poisoned, it pulses, and health goes sickly.
             bool poisoned = apprentice.Poisoned;
             poisonFrame.gameObject.SetActive(apprentice.Poison > 0.01f);
-            poisonCap.SetActive(apprentice.Poison > 0.01f);
+            poisonLabel.text = poisoned ? "Poisoned" : "Poison";
+            poisonLabel.color = (poisoned ? new Color(0.8f, 1f, 0.5f) : PoisonGreen).WithAlpha(0.9f);
             poisonFill.anchorMax = new Vector2(apprentice.PoisonFraction, 1f);
             float pulse = poisoned ? 0.5f + 0.5f * Mathf.Sin(now * 6f) : 0f;
             poisonFillImage.color = Color.Lerp(PoisonGreen, new Color(0.8f, 1f, 0.5f), pulse * 0.6f);
@@ -640,6 +638,21 @@ namespace MyGame
             beltName.text = c != null ? c.Name : "";
             beltName.color = c != null && e.Carried(c) > 0 ? UiKit.Bone.WithAlpha(0.85f) : UiKit.Ash.WithAlpha(0.6f);
             beltGroup.alpha = Mathf.MoveTowards(beltGroup.alpha, e.BeltEmpty ? 0f : 1f, UiKit.DeltaTime * 4f);
+        }
+
+        // The poison build-up: in the middle of the screen, just under the Apprentice (who's always there), where it
+        // can't be missed; only while there's any. Its word over it.
+        void BuildPoison(Transform root)
+        {
+            var centre = new Vector2(0.5f, 0.5f);
+            poisonFrame = UiKit.Image(root, "Poison", null, UiKit.Bronze.WithAlpha(0.9f), centre, new Vector2(0, -110), new Vector2(164, 10)).rectTransform;
+            UiKit.Stretch(UiKit.Image(poisonFrame, "Back", null, UiKit.Hex(0x0b0a0e, 0.85f), Vector2.zero, Vector2.zero, Vector2.zero).rectTransform, 1f);
+            poisonFill = Fill(poisonFrame, PoisonGreen);
+            poisonFillImage = poisonFill.GetComponent<Image>();
+            poisonFillImage.sprite = UiKit.Sheen;
+            poisonLabel = UiKit.Text(poisonFrame, "Label", textFont, 22, PoisonGreen, TextAnchor.MiddleCenter, new Vector2(0.5f, 1f), new Vector2(0, 14), 2f);
+            poisonLabel.rectTransform.sizeDelta = new Vector2(300, 28);
+            poisonFrame.gameObject.SetActive(false);
         }
 
         static RectTransform Bar(Transform parent, string name, Vector2 position, float width, float height, Color colour, out RectTransform trail)
