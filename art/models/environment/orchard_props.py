@@ -1,13 +1,13 @@
 """The orchard's things, left where they were the night the harvest didn't come: "basket" (a picking basket heaped with
 apples), "crate" (a slatted apple crate, full), "ladder" (a tall picking ladder; not set against trees: it looked climbable),
 "well" (a round stone well with its roof frame, windlass and bucket), "skep" (a straw beehive on a stand,
-silent), "scarecrow" (on its pole, in a coat and hat, arms out), "press" (the cider press: a heavy timber frame, its
+silent), "scarecrow" (on its pole, in a coat and hat, arms out), "pole" (a scarecrow's stake alone), "press" (the cider press: a heavy timber frame, its
 great wooden screw and the tub under it), "apples" (fallen fruit in the leaves) and "lantern" (a lantern hung from a
 shepherd's crook, warm: the orchard marks its ways with them). Origin at the base, game directions (see masonry.py)."""
 import math
 import masonry as m
 
-VARIANTS = ["basket", "crate", "ladder", "well", "skep", "scarecrow", "press", "apples", "lantern"]
+VARIANTS = ["basket", "crate", "ladder", "well", "skep", "scarecrow", "press", "apples", "lantern", "pole"]
 
 
 def build(variant):
@@ -96,6 +96,12 @@ def build(variant):
         parts.append(part("Tub", kit.cylinder(12, 0.48, 0.32), wood, M((0, 0, 0.66))))
         parts.append(part("Pomace", kit.cylinder(12, 0.44, 0.04), kit.mat("Pomace", "#5a3a26"), M((0, 0, 0.82))))
         parts.append(part("Board", kit.cylinder(12, 0.4, 0.06), heavy, M((0, 0, 0.88))))
+    elif variant == "pole":
+        # A scarecrow's stake (the figure on it is a character: the Watchman, or one of the scarecrows he stands
+        # among), driven into the ground, a few turns of rope near the top.
+        parts.append(box("Stake", wood, -0.045, 0.045, -0.045, 0.045, -0.2, 1.55))
+        for k in range(3):
+            parts.append(part("Rope", kit.cylinder(6, 0.06, 0.02), kit.mat("Rope", "#a38b62"), M((0, 0, 1.2 + k * 0.03))))
     elif variant == "apples":
         apples(0, 0, 0.02, 0.6, 9)
     else:

@@ -161,9 +161,12 @@ namespace MyGame
                 Notice();
         }
 
+        // How fast its time runs now (1: as ever; 0: stock still, mid-stride or mid-swing: the Watchman, watched).
+        protected virtual float Pace => 1f;
+
         void Update()
         {
-            float dt = Time.deltaTime;
+            float dt = Time.deltaTime * Pace;
             stateTime += dt;
             if (Time.time - lastHitTime > staggerDrainDelay)
                 Stagger = Mathf.Max(0f, Stagger - staggerDrainPerSecond * dt);
@@ -472,6 +475,13 @@ namespace MyGame
         {
             if (!IsAlive)
                 return HitResult.Missed;
+            if (Absorbs(hit))
+            {
+                dealt = 0f;
+                flashUntil = Time.time + 0.08f;
+                Sfx.Instance?.OarHit(transform.position + Vector3.up * 1.1f, hit.Heavy);
+                return HitResult.Landed;
+            }
             if (Unhittable)
             {
                 Vector3 towards = Flat(hit.From - transform.position).normalized;
@@ -521,6 +531,8 @@ namespace MyGame
         {
             if (!IsAlive || Unhittable || damage <= 0f)
                 return false;
+            if (Absorbs(new Hit { Damage = damage, From = from }))
+                return true;
             damage *= fireWeakness * AreaTraits.FireHarm; // (a Moth: paper; the Orchard: dry as old leaves)
             Health -= damage;
             dealt = damage;
@@ -536,6 +548,9 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // A blow (or fire) it takes without harm, answering in its own way (the Watchman, found out: he tears free).
+        protected virtual bool Absorbs(Hit hit) => false;
 
         // Whether the Apprentice is too far away to keep after (then it goes back to its post).
         protected virtual bool LosesTarget(float distance) => distance > (giveUpRange > 0f ? giveUpRange : aggroRadius * 1.5f);

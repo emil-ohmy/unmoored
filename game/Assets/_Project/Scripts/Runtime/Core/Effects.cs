@@ -10,10 +10,11 @@ namespace MyGame
         public Material sparkMaterial; // MyGame/Particle with a soft dot
         public Material flashMaterial; // MyGame/Particle with a ring
         public Material flameMaterial; // MyGame/Particle with a tongue of flame (burning: pitch, a Soured alight, a tarred oar)
+        public Material strawMaterial; // MyGame/ParticleLit (straw is lit, not light: a scarecrow bursting)
 
         ParticleSystem sparks, flash, fare, glints, wisps;
         ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
-        ParticleSystem flames;
+        ParticleSystem flames, straw;
         Transform fareTarget;
         BowLantern fareLantern;
 
@@ -29,6 +30,7 @@ namespace MyGame
             glints = BuildGlints();
             wisps = BuildWisps();
             flames = BuildFlames();
+            straw = BuildStraw();
         }
 
         // Where a defeated Soured's fare flies to: the Apprentice's lantern.
@@ -189,6 +191,40 @@ namespace MyGame
         }
 
         public int LiveFlames => flames != null ? flames.particleCount : 0;
+
+        // Straw thrown out of a scarecrow's coat (one bursting; the Watchman's, spilling): stalks tumbling, falling.
+        public void Straw(Vector3 at, int count)
+        {
+            if (straw == null)
+                return;
+            for (int i = 0; i < count; i++)
+                straw.Emit(new ParticleSystem.EmitParams
+                {
+                    position = at + Random.insideUnitSphere * 0.3f,
+                    velocity = new Vector3(Random.Range(-2.5f, 2.5f), Random.Range(1f, 4.5f), Random.Range(-2.5f, 2.5f)),
+                    startColor = Color.Lerp(new Color(0.62f, 0.5f, 0.28f), new Color(0.86f, 0.74f, 0.46f), Random.value),
+                    startSize = Random.Range(0.05f, 0.09f),
+                    startLifetime = Random.Range(0.9f, 1.6f),
+                    applyShapeToPosition = false,
+                }, 1);
+        }
+
+        public int LiveStraw => straw != null ? straw.particleCount : 0;
+
+        ParticleSystem BuildStraw()
+        {
+            var ps = Build("Straw", strawMaterial != null ? strawMaterial : sparkMaterial, stretch: true);
+            var main = ps.main;
+            main.maxParticles = 300;
+            main.gravityModifier = 0.6f;
+            var drag = ps.limitVelocityOverLifetime; // (light: the air slows it)
+            drag.enabled = true;
+            drag.drag = 1.5f;
+            var renderer = ps.GetComponent<ParticleSystemRenderer>();
+            renderer.velocityScale = 0.06f;
+            renderer.lengthScale = 4f; // (stalks, not sparks)
+            return ps;
+        }
 
         ParticleSystem BuildFlames()
         {

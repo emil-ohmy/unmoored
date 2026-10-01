@@ -28,6 +28,9 @@ namespace MyGame
             burning.enabled = true;
         }
 
+        // Put out (re-formed whole).
+        public void Douse() => until = 0f;
+
         void Awake()
         {
             soured = GetComponent<Soured>();

@@ -49,6 +49,26 @@ namespace MyGame
                 diver = null;
         }
 
+        // Out (from a scarecrow's straw; to the Watchman's lantern): the flock comes, whole, to `at`, and comes for the
+        // Apprentice at once.
+        public void Release(Vector3 at)
+        {
+            gameObject.SetActive(true);
+            home = at;
+            transform.position = at;
+            for (int i = 0; i < moths.Count; i++)
+            {
+                float a = i * Mathf.PI * 2f / moths.Count;
+                moths[i].SetSpawn(at + new Vector3(Mathf.Cos(a) * 0.5f, 0f, Mathf.Sin(a) * 0.5f), Quaternion.Euler(0f, i * 47f, 0f));
+                moths[i].Reform();
+                moths[i].Alert();
+            }
+            diver = null;
+        }
+
+        // Gone again, until it's released (the Apprentice Rested: the scarecrow is whole).
+        public void Withdraw() => gameObject.SetActive(false);
+
         // Its place in the ring now: round the lamp, or round the Apprentice when they've come; each its own, a little
         // bob and wander of its own.
         public Vector3 PlaceFor(Moth m)

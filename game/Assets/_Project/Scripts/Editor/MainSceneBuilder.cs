@@ -213,6 +213,7 @@ public static partial class MainSceneBuilder
         effects.sparkMaterial = sparkMaterial;
         effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
         effects.flameMaterial = ParticleMaterial("M_Flame", FlameTexture("T_Flame"));
+        effects.strawMaterial = LitParticleMaterial("M_Straw", RadialTexture("T_SoftDot", ring: false), 0.9f);
         var hud = systems.AddComponent<Hud>();
         hud.apprentice = apprentice;
         hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");

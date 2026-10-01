@@ -33,6 +33,7 @@ public static partial class MainSceneBuilder
         OrchardRows();
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
         UpperTerrace();
+        TheWatchmansField(); // the Orchard's miniboss, among the scarecrows in the top rows
         OrchardLanterns();
         OrchardAir();
 
@@ -163,7 +164,7 @@ public static partial class MainSceneBuilder
         Ramp(new GameObject("Press House Stair Ramp").transform, at + new Vector3(3.68f, 0f, -3.0f), at + new Vector3(3.68f, 2.4f, 1.0f), 1.0f);
     }
 
-    // The top terrace: the old trees, the well, the hives, the scarecrow keeping watch over nothing, and the orchard
+    // The top terrace: the old trees, the well, the hives, the scarecrows keeping watch over nothing, and the orchard
     // wall along its back, its gateway (where the Gardener's glasshouse will be).
     static void UpperTerrace()
     {
@@ -173,12 +174,109 @@ public static partial class MainSceneBuilder
         OrchardProp("well", new Vector3(5.5f, UpperTop, 13.6f), 15f);
         foreach (float x in new[] { 12.2f, 13.4f, 14.6f })
             OrchardProp("skep", new Vector3(x, UpperTop, 16.6f), x * 20f);
-        OrchardProp("scarecrow", new Vector3(-8f, UpperTop, 12.6f), 160f);
         OrchardProp("basket", new Vector3(-3.4f, UpperTop, 14.2f), 0f);
         OrchardProp("apples", new Vector3(9.4f, UpperTop, 14.1f), 0f);
         float wallZ = OrchardBackZ - 0.35f;
         for (float x = -OrchardHalfWidth + 0.3f; x < OrchardHalfWidth - 0.4f; x += 4f)
             Place(Mathf.Abs(x + 2f) < 0.5f ? "Environment/orchard_wall_gate" : "Environment/orchard_wall_long", new Vector3(x, UpperTop, wallZ), 0f);
+    }
+
+    // The Watchman, of the Unreaped Rows (the Orchard's miniboss), and the field he stands in: six scarecrows in the top
+    // rows, all alike, all looking down the hill, each on its stake; one of them is him (a different one each time he
+    // re-forms). The rest have Moths nesting in their straw; his lantern calls two flocks of its own.
+    static readonly Vector3[] WatchmanSpots =
+    {
+        new Vector3(-0.5f, UpperTop, 12.6f), new Vector3(7.6f, UpperTop, 12.0f), new Vector3(1.8f, UpperTop, 15.4f),
+        new Vector3(-7.5f, UpperTop, 14.2f), new Vector3(12.0f, UpperTop, 13.2f), new Vector3(5.0f, UpperTop, 16.4f),
+    };
+
+    static Watchman TheWatchmansField()
+    {
+        var root = new GameObject("The Watchman's Field").transform;
+        const float yaw = 180f; // (down the hill: their faces to you as you come up)
+        Transform Pole(Vector3 at)
+        {
+            var pole = OrchardProp("pole", at, 0f);
+            foreach (var c in pole.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (inside the figure on it: the figure is what's solid)
+            pole.transform.SetParent(root, true);
+            return pole.transform;
+        }
+        T Figure<T>(string name, Vector3 at) where T : Soured
+        {
+            var go = Place("Characters/watchman", at, yaw);
+            go.name = name;
+            go.transform.SetParent(root, true);
+            var controller = go.AddComponent<CharacterController>();
+            controller.center = new Vector3(0f, 1.0f, 0f);
+            controller.height = 2.0f;
+            controller.radius = 0.4f;
+            controller.minMoveDistance = 0f;
+            var s = go.AddComponent<T>();
+            s.radius = 0.45f;
+            s.knockbackResistance = 1f; // (on a stake; and, found, he's rooted where he stands)
+            s.eyeHeight = 1.8f;
+            s.barHeight = 2.4f;
+            return s;
+        }
+
+        var field = new Scarecrow[WatchmanSpots.Length - 1];
+        for (int i = 0; i < field.Length; i++)
+        {
+            Vector3 at = WatchmanSpots[i + 1];
+            var s = field[i] = Figure<Scarecrow>($"Scarecrow {i + 1}", at);
+            s.maxHealth = 1f;
+            s.staggerCapacity = 999f;
+            s.obols = 0;
+            s.fareMotes = 0;          // (no soul in it: straw)
+            s.deathDuration = 0.6f;
+            s.dissolveDuration = 0.6f;
+            s.fireWeakness = 2f;
+            s.pole = Pole(at);
+            s.nest = MothFlockAt($"Moths (in scarecrow {i + 1})", at + Vector3.up * 1.6f, null, 3);
+            s.nest.transform.SetParent(root, true);
+            s.nest.gameObject.SetActive(false);
+        }
+
+        var w = Figure<Watchman>("The Watchman", WatchmanSpots[0]);
+        w.field = field;
+        w.pole = Pole(WatchmanSpots[0]);
+        w.maxHealth = 300f;
+        w.staggerCapacity = 120f;
+        w.staggerDuration = 1.0f;
+        w.aggroRadius = 14f;
+        w.viewHalfAngle = 180f;       // (found, he knows where you are)
+        w.noticeCloseRadius = 14f;
+        w.attackRange = 2.4f;
+        w.chaseSpeed = 3f;
+        w.turnSpeed = 540f;
+        w.leashRadius = 22f;
+        w.giveUpRange = 22f;
+        w.obols = 220;
+        w.deathDuration = 1.0f;
+        w.fireWeakness = 1.6f;        // straw (and the Orchard's dry: more again)
+        w.primary = new SouredAttack
+        {
+            name = "Sweep", windupClip = "Windup", strikeClip = "Swing", recoverClip = "Recover",
+            telegraph = 0.6f, strike = 0.3f, recover = 0.9f, impactAt = 0.4f,
+            lunge = 0.6f, maxLunge = 1.8f, trackUntil = 0.8f, damage = 24f, reach = 2.6f, arc = 110f, knockback = 8f,
+        };
+        w.primary.windupSound = Clips("watchman_windup");
+        w.primary.swingSound = Clips("laden_swing");
+        w.primary.swingPitch = 1.1f;
+        w.creakSound = Clips("watchman_creak");
+        w.revealSound = Clips("watchman_reveal");
+        w.lantern = PointLight(Bone(w.gameObject, "ArmL"), GlowCentre(w.gameObject, "WatchmanLanternGlass"), 7.5f, w.lanternIntensity, LanternLight);
+        w.lantern.enabled = false;
+        w.flocks = new MothFlock[2];
+        for (int i = 0; i < 2; i++)
+        {
+            var flock = w.flocks[i] = MothFlockAt($"Moths (the Watchman's lantern, {(i == 0 ? "first" : "second")})", w.lantern.transform.position, w.lantern.transform, 4);
+            flock.transform.SetParent(root, true);
+            flock.gameObject.SetActive(false);
+        }
+        Swoosh(w.gameObject, "ArmR", "HookIron", SouredSwoosh, 0.16f, "OrchardWood"); // (the hook's sweep)
+        return w;
     }
 
     // Lanterns on crooks along the ways, each warm, flickering, a few small pale moths circling it.
@@ -195,10 +293,10 @@ public static partial class MainSceneBuilder
             var light = PointLight(lantern.transform, lamp, 7f, 2.4f, LanternLight);
             Flicker(light, 0.08f, 3f, 0.01f);
             LanternMoths(lantern.transform, lamp);
-            // The Moths: a flock round the middle terrace's east lantern (by the press house), another round the top
-            // terrace's middle one; not by the way in (they'd be on you the moment you came).
-            if (lit == 4 || lit == 6)
-                MothFlockAt(lit == 4 ? "Moths (middle terrace)" : "Moths (top terrace)", lamp, light.transform, lit == 4 ? 6 : 5);
+            // The Moths: a flock round the middle terrace's east lantern (by the press house); not by the way in (they'd
+            // be on you the moment you came). The top terrace's are the Watchman's (in the scarecrows, and his lantern's).
+            if (lit == 4)
+                MothFlockAt("Moths (middle terrace)", lamp, light.transform, 6);
             lit++;
         }
     }

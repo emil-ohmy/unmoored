@@ -186,6 +186,21 @@ back toward the Hub.
 City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused into one great Clinger. Its farewell:
 **"TILL DEATH DID THEY PART"** / *Again.*
 
+The Orchard's is **the Watchman, of the Unreaped Rows**: the man who worked the orchard, still keeping watch over a
+harvest that never came, as a scarecrow in its top rows. A puzzle-fight about where you face. He moves only while
+he isn't watched (the Apprentice facing him, within 60° either side).
+- **Find him.** Six scarecrows stand in the rows, all alike, all looking down the hill. Whenever he's behind you, he
+  creeps a little nearer and turns a little more towards you, with a creak. Strike the wrong one and it bursts into
+  straw, and the Moths nesting in it come at you. Strike the right one (or burn or hook it) and he tears free of his
+  stake, his lantern flares and the fight begins. The blow that finds him does no harm. Each time he re-forms he
+  stands in a different place.
+- **Face him down.** While watched he's stock still, mid-stride or mid-swing. Unwatched he lurches at you in jerky
+  bursts and sweeps his reaping hook (its tell is a rasp behind you, so turn and face him). His lantern calls a flock
+  of Moths when he's found and a second at half health. Each comes back to the lantern a while after it's scattered.
+  The Moths are what make you look away.
+- **Fire:** he's straw. Alight, he can't hold still: he thrashes at you, always moving, while the fire eats him.
+- Beaten, his lantern goes out and its Moths fall with it. His farewell: **"THE WATCH IS ENDED"** / *Nothing came.*
+
 The **Drowned** appear at water edges everywhere.
 
 **Everything in the Orchard burns:** it's dry as old leaves. Fire does 1.75 times the harm to any Soured there, and
