@@ -20,12 +20,16 @@ namespace MyGame
             if (soured == null || !soured.IsAlive)
                 return;
             var burning = soured.GetComponent<Burning>() ?? soured.gameObject.AddComponent<Burning>();
+            duration *= AreaTraits.BurnLength; // (the Orchard: they burn longer)
             burning.until = Mathf.Max(burning.until, Time.time + duration);
             burning.perSecond = Mathf.Max(burning.Alight ? burning.perSecond : 0f, perSecond);
             if (burning.nextTick < Time.time)
                 burning.nextTick = Time.time + Tick;
             burning.enabled = true;
         }
+
+        // Put out (re-formed whole).
+        public void Douse() => until = 0f;
 
         void Awake()
         {

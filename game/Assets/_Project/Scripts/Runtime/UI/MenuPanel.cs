@@ -8,7 +8,7 @@ namespace MyGame
     // after confirming, and the keys for the device in use.
     public sealed class MenuPanel
     {
-        const int MaxRows = 10;
+        const int MaxRows = 12; // (the Tester's Post's Spawn page: every kind, and its tools)
         const float Width = 600f, RowHeight = 46f;
 
         readonly RectTransform root;

@@ -44,14 +44,6 @@ public static partial class MainSceneBuilder
 
         // The Mooring post and the Tester's Post, side by side at the west end.
         MooringPostAt(new Vector3(-6.0f, QuayTop, -3.4f), 0f);
-        TesterPost TesterPostAt(Vector3 at, float yaw)
-        {
-            var go = Place("Environment/mooring_post", at, yaw);
-            go.name = "Tester's Post";
-            var post = go.AddComponent<TesterPost>();
-            Flicker(PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 4f, 2.4f, Hex("#e8f0ff")), 0.05f, 2f, 0.005f);
-            return post;
-        }
         var tester = TesterPostAt(new Vector3(-3.4f, QuayTop, -4.1f), 20f);
         var heightsTester = TesterPostAt(new Vector3(20.6f, QuayTop, -3.6f), 0f); // a second, by the heights (the walkway's stair)
 
@@ -63,34 +55,7 @@ public static partial class MainSceneBuilder
         var apprentice = Apprentice(start.position);
         apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
 
-        // The kinds the Tester's Post can set down: switched-off templates, built exactly as in the world.
-        var templates = new GameObject("Lab Templates");
-        var spawner = templates.AddComponent<LabSpawner>();
-        GameObject Template(GameObject go)
-        {
-            go.transform.SetParent(templates.transform, true);
-            foreach (var soured in go.GetComponentsInChildren<Soured>(true))
-                if (soured.droppedLantern != null)
-                {
-                    soured.droppedLantern.transform.SetParent(templates.transform, true);
-                    soured.droppedLantern.gameObject.SetActive(false);
-                }
-            go.SetActive(false);
-            return go;
-        }
-        var laden = Template(Laden("Laden", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
-        var archer = Template(LadenArcher("Laden archer", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
-        var clinger = Template(Clinger("Clinger", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
-        var unparted = Template(TheUnparted("The Unparted", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
-        var drowned = Template(Drowned("Drowned", new Vector3(0f, 0f, -8f), 0f).gameObject);
-        spawner.kinds = new[]
-        {
-            new LabSpawner.Kind { name = "Laden", template = laden },
-            new LabSpawner.Kind { name = "Laden archer", template = archer },
-            new LabSpawner.Kind { name = "Clinger", template = clinger }, // (two near each other pair up)
-            new LabSpawner.Kind { name = "The Unparted", template = unparted, listed = false }, // (the miniboss: Formations)
-            new LabSpawner.Kind { name = "Drowned", template = drowned, inWater = true }, // (in the water nearest you)
-        };
+        var spawner = LabTemplates();
         tester.spawner = heightsTester.spawner = spawner;
 
         // Two Drowned waiting off the quay's south edge, east of the posts (only bubbles show), and crates on the edge
@@ -125,6 +90,51 @@ public static partial class MainSceneBuilder
         ramp.position = (bottom + top) / 2f - ramp.up * (thickness / 2f);
         var box = ramp.gameObject.AddComponent<BoxCollider>();
         box.size = new Vector3(width, thickness, along.magnitude);
+    }
+
+    // A Tester's Post (the lab's: set Soured down, give the Apprentice anything), its own pale light.
+    static TesterPost TesterPostAt(Vector3 at, float yaw)
+    {
+        var go = Place("Environment/mooring_post", at, yaw);
+        go.name = "Tester's Post";
+        var post = go.AddComponent<TesterPost>();
+        Flicker(PointLight(go.transform, GlowCentre(go, "Lantern_Glow"), 4f, 2.4f, Hex("#e8f0ff")), 0.05f, 2f, 0.005f);
+        return post;
+    }
+
+    // The kinds a lab's Tester's Post can set down: switched-off templates, built exactly as in the world.
+    static LabSpawner LabTemplates()
+    {
+        var templates = new GameObject("Lab Templates");
+        var spawner = templates.AddComponent<LabSpawner>();
+        GameObject Template(GameObject go)
+        {
+            go.transform.SetParent(templates.transform, true);
+            foreach (var soured in go.GetComponentsInChildren<Soured>(true))
+                if (soured.droppedLantern != null)
+                {
+                    soured.droppedLantern.transform.SetParent(templates.transform, true);
+                    soured.droppedLantern.gameObject.SetActive(false);
+                }
+            go.SetActive(false);
+            return go;
+        }
+        var laden = Template(Laden("Laden", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var archer = Template(LadenArcher("Laden archer", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var clinger = Template(Clinger("Clinger", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var unparted = Template(TheUnparted("The Unparted", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var drowned = Template(Drowned("Drowned", new Vector3(0f, 0f, -8f), 0f).gameObject);
+        var moths = Template(MothFlockAt("Moths", new Vector3(0f, QuayTop + 1.5f, 0f), null, 6).gameObject);
+        spawner.kinds = new[]
+        {
+            new LabSpawner.Kind { name = "Laden", template = laden },
+            new LabSpawner.Kind { name = "Laden archer", template = archer },
+            new LabSpawner.Kind { name = "Clinger", template = clinger }, // (two near each other pair up)
+            new LabSpawner.Kind { name = "The Unparted", template = unparted, listed = false }, // (the miniboss: Formations)
+            new LabSpawner.Kind { name = "Drowned", template = drowned, inWater = true }, // (in the water nearest you)
+            new LabSpawner.Kind { name = "Moths", template = moths }, // (a flock of six)
+        };
+        return spawner;
     }
 
     // The heights: stairs up to a walkway a storey high, into a tower's first floor. Inside, a stair down to the ground

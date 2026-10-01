@@ -20,5 +20,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/Lab_DrownedCity.unity
     guid: 59e1782fae04242ac97073063c2094fa
+  - enabled: 1
+    path: Assets/_Project/Scenes/Lab_Orchard.unity
+    guid: b615f6138b6fc4f32965b325dc35ef07
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

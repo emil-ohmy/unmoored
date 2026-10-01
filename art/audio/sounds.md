@@ -52,7 +52,7 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Clinger skitters (`clinger_skitter`) | in game | Synth | darting over stone: a quick scrabble of dry taps and clicks |
 | Hold groans (`unparted_groan`) | in game | Synth | the Unparted's Hold winding up: a deep, hollow groan sliding down and up, effort and grief |
 | Hold howls (`unparted_howl`) | in game | Synth | Fast gone: a long anguished howl cracking into a higher cry, then Hold is berserk |
-| The Unparted's music (`music_unparted`) | in game | Synth | a grieving 3/4 waltz in F minor: a low voice and a thin high one circling, a heartbeat drum; variant 2 (one scattered) torn, with a keening wail |
+| The Unparted's music (`music_unparted`) | in game | Synth | a grieving 3/4 waltz in F minor: a low voice and a thin high one circling, a heartbeat drum; variant 2 (one scattered) torn, with a keening wail (2 was a copy of 1 until 2026-10-01: a variant-numbering slip) |
 | A Boss's farewell (`boss_farewell`) | in game | Synth | a great bronze bell struck once as a beaten Boss's farewell comes up, a long cathedral tail |
 | Chapel floor cracking (`floor_crack`, 2) | in game | Synth | the warning before a section gives way: a grinding rumble swelling, cracks quickening, grit |
 | Chapel floor giving way (`floor_break`, 2) | in game | Synth | a splitting crack, the deep boom of it dropping, stone grinding and tumbling, rubble plopping into the water |
@@ -66,7 +66,7 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Anchor lands (`anchor_land`, 2) | in game | Synth | a heavy clank on stone, a thud, the chain slapping down |
 | Anchor hauled (`anchor_haul`) | in game | Synth | iron grinding and juddering over stone, faster and louder, the chain rattling in |
 | Anchoress rises (`anchoress_rise`) | in game | Synth | 2.2 s: every link shaking, a swell under the floor, her voice climbing into a drowned many-voiced cry, peaking on the slam |
-| Music: The Anchoress (`Music/music_anchoress_1`, `_2`) | in game | Synth | 64 s loop, D minor, 60 bpm: a slow grinding march (deep drum, chain off-beats, bowed bass, drone, the Drowned Dark's choir); 2 is the same loop heavier (every beat, faster chain, a high wail, water surging) and crossfades in step when she rises |
+| Music: The Anchoress (`Music/music_anchoress_1`, `_2`) | in game | Synth | 64 s loop, D minor, 60 bpm: a slow grinding march (deep drum, chain off-beats, bowed bass, drone, the Drowned Dark's choir); 2 is the same loop heavier (every beat, faster chain, a high wail, water surging) and crossfades in step when she rises (2 was a copy of 1 until 2026-10-01: a variant-numbering slip) |
 | Apprentice hurt (`apprentice_hurt`, 3) | in game | Synth | muffled impact + short clipped grunt through the mask; also on washing ashore |
 | Pitch Pot bursting (`pitch_burst`, 2) | in game | Synth | clay cracking, a deep whumpf as the pitch catches, fire roaring up and settling into a crackle |
 | Warm Broth drunk (`drink`) | in game | Synth | a cork's soft pop, three gulps through the mask, a small warm sigh |
@@ -76,3 +76,19 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Drowned rising (`drowned_rise`, 2) | in game | Synth | its tell: water surging up and pouring off it, a drowned groan swelling, wet and choked |
 | Drowned spitting (`drowned_spit`, 2) | in game | Synth | a wet gathering hawk in its throat, then the spit leaving with a thick "phtt" |
 | Spit striking (`spit_splat`, 2) | in game | Synth | a thick wet splat, and a small fizzing hiss as the poison eats at what it hit |
+| Moth diving (`moth_dive`, 2) | in game | Synth | a soft papery whirr of wings rising to a short dry hiss |
+| Moth scattered (`moth_release`, 6) | in game | Synth | a dry puff of dust and one soft music-box note, each variant a note of the same small tune (A minor) |
+| Music: Last Autumn (`Music/music_orchard`) | in game | Synth | 96 s loop, a slow waltz in A minor (60 bpm, 3/4): a reed-organ pad on Am - Fmaj7 - C - G - Am - Dm7 - E7 - Am, a plucked harp keeping the waltz, a low bowed hum on the roots, the tune on an old music box a few cents out of tune (silent through the middle, back for the last phrase, leaning on G# to pull round to A), leaves rustling in a breeze, a distant chime now and then; a warm middling hall |
+| Watchman turning (`watchman_creak`, 3) | in game | Synth | quiet: a stake creaking in the earth as he turns on it to watch you (stick-slip of dry wood), straw settling in his coat; deeper, as the lanterns gutter out |
+| Watchman found (`watchman_reveal`) | in game | Synth | his stake splintering as he tears free (cracks, a rending of fibres), a great dry whoosh of straw, a hollow breath in the sack |
+| Watchman's hook drawn (`watchman_windup`, 2) | in game | Synth | his tell: his coat creaking as he twists, the blade rasping up through the straw, a thin ring of iron at the top |
+| Field gates slamming (`field_gate_slam`) | in game | Synth | the Watchman found: two heavy plank leaves banging to, one after the other, the latch dropping with an iron clank, the old wood rattling as it settles |
+| Music: The Watchman (`Music/music_watchman_1`, `_2`) | in game | Synth | 48 s loop, A minor (the Orchard's key), 3/4 at 60 bpm: a dry wooden knock on every beat (tick tock tock), a lone scratchy fiddle creeping through the opening of Last Autumn's tune at a bar a note, sliding between notes, a low bowed hum on A, damp reed chords (Am - F - Dm - E), straw rattling now and then, the music box returning in flat fragments; twice in the loop everything but the hum stops dead for two beats. 2 is the same loop worse (a heartbeat, the knocking doubled, the fiddle an octave up and trembling, a rising scrape every four bars) and crossfades in step at half health |
+| Watchman drawing breath (`watchman_breath`, 2) | in game | Synth | his fire's tell: a long hollow inhale through the sack, straw crackling, the lantern's flame roaring up under it |
+| His fire breathed out (`fireball_whoosh`, 2) | in game | Synth | a deep whumph and a roar trailing off |
+| His fire guttering (`fireball_gutter`, 2) | in game | Synth | where it strikes: a soft burst, a spit of sparks, a hiss |
+| Scarecrow going up (`scarecrow_burst`, 2) | in game | Synth | straw catching all at once: a great dry whoomph, crackling and roaring (Tar sizzle plays as it catches) |
+| The oar through straw (`straw_puff`, 3) | in game | Synth | the Watchman, struck: a soft dull thump into stuffing, a dry rustle out |
+| Watchman scorched (`watchman_scorch`) | in game | Synth | his own fire turned back on him: a rushing roar through the straw, the coat's seams going, a hollow cry through the sack |
+| Watchman's breath knocked aside (`watchman_chime`, 3) | in game | Synth | round 3, one per small fireball knocked aside in a row, rising: music-box notes of A minor (A5, C6, E6), each fuller; the third with the octave under it, a finish |
+| The row broken (`watchman_sour`) | in game | Synth | round 3, one not knocked aside: a dull wooden thud and a music-box note gone sour (two flat tines a semitone apart, beating) |

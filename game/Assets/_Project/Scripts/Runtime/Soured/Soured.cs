@@ -60,6 +60,9 @@ namespace MyGame
         [Tooltip("Its belt lantern, knocked off where it falls (optional)")]
         public DroppedLantern droppedLantern;
 
+        [Tooltip("Fire's harm to it, times this (on top of its Area's: a Moth goes up like paper)")]
+        public float fireWeakness = 1f;
+
         [Header("Water: knocked in, it drowns (a kill, like any other)")]
         public float waterLevel = -0.35f;
         [Tooltip("How far past its own radius it feels for solid ground before stepping (never walks off an edge)")]
@@ -144,12 +147,29 @@ namespace MyGame
         // Whether it can be locked on to, hooked, struck (a Drowned under the water can't).
         public virtual bool Targetable => IsAlive;
 
-        // Held up by the water (a Drowned): no gravity, no feeling for footing; it keeps the height it's given.
+        // Whether lock-on can choose it (a scarecrow never; the Watchman only while he's fighting you).
+        public virtual bool Lockable => Targetable;
+
+        // Held up by the water (a Drowned) or the air (a Moth): no gravity, no feeling for footing; it keeps the height
+        // it's given.
         protected virtual bool Floats => false;
+
+        // On the wing (a Moth): fire rising from below still catches it.
+        public virtual bool Flies => false;
+
+        // Made aware of the Apprentice by another (a flock: one sees you, they all come).
+        public void Alert()
+        {
+            if (CurrentState == State.Idle || CurrentState == State.Returning)
+                Notice();
+        }
+
+        // How fast its time runs now (1: as ever; 0: stock still, mid-stride or mid-swing: the Watchman, watched).
+        protected virtual float Pace => 1f;
 
         void Update()
         {
-            float dt = Time.deltaTime;
+            float dt = Time.deltaTime * Pace;
             stateTime += dt;
             if (Time.time - lastHitTime > staggerDrainDelay)
                 Stagger = Mathf.Max(0f, Stagger - staggerDrainPerSecond * dt);
@@ -167,7 +187,8 @@ namespace MyGame
                     break;
 
                 case State.Chase:
-                    if (!targetAlive || LosesTarget(toTarget.magnitude) || Flat(transform.position - Home).magnitude > leashRadius)
+                    if (!targetAlive || LosesTarget(toTarget.magnitude) || Flat(transform.position - Home).magnitude > leashRadius
+                        || Sheltered(target.transform.position))
                     {
                         Enter(State.Returning);
                         break;
@@ -342,6 +363,8 @@ namespace MyGame
             // does knockback (shoving one off the edge is fair play).
             if ((CurrentState == State.Chase || CurrentState == State.Returning) && !Floats)
                 planar = KeepFooting(planar);
+            if (!Sheltered(transform.position) && Sheltered(transform.position + (planar + knockback) * Mathf.Max(dt, 0.02f) + Flat(planar + knockback).normalized * radius))
+                planar = knockback = Vector3.zero; // (an arena it doesn't belong to: it never crosses in; hooked in, it walks out)
             knockback *= Mathf.Exp(-8f * dt);
             if (Drowned)
             {
@@ -458,6 +481,11 @@ namespace MyGame
         {
             if (!IsAlive)
                 return HitResult.Missed;
+            if (Absorbs(hit, false))
+            {
+                dealt = 0f;
+                return HitResult.Landed; // (it answers in its own way)
+            }
             if (Unhittable)
             {
                 Vector3 towards = Flat(hit.From - transform.position).normalized;
@@ -507,6 +535,9 @@ namespace MyGame
         {
             if (!IsAlive || Unhittable || damage <= 0f)
                 return false;
+            if (Absorbs(new Hit { Damage = damage, From = from }, true))
+                return true;
+            damage *= fireWeakness * AreaTraits.FireHarm; // (a Moth: paper; the Orchard: dry as old leaves)
             Health -= damage;
             dealt = damage;
             if (immortal && Health <= 0f)
@@ -521,6 +552,10 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // A blow (or `fire`) it takes without harm, answering in its own way (the Watchman: found out, he tears free;
+        // found, the oar goes through straw).
+        protected virtual bool Absorbs(Hit hit, bool fire) => false;
 
         // Whether the Apprentice is too far away to keep after (then it goes back to its post).
         protected virtual bool LosesTarget(float distance) => distance > (giveUpRange > 0f ? giveUpRange : aggroRadius * 1.5f);
@@ -619,8 +654,8 @@ namespace MyGame
         // The moment it becomes aware of the Apprentice: its eyes flare, then it gives chase.
         void Notice()
         {
-            if (passive || Held)
-                return;
+            if (passive || Held || (target != null && Sheltered(target.transform.position)))
+                return; // (and never while they're in an arena it doesn't belong to)
             Effects.Instance?.AlertFlare(transform.position + transform.forward * 0.35f + Vector3.up * eyeHeight);
             Enter(State.Chase);
         }
@@ -752,6 +787,9 @@ namespace MyGame
             point = at;
             return false;
         }
+
+        // Whether `at` is inside a Boss's arena this one doesn't belong to (ArenaZone).
+        protected bool Sheltered(Vector3 at) => ArenaZone.KeepsOut(spawnPosition, at);
 
         // The Apprentice on its own level (not a floor above or below, not down off a ledge).
         protected virtual bool OnItsLevel() => target != null && Mathf.Abs(target.transform.position.y - transform.position.y) < 1.3f;

@@ -91,6 +91,9 @@ public static partial class MainSceneBuilder
 
         // Shut in while the fight is on: chains rising out of the water across the way in, between the near side's
         // two pillar stubs (the octagon's corners, set in from the edge as the model places them).
+        var zone = new GameObject("Arena Zone (the chapel)").AddComponent<ArenaZone>(); // (nothing follows you in)
+        zone.transform.position = centre + Vector3.up * 1f;
+        zone.size = new Vector3(16f, 8f, 16f);
         var seal = new GameObject("Arena Seal").AddComponent<ArenaSeal>();
         float px = 8.05f * Mathf.Cos(67.5f * Mathf.Deg2Rad), pz = -8.05f * Mathf.Sin(67.5f * Mathf.Deg2Rad);
         seal.left = new GameObject("Seal Left").transform;

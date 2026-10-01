@@ -133,7 +133,7 @@ def wail(total, rng):
 
 def render(v, rng):
     base = np.random.default_rng(20261001)  # shared by both variants: identical layers, so they crossfade in step
-    torn = v >= 2
+    torn = v >= 1  # (variants count from 0: the second is 1)
     total = LENGTH + FADE
     bars = np.arange(0, total, BAR)
     dry = synth.pan(level(events(total, list(bars), lambda at: heartbeat(base)), -20), 0.0)

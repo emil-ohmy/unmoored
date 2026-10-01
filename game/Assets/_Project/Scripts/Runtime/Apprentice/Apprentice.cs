@@ -564,6 +564,8 @@ namespace MyGame
                     CameraRig.Instance?.Shake(riposte || isHeavy ? 0.25f : 0.1f);
                     Announce(riposte ? "RIPOSTE" : isHeavy ? "HEAVY HIT" : "hit");
                 }
+                if (isHeavy && soured is Moth)
+                    continue; // (a heavy swing goes on through Moths: as many as it reaches)
                 return; // one target per swing
             }
         }
@@ -617,7 +619,7 @@ namespace MyGame
 
             if (LockTarget != null)
             {
-                if (!LockTarget.Targetable || !LockTarget.isActiveAndEnabled)
+                if (!LockTarget.Lockable || !LockTarget.isActiveAndEnabled)
                     SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
                 else if (ToLockTarget().magnitude > lockBreakRange || OffScreenTooLong())
                     SetLockTarget(null);
@@ -663,7 +665,7 @@ namespace MyGame
             float bestScore = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == exclude || !s.Targetable || !s.isActiveAndEnabled)
+                if (s == exclude || !s.Lockable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -687,7 +689,7 @@ namespace MyGame
             float bestAngle = float.MaxValue;
             foreach (var s in WorldState.AllSoured)
             {
-                if (s == LockTarget || !s.Targetable || !s.isActiveAndEnabled)
+                if (s == LockTarget || !s.Lockable || !s.isActiveAndEnabled)
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
@@ -1051,7 +1053,8 @@ namespace MyGame
             return true;
         }
 
-        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null)
+        // `blockable` false: no guard stops it (a gout of fire; only a dodge or a sidestep escapes it).
+        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null, bool blockable = true)
         {
             if (Invulnerable)
             {
@@ -1059,7 +1062,7 @@ namespace MyGame
                     Announce("dodged");
                 return Defence.Dodged;
             }
-            if (CurrentState == State.Blocking && Facing(attacker != null ? attacker.transform.position : transform.position - knock))
+            if (blockable && CurrentState == State.Blocking && Facing(attacker != null ? attacker.transform.position : transform.position - knock))
                 return Block(damage, knock, attacker);
             Health = Mathf.Max(0f, Health - damage);
             CloseMenu(); // a blow ends any browsing

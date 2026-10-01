@@ -232,3 +232,54 @@ def balustrade(parts, e0, n0, e1, n1, u0, height=1.0):
         t = i / count
         e, n = e0 + (e1 - e0) * t, n0 + (n1 - n0) * t
         parts.append(box("RailPost", stones[1 + i % 2], e - 0.1, e + 0.1, n - 0.1, n + 0.1, u0, u0 + height + 0.06))
+
+
+# ---------------------------------------------------------------- the Orchard of Last Autumn
+
+def orchard():
+    """Switch to the Orchard's palette (call before building): dry-stone of pale, sandy stone laid without mortar (dark
+    gaps show between the stones), sun-bleached capstones, weathered timber."""
+    global STONE, MORTAR, CAP, PLINTH, TIMBER
+    STONE = ("Sandstone1", "#9a8a6e"), ("Sandstone2", "#a8977a"), ("Sandstone3", "#8a7a60")
+    MORTAR = ("DryJoint", "#3e352b")
+    CAP = ("SandCap", "#bcae8c")
+    PLINTH = ("SandPlinth", "#7a6c55")
+    TIMBER = ("OrchardTimber", "#5e4634")
+
+
+LEAVES = ("LeafRust", "#9a4a2c"), ("LeafOchre", "#b8873a"), ("LeafRed", "#7c2a25"), ("LeafBrown", "#7a5432"), ("LeafTan", "#9a7a4a")
+TURF = ("Turf1", "#68684d"), ("Turf2", "#727050"), ("Turf3", "#5c5c45")
+
+
+def turf(parts, e0, e1, n0, n1, top, density=4.0, holes=()):
+    """Turf, dull olive-grey in patches, under a litter of fallen leaves (flat slips in rust, ochre, deep red and
+    brown, lying every which way, thicker in drifts). `holes`: rects left bare (a stair's foot)."""
+    import math
+    rng = kit.rng
+    tones = [mat(t) for t in TURF]
+    n = n0
+    while n < n1 - 0.05:
+        d = min(rng.uniform(1.2, 2.2), n1 - n)
+        e = e0
+        while e < e1 - 0.05:
+            w = min(rng.uniform(1.5, 3.0), e1 - e)
+            if _clear(e, e + w, n, n + d, holes):
+                parts.append(box("Turf", rng.choice(tones), e, e + w, n, n + d, top - 0.1, top + rng.uniform(-0.01, 0.01)))
+            e += w
+        n += d
+    leaves = [mat(l) for l in LEAVES]
+    count = int((e1 - e0) * (n1 - n0) * density)
+    # Drifts: a few centres the leaves gather round.
+    drifts = [(rng.uniform(e0, e1), rng.uniform(n0, n1)) for _ in range(max(1, count // 140))]
+    for _ in range(count):
+        if rng.random() < 0.75:  # (most of them in drifts: against walls, round trunks, where the air dropped them)
+            ce, cn = rng.choice(drifts)
+            e, n = ce + rng.gauss(0, 1.0), cn + rng.gauss(0, 1.0)
+        else:
+            e, n = rng.uniform(e0, e1), rng.uniform(n0, n1)
+        if not (e0 + 0.05 < e < e1 - 0.05 and n0 + 0.05 < n < n1 - 0.05) or not _clear(e - 0.1, e + 0.1, n - 0.1, n + 0.1, holes):
+            continue
+        size = rng.uniform(0.11, 0.2)
+        parts.append(part("Leaf", kit.cube(), rng.choice(leaves),
+                          M((-e, -n, top + 0.012 + rng.uniform(0, 0.012)), rot=(rng.uniform(-8, 8), rng.uniform(-8, 8), rng.uniform(0, 360)),
+                            scale=(size, size * 0.62, 0.008))))

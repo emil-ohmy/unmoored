@@ -98,7 +98,8 @@ namespace MyGame
         }
 
         public bool InPool(Soured s) =>
-            s != null && s.IsAlive && Flat(s.transform.position - to).magnitude < Radius + s.radius * 0.5f && Mathf.Abs(s.transform.position.y - to.y) < 1.2f;
+            s != null && s.IsAlive && Flat(s.transform.position - to).magnitude < Radius + s.radius * 0.5f
+            && s.transform.position.y - to.y > -1.2f && s.transform.position.y - to.y < (s.Flies ? 3.2f : 1.2f); // (the flames reach up to a Moth)
 
         void Break()
         {

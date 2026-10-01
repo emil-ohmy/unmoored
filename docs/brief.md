@@ -182,11 +182,47 @@ back toward the Hub.
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
 
+**Boss arenas:** nothing that follows the Apprentice crosses into a Boss's (or miniboss's) arena. It stops at the
+edge and gives them up, and nothing outside notices them while they're in it.
+
 **Minibosses:** each Area has one, met on the way (a name plate, a bar and a farewell, but no Ability). The Drowned
 City's is **the Unparted, of the Last Embrace**: Hold and Fast, two souls fused into one great Clinger. Its farewell:
 **"TILL DEATH DID THEY PART"** / *Again.*
 
+The Orchard's is **the Watchman**, his name plate **Abner Wick, Who Merits Flame** (who he was, and what he's owed):
+the man who worked the orchard, still keeping watch over a harvest that never came, as a scarecrow in the field above
+it. A puzzle-fight. He's straw: **the oar goes through him**
+(a puff of straw, no harm). Only fire hurts him: his own most of all, breathed out of his lantern and turned back at
+him with a perfect block (each one burns a third of him away). Fire you bring (a Pitch Pot, Ember Tar) burns him a
+little.
+- **His arena: the Unreaped Rows,** the field above the orchard, through the gateway in its wall. It was never
+  harvested: dead wheat stands in rows, there are a few stooks where someone began and stopped, and it's walled round.
+  Once he's found, the gateway's two plank gates swing shut behind you and slam, and his own music begins. They open
+  again when the fight ends (you fall, or he's beaten).
+- **Find him.** Six scarecrows stand in the rows, all alike, all looking at the gate you come in by. Only one turns
+  on its stake to watch you: him. Strike a wrong one and it catches, then goes up in flames, burning you if you're
+  still near (it's gone until you Rest). Strike him (or burn or hook him) and he tears free of his stake, his lantern
+  lights, and the fight is on.
+- **Round 1.** He moves only while he isn't watched (the Apprentice facing him, 60° either side). Watched, he stands
+  still and breathes fire at you: he leans back with his lantern to his face, its flame roaring up (the tell), and
+  spews a slow ball of flame. Unwatched, he lurches at you and sweeps his reaping hook.
+- **Round 2.** Scorched, he flings himself back among the scarecrows. The lanterns gutter out, and the moon and even your own lantern
+  with them; for a few seconds of dark (stakes creaking, straw rustling across the field) they all move, and when the light comes back they all turn to watch you. He's the one still smouldering: no glow, only a thin thread of
+  smoke and now and then an ember, seen if you're near and looking (walk the rows). Found again, his fire
+  comes as a fan of three (only the middle one at you), or held back and loosed late (a feint).
+- **Round 3.** Scorched again, he tears free for good, alight from head to foot: never still, watched or not, his hook
+  up close. His fire comes three small balls at a time, a beat apart. A perfect block only knocks a small one aside (it
+  glances off sideways, never back at him), and costs him breath: his lantern gutters down a step and a music-box note
+  rings, rising with each (A, C, E: Last Autumn's chord). Knock all three aside, one after another, and his lantern goes
+  out for a beat; then he draws his last great breath and it blazes. Turn that one back and he burns down to his
+  stake. Miss one of the three and a sour note sounds, his lantern flares back full, and it's three small ones again. His farewell: **"FLAME MERITED"** / *He kept the light for no one.*
+- **Lock-on** never picks a scarecrow, nor him while he's still one of them: only him, fighting.
+- **Fire turned back** goes to him, through anything in between: it's his.
+
 The **Drowned** appear at water edges everywhere.
+
+**Everything in the Orchard burns:** it's dry as old leaves. Fire does 1.75 times the harm to any Soured there, and
+they burn half as long again.
 
 **Heights** (the Areas have verticality: walkways, towers of several storeys, platforms):
 - Drops up to about 1.5 m can be taken, one way (a shortcut down). Taller edges are always walled or railed. No
@@ -204,7 +240,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Laden | things | Tank; approaches with its heap of belongings low (open), then up close lifts it as a shield that blocks frontal hits; two attacks: an overhead slam along a line (long recovery) and a wide low sweep for anyone at its flank or back (short recovery); huge stagger meter | Hook |
 | Clinger | a person | Fast pairs that circle, leap and cling to your back: stamina drains (and a little health), you slow; dash to throw off (even spent). Scatter one and the other turns frantic | Stroke |
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
-| Moths | memories | Flock of one-hit wisps that circle and dive | Long shaft, heavy sweep |
+| Moths | memories | A flock of one-hit wisps drawn to light: they circle their lantern, then come to yours, circling you just out of reach and sending one in at a time. It stalls, flaring (the tell), then dives straight through; a perfect block breaks it | The heavy attack (it sweeps through all it reaches) and fire (one alight sets the next alight) |
 | Drowned | life | Waits under the water (only bubbles show), out of reach. Seeing you, it rises and spits poison, then sinks and spits again. A perfect block turns the spit back, and a Drowned struck by its own spit dies outright. Hide from it and it comes to the shore to look for you, open to the oar | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
 
 ## Art direction
@@ -215,6 +251,11 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
   autumn colours, lanterns and eyes.
 - **Darkness:** it is always night. A weak, cold moon; the world is revealed by its fires (torches, lanterns). Fog,
   film grain and a heavy vignette keep it gritty.
+- **Each Area has its own night** (moon, ambient, fog, grade), and light keeps its meaning in all of them:
+  - **The Drowned City:** a weak, cold moon high up and close fog.
+  - **The Orchard of Last Autumn:** a huge, low harvest moon, pale honey-silver, throwing long tree shadows across
+    the rows. A dusky violet ambient, the air clearer above and mist lying low in the rows, and leaves always
+    drifting down.
 - **Light carries meaning:** warm orange is the world and safety (torches, Mooring posts); sickly green is a Soured
   (their belt lanterns and eyes: green light in the dark means danger); cold pale blue is the Apprentice's bow lantern.
 - **Pipeline:** everything is modelled and animated from Blender scripts, and art direction happens by reacting to

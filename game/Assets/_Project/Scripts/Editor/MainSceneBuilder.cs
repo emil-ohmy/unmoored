@@ -32,6 +32,27 @@ public static partial class MainSceneBuilder
     static readonly Color BowLanternLight = Hex("#9fc4ff");
     static Material sparkMaterial;
 
+    // Every generated scene, one after another (the labs, the Boss's arena, the title screen), Main last (left open).
+    [MenuItem("Assets/MyGame/Build All Scenes")]
+    static void BuildAllFromMenu()
+    {
+        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            return;
+        BuildAll();
+    }
+
+    public static void BuildAllFromCommandLine() => BuildAll();
+
+    static void BuildAll()
+    {
+        BuildLab();
+        BuildOrchardLab();
+        BuildBossArena();
+        BuildTitle();
+        Build();
+        Debug.Log("[MainSceneBuilder] Built every scene");
+    }
+
     [MenuItem("Assets/MyGame/Build Main Scene")]
     static void BuildFromMenu()
     {
@@ -129,9 +150,44 @@ public static partial class MainSceneBuilder
         FinishScene(scene, ScenePath, start, apprentice, "music_drowned_dark");
     }
 
-    // A new, empty scene with what every scene has before its layout: the night's lighting and the water.
-    static UnityEngine.SceneManagement.Scene BeginScene(Vector3 waterCentre)
+    // The night's look for an Area: its moon, its ambient, its fog and its grade (the post-processing volume). Each Area
+    // has one; its lab uses it. Light still carries meaning everywhere: warm firelight the most saturated orange (the
+    // world, safety), green the Soured, cold blue the Apprentice.
+    sealed class AreaNight
     {
+        public string volume;                      // the post-processing profile's asset name
+        public Color moon; public float moonIntensity; public Vector3 moonAngles; public float shadowStrength = 0.8f;
+        public Color sky, equator, ground;         // the ambient, top to bottom
+        public Color fog; public float fogStart, fogEnd;
+        public float saturation, contrast, exposure, vignette, grain;
+        public Color filter = Color.white;
+    }
+
+    // The Drowned City: a weak, cold moon high up, a cold teal-grey murk, fog close in.
+    static readonly AreaNight DrownedNight = new AreaNight
+    {
+        volume = "MainVolume", moon = Hex("#8ea8d8"), moonIntensity = 0.25f, moonAngles = new Vector3(56f, -38f, 0f),
+        sky = Hex("#1f2436"), equator = Hex("#141a24"), ground = Hex("#08090c"),
+        fog = Hex("#10131b"), fogStart = 14f, fogEnd = 38f,
+        saturation = -12f, contrast = 12f, exposure = -0.25f, vignette = 0.36f, grain = 0.35f,
+    };
+
+    // The Orchard of Last Autumn: a huge low harvest moon, pale honey-silver, throwing long shadows across the rows; a
+    // dusky violet ambient; the air clearer (the mist lies low instead, in the rows); the autumn colour kept.
+    static readonly AreaNight OrchardNight = new AreaNight
+    {
+        volume = "OrchardVolume", moon = Hex("#e6cb94"), moonIntensity = 1.05f, moonAngles = new Vector3(24f, -62f, 0f), shadowStrength = 0.9f,
+        sky = Hex("#3a3046"), equator = Hex("#2a2229"), ground = Hex("#0e0b0b"),
+        fog = Hex("#221b25"), fogStart = 22f, fogEnd = 56f,
+        saturation = -2f, contrast = 16f, exposure = 0f, vignette = 0.38f, grain = 0.3f, filter = Hex("#fff3e2"),
+    };
+
+    static AreaNight night = DrownedNight; // (the scene being built's)
+
+    // A new, empty scene with what every scene has before its layout: the night's lighting and the water.
+    static UnityEngine.SceneManagement.Scene BeginScene(Vector3 waterCentre, AreaNight areaNight = null)
+    {
+        night = areaNight ?? DrownedNight;
         AssetDatabase.ImportAsset(Models.TrimEnd('/'), ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
         AssetDatabase.ImportAsset(Audio.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
         AssetDatabase.ImportAsset(Fonts.TrimEnd('/'), ImportAssetOptions.ImportRecursive);
@@ -157,6 +213,7 @@ public static partial class MainSceneBuilder
         effects.sparkMaterial = sparkMaterial;
         effects.flashMaterial = ParticleMaterial("M_BlockFlash", RadialTexture("T_Ring", ring: true));
         effects.flameMaterial = ParticleMaterial("M_Flame", FlameTexture("T_Flame"));
+        effects.strawMaterial = LitParticleMaterial("M_Straw", RadialTexture("T_SoftDot", ring: false), 0.9f);
         var hud = systems.AddComponent<Hud>();
         hud.apprentice = apprentice;
         hud.titleFont = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglishSC-Regular.ttf");
@@ -232,7 +289,7 @@ public static partial class MainSceneBuilder
         cam.fieldOfView = 30f;
         cam.farClipPlane = 200f;
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = Fog;
+        cam.backgroundColor = night.fog;
         cam.GetUniversalAdditionalCameraData().renderPostProcessing = true;
         var rig = cam.gameObject.AddComponent<CameraRig>();
         rig.target = apprentice.transform;
@@ -518,6 +575,61 @@ public static partial class MainSceneBuilder
         drowned.primary.releaseSound = Clips("drowned_spit");
         drowned.bubbleSound = Clips("drowned_bubbles");
         return drowned;
+    }
+
+    // A Moth: one-hit, on the wing, in a flock (the flock decides where it flies and when it dives).
+    static Moth Moth(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/moth", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = Vector3.zero;
+        controller.height = 0.36f;
+        controller.radius = 0.18f;
+        controller.minMoveDistance = 0f;
+        var moth = go.AddComponent<Moth>();
+        moth.maxHealth = 1f;          // any blow
+        moth.radius = 0.32f;
+        moth.staggerCapacity = 999f;
+        moth.aggroRadius = 7f;
+        moth.viewHalfAngle = 180f;    // (it comes to light, from any side)
+        moth.noticeCloseRadius = 7f;
+        moth.leashRadius = 12f;
+        moth.giveUpRange = 12f;
+        moth.chaseSpeed = 4.5f;
+        moth.turnSpeed = 720f;
+        moth.obols = 8;
+        moth.eyeHeight = 0f;
+        moth.barHeight = 0.45f;
+        moth.fireWeakness = 3f;       // paper
+        moth.deathDuration = 0.45f;
+        moth.dissolveDuration = 0.55f;
+        moth.fareMotes = 10;
+        moth.primary = new SouredAttack
+        {
+            name = "Dive", windupClip = "Stall", strikeClip = "Dive", recoverClip = "Fly",
+            telegraph = 0.5f, strike = 0.7f, recover = 0.5f, impactAt = 0.1f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.85f, damage = 6f, reach = 8f, arc = 180f, knockback = 2f, scripted = true,
+        };
+        moth.diveSound = Clips("moth_dive");
+        moth.releaseSound = Clips("moth_release");
+        return moth;
+    }
+
+    // A flock of Moths round a light (`lamp`: none, round where it's set down).
+    static MothFlock MothFlockAt(string name, Vector3 at, Transform lamp, int count)
+    {
+        var root = new GameObject(name);
+        root.transform.position = lamp != null ? lamp.position : at;
+        var flock = root.AddComponent<MothFlock>();
+        flock.lamp = lamp;
+        for (int i = 0; i < count; i++)
+        {
+            float a = i * Mathf.PI * 2f / count;
+            var moth = Moth($"Moth {i + 1}", root.transform.position + new Vector3(Mathf.Cos(a) * flock.ringRadius, flock.ringHeight, Mathf.Sin(a) * flock.ringRadius), i * 47f);
+            moth.transform.SetParent(root.transform, true);
+        }
+        return flock;
     }
 
     // The Clinger: fast, fragile, always two. Circles, leaps, clings to your back; dash it off.
@@ -1128,27 +1240,27 @@ public static partial class MainSceneBuilder
     static void Lighting()
     {
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = Hex("#1f2436");
-        RenderSettings.ambientEquatorColor = Hex("#141a24");
-        RenderSettings.ambientGroundColor = Hex("#08090c");
+        RenderSettings.ambientSkyColor = night.sky;
+        RenderSettings.ambientEquatorColor = night.equator;
+        RenderSettings.ambientGroundColor = night.ground;
         var sh = new SphericalHarmonicsL2();
-        sh.AddAmbientLight(Hex("#141a24").linear);
-        sh.AddDirectionalLight(Vector3.up, Hex("#1f2436").linear, 0.45f);
+        sh.AddAmbientLight(night.equator.linear);
+        sh.AddDirectionalLight(Vector3.up, night.sky.linear, 0.45f);
         RenderSettings.ambientProbe = sh;
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
-        RenderSettings.fogColor = Fog;
-        RenderSettings.fogStartDistance = 14f;
-        RenderSettings.fogEndDistance = 38f;
+        RenderSettings.fogColor = night.fog;
+        RenderSettings.fogStartDistance = night.fogStart;
+        RenderSettings.fogEndDistance = night.fogEnd;
 
-        // A weak, cold moon: enough to read shapes and cast long shadows, never enough to light the scene.
+        // The moon: enough to read shapes and cast long shadows, never enough to light the scene.
         var moon = new GameObject("Moon").AddComponent<Light>();
         moon.type = LightType.Directional;
-        moon.color = Hex("#8ea8d8");
-        moon.intensity = 0.25f;
+        moon.color = night.moon;
+        moon.intensity = night.moonIntensity;
         moon.shadows = LightShadows.Soft;
-        moon.shadowStrength = 0.8f;
-        moon.transform.rotation = Quaternion.Euler(56f, -38f, 0f);
+        moon.shadowStrength = night.shadowStrength;
+        moon.transform.rotation = Quaternion.Euler(night.moonAngles);
     }
 
     static Mesh WaterGrid(float size, float cell)
@@ -1271,7 +1383,7 @@ public static partial class MainSceneBuilder
 
     static VolumeProfile VolumeProfileAsset()
     {
-        string path = Generated + "/MainVolume.asset";
+        string path = Generated + $"/{night.volume}.asset";
         AssetDatabase.DeleteAsset(path);
         var profile = ScriptableObject.CreateInstance<VolumeProfile>();
         AssetDatabase.CreateAsset(profile, path);
@@ -1280,14 +1392,16 @@ public static partial class MainSceneBuilder
         bloom.intensity.Override(1.3f);
         bloom.scatter.Override(0.7f);
         profile.Add<Tonemapping>(true).mode.Override(TonemappingMode.Neutral);
-        profile.Add<Vignette>(true).intensity.Override(0.36f);
+        profile.Add<Vignette>(true).intensity.Override(night.vignette);
         var grain = profile.Add<FilmGrain>(true);
         grain.type.Override(FilmGrainLookup.Medium2);
-        grain.intensity.Override(0.35f);
+        grain.intensity.Override(night.grain);
         var grade = profile.Add<ColorAdjustments>(true);
-        grade.contrast.Override(12f);
-        grade.saturation.Override(-12f);
-        grade.postExposure.Override(-0.25f);
+        grade.contrast.Override(night.contrast);
+        grade.saturation.Override(night.saturation);
+        grade.postExposure.Override(night.exposure);
+        if (night.filter != Color.white)
+            grade.colorFilter.Override(night.filter);
         foreach (var component in profile.components)
             AssetDatabase.AddObjectToAsset(component, profile);
         EditorUtility.SetDirty(profile);
