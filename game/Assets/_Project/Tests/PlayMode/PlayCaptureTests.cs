@@ -793,6 +793,20 @@ namespace MyGame.Tests
                 yield return Frames(40);
                 Shot("ui-3-lantern-lit-late");
 
+                // The warnings, in red: alight, and poisoned.
+                yield return Frames(120);
+                apprentice.SetAlight();
+                yield return Frames(18);
+                Shot("ui-3b-warning-alight");
+                apprentice.Douse();
+                yield return Frames(150);
+                apprentice.AddPoison(apprentice.poisonMax);
+                yield return Frames(18);
+                Shot("ui-3c-warning-poisoned");
+                apprentice.CurePoison();
+                apprentice.RestoreFully();
+                yield return Frames(120);
+
                 // The merchant soul, its wares, and fitting the Charm at the post.
                 var merchant = UnityEngine.Object.FindAnyObjectByType<Merchant>();
                 var post = UnityEngine.Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None).OrderBy(p => Vector3.Distance(p.transform.position, apprentice.transform.position)).First(); // the landing's

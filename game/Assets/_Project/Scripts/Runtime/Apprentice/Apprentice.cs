@@ -106,9 +106,10 @@ namespace MyGame
         public GameObject hookHeadModel; // the Hook's head in flight (spawned per throw)
 
         [Header("Alight (fire that lands: the Watchman's, a scarecrow going up, burning pitch): health and stamina burn away")]
-        public float alightTime = 5f;                  // caught: this long (more fire: longer, up to alightMost)
-        public float alightMost = 8f;
-        public float alightHealthPerSecond = 4f, alightStaminaPerSecond = 14f; // (about 20 health; and no breath back while it lasts)
+        public float alightTime = 9f;                  // caught: this long (more fire: longer, up to alightMost)
+        public float alightMore = 3f;                  // more fire, while alight: this much longer
+        public float alightMost = 14f;
+        public float alightHealthPerSecond = 2f, alightStaminaPerSecond = 8f; // (about 18 health, slowly: time to put it out; no breath back meanwhile)
         public AudioClip[] catchSound, burningSound, sackSound;
 
         [Header("Poison (a Drowned's spit): it builds up; full, you're poisoned a while")]
@@ -167,6 +168,7 @@ namespace MyGame
         public bool HookShown => hookBone != null && hookBone.localScale.x > 0.5f; // at the hip (not before it's found, nor in flight)
         public bool AimingHook { get; private set; }
         public event System.Action<string, string> Found; // something gained for good: a title and a hint (HUD banner)
+        public event System.Action<string, string> Warned; // something wrong with you (poisoned, alight): a title and a hint (HUD banner, in red)
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
         public event System.Action Healed;      // a Healing charge took effect (the end of the heal)
         public int Obols { get; private set; }
@@ -943,13 +945,14 @@ namespace MyGame
         public bool Alight => Time.time < alightUntil && IsAlive;
         public float AlightLeft => Mathf.Max(0f, alightUntil - Time.time);
 
-        // Caught by fire for `seconds` (already burning: longer, never past alightMost from now).
-        public void SetAlight(float seconds)
+        // Caught by fire: alight for alightTime (already alight: `more` longer, alightMore if not said; never past
+        // alightMost from now).
+        public void SetAlight(float more = -1f)
         {
-            if (!IsAlive || seconds <= 0f || CurrentState == State.Sinking)
+            if (!IsAlive || CurrentState == State.Sinking)
                 return;
             bool was = Alight;
-            alightUntil = Mathf.Min(Time.time + alightMost, Mathf.Max(alightUntil, Time.time) + (was ? seconds * 0.5f : seconds));
+            alightUntil = was ? Mathf.Min(Time.time + alightMost, alightUntil + (more >= 0f ? more : alightMore)) : Time.time + alightTime;
             if (was)
                 return;
             Sfx.Instance?.Attack(catchSound, transform.position + Vector3.up, 0.9f, "apprentice_catch");
@@ -957,7 +960,7 @@ namespace MyGame
             if (!warnedAlight)
             {
                 warnedAlight = true; // (said once: after that, the flames say it)
-                Found?.Invoke("Alight", "Water puts it out. So does a Sodden Sack, or a Rest");
+                Warned?.Invoke("Alight", "Water puts it out. So does a Sodden Sack, or a Rest");
             }
         }
 
@@ -1025,7 +1028,7 @@ namespace MyGame
             if (Poison >= poisonMax)
             {
                 poisonedUntil = Time.time + poisonedTime;
-                Found?.Invoke("Poisoned", "A Bitter Root cures it. So does a Rest");
+                Warned?.Invoke("Poisoned", "A Bitter Root cures it. So does a Rest");
             }
         }
 

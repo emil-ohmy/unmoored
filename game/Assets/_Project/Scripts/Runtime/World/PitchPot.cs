@@ -94,20 +94,20 @@ namespace MyGame
                 foreach (var s in WorldState.AllSoured)
                     if (InPool(s))
                         Burning.Set(s, 1.2f, BurnPerSecond); // (and on, a moment, after stepping out)
-                CatchApprentice(1.5f); // (yours burns you too: careful where you throw it)
+                CatchApprentice(0.25f); // (yours burns you too: careful where you throw it; staying in it, longer)
             }
         }
 
         // The Apprentice standing in it: alight.
         Apprentice apprentice;
 
-        void CatchApprentice(float seconds)
+        void CatchApprentice(float more)
         {
             if (apprentice == null)
                 apprentice = FindAnyObjectByType<Apprentice>();
             var a = apprentice;
             if (a != null && a.IsAlive && Flat(a.transform.position - to).magnitude < Radius && a.transform.position.y - to.y > -1.2f && a.transform.position.y - to.y < 1.2f)
-                a.SetAlight(seconds);
+                a.SetAlight(more);
         }
 
         public bool InPool(Soured s) =>

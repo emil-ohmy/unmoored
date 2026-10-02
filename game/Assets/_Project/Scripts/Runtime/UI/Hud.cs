@@ -61,7 +61,8 @@ namespace MyGame
         Soured markerTarget;
         float lockedAt = -100f;
         Image hookMarkerImage, hookMarkerGlow;
-        Banner foundHint;
+        Banner foundHint, warningHint;
+        public Banner WarningBanner { get; private set; }
         float obolsShown, gainAt = -100f, healedAt = -100f;
         Image hpFillImage;
         int gainAmount;
@@ -122,6 +123,17 @@ namespace MyGame
                 font = titleFont, size = 60, colour = UiKit.Bone, spacing = 5f, y = -150f, glow = UiKit.Hex(0x9fc4ff, 0.18f),
                 bandAlpha = 0.6f, fadeIn = 0.5f, hold = 3.0f, fadeOut = 1.0f, drift = 0.02f,
             });
+            // A warning (poisoned, alight): as a find, but red: a blood-red glow and rule, the words warmed to it.
+            WarningBanner = new Banner(canvasRect, "Warning", new Banner.Style
+            {
+                // (below the poison meter, which sits under the Apprentice)
+                font = titleFont, size = 60, colour = UiKit.Hex(0xf2b4a2), spacing = 5f, y = -205f, glow = UiKit.Blood.WithAlpha(0.8f),
+                bandAlpha = 0.8f, rule = true, ruleColour = UiKit.Hex(0xc0392b), fadeIn = 0.25f, hold = 3.0f, fadeOut = 1.0f, drift = 0.02f,
+            });
+            warningHint = new Banner(canvasRect, "Warning Hint", new Banner.Style
+            {
+                font = textFont, size = 30, colour = UiKit.Hex(0xe0a090), y = -270f, bandAlpha = 0.6f, fadeIn = 0.5f, hold = 3.2f, fadeOut = 1.0f,
+            });
             foundHint = new Banner(canvasRect, "Found Hint", new Banner.Style
             {
                 font = textFont, size = 30, colour = UiKit.Ash, y = -210f, fadeIn = 0.7f, hold = 2.8f, fadeOut = 1.0f,
@@ -147,6 +159,7 @@ namespace MyGame
             apprentice.ObolsChanged += OnObolsChanged;
             apprentice.Healed += OnHealed;
             apprentice.Found += OnFound;
+            apprentice.Warned += OnWarned;
             if (apprentice.Equipment != null)
                 apprentice.Equipment.Written += OnWritten;
             obolsShown = apprentice.Obols;
@@ -195,6 +208,7 @@ namespace MyGame
                 apprentice.ObolsChanged -= OnObolsChanged;
                 apprentice.Healed -= OnHealed;
                 apprentice.Found -= OnFound;
+                apprentice.Warned -= OnWarned;
                 if (apprentice.Equipment != null)
                     apprentice.Equipment.Written -= OnWritten;
             }
@@ -208,6 +222,7 @@ namespace MyGame
         // Something gained for good: its name, and a hint (with the key of the device in use).
         void OnFound(string title, string hint)
         {
+            WarningBanner.Dismiss();
             AreaTitle.Dismiss();
             LanternBanner.Dismiss();
             FoundBanner.Show(title);
@@ -226,6 +241,20 @@ namespace MyGame
         }
 
         public string LastWritten { get; private set; } // (tests)
+
+        // Something wrong with you (poisoned, alight): the same as a find, but in red, a warning.
+        void OnWarned(string title, string hint)
+        {
+            AreaTitle.Dismiss();
+            LanternBanner.Dismiss();
+            FoundBanner.Dismiss();
+            WarningBanner.Show(title);
+            if (!string.IsNullOrEmpty(hint))
+                warningHint.Show(hint);
+            LastWarning = title;
+        }
+
+        public string LastWarning { get; private set; } // (tests)
 
         void OnObolsChanged(int delta)
         {
@@ -312,6 +341,8 @@ namespace MyGame
             FoundBanner.Tick();
             UpdateFarewell();
             foundHint.Tick();
+            WarningBanner.Tick();
+            warningHint.Tick();
             dip.color = Color.black.WithAlpha(apprentice.Dip);
             dip.enabled = dip.color.a > 0.001f;
             float dimTarget = apprentice.CurrentState == Apprentice.State.Ceremony ? 0.85f : 0f;

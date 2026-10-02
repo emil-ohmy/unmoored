@@ -25,6 +25,7 @@ namespace MyGame
             public Color glow;      // alpha 0: none
             public float bandAlpha; // 0: no band
             public bool rule;
+            public Color ruleColour; // (alpha 0: the text's colour)
             public float fadeIn, hold, fadeOut, drift;
         }
 
@@ -41,7 +42,7 @@ namespace MyGame
                 UiKit.Image(root, "Glow", UiKit.SoftDot, s.glow, centre, Vector2.zero, new Vector2(s.size * 11f, s.size * 2.8f));
             Text = UiKit.Text(root, "Text", s.font, s.size, s.colour, TextAnchor.MiddleCenter, centre, Vector2.zero, s.spacing);
             if (s.rule)
-                UiKit.Image(root, "Rule", UiKit.Rule, s.colour.WithAlpha(0.7f), centre, new Vector2(0, -s.size * 0.72f), new Vector2(s.size * 12f, 3));
+                UiKit.Image(root, "Rule", UiKit.Rule, (s.ruleColour.a > 0f ? s.ruleColour : s.colour).WithAlpha(0.8f), centre, new Vector2(0, -s.size * 0.72f), new Vector2(s.size * 12f, 3));
             fadeIn = s.fadeIn;
             hold = s.hold;
             fadeOut = s.fadeOut;

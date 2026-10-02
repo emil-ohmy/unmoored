@@ -74,9 +74,12 @@ business and pay their fare to row them across.
   taken fill it (a plain block lets a little through), and it ebbs if you keep clear. Full, you're poisoned: about 40 health over 20 s, unless you cure it with a Bitter Root or
   a Rest.
 - **Alight:** fire that lands sets the Apprentice alight at once: the Watchman's fire taken (not blocked or parried),
-  a scarecrow going up beside you, standing in burning pitch (your own too). For about 5 s health and stamina burn
-  away (about 20 health; no breath comes back while it lasts); more fire keeps it going longer, never past 8 s. Water
-  puts it out (going under: you wash ashore, as ever), and so do a Sodden Sack and a Rest. No meter: fire is sudden.
+  a scarecrow going up beside you, standing in burning pitch (your own too). For 9 s health and stamina burn away,
+  slowly (about 18 health; no breath comes back while it lasts): time to put it out. More fire keeps it going longer
+  (3 s more each time), never past 14 s. Water puts it out (going under: you wash ashore, as ever), and so do a
+  Sodden Sack and a Rest. No meter: fire is sudden.
+- **Warnings** (poisoned, alight) are said as a find is, but in red: a blood-red glow and rule, the words warmed to
+  it, below the poison meter.
 - **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
   LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
   - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on

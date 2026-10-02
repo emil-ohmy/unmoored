@@ -99,7 +99,7 @@ namespace MyGame
                 else
                 {
                     if (defence == Defence.Taken)
-                        target.SetAlight(glances ? 2.5f : 4f); // (taken full: you're alight)
+                        target.SetAlight(); // (taken full: you're alight)
                     Gutter(from);
                     return;
                 }

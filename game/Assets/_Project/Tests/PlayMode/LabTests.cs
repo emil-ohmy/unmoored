@@ -1264,6 +1264,7 @@ namespace MyGame.Tests
             apprentice.AddPoison(70f);
             apprentice.AddPoison(70f);
             Assert.IsTrue(apprentice.Poisoned, "full: poisoned");
+            Assert.AreEqual("Poisoned", Object.FindAnyObjectByType<Hud>().LastWarning, "said, in red");
             float health = apprentice.Health;
             yield return new WaitForSeconds(2f);
             Assert.AreEqual(health - apprentice.poisonPerSecond * 2f, apprentice.Health, 1f, "losing health");
@@ -1283,8 +1284,10 @@ namespace MyGame.Tests
         {
             yield return null;
             float health = apprentice.Health, stamina = apprentice.Stamina;
-            apprentice.SetAlight(5f);
+            var hud = Object.FindAnyObjectByType<Hud>();
+            apprentice.SetAlight();
             Assert.IsTrue(apprentice.Alight);
+            Assert.AreEqual("Alight", hud.LastWarning, "said, in red (a warning, not a find)");
             yield return new WaitForSeconds(2f);
             Assert.AreEqual(health - apprentice.alightHealthPerSecond * 2f, apprentice.Health, 1f, "burning");
             Assert.Less(apprentice.Stamina, stamina - apprentice.alightStaminaPerSecond * 1.5f, "and out of breath");
@@ -1294,15 +1297,15 @@ namespace MyGame.Tests
             float after = apprentice.Health;
             yield return new WaitForSeconds(1f);
             Assert.AreEqual(after, apprentice.Health, 0.01f, "and no more burning");
-            apprentice.SetAlight(5f);
+            apprentice.SetAlight();
             apprentice.RestoreFully();
             Assert.IsFalse(apprentice.Alight, "a Rest puts it out too");
             // More fire, longer: but never past the most.
-            apprentice.SetAlight(5f);
-            apprentice.SetAlight(5f);
-            apprentice.SetAlight(5f);
-            Assert.LessOrEqual(apprentice.AlightLeft, apprentice.alightMost + 0.01f);
-            Assert.Greater(apprentice.AlightLeft, 5.5f);
+            apprentice.SetAlight();
+            Assert.AreEqual(apprentice.alightTime, apprentice.AlightLeft, 0.05f, "long enough to put it out");
+            for (int i = 0; i < 5; i++)
+                apprentice.SetAlight();
+            Assert.AreEqual(apprentice.alightMost, apprentice.AlightLeft, 0.05f, "more fire, longer: never past the most");
             apprentice.Douse();
             // A Pitch Pot at your own feet.
             PitchPot.Throw(null, apprentice.transform.position + Vector3.up * 1.2f + apprentice.transform.forward * 0.3f, apprentice.transform.position + apprentice.transform.forward * 0.4f);

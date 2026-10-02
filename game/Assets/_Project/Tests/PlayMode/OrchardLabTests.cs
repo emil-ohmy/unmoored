@@ -385,6 +385,19 @@ namespace MyGame.Tests
             finally { global::MyGame.Watchman.Breathed -= onBreath; }
         }
 
+        // By the well, before the field's gate: Sodden Sacks to pick up.
+        [UnityTest]
+        public IEnumerator BytheWell_SoddenSacks()
+        {
+            var sack = UnityEngine.Object.FindObjectsByType<ProvisionFind>(FindObjectsSortMode.None).FirstOrDefault(f => f.provision == "sodden_sack");
+            Assert.IsNotNull(sack, "a Sodden Sack lying by the well");
+            apprentice.Teleport(sack.transform.position + Vector3.back * 0.8f);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(2, apprentice.Equipment.Carried(Provision.SoddenSack), "picked up: two");
+        }
+
         // His fire taken full (not blocked): you're alight.
         [UnityTest]
         public IEnumerator TheWatchman_HisFireTaken_SetsYouAlight()
