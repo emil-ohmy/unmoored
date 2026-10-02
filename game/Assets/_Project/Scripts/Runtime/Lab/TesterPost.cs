@@ -8,6 +8,21 @@ namespace MyGame
         public LabSpawner spawner;
         public LabReadout readout;
         public float interactRadius = 1.3f;
+        [Tooltip("The Soured placed in this lab's own rows (the Orchard's Gleaners and Moths): asleep (gone) from the start, " +
+                 "woken at the post, so whatever's being tried can be tried on its own")]
+        public GameObject[] residents = new GameObject[0];
+
+        public bool ResidentsAwake { get; private set; }
+
+        void Start() => SetResidents(false);
+
+        public void SetResidents(bool awake)
+        {
+            ResidentsAwake = awake;
+            foreach (var r in residents)
+                if (r != null)
+                    r.SetActive(awake);
+        }
 
         void OnEnable() => Interactables.Register(this);
         void OnDisable() => Interactables.Unregister(this);

@@ -43,6 +43,12 @@ public static partial class MainSceneBuilder
         MooringPostAt(new Vector3(-13.5f, GroundTop, -6.2f), 0f);
         var tester = TesterPostAt(new Vector3(-11.2f, GroundTop, -6.6f), 15f);
         tester.spawner = LabTemplates();
+        // The rows' own Soured (the Gleaners, the Moths' flocks) start asleep: woken at the post.
+        var residents = new System.Collections.Generic.List<GameObject>();
+        foreach (var name in new[] { "Gleaners", "Moths (middle terrace)", "Moths (top terrace)" })
+            if (GameObject.Find(name) is GameObject resident)
+                residents.Add(resident);
+        tester.residents = residents.ToArray();
         var start = new GameObject("Start Point").transform;
         start.position = new Vector3(-12f, GroundTop, -3.8f);
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();

@@ -21,6 +21,7 @@ namespace MyGame.Tests
     {
         Apprentice apprentice;
         ScriptedInput input;
+        TesterPost post;
 
         [UnitySetUp]
         public IEnumerator LoadOrchard()
@@ -31,6 +32,10 @@ namespace MyGame.Tests
             yield return null;
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
+            // The rows' own Soured start asleep (for play-testing one thing at a time): the tests want them there.
+            post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
+            Assert.IsFalse(post.ResidentsAwake, "the rows' own start asleep");
+            post.SetResidents(true);
             // The Gleaners and the Thresher keep out of every test but their own (they'd cut into the rest).
             if (!TestContext.CurrentContext.Test.Name.Contains("Gleaner"))
                 foreach (var g in UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None))
@@ -414,6 +419,28 @@ namespace MyGame.Tests
 
         Gleaner MiddleGleaner => UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None)
             .Where(g => g.transform.position.y < 2.5f).OrderBy(g => g.transform.position.x).First(); // (the middle terrace's west one)
+
+        // The rows' own Soured (the Gleaners, the Moths) sleep at the start; the Tester's Post wakes them, and sends them
+        // back to sleep.
+        [UnityTest]
+        public IEnumerator TheRowsOwn_AsleepAtTheStart_WokenAtThePost()
+        {
+            post.SetResidents(false);
+            yield return null;
+            Assert.AreEqual(0, UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None).Length, "asleep: gone");
+            Assert.AreEqual(0, UnityEngine.Object.FindObjectsByType<MothFlock>(FindObjectsSortMode.None).Length);
+            Assert.IsNotNull(TheThresher, "the Thresher stays");
+            apprentice.Teleport(post.InteractPosition + Vector3.forward * 1f);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return null;
+            var menu = (TesterMenu)apprentice.OpenMenu;
+            menu.Do("The rows' own");
+            yield return null;
+            Assert.IsTrue(post.ResidentsAwake);
+            Assert.AreEqual(4, UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None).Length, "awake: back");
+            Assert.AreEqual(2, UnityEngine.Object.FindObjectsByType<MothFlock>(FindObjectsSortMode.None).Length);
+        }
 
         // Four in the Orchard: two in the middle rows, two before the field's gate.
         [UnityTest]
