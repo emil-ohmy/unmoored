@@ -477,7 +477,7 @@ public static partial class MainSceneBuilder
             water.name = "Channel Water";
             Object.DestroyImmediate(water.GetComponent<Collider>()); // (you wade: the bed below holds you)
             water.transform.SetParent(root, true);
-            water.transform.SetPositionAndRotation(door + new Vector3(e, -0.1f, (GlassChannelFrom + GlassChannelTo) / 2f), Quaternion.Euler(90f, 0f, 0f));
+            water.transform.SetPositionAndRotation(door + new Vector3(e, -0.04f, (GlassChannelFrom + GlassChannelTo) / 2f), Quaternion.Euler(90f, 0f, 0f));
             water.transform.localScale = new Vector3(1.1f, length + 0.06f, 1f);
             var r = water.GetComponent<MeshRenderer>();
             r.sharedMaterial = channel;

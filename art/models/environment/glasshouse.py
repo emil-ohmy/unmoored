@@ -101,11 +101,11 @@ def house(parts):
         parts.append(m.part("Moss", m.kit.cube(), moss, m.M((-e, -n, 0.065), rot=(0, 0, rng.uniform(0, 90)), scale=(s, s * rng.uniform(0.4, 0.9), 0.01))))
     water = m.mat(WATER)
     for c in CHANNELS:
-        parts.append(m.box("ChannelBed", water, c - 0.6, c + 0.6, CHANNEL_N[0] - 0.04, CHANNEL_N[1] + 0.04, -0.6, -0.35))  # (the water itself: the scene's, laid over it)
+        parts.append(m.box("ChannelBed", water, c - 0.6, c + 0.6, CHANNEL_N[0] - 0.04, CHANNEL_N[1] + 0.04, -0.4, -0.16))  # (ankle deep: a step out you can take)  # (the water itself: the scene's, laid over it)
         for side in (-1, 1):
-            parts.append(m.box("Kerb", m.mat(m.CAP), c + side * 0.6 - 0.08, c + side * 0.6 + 0.08, CHANNEL_N[0] - 0.08, CHANNEL_N[1] + 0.08, -0.35, 0.1))
+            parts.append(m.box("Kerb", m.mat(m.CAP), c + side * 0.6 - 0.08, c + side * 0.6 + 0.08, CHANNEL_N[0] - 0.08, CHANNEL_N[1] + 0.08, -0.16, 0.08))
         for nn in CHANNEL_N:
-            parts.append(m.box("KerbEnd", m.mat(m.CAP), c - 0.52, c + 0.52, nn - 0.08, nn + 0.08, -0.35, 0.1))  # (astride the floor's edge, like the sides)
+            parts.append(m.box("KerbEnd", m.mat(m.CAP), c - 0.52, c + 0.52, nn - 0.08, nn + 0.08, -0.16, 0.08))  # (astride the floor's edge, like the sides)
     # The plinth: brick, knee high, all round (the doorway left open), a stone sill on top.
     sill = m.mat(m.CAP)
     for (a0, a1, b0, b1) in [(e0, door[0], n0, n0 + t), (door[1], e1, n0, n0 + t), (e0, e1, n1 - t, n1), (e0, e0 + t, n0 + t, n1 - t), (e1 - t, e1, n0 + t, n1 - t)]:

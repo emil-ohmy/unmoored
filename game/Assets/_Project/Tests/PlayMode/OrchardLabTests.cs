@@ -243,6 +243,11 @@ namespace MyGame.Tests
             yield return Walk(Vector2.right, 0.8f);
             Assert.IsFalse(apprentice.Alight, $"waded in: out ({apprentice.transform.position})");
             Assert.IsTrue(apprentice.IsAlive && apprentice.CurrentState == Apprentice.State.Free, "no drowning in it");
+            // And out again, up its far kerb onto the floor.
+            float across = doors.transform.position.x + 8.6f + 0.8f;
+            yield return Walk(Vector2.right, 1.2f);
+            Assert.Greater(apprentice.transform.position.x, across, $"out of it, over the far kerb ({apprentice.transform.position})");
+            Assert.AreEqual(3.36f, apprentice.transform.position.y, 0.15f, "back up on the floor");
         }
 
         // ---- The Watchman (Abner Wick, Who Merits Flame)
