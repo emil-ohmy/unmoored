@@ -35,9 +35,24 @@ namespace MyGame
 
         protected override string ChaseClip(float distance) => "Idle";
 
-        // It creeps nearer when you're far; otherwise it turns on the spot to line up.
+        // It creeps nearer when you're far, or round whatever stands between (it only charges with a clear run);
+        // otherwise it turns on the spot to line up.
         protected override Vector3 ChaseStep(Vector3 toTarget, float distance) =>
-            distance > chargeFurthest * 0.7f ? PathDirection(target.transform.position) * chaseSpeed : Vector3.zero;
+            distance > chargeFurthest * 0.7f || !ClearRun(toTarget, distance) ? PathDirection(target.transform.position) * chaseSpeed : Vector3.zero;
+
+        // Nothing solid between it and you (as far as a charge would carry it before it got to you).
+        bool ClearRun(Vector3 toTarget, float distance)
+        {
+            Vector3 dir = toTarget;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f)
+                return true;
+            float reach = Mathf.Max(0.5f, Mathf.Min(distance, chargeFurthest) - 1.2f);
+            foreach (var hit in Physics.SphereCastAll(transform.position + Vector3.up * 0.75f, 0.6f, dir.normalized, reach, ~0, QueryTriggerInteraction.Ignore))
+                if (!(hit.collider is CharacterController) && hit.distance > 0f)
+                    return false;
+            return true;
+        }
 
         protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
@@ -46,7 +61,7 @@ namespace MyGame
                 return primary;                                       // the flails, in front
             if (distance <= ventRadius && angle > 100f)
                 return vent;                                          // steam, behind
-            if (Time.time >= nextCharge && distance >= chargeNearest && distance <= chargeFurthest && angle < lineUp)
+            if (Time.time >= nextCharge && distance >= chargeNearest && distance <= chargeFurthest && angle < lineUp && ClearRun(toTarget, distance))
             {
                 nextCharge = Time.time + chargeCooldown;
                 return charge;
@@ -56,8 +71,14 @@ namespace MyGame
 
         protected override void OnEntered(State state)
         {
-            if (state == State.Chase || state == State.Idle)
+            if ((state == State.Chase || state == State.Idle) && stalled)
+            {
                 stalled = false;
+                // Back off whatever it ran into, a little way (if there's ground behind it), before it lines up again.
+                if (FootingAt(transform.position - transform.forward * (radius + 1.4f)))
+                    Shove(-transform.forward * 9f);
+                nextCharge = Mathf.Max(nextCharge, Time.time + 1.2f);
+            }
             if (state == State.Telegraph && CurrentAttack == charge && Stoked)
                 Effects.Instance?.AlertFlare(StackTop);
             if (state == State.Strike && CurrentAttack == charge)

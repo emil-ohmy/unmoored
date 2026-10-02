@@ -692,12 +692,12 @@ public static partial class MainSceneBuilder
         var controller = go.AddComponent<CharacterController>();
         controller.center = new Vector3(0f, 1.0f, 0f);
         controller.height = 2.0f;
-        controller.radius = 0.95f;
+        controller.radius = 0.8f;   // (round: it slides off a trunk or a post rather than catching on it)
         controller.stepOffset = 0.3f;
         controller.minMoveDistance = 0f;
         var t = go.AddComponent<Thresher>();
         t.maxHealth = 240f;
-        t.radius = 1.0f;
+        t.radius = 0.9f;
         t.knockbackResistance = 1f;
         t.staggerCapacity = 9999f; // (iron: it doesn't reel)
         t.aggroRadius = 13f;

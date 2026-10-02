@@ -504,9 +504,10 @@ namespace MyGame.Tests
 
         Thresher TheThresher => UnityEngine.Object.FindAnyObjectByType<Thresher>();
 
-        // It lines up and charges straight at you: with a tree between, it runs into it and stalls.
+        // It charges only with a clear run at you. Standing before a tree, step aside once it's committed: it runs on
+        // into the tree and stalls; then backs off it.
         [UnityTest]
-        public IEnumerator Thresher_ChargesStraight_IntoATree_Stalls()
+        public IEnumerator Thresher_Sidestepped_RunsIntoATree_Stalls_BacksOff()
         {
             var t = TheThresher;
             Assert.IsNotNull(t, "a Thresher on the bottom terrace");
@@ -515,16 +516,40 @@ namespace MyGame.Tests
             global::MyGame.Thresher.Crashed += onCrash;
             try
             {
-                // A tree between: the one at (7.5, -2.2), you beyond it on the line from the machine.
-                Vector3 tree = new Vector3(7.5f, t.transform.position.y, -2.2f);
+                Vector3 tree = new Vector3(5f, t.transform.position.y, -2.2f);
                 Vector3 line = (tree - t.transform.position).Flat().normalized;
-                apprentice.Teleport(tree + line * 3.5f + Vector3.up * 0.05f);
-                Vector3 start = t.transform.position;
+                apprentice.Teleport(tree - line * 1.6f + Vector3.up * 0.05f);
                 yield return WaitFor(() => t.Charging, 8f, "it charging");
-                yield return WaitFor(() => crashes > 0, 4f, "it running into something (the tree, or a crate on the way)");
+                apprentice.Teleport(apprentice.transform.position + Vector3.Cross(Vector3.up, line) * 3.5f); // (a sidestep)
+                yield return WaitFor(() => crashes > 0, 4f, "it running on into the tree");
                 Assert.IsTrue(t.Stalled, "stalled");
-                Assert.Greater(Vector3.Distance(t.transform.position.Flat(), start.Flat()), 2.5f, "after a run");
-                Assert.Less(Vector3.Distance(t.transform.position.Flat(), apprentice.transform.position.Flat()) , Vector3.Distance(start.Flat(), apprentice.transform.position.Flat()), "towards you");
+                Assert.Less(Vector3.Distance(t.transform.position.Flat(), tree.Flat()), 2.2f, "at the tree");
+                float near = Vector3.Distance(t.transform.position.Flat(), tree.Flat());
+                yield return WaitFor(() => !t.Stalled, 5f, "it coming round");
+                yield return new WaitForSeconds(0.6f);
+                Assert.Greater(Vector3.Distance(t.transform.position.Flat(), tree.Flat()), near + 0.5f, "backed off it");
+            }
+            finally { global::MyGame.Thresher.Crashed -= onCrash; }
+        }
+
+        // With something solid between, it won't charge into it: it drives round, slowly, for a clear run.
+        [UnityTest]
+        public IEnumerator Thresher_Blocked_GoesRound_NeverChargesIntoIt()
+        {
+            var t = TheThresher;
+            int crashes = 0;
+            Action<Thresher> onCrash = x => { if (x == t) crashes++; };
+            global::MyGame.Thresher.Crashed += onCrash;
+            try
+            {
+                Vector3 tree = new Vector3(5f, t.transform.position.y, -2.2f);
+                Vector3 line = (tree - t.transform.position).Flat().normalized;
+                apprentice.Teleport(tree + line * 2.5f + Vector3.up * 0.05f); // (the tree between)
+                Vector3 start = t.transform.position;
+                yield return WaitFor(() => t.CurrentState != Soured.State.Idle, 3f, "it noticing you");
+                yield return new WaitForSeconds(4f);
+                Assert.AreEqual(0, crashes, "it never ran into the tree");
+                Assert.Greater(Vector3.Distance(t.transform.position.Flat(), start.Flat()), 1f, "it moved, finding its way round");
             }
             finally { global::MyGame.Thresher.Crashed -= onCrash; }
         }
@@ -1006,9 +1031,9 @@ namespace MyGame.Tests
                 yield return null;
             Shot("thresher-0-at-rest");
             t.passive = false;
-            Vector3 tree = new Vector3(7.5f, t.transform.position.y, -2.2f);
+            Vector3 tree = new Vector3(5f, t.transform.position.y, -2.2f);
             Vector3 line = (tree - t.transform.position).Flat().normalized;
-            apprentice.Teleport(tree + line * 3.5f + Vector3.up * 0.05f, true, true);
+            apprentice.Teleport(tree - line * 1.6f + Vector3.up * 0.05f, true, true);
             for (int i = 0; i < 300 && t.CurrentState != Soured.State.Telegraph; i++)
                 yield return null;
             for (int i = 0; i < 20; i++)
@@ -1016,6 +1041,7 @@ namespace MyGame.Tests
             Shot("thresher-1-revving");
             for (int i = 0; i < 90 && !t.Charging; i++)
                 yield return null;
+            apprentice.Teleport(apprentice.transform.position + Vector3.Cross(Vector3.up, line) * 3.5f, true, false); // (a sidestep)
             for (int i = 0; i < 6; i++)
                 yield return null;
             Shot("thresher-2-charging");

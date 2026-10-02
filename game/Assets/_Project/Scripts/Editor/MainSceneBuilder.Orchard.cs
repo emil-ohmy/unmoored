@@ -115,7 +115,9 @@ public static partial class MainSceneBuilder
         var rng = new System.Random(7);
         string Apple() => rng.NextDouble() < 0.25 ? "apple_old" : "apple";
         float Yaw() => (float)rng.NextDouble() * 360f;
-        foreach (float x in new[] { -6f, -1.5f, 3f, 7.5f, 12f })
+        // (the bottom row thinned to the west: the east of the terrace is the Thresher's, open ground to run with a
+        // couple of trees left to run into)
+        foreach (float x in new[] { -6f, -1.5f, 5f })
             OrchardTree(Apple(), new Vector3(x, GroundTop, -2.2f), Yaw());
         foreach (float x in new[] { -3.5f, 5.5f, 12.5f })
             OrchardTree("flooded", new Vector3(x, 0f, GroundZ - 1.8f), Yaw());
@@ -125,13 +127,10 @@ public static partial class MainSceneBuilder
             OrchardTree(x == -7f ? "pear" : Apple(), new Vector3(x, MiddleTop, 8.2f), Yaw());
 
         // Baskets and crates waiting under them.
-        OrchardProp("basket", new Vector3(3.9f, GroundTop, -3.4f), 20f);
         OrchardProp("basket", new Vector3(-6.8f, GroundTop, -3.1f), -40f);
-        OrchardProp("crate", new Vector3(8.6f, GroundTop, -3.3f), 12f);
-        OrchardProp("crate", new Vector3(9.4f, GroundTop, -3.6f), -6f);
         OrchardProp("basket", new Vector3(-4.2f, MiddleTop, 3.5f), 60f);
         OrchardProp("crate", new Vector3(-12.2f, MiddleTop, 3.4f), 3f);
-        foreach (var p in new[] { new Vector3(-1.2f, GroundTop, -1.4f), new Vector3(7.8f, GroundTop, -1.2f), new Vector3(-12.6f, MiddleTop, 5.6f),
+        foreach (var p in new[] { new Vector3(-1.2f, GroundTop, -1.4f), new Vector3(-12.6f, MiddleTop, 5.6f),
                                   new Vector3(-7.4f, MiddleTop, 9.1f), new Vector3(0.6f, MiddleTop, 7.4f) })
             OrchardProp("apples", p, Yaw());
     }
@@ -415,7 +414,7 @@ public static partial class MainSceneBuilder
     {
         int lit = 0;
         foreach (var (at, yaw) in new[] {
-                     (new Vector3(-10.5f, GroundTop, -4.2f), 30f), (new Vector3(0.5f, GroundTop, -5.2f), -20f), (new Vector3(10f, GroundTop, -5f), 10f),
+                     (new Vector3(-10.5f, GroundTop, -4.2f), 30f), (new Vector3(0.5f, GroundTop, -5.2f), -20f), (new Vector3(10f, GroundTop, 1.4f), 10f),
                      (new Vector3(-8f, MiddleTop, 2.8f), 90f), (new Vector3(3.6f, MiddleTop, 5.2f), -60f),
                      (new Vector3(-9.5f, UpperTop, 11f), 20f), (new Vector3(1.6f, UpperTop, 11.2f), -80f), (new Vector3(13f, UpperTop, 11.4f), 200f) })
         {
