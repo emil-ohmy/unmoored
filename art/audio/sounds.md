@@ -103,3 +103,16 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Thresher's chain wrenched off (`thresher_chain`) | in game | Synth | the Hook: a hard iron snap, the chain whipping and rattling loose, steam escaping |
 | Thresher stoked (`thresher_stoke`) | in game | Synth | fire on it: the firebox catching with a whoomph, the boiler's whistle shrieking up, a roar from the stack |
 | Thresher venting (`thresher_hiss`, `thresher_vent`, 2) | in game | Synth | close at its back: a rising hiss in the pipes (the tell), then a roaring burst of steam |
+| Father Moth's wingbeat (`father_moth_wing`, 3) | in game | Synth | on the wing, one per beat: a great soft whump of air, and the papery rustle of dry leaves after it |
+| Father Moth waking (`father_moth_wake`) | in game | Synth | on the dead orange tree: dead leaves crackling open (his wings unfolding), the branches creaking under him, two slow wingbeats as he lifts |
+| Father Moth's stall (`father_moth_stall`, 2) | in game | Synth | his tell before a dive: a hard crack of air as the wings are flung wide, a trembling rattle of leaves, the lantern in his ribs flaring with a rising roar |
+| Father Moth diving (`father_moth_dive`, 2) | in game | Synth | a deep rushing tear of air rising as he comes, leaves streaming in it |
+| Father Moth's gust (`father_moth_gust`, 2) | in game | Synth | one great forward beat, a heavy whoomph, and a wind full of dead leaves |
+| The channel's wave (`father_moth_wave`) | in game | Synth | slaps on the water, a heavy surge rolling out over the stone floor, hissing as it spends itself |
+| Father Moth shaking out Moths (`father_moth_shake`) | in game | Synth | a long dry shudder of leaves, small wings scattering in it |
+| Father Moth landing (`father_moth_land`) | in game | Synth | a last back-beat of the wings, a dull thud and a splash, leaves settling |
+| Father Moth brought down (`father_moth_downed`) | in game | Synth | his dive turned on the oar (or the Hook): a heavy crash on stone, the shears clattering, leaves crumpling, a long hollow breath out |
+| Father Moth's shears (`father_moth_snip`, 2) | in game | Synth | the tell of his sweep: the blades opened with an iron scrape, snip-snip |
+| A lamp torn down (`father_moth_tear`, 2) | in game | Synth | its chain wrenched taut, snapping, the links rattling loose |
+| A lamp shattering (`glass_lamp_shatter`, 2) | in game | Synth | an iron clank, the glass bursting, shards skittering, the flame gone with a puff |
+| Father Moth beaten (`father_moth_death`) | in game | Synth | his wings folding with a long dry crackle, a great soft fall, a last breath; faintly, music-box notes going down (A, E, D), unresolved |

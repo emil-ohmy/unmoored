@@ -440,6 +440,8 @@ public static partial class MainSceneBuilder
         Put("glasshouse_ground", new Vector3(GlassX, 0f, GlassGroundZ), 0f);
         var house = Put("glasshouse_house", door, 0f);
         var roof = Put("glasshouse_roof", door, 0f);
+        foreach (var c in roof.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c); // (overhead: nothing stands on it, and nothing should stop at it: the Hook, flung up at him)
         var storeys = root.gameObject.AddComponent<Storeys>();
         storeys.footprint = new Vector2(GlassWidth / 2f, GlassDepth / 2f);
         storeys.storeys = new[]
@@ -494,7 +496,9 @@ public static partial class MainSceneBuilder
         tub.center = new Vector3(0f, 0.6f, 0f);
         tub.radius = 0.95f;
         tub.height = 1.2f;
-        // Four lamps hung on chains from the vault, lit (he circles them).
+        // Four lamps hung on chains from the vault, lit (he circles them; at half, he tears them down).
+        var lampModels = new System.Collections.Generic.List<Transform>();
+        var lampLights = new System.Collections.Generic.List<Light>();
         foreach (var (e, n) in new[] { (-6f, 4.5f), (6f, 4.5f), (-6f, 13.5f), (6f, 13.5f) })
         {
             float th = Mathf.Acos(1f - 2f * n / GlassDepth);
@@ -504,6 +508,8 @@ public static partial class MainSceneBuilder
                 Object.DestroyImmediate(c); // (overhead: nothing to walk into)
             var light = PointLight(lamp.transform, GlowCentre(lamp, "GlasshouseLamp_Glow"), 10f, 2.4f, LanternLight);
             Flicker(light, 0.08f, 3f, 0.01f);
+            lampModels.Add(lamp.transform);
+            lampLights.Add(light);
         }
         // A lantern on a crook by the doors, outside.
         var outside = Put("orchard_props_lantern", door + new Vector3(-2.4f, 0f, -1.2f), 30f);
@@ -525,11 +531,95 @@ public static partial class MainSceneBuilder
         gate.openYaw = new[] { -90f, 270f };
         gate.shutSound = Clips("field_gate_slam");
         gate.openSound = Clips("gate_open");
-        // (gate.boss: Father Moth, once he's here)
+        var moth = FatherMoth(root, door, lampModels.ToArray(), lampLights.ToArray());
+        gate.boss = moth;
         var zone = new GameObject("Arena Zone (the Glasshouse)").AddComponent<ArenaZone>(); // (nothing follows you in)
         zone.transform.SetParent(root, true);
         zone.transform.position = root.position + Vector3.up * 1f;
         zone.size = new Vector3(GlassWidth, 7f, GlassDepth);
+    }
+
+    // Father Moth, Who Gathered Autumn (the Gardener): folded on the dead orange tree like a leaf until you come in.
+    static FatherMoth FatherMoth(Transform root, Vector3 door, Transform[] lampModels, Light[] lampLights)
+    {
+        var go = Place("Characters/father_moth", door + new Vector3(0f, 1.3f, GlassDepth - 1.6f), 180f); // (on the tree, facing the doors)
+        go.name = "Father Moth";
+        go.transform.SetParent(root, true);
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 1.5f, 0f);
+        controller.height = 2.6f;
+        controller.radius = 1.0f;
+        controller.minMoveDistance = 0f;
+        var m = go.AddComponent<FatherMoth>();
+        m.maxHealth = 800f;
+        m.radius = 1.4f;
+        m.knockbackResistance = 1f;
+        m.staggerCapacity = 140f;
+        m.staggerDuration = 1.6f;
+        m.aggroRadius = 30f;
+        m.viewHalfAngle = 180f;
+        m.noticeCloseRadius = 30f;
+        m.leashRadius = 60f;
+        m.giveUpRange = 60f;
+        m.turnSpeed = 300f;
+        m.obols = 400;
+        m.eyeHeight = 3.1f;
+        m.barHeight = 4.4f;
+        m.deathDuration = 2.0f;
+        m.dissolveDuration = 1.6f;
+        m.fareMotes = 90;
+        m.fireWeakness = 2.5f;        // (a moth, and the Orchard burns)
+        m.floorY = UpperTop + 0.06f;
+        m.middle = door + new Vector3(0f, 0.06f, GlassDepth / 2f);
+        m.reach = new Vector2(GlassWidth / 2f - 2.5f, GlassDepth / 2f - 3f); // (kept in from the walls: seen from above, he's never over them)
+        m.wakeLine = door.z + 11f; // (far enough in to have seen him there, folded on his tree)
+        m.lampModels = lampModels;
+        m.lamps = lampLights;
+        // He lands to tend the beds over the channel beside each, facing in to it.
+        m.bedSpots = new[]
+        {
+            door + new Vector3(-9.1f, 0.06f, 4.7f), door + new Vector3(-9.1f, 0.06f, 13.3f),
+            door + new Vector3(9.1f, 0.06f, 4.7f), door + new Vector3(9.1f, 0.06f, 13.3f),
+        };
+        m.bedFacing = new[] { Vector3.left, Vector3.left, Vector3.right, Vector3.right };
+        m.channelX = new[] { door.x - GlassChannel, door.x + GlassChannel };
+        m.channelFrom = door.z + GlassChannelFrom;
+        m.channelTo = door.z + GlassChannelTo;
+        m.primary = new SouredAttack
+        {
+            name = "Shears", windupClip = "ShearsDraw", strikeClip = "Shears", recoverClip = "Recover",
+            telegraph = 0.7f, strike = 0.3f, recover = 1.0f, impactAt = 0.4f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.75f, damage = 26f, reach = 3.4f, arc = 110f, knockback = 9f,
+            windupSound = Clips("father_moth_snip"), swingSound = Clips("laden_swing"), swingPitch = 1.2f,
+        };
+        SouredAttack Scripted(string name, string windup, string strike, float telegraph, float strikeTime, float recover) => new SouredAttack
+        {
+            name = name, windupClip = windup, strikeClip = strike, recoverClip = "Fly",
+            telegraph = telegraph, strike = strikeTime, recover = recover, impactAt = 0.05f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 18f, arc = 180f, knockback = 0f, scripted = true,
+        };
+        m.dive = Scripted("Dive", "Stall", "Dive", 0.85f, 1.1f, 0.6f);
+        m.gust = Scripted("Gust", "GustDraw", "Gust", 0.9f, 0.5f, 0.6f);
+        m.wave = Scripted("Wave", "Beat", "Gust", 1.2f, 0.5f, 0.8f);
+        m.shake = Scripted("Shake", "Shake", "Fly", 1.0f, 0.3f, 0.5f);
+        m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, LanternLight);
+        m.wingSound = Clips("father_moth_wing");
+        m.wakeSound = Clips("father_moth_wake");
+        m.stallSound = Clips("father_moth_stall");
+        m.diveSound = Clips("father_moth_dive");
+        m.gustSound = Clips("father_moth_gust");
+        m.waveSound = Clips("father_moth_wave");
+        m.shakeSound = Clips("father_moth_shake");
+        m.landSound = Clips("father_moth_land");
+        m.downedSound = Clips("father_moth_downed");
+        m.tearSound = Clips("father_moth_tear");
+        m.shatterSound = Clips("glass_lamp_shatter");
+        m.deathSound = Clips("father_moth_death");
+        // The Moths he shakes from his wings (gone till then).
+        var flock = MothFlockAt("Moths (Father Moth's)", m.middle + Vector3.up * 3f, null, 5);
+        flock.transform.SetParent(root, true);
+        m.flock = flock;
+        return m;
     }
 
     // The Gleaners: two on the middle terrace's west rows, two on the top terrace before the field's gate (where you

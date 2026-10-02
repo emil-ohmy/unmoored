@@ -210,6 +210,23 @@ namespace MyGame
                 }, 1);
         }
 
+        // Dead leaves on a gust (Father Moth's wingbeat): blown along `velocity`, tumbling (the straw's system: lit, not light).
+        public void Leaves(Vector3 at, Vector3 velocity, int count)
+        {
+            if (straw == null)
+                return;
+            for (int i = 0; i < count; i++)
+                straw.Emit(new ParticleSystem.EmitParams
+                {
+                    position = at + Random.insideUnitSphere * 0.4f,
+                    velocity = velocity * Random.Range(0.7f, 1.2f) + Random.insideUnitSphere * 1.2f + Vector3.up * Random.Range(0.5f, 2f),
+                    startColor = Color.Lerp(new Color(0.42f, 0.22f, 0.1f), new Color(0.72f, 0.42f, 0.16f), Random.value),
+                    startSize = Random.Range(0.1f, 0.18f),
+                    startLifetime = Random.Range(0.8f, 1.4f),
+                    applyShapeToPosition = false,
+                }, 1);
+        }
+
         public int LiveStraw => straw != null ? straw.particleCount : 0;
 
         // A thread of smoke (something smouldering: the Watchman, hidden again): a faint grey puff, rising and

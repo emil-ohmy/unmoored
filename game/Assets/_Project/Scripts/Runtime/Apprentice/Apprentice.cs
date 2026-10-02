@@ -545,7 +545,7 @@ namespace MyGame
             float arc = isHeavy ? heavyArc : lightArc;
             foreach (var collider in Physics.OverlapSphere(transform.position, reach + 1f))
             {
-                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable)
+                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable || soured.OutOfReach)
                     continue;
                 Vector3 to = soured.transform.position - transform.position;
                 to.y = 0f;
@@ -962,6 +962,17 @@ namespace MyGame
                 warnedAlight = true; // (said once: after that, the flames say it)
                 Warned?.Invoke("Alight", "Water puts it out. So does a Sodden Sack, or a Rest");
             }
+        }
+
+        // Shoved by something that isn't a blow (a gust of wind): no harm, no stagger, only carried; half as far with the
+        // guard up against it, not at all mid-dodge.
+        public void Buffet(Vector3 velocity)
+        {
+            if (Invulnerable || !IsAlive)
+                return;
+            if (CurrentState == State.Blocking && Facing(transform.position - velocity))
+                velocity *= 0.5f;
+            knockback = velocity;
         }
 
         // The flames out (a Sodden Sack, the water, a Rest).

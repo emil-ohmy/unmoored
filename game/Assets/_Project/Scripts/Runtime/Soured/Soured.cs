@@ -148,6 +148,9 @@ namespace MyGame
         // Whether it can be locked on to, hooked, struck (a Drowned under the water can't).
         public virtual bool Targetable => IsAlive;
 
+        // Above the oar's reach (Father Moth on the wing): a swing passes under it.
+        public virtual bool OutOfReach => false;
+
         // Whether lock-on can choose it (a scarecrow never; the Watchman only while he's fighting you).
         public virtual bool Lockable => Targetable;
 

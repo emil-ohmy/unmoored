@@ -22,7 +22,7 @@ namespace MyGame
             Known = known;
         }
 
-        public bool Standing => this != Moths; // (on the page: a figure on its feet, facing you; a Moth's seen from above)
+        public bool Standing => this != Moths && this != FatherMoth; // (on the page: a figure on its feet, facing you; a Moth's seen from above)
 
         public string KindLine => (Kind == Rank.Soured ? "Soured" : Kind == Rank.Miniboss ? "Miniboss" : "Boss") + "  ·  " + Area;
 
@@ -68,7 +68,11 @@ namespace MyGame
             "The man who worked the orchard, a scarecrow among scarecrows in the Unreaped Rows, still keeping watch over a harvest that never came.",
             "Straw: the oar goes through him. Turn his own fire back at him.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman };
+        public static readonly LedgerEntry FatherMoth = new LedgerEntry("father_moth", "Father Moth, Who Gathered Autumn", Rank.Boss, Orchard, "father_moth",
+            "The man who tended the orchard and its glasshouse. He gathered every memory of the last autumn, and they gathered to him, as Moths to a light, until he was the greatest of them.",
+            "On the wing the oar can't reach him: turn his dive with a perfect block and he comes down. Fire burns him badly. The Hook drags him down. In the dark he hunts your light.");
+
+        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -96,6 +100,7 @@ namespace MyGame
             MyGame.Anchoress _ => Anchoress,
             MyGame.Unparted _ => Unparted,
             MyGame.Watchman _ => Watchman,
+            MyGame.FatherMoth _ => FatherMoth,
             _ => null,
         };
     }

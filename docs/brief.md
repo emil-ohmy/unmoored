@@ -202,7 +202,8 @@ leaves, six metres across) with the stooped gardener still rising from it, in hi
 forelegs, ending in pruning shears; in his ribs, caged, a small lantern: the last light he tended. His arena: **the
 Glasshouse**, beyond the Unreaped Rows' far gate (the Watchman guards the way), a ruined palm house of iron ribs and
 broken panes, raised beds of dead plants, shallow water channels (you wade them; they put out flames), lamps hung on
-chains, a dead orange tree at its middle.
+chains, a dead orange tree against its north wall (he hangs folded on it, like a leaf, until you come in); its middle
+left open, his floor.
 - **Phase 1:** he circles the lamps out of reach. His wingbeats blow gusts of leaves that shove you, and on the
   channels send a wave across the floor that knocks you down (a taste of the Stroke). He dives (a stall, wings flung
   wide, the light in his chest flaring: the tell); a perfect block on the dive stuns him, down on the floor, open. Now
@@ -210,6 +211,8 @@ chains, a dead orange tree at its middle.
 - **Phase 2 (half):** he tears the lamps down one by one; the glasshouse goes dark but for the moon and your bow
   lantern, and he hunts your light: dive after dive, each a chance to parry.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
+- **The Hook** catches him on the wing and drags him down to the floor (not often: his strength comes back to him).
+  On the floor (downed, tending, dragged down) the oar reaches him; on the wing it passes under.
 - His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Stroke**.
 
 **Boss arenas:** nothing that follows the Apprentice crosses into a Boss's (or miniboss's) arena. It stops at the
