@@ -1,12 +1,13 @@
 """The Provisions, as found lying about (and the Pitch Pot as thrown): "pitch_pot" (a squat clay pot, a rag stuffed in
 its neck, pitch dribbled down its side), "ember_tar" (a little tin of tar, its lid off, embers glowing in it),
 "way_back" (a coil of knotted cord, pale, a bone toggle at one end), "warm_broth" (a stoppered flask in a woven
-sleeve, a warm glow in its glass) and "bitter_root" (a gnarled forked root, twine round its neck, earth still on it). Sized up a little to read from the camera. Origin at the base."""
+sleeve, a warm glow in its glass) and "bitter_root" (a gnarled forked root, twine round its neck, earth still on it) and "sodden_sack" (old sacking
+soaked through, folded over on itself, its neck tied, a little puddle under it). Sized up a little to read from the camera. Origin at the base."""
 import math
 
 M, part = kit.M, kit.part  # `kit` is injected by build_model.py
 
-VARIANTS = ["pitch_pot", "ember_tar", "way_back", "warm_broth", "bitter_root"]
+VARIANTS = ["pitch_pot", "ember_tar", "way_back", "warm_broth", "bitter_root", "sodden_sack"]
 
 
 def build(variant):
@@ -47,6 +48,18 @@ def build(variant):
         for k in range(3):
             parts.append(part("Twine", kit.cylinder(8, 0.047, 0.012), twine, M((0.0, 0.0, 0.24 + k * 0.016))))
         parts.append(part("Earth", kit.cylinder(7, 0.07, 0.015), earth, M((0.0, 0.0, 0.007))))
+    elif variant == "sodden_sack":
+        sack, dark, twine, wet = kit.mat("WetSack", "#5c4b37"), kit.mat("WetSackDark", "#45382a"), kit.mat("Twine", "#a38b62"), kit.mat("Puddle", "#2a3640")
+        parts = [
+            part("Puddle", kit.cylinder(10, 0.2, 0.006), wet, M((0.02, 0.01, 0.003), scale=(1, 0.8, 1))),
+            part("Sack", kit.sphere(10, 7, 0.16), sack, M((0, 0, 0.1), scale=(1.1, 0.85, 0.6)), smooth=True, jitter=0.012),
+            part("Fold", kit.sphere(8, 6, 0.12), dark, M((-0.04, 0.02, 0.17), scale=(0.9, 0.8, 0.45), rot=(0, -12, 20)), smooth=True, jitter=0.01),
+            part("Neck", kit.cone(7, 0.05, 0.03, 0.09), sack, M((0.15, 0.0, 0.12), rot=(0, 70, 0)), jitter=0.006),
+            part("Tie", kit.cylinder(8, 0.045, 0.02), twine, M((0.17, 0.0, 0.125), rot=(0, 70, 0))),
+            part("Ear", kit.cone(6, 0.03, 0.0, 0.07), sack, M((0.22, 0.0, 0.14), rot=(0, 75, 0))),
+        ]
+        for k, (x, y) in enumerate(((0.12, -0.08), (-0.1, 0.09), (0.04, 0.12))):
+            parts.append(part("Drip", kit.sphere(5, 4, 0.012), wet, M((x, y, 0.012))))
     else:
         glass, sleeve, cork = kit.mat("BrothGlass_Glow", "#ffb86a"), kit.mat("Sleeve", "#7a6248"), kit.mat("PieceCork", "#8a6a4a")
         parts = [

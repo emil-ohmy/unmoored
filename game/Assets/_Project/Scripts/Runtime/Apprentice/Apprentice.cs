@@ -105,6 +105,13 @@ namespace MyGame
         [Header("Hook visuals")]
         public GameObject hookHeadModel; // the Hook's head in flight (spawned per throw)
 
+        [Header("Alight (fire that lands: the Watchman's, a scarecrow going up, burning pitch): health and stamina burn away")]
+        public float alightTime = 9f;                  // caught: this long (more fire: longer, up to alightMost)
+        public float alightMore = 3f;                  // more fire, while alight: this much longer
+        public float alightMost = 14f;
+        public float alightHealthPerSecond = 2f, alightStaminaPerSecond = 8f; // (about 18 health, slowly: time to put it out; no breath back meanwhile)
+        public AudioClip[] catchSound, burningSound, sackSound;
+
         [Header("Poison (a Drowned's spit): it builds up; full, you're poisoned a while")]
         public float poisonMax = 100f;
         public float poisonDecayDelay = 2.5f, poisonDecayPerSecond = 8f; // (the build-up ebbs if you keep clear)
@@ -161,6 +168,7 @@ namespace MyGame
         public bool HookShown => hookBone != null && hookBone.localScale.x > 0.5f; // at the hip (not before it's found, nor in flight)
         public bool AimingHook { get; private set; }
         public event System.Action<string, string> Found; // something gained for good: a title and a hint (HUD banner)
+        public event System.Action<string, string> Warned; // something wrong with you (poisoned, alight): a title and a hint (HUD banner, in red)
         public event System.Action Died, Woke; // woke: back at the Mooring post after dying
         public event System.Action Healed;      // a Healing charge took effect (the end of the heal)
         public int Obols { get; private set; }
@@ -868,6 +876,8 @@ namespace MyGame
                 clips.PlayOnce("Heal", p == MyGame.Provision.WayBack ? wayBackTime * 0.6f : drinkTime);
                 if (p == MyGame.Provision.WarmBroth || p == MyGame.Provision.BitterRoot)
                     Sfx.Instance?.Drink(transform.position + Vector3.up * 0.8f);
+                else if (p == MyGame.Provision.SoddenSack)
+                    Sfx.Instance?.Attack(sackSound, transform.position + Vector3.up, 0.9f, "sodden_sack");
                 else if (p == MyGame.Provision.EmberTar)
                     Sfx.Instance?.TarSizzle(transform.position + Vector3.up);
                 else
@@ -901,6 +911,12 @@ namespace MyGame
                 }
                 else if (usingProvision == MyGame.Provision.WarmBroth)
                     brothUntil = Time.time + brothDuration;
+                else if (usingProvision == MyGame.Provision.SoddenSack)
+                {
+                    bool was = Alight;
+                    Douse();
+                    Found?.Invoke(usingProvision.Name, was ? "Out. You're steaming, but out" : "Nothing to put out. You're just wet now");
+                }
                 else if (usingProvision == MyGame.Provision.BitterRoot)
                 {
                     bool was = Poisoned || Poison > 0f;
@@ -918,6 +934,80 @@ namespace MyGame
                 Found?.Invoke(usingProvision.Name, "Back where you last Rested");
             }
             ToFreeAndConsume();
+        }
+
+        // ------------------------------------------------------------ alight
+
+        float alightUntil = -1f, nextCrackle, flameDebt;
+        Light alightGlow;
+        bool warnedAlight;
+
+        public bool Alight => Time.time < alightUntil && IsAlive;
+        public float AlightLeft => Mathf.Max(0f, alightUntil - Time.time);
+
+        // Caught by fire: alight for alightTime (already alight: `more` longer, alightMore if not said; never past
+        // alightMost from now).
+        public void SetAlight(float more = -1f)
+        {
+            if (!IsAlive || CurrentState == State.Sinking)
+                return;
+            bool was = Alight;
+            alightUntil = was ? Mathf.Min(Time.time + alightMost, alightUntil + (more >= 0f ? more : alightMore)) : Time.time + alightTime;
+            if (was)
+                return;
+            Sfx.Instance?.Attack(catchSound, transform.position + Vector3.up, 0.9f, "apprentice_catch");
+            nextCrackle = Time.time + 0.3f;
+            if (!warnedAlight)
+            {
+                warnedAlight = true; // (said once: after that, the flames say it)
+                Warned?.Invoke("Alight", "Water puts it out. So does a Sodden Sack, or a Rest");
+            }
+        }
+
+        // The flames out (a Sodden Sack, the water, a Rest).
+        public void Douse()
+        {
+            bool was = Alight;
+            alightUntil = -1f;
+            if (alightGlow != null)
+                alightGlow.enabled = false;
+            if (was)
+                for (int i = 0; i < 12; i++) // (a hiss of steam)
+                    Effects.Instance?.Smoke(transform.position + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(0.4f, 1.4f), Random.Range(-0.3f, 0.3f)), 0.5f);
+        }
+
+        void UpdateAlight(float dt)
+        {
+            bool on = Alight;
+            if (alightGlow == null && on)
+            {
+                alightGlow = new GameObject("Alight Glow").AddComponent<Light>();
+                alightGlow.transform.SetParent(transform, false);
+                alightGlow.transform.localPosition = Vector3.up * 1.0f;
+                alightGlow.type = LightType.Point;
+                alightGlow.color = new Color(1f, 0.55f, 0.2f);
+                alightGlow.range = 4f;
+                alightGlow.shadows = LightShadows.None;
+            }
+            if (alightGlow != null)
+                alightGlow.enabled = on;
+            if (!on)
+                return;
+            Health = Mathf.Max(0f, Health - alightHealthPerSecond * dt);
+            Stamina = Mathf.Max(0f, Stamina - alightStaminaPerSecond * dt);
+            lastStaminaUse = Time.time; // (no breath back while you burn)
+            alightGlow.intensity = 1.6f + 0.6f * Mathf.PerlinNoise(Time.time * 9f, 0.5f);
+            flameDebt += dt * 34f;
+            for (; flameDebt >= 1f; flameDebt -= 1f)
+                Effects.Instance?.Flame(transform.position + new Vector3(Random.Range(-0.28f, 0.28f), Random.Range(0.2f, 1.3f), Random.Range(-0.28f, 0.28f)),
+                    Vector3.up * Random.Range(1.2f, 2.0f), Random.Range(0.3f, 0.5f), Random.Range(0.13f, 0.22f));
+            if (Time.time >= nextCrackle)
+            {
+                nextCrackle = Time.time + 0.55f;
+                Sfx.Instance?.Attack(burningSound, transform.position + Vector3.up, 0.55f, "apprentice_burning");
+            }
+            if (Health <= 0f)
+                Die();
         }
 
         // ------------------------------------------------------------ poison
@@ -938,7 +1028,7 @@ namespace MyGame
             if (Poison >= poisonMax)
             {
                 poisonedUntil = Time.time + poisonedTime;
-                Found?.Invoke("Poisoned", "A Bitter Root cures it. So does a Rest");
+                Warned?.Invoke("Poisoned", "A Bitter Root cures it. So does a Rest");
             }
         }
 
@@ -978,6 +1068,7 @@ namespace MyGame
                 return;
             }
             UpdatePoison(dt);
+            UpdateAlight(dt);
             if (Mending)
             {
                 Health = Mathf.Min(maxHealth, Health + brothAmount / brothDuration * dt);
@@ -1147,6 +1238,7 @@ namespace MyGame
         void Die()
         {
             CurePoison();
+            Douse();
             Enter(State.Dead);
             snuffSounded = false;
             clips.PlayOnce("Death", deathDuration);
@@ -1663,6 +1755,7 @@ namespace MyGame
         public void RestoreFully()
         {
             CurePoison();
+            Douse();
             Health = maxHealth;
             Stamina = maxStamina;
             HealingCharges = maxHealingCharges;
@@ -1792,6 +1885,7 @@ namespace MyGame
         // Into the water: a splash, and you go under while the screen dips to black; then you wash ashore.
         void GoUnder()
         {
+            Douse(); // (the water puts it out, at least)
             Vector3 surface = new Vector3(transform.position.x, waterLevel + 0.1f, transform.position.z);
             Effects.Instance?.Splash(surface);
             Sfx.Instance?.Splash(surface);

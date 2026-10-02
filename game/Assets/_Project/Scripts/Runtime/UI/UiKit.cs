@@ -181,6 +181,16 @@ namespace MyGame
             return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(stem, fork));
         }, (u, v) => Mathf.Abs(v - 0.7f) < 0.04f ? 0.55f : Mathf.Lerp(0.65f, 1f, v));
 
+        // A sack, slumped and tied at the neck, a drop falling from it.
+        public static Sprite SackIcon => Cached("SackIcon", 64, 64, (u, v) =>
+        {
+            float body = Vector2.Distance(new Vector2(u, v * 1.25f), new Vector2(0.5f, 0.45f)) - 0.3f;
+            float neck = Mathf.Max(Mathf.Abs(u - 0.5f) - 0.07f, Mathf.Max(0.66f - v, v - 0.8f));
+            float ears = Mathf.Max(Mathf.Abs(Mathf.Abs(u - 0.5f) - 0.09f) - 0.05f, Mathf.Max(0.78f - v, v - 0.9f));
+            float drop = Vector2.Distance(new Vector2(u, v), new Vector2(0.78f, 0.12f)) - 0.05f;
+            return 1f - Smooth(-0.01f, 0.01f, Mathf.Min(Mathf.Min(body, neck), Mathf.Min(ears, drop)));
+        }, (u, v) => Mathf.Abs(v - 0.66f) < 0.03f ? 0.5f : Mathf.Lerp(0.6f, 1f, v));
+
         // Lighter at the top than the bottom: gives a bar's fill a little body.
         public static Sprite Sheen => Cached("Sheen", 4, 32, (u, v) => 1f, (u, v) => Mathf.Lerp(0.62f, 1f, Mathf.Pow(v, 0.7f)));
 

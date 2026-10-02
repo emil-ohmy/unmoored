@@ -247,6 +247,28 @@ public static partial class MainSceneBuilder
             model.SetActive(false);
             character.provisionModels[i] = model;
         }
+        character.ledgerModels = new GameObject[LedgerEntry.All.Length]; // (turning on its Ledger page)
+        for (int i = 0; i < LedgerEntry.All.Length; i++)
+        {
+            var model = Place($"Characters/{LedgerEntry.All[i].Model}", new Vector3(0f, -400f, 0f), 0f);
+            model.name = $"{LedgerEntry.All[i].Name} (character screen)";
+            model.AddComponent<StagePose>(); // (standing as it idles)
+            if (LedgerEntry.All[i] == LedgerEntry.Unparted)
+            {
+                // The Unparted is two: Fast rides Hold's back, clinging, as in the fight.
+                var back = Bone(model, "Back");
+                var fast = Place("Characters/clinger", back.position, 0f);
+                fast.name = "Fast";
+                fast.transform.SetParent(back, true);
+                var pose = fast.AddComponent<StagePose>();
+                pose.clip = "Cling";
+                pose.at = 1f;
+            }
+            foreach (var c in model.GetComponentsInChildren<Collider>())
+                UnityEngine.Object.DestroyImmediate(c);
+            model.SetActive(false);
+            character.ledgerModels[i] = model;
+        }
         var sfx = systems.AddComponent<Sfx>();
         sfx.oarSwing = Clips("oar_swing");
         sfx.oarSwingHeavy = Clips("oar_swing_heavy");
@@ -336,6 +358,9 @@ public static partial class MainSceneBuilder
         controller.minMoveDistance = 0f;
         go.AddComponent<Equipment>();
         var apprentice = go.AddComponent<Apprentice>();
+        apprentice.catchSound = Clips("apprentice_catch");
+        apprentice.burningSound = Clips("apprentice_burning");
+        apprentice.sackSound = Clips("sodden_sack");
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
         go.AddComponent<OarLook>(); // the oar's step: its trims and its wood

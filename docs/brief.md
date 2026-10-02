@@ -73,6 +73,13 @@ business and pay their fare to row them across.
 - **Poison** (a Drowned's spit): it builds up in a meter in the middle of the screen, under the Apprentice. Two spits
   taken fill it (a plain block lets a little through), and it ebbs if you keep clear. Full, you're poisoned: about 40 health over 20 s, unless you cure it with a Bitter Root or
   a Rest.
+- **Alight:** fire that lands sets the Apprentice alight at once: the Watchman's fire taken (not blocked or parried),
+  a scarecrow going up beside you, standing in burning pitch (your own too). For 9 s health and stamina burn away,
+  slowly (about 18 health; no breath comes back while it lasts): time to put it out. More fire keeps it going longer
+  (3 s more each time), never past 14 s. Water puts it out (going under: you wash ashore, as ever), and so do a
+  Sodden Sack and a Rest. No meter: fire is sudden.
+- **Warnings** (poisoned, alight) are said as a find is, but in red: a blood-red glow and rule, the words warmed to
+  it, below the poison meter.
 - **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
   LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
   - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on
@@ -142,18 +149,24 @@ business and pay their fare to row them across.
     on the water.
   - **Warm Broth** (3): mends 30 health over 10 s, and a blow doesn't stop it.
   - **Bitter Root** (3): cures poison and empties its build-up.
+  - **Sodden Sack** (3): old sacking soaked through, thrown over yourself: puts out the flames at once.
   - The belt has four slots that keep their places; an empty one is passed by. The first of a kind goes in the first
     empty slot. The Satchel page works slot-first: pick a slot (left/right), then choose what goes in it (up/down,
     with the chosen one turning, as the Oar page shows the oar). One put in another's slot swaps with it, and "empty"
     clears a slot.
 - **The character screen** (I or C; Select on a gamepad) pauses the game. LB / RB (Q / R) turn its pages, which leaves
-  left/right for moving within a page. It has six pages:
+  left/right for moving within a page. It has seven pages:
   - **The Apprentice:** health, stamina, Healing charges, Ferry Nails and Obols.
   - **The Oar:** its step, name, description and strength. The next step shows as "???" with its cost.
   - **Abilities:** each one found, with what it is, how it's used (keyboard and gamepad) and what it's for. The list
     scrolls, since how many there will be isn't settled.
   - **The Satchel:** the Provisions carried, how many of each, what they do, and which go on the belt.
   - **Charms:** those found and those fitted, the slots, and a dark socket for each still to find.
+  - **The Ledger:** every kind of Soured scattered, and every miniboss and Boss beaten, written in the first time,
+    in the order they're met: its model turning, what it is and where, what it couldn't let go of, what's known of how
+    to deal with it, and how many times. Only those met are listed (how many there are isn't said). A new Soured gets
+    a quiet line as it's written in ("Written in the Ledger: the Laden"); a Boss's farewell is enough. The lab's
+    Tester's Post can write in the whole Ledger.
   - **The Lantern:** a glow, five flames and one line. It says as little as it can.
 - **Obols**, the fare of the dead, buy:
   - Charms and slots from the merchant soul in the Hub

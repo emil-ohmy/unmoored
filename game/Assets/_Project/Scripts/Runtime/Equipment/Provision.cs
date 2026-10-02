@@ -44,7 +44,12 @@ namespace MyGame
             "Cures poison, and empties its build-up.",
             3, 45);
 
-        public static readonly Provision[] All = { PitchPot, EmberTar, WayBack, WarmBroth, BitterRoot };
+        public static readonly Provision SoddenSack = new Provision("sodden_sack", "Sodden Sack",
+            "Old sacking, soaked through. Thrown over yourself, it smothers the flames. Smells like a wet dog that's been on fire.",
+            "Puts out the flames at once.",
+            3, 40);
+
+        public static readonly Provision[] All = { PitchPot, EmberTar, WayBack, WarmBroth, BitterRoot, SoddenSack };
 
         public static Provision ById(string id) => System.Array.Find(All, p => p.Id == id);
 

@@ -82,7 +82,7 @@ namespace MyGame
                     Say("Cleared.");
                 });
                 Add("Give the Apprentice...", "", "Charms, Charm slots, the Hook, Obols; Ferry Nails, Warm Stones, Held Breaths, Healing charges.", () => Go(Page.Give));
-                Add("Reset the Apprentice", "", "As they started: no Charms but the Tester's Knot, one slot, no Hook, no Obols, three Healing charges, the first oar, nothing found (the pieces lie where they were again).", ResetApprentice);
+                Add("Reset the Apprentice", "", "As they started: no Charms but the Tester's Knot, one slot, no Hook, no Obols, three Healing charges, the first oar, nothing found (the pieces lie where they were again), nothing in the Ledger.", ResetApprentice);
             }
             else if (page == Page.Formations)
             {
@@ -137,6 +137,11 @@ namespace MyGame
                     foreach (var p in Provision.All)
                         equipment.AddProvision(p, p.Cap);
                     Say("Packed. Use them all, nobody's counting.");
+                });
+                Add("The whole Ledger", "", "Every Soured, miniboss and Boss written in, as if each had been met once. See the character screen (I).", () =>
+                {
+                    equipment.FillLedger();
+                    Say("Written in. You've met them all, on paper.");
                 });
                 Add("Strength...", "", "Ferry Nails for the oar, Warm Stones, Held Breaths, Healing charges, the lantern.", () => Go(Page.Strength));
                 Add("Back", "", "", () => Go(Page.Spawn));

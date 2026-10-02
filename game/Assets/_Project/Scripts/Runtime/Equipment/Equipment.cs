@@ -29,6 +29,70 @@ namespace MyGame
         public bool Owns(Charm charm) => owned.Contains(charm);
         public bool IsFitted(Charm charm) => fitted.Contains(charm);
 
+        // ---- the Ledger: every kind of Soured scattered (and Boss beaten), and how many times
+
+        readonly Dictionary<string, int> ledger = new Dictionary<string, int>();
+        public event System.Action<LedgerEntry> Written; // a new entry (the HUD's line)
+
+        public bool Met(LedgerEntry e) => e != null && ledger.ContainsKey(e.Id);
+        public int Scattered(LedgerEntry e) => e != null && ledger.TryGetValue(e.Id, out int n) ? n : 0;
+
+        public void Record(LedgerEntry e)
+        {
+            if (e == null)
+                return;
+            bool first = !ledger.ContainsKey(e.Id);
+            ledger[e.Id] = Scattered(e) + 1;
+            if (first)
+                Written?.Invoke(e);
+            Changed?.Invoke();
+        }
+
+        // (the lab) Every entry written in, as if each had been met once.
+        public void FillLedger()
+        {
+            foreach (var e in LedgerEntry.All)
+                if (!ledger.ContainsKey(e.Id))
+                    ledger[e.Id] = 1;
+            Changed?.Invoke();
+        }
+
+        public void ClearLedger()
+        {
+            ledger.Clear();
+            Changed?.Invoke();
+        }
+
+        public (string[] ids, int[] counts) LedgerForSave()
+        {
+            var ids = new List<string>(ledger.Keys);
+            return (ids.ToArray(), ids.ConvertAll(id => ledger[id]).ToArray());
+        }
+
+        public void RestoreLedger(string[] ids, int[] counts)
+        {
+            ledger.Clear();
+            for (int i = 0; ids != null && i < ids.Length; i++)
+                if (LedgerEntry.ById(ids[i]) != null)
+                    ledger[ids[i]] = counts != null && i < counts.Length ? Mathf.Max(1, counts[i]) : 1;
+            Changed?.Invoke();
+        }
+
+        void OnEnable()
+        {
+            Soured.Fell += OnFell;
+            BossFight.Defeated += OnBeaten;
+        }
+
+        void OnDisable()
+        {
+            Soured.Fell -= OnFell;
+            BossFight.Defeated -= OnBeaten;
+        }
+
+        void OnFell(Soured s) => Record(LedgerEntry.For(s));
+        void OnBeaten(IBoss boss) => Record(LedgerEntry.For(boss));
+
         void Awake()
         {
             foreach (var id in startingCharms)
@@ -80,6 +144,7 @@ namespace MyGame
         // (the lab) Back to how the Apprentice started: the starting Charms owned, nothing fitted, one slot.
         public void ResetToStart()
         {
+            ledger.Clear();
             OarStep = FerryNails = WarmStones = HeldBreaths = 0;
             carried.Clear();
             System.Array.Clear(belt, 0, belt.Length);

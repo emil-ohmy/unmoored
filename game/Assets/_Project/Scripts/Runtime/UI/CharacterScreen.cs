@@ -13,13 +13,15 @@ namespace MyGame
     // scroll. Closed with the same key, Esc or B. Drawn in real time.
     public sealed class CharacterScreen : MonoBehaviour
     {
-        public enum Tab { Apprentice, Oar, Abilities, Satchel, Charms, Lantern }
-        public static readonly string[] TabNames = { "The Apprentice", "The Oar", "Abilities", "The Satchel", "Charms", "The Lantern" };
+        public enum Tab { Apprentice, Oar, Abilities, Satchel, Charms, Ledger, Lantern }
+        public static readonly string[] TabNames = { "The Apprentice", "The Oar", "Abilities", "The Satchel", "Charms", "The Ledger", "The Lantern" };
         static int Tabs => TabNames.Length;
+        static float TabSpacing => Mathf.Min(300f, 1640f / (Tabs - 1)); // (as many as fit across)
 
         public Font titleFont, textFont;
         public GameObject[] oarModels;       // the oar at each step, on its own (oar_display): shown turning on the Oar page
         public GameObject[] provisionModels; // each Provision (Provision.All's order): shown turning on the Satchel page
+        public GameObject[] ledgerModels;    // each Ledger entry's own (LedgerEntry.All's order): shown turning on the Ledger page
 
         public static CharacterScreen Instance { get; private set; }
         // Whether Esc belongs to it this frame (open, or just closed by it): the pause menu leaves it alone.
@@ -30,6 +32,9 @@ namespace MyGame
         public int SelectedCharm => charmList.Selected;
         public int SelectedAbility => abilityList.Selected;
         public int SelectedProvision => satchelList.Selected;
+        public int SelectedEntry => ledgerList.Selected;
+        public IReadOnlyList<string> LedgerRows => ledgerRowText;
+        public string LedgerDetail => ledgerName.text + "\n" + ledgerKind.text + "\n" + ledgerDescription.text + "\n" + ledgerKnown.text + "\n" + ledgerCount.text;
         public IReadOnlyList<string> SatchelRows => satchelRowText;
         public string SatchelDetail => satchelEffect.text;
 
@@ -68,7 +73,13 @@ namespace MyGame
         Text oarName, oarDescription, oarNext;
         Image[] pips;
         Image[] slotMarks;
-        ScrollRows charmList, abilityList, satchelList;
+        ScrollRows charmList, abilityList, satchelList, ledgerList;
+        readonly List<string> ledgerRowText = new List<string>();
+        readonly List<LedgerEntry> ledgerShown = new List<LedgerEntry>();
+        Text ledgerName, ledgerKind, ledgerDescription, ledgerKnownHeading, ledgerKnown, ledgerCount, ledgerNone;
+        RawImage ledgerView;
+        Image ledgerGlow;
+        Graphic[] ledgerDetail;
         readonly List<string> charmRowText = new List<string>(), abilityRowText = new List<string>(), satchelRowText = new List<string>();
         readonly List<Provision> satchel = new List<Provision>();
         Text satchelName, satchelDescription, satchelEffect, satchelBeltLine, satchelNone, hints;
@@ -114,7 +125,7 @@ namespace MyGame
 
             // The tabs, across the top.
             for (int i = 0; i < Tabs; i++)
-                tabs[i] = UiKit.Text(root, "Tab", titleFont, 32, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2((i - (Tabs - 1) / 2f) * 300f, 400), 2f);
+                tabs[i] = UiKit.Text(root, "Tab", titleFont, 30, UiKit.Ash, TextAnchor.MiddleCenter, centre, new Vector2((i - (Tabs - 1) / 2f) * TabSpacing, 400), 2f);
             tabLeft = Diamond(root, UiKit.Ember, 10f);
             tabRight = Diamond(root, UiKit.Ember, 10f);
             UiKit.Image(root, "Rule", UiKit.Rule, UiKit.Bone.WithAlpha(0.55f), centre, new Vector2(0, 360), new Vector2(1600, 3));
@@ -128,6 +139,7 @@ namespace MyGame
             BuildAbilities(pages[(int)Tab.Abilities]);
             BuildSatchel(pages[(int)Tab.Satchel]);
             BuildCharms(pages[(int)Tab.Charms]);
+            BuildLedger(pages[(int)Tab.Ledger]);
             BuildLantern(pages[(int)Tab.Lantern]);
             root.gameObject.SetActive(false);
         }
@@ -184,6 +196,14 @@ namespace MyGame
             if (provisionModels != null)
                 foreach (var m in provisionModels)
                     stage.Add(m, 1.8f);
+            if (ledgerModels != null)
+                for (int i = 0; i < ledgerModels.Length && i < LedgerEntry.All.Length; i++)
+                {
+                    if (LedgerEntry.All[i].Standing)
+                        stage.Add(ledgerModels[i], 2.7f, byHeight: true); // (all the same height, whatever they carry)
+                    else
+                        stage.Add(ledgerModels[i], 2.9f);
+                }
             oarView.texture = stage.Texture;
             const float x = 260f;
             oarName = UiKit.Text(page, "Name", titleFont, 54, UiKit.Bone, TextAnchor.MiddleCenter, centre, new Vector2(x, 200), 3f);
@@ -304,6 +324,37 @@ namespace MyGame
             satchelDetail = new Graphic[] { satchelName, satchelDescription, satchelEffect, satchelView, satchelGlow };
         }
 
+        // Every kind of Soured met (and Boss beaten), a row each; the chosen one turning in the middle, what it is
+        // and what's known of it on the right.
+        void BuildLedger(RectTransform page)
+        {
+            var centre = new Vector2(0.5f, 0.5f);
+            ledgerList = new ScrollRows(page, textFont, -620f, 280f, 520f, 9);
+            ledgerNone = UiKit.Text(page, "None", textFont, 32, UiKit.Ash.WithAlpha(0.7f), TextAnchor.MiddleCenter, centre, new Vector2(0, 40), 1f);
+            ledgerNone.text = "No one's written in yet. That won't last.";
+            ledgerGlow = UiKit.Image(page, "Glow", UiKit.SoftDot, Cold.WithAlpha(0.08f), centre, new Vector2(-60, 10), new Vector2(600, 600));
+            ledgerView = UiKit.Rect(page, "Model", centre, new Vector2(-60, 10), new Vector2(680, 680)).gameObject.AddComponent<RawImage>();
+            ledgerView.raycastTarget = false;
+            ledgerView.texture = stage.Texture;
+            const float x = 560f;
+            Text Line(string name, Font font, int size, Color colour, float y, float height)
+            {
+                var t = UiKit.Text(page, name, font, size, colour, TextAnchor.UpperLeft, centre, new Vector2(x, y));
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                t.rectTransform.pivot = new Vector2(0.5f, 1f);
+                t.rectTransform.sizeDelta = new Vector2(600, height);
+                return t;
+            }
+            ledgerName = Line("Name", titleFont, 36, UiKit.Bone, 300, 100);
+            ledgerKind = Line("Kind", textFont, 26, UiKit.Ember, 192, 40);
+            ledgerDescription = Line("Description", textFont, 27, UiKit.Ash, 140, 170);
+            ledgerKnownHeading = Line("Known", titleFont, 28, UiKit.Ember, -45, 40);
+            ledgerKnownHeading.text = "Known";
+            ledgerKnown = Line("Known Text", textFont, 27, UiKit.Bone, -85, 150);
+            ledgerCount = Line("Count", textFont, 26, UiKit.Ash.WithAlpha(0.75f), -250, 40);
+            ledgerDetail = new Graphic[] { ledgerName, ledgerKind, ledgerDescription, ledgerKnownHeading, ledgerKnown, ledgerCount, ledgerView, ledgerGlow };
+        }
+
         void BuildLantern(RectTransform page)
         {
             var centre = new Vector2(0.5f, 0.5f);
@@ -355,6 +406,7 @@ namespace MyGame
         public void ChooseCharm(int by) => Choose(charmList, by);
         public void ChooseProvision(int by) => Choose(satchelList, by);
         public void ChooseAbility(int by) => Choose(abilityList, by);
+        public void ChooseEntry(int by) => Choose(ledgerList, by);
 
         void Choose(ScrollRows list, int by)
         {
@@ -443,12 +495,14 @@ namespace MyGame
                     ChooseCharm(-step.y);
                 else if (step.y != 0 && Current == Tab.Abilities)
                     ChooseAbility(-step.y);
+                else if (step.y != 0 && Current == Tab.Ledger)
+                    ChooseEntry(-step.y);
             }
             if (group == null)
                 return;
             group.alpha = Mathf.MoveTowards(group.alpha, Open ? 1f : 0f, Time.unscaledDeltaTime * 6f);
             group.gameObject.SetActive(group.alpha > 0.001f || Open);
-            stage?.Draw(group.alpha > 0.001f && (Current == Tab.Oar || Current == Tab.Satchel));
+            stage?.Draw(group.alpha > 0.001f && (Current == Tab.Oar || Current == Tab.Satchel || Current == Tab.Ledger));
             if (Open)
                 Draw();
         }
@@ -478,6 +532,7 @@ namespace MyGame
                 case Tab.Abilities: DrawAbilities(); break;
                 case Tab.Satchel: DrawSatchel(); break;
                 case Tab.Charms: DrawCharms(); break;
+                case Tab.Ledger: DrawLedger(); break;
                 default: DrawLantern(); break;
             }
         }
@@ -497,6 +552,7 @@ namespace MyGame
                         : $"{pages}{gap}Left / Right: a slot{gap}{(pad ? "A" : "E")}: choose what goes in it{gap}{close}";
                 case Tab.Abilities:
                 case Tab.Charms:
+                case Tab.Ledger:
                     return $"{pages}{gap}Up / Down: choose{gap}{close}";
                 default:
                     return $"{pages}{gap}{close}";
@@ -626,6 +682,53 @@ namespace MyGame
                 stage.Show(provisionModels != null && kind >= 0 && kind < provisionModels.Length ? provisionModels[kind] : null, Quaternion.Euler(28f, 0f, 0f));
         }
 
+        // Every kind met so far, in the order they're met on the way (how many there are isn't said), the chosen one
+        // turning beside them.
+        void DrawLedger()
+        {
+            var e = apprentice.Equipment;
+            ledgerShown.Clear();
+            ledgerRowText.Clear();
+            var rows = new List<ScrollRows.Item>();
+            foreach (var entry in LedgerEntry.All)
+                if (e.Met(entry))
+                {
+                    ledgerShown.Add(entry);
+                    ledgerRowText.Add(entry.Name);
+                    rows.Add(new ScrollRows.Item { Label = ShortName(entry) }); // (what it is: on the right)
+                }
+            ledgerList.Set(rows);
+            bool any = ledgerShown.Count > 0;
+            ledgerNone.enabled = !any;
+            foreach (var g in ledgerDetail)
+                g.enabled = any;
+            var chosen = any ? ledgerShown[ledgerList.Selected] : null;
+            ledgerName.text = chosen?.Name ?? "";
+            ledgerKind.text = chosen?.KindLine ?? "";
+            ledgerDescription.text = chosen?.Description ?? "";
+            ledgerKnown.text = chosen?.Known ?? "";
+            int n = e.Scattered(chosen);
+            ledgerCount.text = chosen == null ? "" : chosen.Kind == LedgerEntry.Rank.Soured
+                ? (n == 1 ? "Scattered once." : $"Scattered {n} times.")
+                : (n == 1 ? "Beaten." : $"Beaten {n} times.");
+            int kind = chosen != null ? System.Array.IndexOf(LedgerEntry.All, chosen) : -1;
+            // Standing ones face you, swaying a little to and fro (their faces, not their backs); a Moth turns, seen
+            // a little from above.
+            // The Unparted three-quarters on, a little from above: Fast, on Hold's back, peers over its shoulder.
+            bool standing = chosen != null && chosen.Standing;
+            bool two = chosen == LedgerEntry.Unparted;
+            if (Current == Tab.Ledger)
+                stage.Show(ledgerModels != null && kind >= 0 && kind < ledgerModels.Length ? ledgerModels[kind] : null,
+                    Quaternion.Euler(two ? 18f : standing ? 6f : 14f, 0f, 0f), facing: standing, turnedBy: two ? 55f : 0f);
+        }
+
+        // Its row's name: the title, without the rest of a Boss's (the full name's on the right).
+        static string ShortName(LedgerEntry entry)
+        {
+            int comma = entry.Name.IndexOf(',');
+            return comma > 0 ? entry.Name.Substring(0, comma) : entry.Name;
+        }
+
         // The charms found (no dev charm unless it's owned), then a dark socket for each still to find.
         void DrawCharms()
         {
@@ -685,6 +788,8 @@ namespace MyGame
             readonly Camera camera;
             readonly List<GameObject> models = new List<GameObject>();
             Quaternion lean = Quaternion.identity;
+            bool facing;
+            float turned;
 
             public RenderTexture Texture { get; }
             public GameObject Shown { get; private set; }
@@ -723,8 +828,8 @@ namespace MyGame
                 lamp.shadows = LightShadows.None;
             }
 
-            // Onto the stage, fitted: its longest side `size` metres, its middle on the pivot. Hidden until shown.
-            public void Add(GameObject model, float size)
+            // Onto the stage, fitted: its longest side (or its height) `size` metres, its middle on the pivot. Hidden until shown.
+            public void Add(GameObject model, float size, bool byHeight = false)
             {
                 if (model == null)
                     return;
@@ -739,23 +844,43 @@ namespace MyGame
                 bool first = true;
                 foreach (var r in model.GetComponentsInChildren<Renderer>())
                 {
+                    var b = r is SkinnedMeshRenderer skinned ? Posed(skinned) : r.bounds; // (as it stands, not its rest pose)
                     if (first)
-                        bounds = r.bounds;
+                        bounds = b;
                     else
-                        bounds.Encapsulate(r.bounds);
+                        bounds.Encapsulate(b);
                     first = false;
                 }
-                float longest = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+                float longest = byHeight ? bounds.size.y : Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
                 model.transform.localPosition = -holder.InverseTransformPoint(bounds.center); // (its middle at the pivot)
                 holder.localScale = Vector3.one * (longest > 0.001f ? size / longest : 1f);
                 model.SetActive(false);
                 models.Add(model);
             }
 
+            // Where a skinned mesh is, in the pose it's in now (its own bounds are its rest pose's, or a guess).
+            static Bounds Posed(SkinnedMeshRenderer skinned)
+            {
+                var mesh = new Mesh();
+                skinned.BakeMesh(mesh, true);
+                var t = skinned.transform;
+                var verts = mesh.vertices;
+                Object.Destroy(mesh);
+                if (verts.Length == 0)
+                    return skinned.bounds;
+                var b = new Bounds(t.position + t.rotation * verts[0], Vector3.zero);
+                foreach (var v in verts)
+                    b.Encapsulate(t.position + t.rotation * v);
+                return b;
+            }
+
             // The one to show (null: none), leaning so, turning slowly about its own up.
-            public void Show(GameObject model, Quaternion leanedSo)
+            // (`facing`: towards the camera, swaying a little either way, instead of turning right round)
+            public void Show(GameObject model, Quaternion leanedSo, bool facing = false, float turnedBy = 0f)
             {
                 lean = leanedSo;
+                this.facing = facing;
+                turned = turnedBy;
                 if (Shown == model)
                     return;
                 Shown = model;
@@ -766,7 +891,8 @@ namespace MyGame
             public void Draw(bool on)
             {
                 camera.enabled = on && Shown != null;
-                pivot.localRotation = lean * Quaternion.Euler(0f, UiKit.Now * 40f, 0f);
+                float yaw = facing ? 180f + turned + 38f * Mathf.Sin(UiKit.Now * 0.55f) : UiKit.Now * 40f; // (a figure's front is its +z: away from the camera)
+                pivot.localRotation = lean * Quaternion.Euler(0f, yaw, 0f);
             }
 
             public void Release() => Texture.Release();

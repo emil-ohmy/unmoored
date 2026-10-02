@@ -320,6 +320,7 @@ namespace MyGame.Tests
             yield return WaitFor(() => !s.IsAlive, 1f, "it struck");
             yield return WaitFor(() => apprentice.Health < health, 1.5f, "its flames");
             Assert.AreEqual(health - s.burstDamage, apprentice.Health, 0.5f);
+            Assert.IsTrue(apprentice.Alight, "and you're alight");
             Assert.IsTrue(w.Hidden, "he's still one of them");
             Assert.IsNull(BossFight.Current);
         }
@@ -380,6 +381,40 @@ namespace MyGame.Tests
                 input.BlockHeld = false;
                 yield return WaitFor(() => w.Health < w.maxHealth, 2f, "it striking him");
                 Assert.AreEqual(w.maxHealth * 2f / 3f, w.Health, 1f, "a third of him gone");
+            }
+            finally { global::MyGame.Watchman.Breathed -= onBreath; }
+        }
+
+        // By the well, before the field's gate: Sodden Sacks to pick up.
+        [UnityTest]
+        public IEnumerator BytheWell_SoddenSacks()
+        {
+            var sack = UnityEngine.Object.FindObjectsByType<ProvisionFind>(FindObjectsSortMode.None).FirstOrDefault(f => f.provision == "sodden_sack");
+            Assert.IsNotNull(sack, "a Sodden Sack lying by the well");
+            apprentice.Teleport(sack.transform.position + Vector3.back * 0.8f);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(2, apprentice.Equipment.Carried(Provision.SoddenSack), "picked up: two");
+        }
+
+        // His fire taken full (not blocked): you're alight.
+        [UnityTest]
+        public IEnumerator TheWatchman_HisFireTaken_SetsYouAlight()
+        {
+            var w = Watchman();
+            yield return Reveal(w);
+            Fireball ball = null;
+            Defence outcome = Defence.Dodged;
+            Action<Watchman, Fireball> onBreath = (_, f) => { if (ball == null) { ball = f; f.Done = (b, d) => outcome = d; } };
+            global::MyGame.Watchman.Breathed += onBreath;
+            try
+            {
+                StandClear(w, 7f);
+                yield return WaitFor(() => ball != null, 6f, "his fire");
+                yield return WaitFor(() => ball == null, 3f, "it reaching you");
+                Assert.AreEqual(Defence.Taken, outcome);
+                Assert.IsTrue(apprentice.Alight, "alight");
             }
             finally { global::MyGame.Watchman.Breathed -= onBreath; }
         }

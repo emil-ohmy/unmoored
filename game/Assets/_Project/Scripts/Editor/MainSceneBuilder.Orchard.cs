@@ -172,6 +172,7 @@ public static partial class MainSceneBuilder
         OrchardTree("apple", new Vector3(-4.5f, UpperTop, 15f), 200f);
         OrchardTree("pear", new Vector3(10f, UpperTop, 15.2f), 100f);
         OrchardProp("well", new Vector3(5.5f, UpperTop, 13.6f), 15f);
+        ProvisionAt("sodden_sack", 2, new Vector3(4.3f, UpperTop, 12.5f), 30f); // (soaked at the well: before the Watchman's gate)
         foreach (float x in new[] { 12.2f, 13.4f, 14.6f })
             OrchardProp("skep", new Vector3(x, UpperTop, 16.6f), x * 20f);
         OrchardProp("basket", new Vector3(-3.4f, UpperTop, 14.2f), 0f);
@@ -440,7 +441,9 @@ public static partial class MainSceneBuilder
         var orbit = ps.velocityOverLifetime;
         orbit.enabled = true;
         orbit.space = ParticleSystemSimulationSpace.Local;
+        orbit.orbitalX = new ParticleSystem.MinMaxCurve(0f, 0f); // (every orbital axis in the same mode, two constants: or Unity complains)
         orbit.orbitalY = new ParticleSystem.MinMaxCurve(2.2f, 3.4f);
+        orbit.orbitalZ = new ParticleSystem.MinMaxCurve(0f, 0f);
         orbit.radial = new ParticleSystem.MinMaxCurve(-0.05f, 0.05f);
         var noise = ps.noise;
         noise.enabled = true;
