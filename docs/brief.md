@@ -191,7 +191,7 @@ back toward the Hub.
 | # | Area | Reached by | Boss | Reward | Introduces |
 |---|---|---|---|---|---|
 | 1 | The Drowned City | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
-| 2 | The Orchard of Last Autumn | Hook | The Gardener | Stroke | Moths, Gleaners |
+| 2 | The Orchard of Last Autumn | Hook | The Gardener | Stroke | Moths, Gleaners, Threshers |
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
 
@@ -255,6 +255,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
 | Moths | memories | A flock of one-hit wisps drawn to light: they circle their lantern, then come to yours, circling you just out of reach and sending one in at a time. It stalls, flaring (the tell), then dives straight through; a perfect block breaks it | The heavy attack (it sweeps through all it reaches) and fire (one alight sets the next alight) |
 | Gleaners | the harvest | Farmhands who went on gleaning, walking the rows at night with lanterns on long poles. They keep their distance (backing off, skipping lightly away from the oar, but never while winding up) and fling fire from the lantern: the pole drawn back over the head, the lantern flaring (the tell), then one slow ball of flame. Turned back with a perfect block, its own fire burns one up at once. In the Orchard, where you learn to turn fire back before the Watchman | Their own fire, turned back (the Hook brings one close; pitch and tar burn it well) |
+| Threshers | the work | The orchard's old threshing machines, iron and oak, their drivers grown into the seats. A heavy: it lines up on you (boiler hissing, steam from the stack, the flail reel spinning up: the tell), then charges straight, barely turning. Sidestepped, it runs into whatever's solid (a tree, a wall, a stook) and stalls a while, steaming, open. The oar glances off its front; from behind (and stalled, from anywhere) it reaches the driver. Up close, flails sweep in front and steam bursts behind. Fire doesn't burn iron: it stokes the boiler, and it charges faster | Running it into something; the Hook (it wrenches the drive chain off: stalled) |
 | Drowned | life | Waits under the water (only bubbles show), out of reach. Seeing you, it rises and spits poison, then sinks and spits again. A perfect block turns the spit back, and a Drowned struck by its own spit dies outright. Hide from it and it comes to the shore to look for you, open to the oar | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
 
 ## Art direction

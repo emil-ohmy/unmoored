@@ -97,3 +97,9 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | A Sodden Sack (`sodden_sack`) | in game | Synth | a heavy wet slap of sacking, a long hiss of steam, a few drips |
 | Gleaner drawing back (`gleaner_windup`, 2) | in game | Synth | its tell: the long pole creaking as it swings up, the lantern's flame gulping air and roaring up, a breath drawn in through the hood (its fire: `fireball_whoosh`) |
 | Gleaner skipping away (`gleaner_hop`, 3) | in game | Synth | the smock flapping, a light double scuff of feet in the leaves, the lantern rattling on its crook |
+| Thresher revving (`thresher_rev`, 2) | in game | Synth | its tell before a charge (and its flails' sweep): the boiler's hiss building, the reel clattering up to speed, chuffs from the stack quickening |
+| Thresher charging (`thresher_charge`, 2) | in game | Synth | iron wheels rumbling, the flails threshing the air, the boiler roaring |
+| Thresher crashing (`thresher_crash`, 2) | in game | Synth | a great iron-and-oak impact, timber splitting, the reel jamming with a screech, a long hiss of steam |
+| Thresher's chain wrenched off (`thresher_chain`) | in game | Synth | the Hook: a hard iron snap, the chain whipping and rattling loose, steam escaping |
+| Thresher stoked (`thresher_stoke`) | in game | Synth | fire on it: the firebox catching with a whoomph, the boiler's whistle shrieking up, a roar from the stack |
+| Thresher venting (`thresher_hiss`, `thresher_vent`, 2) | in game | Synth | close at its back: a rising hiss in the pipes (the tell), then a roaring burst of steam |

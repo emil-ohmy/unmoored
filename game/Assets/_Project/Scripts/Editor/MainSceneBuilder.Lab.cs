@@ -126,6 +126,7 @@ public static partial class MainSceneBuilder
         var drowned = Template(Drowned("Drowned", new Vector3(0f, 0f, -8f), 0f).gameObject);
         var moths = Template(MothFlockAt("Moths", new Vector3(0f, QuayTop + 1.5f, 0f), null, 6).gameObject);
         var gleaner = Template(Gleaner("Gleaner", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var thresher = Template(Thresher("Thresher", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         spawner.kinds = new[]
         {
             new LabSpawner.Kind { name = "Laden", template = laden },
@@ -135,6 +136,7 @@ public static partial class MainSceneBuilder
             new LabSpawner.Kind { name = "Drowned", template = drowned, inWater = true }, // (in the water nearest you)
             new LabSpawner.Kind { name = "Moths", template = moths }, // (a flock of six)
             new LabSpawner.Kind { name = "Gleaner", template = gleaner },
+            new LabSpawner.Kind { name = "Thresher", template = thresher },
         };
         return spawner;
     }

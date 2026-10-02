@@ -31,10 +31,13 @@ namespace MyGame.Tests
             yield return null;
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
-            // The Gleaners keep out of every test but their own (their fire would cut into the rest).
+            // The Gleaners and the Thresher keep out of every test but their own (they'd cut into the rest).
             if (!TestContext.CurrentContext.Test.Name.Contains("Gleaner"))
                 foreach (var g in UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None))
                     g.passive = true;
+            if (!TestContext.CurrentContext.Test.Name.Contains("Thresher"))
+                foreach (var t in UnityEngine.Object.FindObjectsByType<Thresher>(FindObjectsSortMode.None))
+                    t.passive = true;
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -470,6 +473,70 @@ namespace MyGame.Tests
             finally { Gleaner.Flung -= onFling; }
         }
 
+        // ---- The Thresher
+
+        Thresher TheThresher => UnityEngine.Object.FindAnyObjectByType<Thresher>();
+
+        // It lines up and charges straight at you: with a tree between, it runs into it and stalls.
+        [UnityTest]
+        public IEnumerator Thresher_ChargesStraight_IntoATree_Stalls()
+        {
+            var t = TheThresher;
+            Assert.IsNotNull(t, "a Thresher on the bottom terrace");
+            int crashes = 0;
+            Action<Thresher> onCrash = x => { if (x == t) crashes++; };
+            global::MyGame.Thresher.Crashed += onCrash;
+            try
+            {
+                // A tree between: the one at (7.5, -2.2), you beyond it on the line from the machine.
+                Vector3 tree = new Vector3(7.5f, t.transform.position.y, -2.2f);
+                Vector3 line = (tree - t.transform.position).Flat().normalized;
+                apprentice.Teleport(tree + line * 3.5f + Vector3.up * 0.05f);
+                Vector3 start = t.transform.position;
+                yield return WaitFor(() => t.Charging, 8f, "it charging");
+                yield return WaitFor(() => crashes > 0, 4f, "it running into something (the tree, or a crate on the way)");
+                Assert.IsTrue(t.Stalled, "stalled");
+                Assert.Greater(Vector3.Distance(t.transform.position.Flat(), start.Flat()), 2.5f, "after a run");
+                Assert.Less(Vector3.Distance(t.transform.position.Flat(), apprentice.transform.position.Flat()) , Vector3.Distance(start.Flat(), apprentice.transform.position.Flat()), "towards you");
+            }
+            finally { global::MyGame.Thresher.Crashed -= onCrash; }
+        }
+
+        // From the front the oar glances off its iron; from behind it reaches the driver; stalled, from anywhere.
+        // Fire only stokes it. The Hook wrenches its chain off: stalled.
+        [UnityTest]
+        public IEnumerator Thresher_FrontGlancesOff_FireStokes_TheHookStallsIt()
+        {
+            var t = TheThresher;
+            t.passive = true;
+            yield return null;
+            Vector3 front = t.transform.position + t.transform.forward * 2f, back = t.transform.position - t.transform.forward * 2f;
+            Assert.AreEqual(HitResult.Blocked, t.TakeHit(new Hit { Damage = 20f, From = front }), "glancing off the front");
+            Assert.AreEqual(t.maxHealth, t.Health);
+            Assert.AreEqual(HitResult.Landed, t.TakeHit(new Hit { Damage = 20f, From = back }), "the driver, from behind");
+            Assert.AreEqual(t.maxHealth - 20f, t.Health, 0.01f);
+            float health = t.Health;
+            t.TakeBurn(30f, front);
+            Assert.AreEqual(health, t.Health, 0.01f, "iron doesn't burn");
+            Assert.IsTrue(t.Stoked, "it only stokes its boiler");
+            Assert.AreEqual(HookResult.Ripped, t.OnHooked(apprentice), "the chain wrenched off");
+            yield return null;
+            Assert.IsTrue(t.Stalled);
+            Assert.AreEqual(HitResult.Landed, t.TakeHit(new Hit { Damage = 20f, From = front }), "stalled: from the front too");
+        }
+
+        // At its back, close: steam blown all round it.
+        [UnityTest]
+        public IEnumerator Thresher_AtItsBack_SteamBursts()
+        {
+            var t = TheThresher;
+            apprentice.Teleport(t.transform.position - t.transform.forward * 2.2f + Vector3.up * 0.05f);
+            t.Alert();
+            float health = apprentice.Health;
+            yield return WaitFor(() => apprentice.Health < health, 4f, "the steam");
+            Assert.AreEqual(health - t.ventDamage, apprentice.Health, 0.5f);
+        }
+
         // His fire taken full (not blocked): you're alight.
         [UnityTest]
         public IEnumerator TheWatchman_HisFireTaken_SetsYouAlight()
@@ -881,6 +948,55 @@ namespace MyGame.Tests
             for (int i = 0; i < 6; i++)
                 yield return null;
             Shot("gleaner-2-its-fire");
+        }
+
+        // (SHOTS=dir) The Thresher: at rest; revving (steam, the reel spinning up); its run; stalled against a tree.
+        [UnityTest]
+        public IEnumerator Capture_Thresher()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            Time.captureFramerate = 30;
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var t = TheThresher;
+            t.passive = true;
+            apprentice.Teleport(t.transform.position + new Vector3(-3.5f, 0.05f, 1.5f), true, true);
+            for (int i = 0; i < 30; i++)
+                yield return null;
+            Shot("thresher-0-at-rest");
+            t.passive = false;
+            Vector3 tree = new Vector3(7.5f, t.transform.position.y, -2.2f);
+            Vector3 line = (tree - t.transform.position).Flat().normalized;
+            apprentice.Teleport(tree + line * 3.5f + Vector3.up * 0.05f, true, true);
+            for (int i = 0; i < 300 && t.CurrentState != Soured.State.Telegraph; i++)
+                yield return null;
+            for (int i = 0; i < 20; i++)
+                yield return null;
+            Shot("thresher-1-revving");
+            for (int i = 0; i < 90 && !t.Charging; i++)
+                yield return null;
+            for (int i = 0; i < 6; i++)
+                yield return null;
+            Shot("thresher-2-charging");
+            for (int i = 0; i < 90 && !t.Stalled; i++)
+                yield return null;
+            for (int i = 0; i < 10; i++)
+                yield return null;
+            Shot("thresher-3-stalled");
         }
 
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.

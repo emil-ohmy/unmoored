@@ -35,6 +35,7 @@ public static partial class MainSceneBuilder
         UpperTerrace();
         UnreapedRows(); // the field over the orchard wall: the Orchard's miniboss, among its scarecrows
         GleanersInTheRows();
+        Thresher("Thresher", new Vector3(13.5f, GroundTop, -6.2f), -90f); // (the bottom terrace's long rows: room to run, trees to run into)
         OrchardLanterns();
         OrchardAir();
 
