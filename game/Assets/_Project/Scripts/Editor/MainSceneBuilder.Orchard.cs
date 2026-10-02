@@ -34,6 +34,7 @@ public static partial class MainSceneBuilder
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
         UpperTerrace();
         UnreapedRows(); // the field over the orchard wall: the Orchard's miniboss, among its scarecrows
+        Glasshouse();   // beyond the field's far gate: the Gardener's (Father Moth's) arena
         GleanersInTheRows();
         Thresher("Thresher", new Vector3(13.5f, GroundTop, -6.2f), -90f); // (the bottom terrace's long rows: room to run, trees to run into)
         OrchardLanterns();
@@ -219,7 +220,7 @@ public static partial class MainSceneBuilder
             Put("orchard_wall_long", new Vector3(east, UpperTop, z), -90f);
         }
         for (float x = FieldX - FieldHalfWidth; x < FieldX + FieldHalfWidth - 0.5f; x += 4f)
-            Put("orchard_wall_long", new Vector3(x, UpperTop, north), 0f);
+            Put(Mathf.Abs(x - (GlassX - 2f)) < 0.5f ? "orchard_wall_gate" : "orchard_wall_long", new Vector3(x, UpperTop, north), 0f); // (the far gateway: to the Glasshouse)
         Put("orchard_wall_end", new Vector3(west, UpperTop, north), 0f);
         Put("orchard_wall_end", new Vector3(east, UpperTop, north), 0f);
 
@@ -280,6 +281,24 @@ public static partial class MainSceneBuilder
         gate.openYaw = new[] { -90f, 270f };
         gate.shutSound = Clips("field_gate_slam");
         gate.openSound = Clips("gate_open");
+
+        // The far gateway (on to the Glasshouse) shut too, while he's fought: its leaves open into the field.
+        var far = new GameObject("Field Gate (far)").AddComponent<ArenaGate>();
+        far.transform.SetParent(root, true);
+        far.transform.position = new Vector3(GlassX, UpperTop, north);
+        far.boss = watchman;
+        Transform FarLeaf(float hingeX, float openYaw)
+        {
+            var leaf = Put("orchard_wall_leaf", new Vector3(hingeX, UpperTop, north), openYaw);
+            foreach (var c in leaf.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c);
+            return leaf.transform;
+        }
+        far.leaves = new[] { FarLeaf(GlassX - 1.06f, 90f), FarLeaf(GlassX + 1.06f, 90f) };
+        far.shutYaw = new[] { 0f, 180f };
+        far.openYaw = new[] { 90f, 90f };
+        far.shutSound = Clips("field_gate_slam");
+        far.openSound = Clips("gate_open");
     }
 
     static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
@@ -396,6 +415,110 @@ public static partial class MainSceneBuilder
         w.lantern.enabled = false;
         Swoosh(w.gameObject, "ArmR", "HookIron", SouredSwoosh, 0.16f, "OrchardWood"); // (the hook's sweep)
         return w;
+    }
+
+    // The Glasshouse: beyond the Unreaped Rows' far gateway, on a terrace of its own, the Gardener's ruined palm house:
+    // iron ribs and broken panes on a brick plinth, mossy flagstones, two shallow water channels, raised beds of dead
+    // plants, two iron columns, the dead orange tree in its tub at the middle, four lamps hung on chains. Its roof fades
+    // when you're inside (Storeys). Its doors swing shut behind you while his fight is on (ArenaGate); nothing follows
+    // you in (ArenaZone).
+    const float GlassX = 0f, GlassGroundZ = 34f, GlassHouseZ = 38.2f;
+    const float GlassWidth = 16f, GlassDepth = 12f, GlassWall = 3.6f, GlassRidge = 3.0f;
+
+    static void Glasshouse()
+    {
+        Vector3 door = new Vector3(GlassX, UpperTop, GlassHouseZ);
+        var root = new GameObject("The Glasshouse").transform;
+        root.position = door + new Vector3(0f, 0f, GlassDepth / 2f); // (the house's middle: the Storeys' footprint is round it)
+        GameObject Put(string model, Vector3 at, float yaw)
+        {
+            var go = Place("Environment/" + model, at, yaw);
+            go.transform.SetParent(root, true);
+            return go;
+        }
+        Put("glasshouse_ground", new Vector3(GlassX, 0f, GlassGroundZ), 0f);
+        var house = Put("glasshouse_house", door, 0f);
+        var roof = Put("glasshouse_roof", door, 0f);
+        var storeys = root.gameObject.AddComponent<Storeys>();
+        storeys.footprint = new Vector2(GlassWidth / 2f, GlassDepth / 2f);
+        storeys.storeys = new[]
+        {
+            new Storeys.Storey { floor = UpperTop, parts = new[] { house } },
+            new Storeys.Storey { floor = UpperTop + 99f, parts = new[] { roof } }, // (never stood on: gone whenever you're inside)
+        };
+        // The channels' water: the river's own shader, shallow and still; wade in (it puts out flames).
+        var channel = GeneratedMaterial("M_ChannelWater", "MyGame/Water");
+        channel.SetColor("_DeepColor", Hex("#0e1d1c"));
+        channel.SetColor("_ShallowColor", Hex("#2a4238"));
+        channel.SetColor("_FoamColor", Hex("#8fa49a"));
+        channel.SetFloat("_FoamDistance", 0.04f);
+        channel.SetFloat("_DepthFade", 0.25f);
+        channel.SetFloat("_WaveHeight", 0.005f);
+        channel.SetFloat("_WaveLength", 1.5f);
+        channel.SetFloat("_WaveSpeed", 0.4f);
+        channel.SetFloat("_RippleScale", 3f);
+        channel.SetFloat("_RippleSpeed", 0.5f);
+        channel.SetFloat("_RippleStrength", 0.25f);
+        EditorUtility.SetDirty(channel);
+        foreach (float n in new[] { 3.6f, 8.4f })
+        {
+            var water = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            water.name = "Channel Water";
+            Object.DestroyImmediate(water.GetComponent<Collider>()); // (you wade: the bed below holds you)
+            water.transform.SetParent(root, true);
+            water.transform.SetPositionAndRotation(door + new Vector3(0f, -0.1f, n), Quaternion.Euler(90f, 0f, 0f));
+            water.transform.localScale = new Vector3(GlassWidth - 0.6f, 1.16f, 1f);
+            var r = water.GetComponent<MeshRenderer>();
+            r.sharedMaterial = channel;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var shallows = water.AddComponent<Shallows>();
+            shallows.size = new Vector3(GlassWidth - 0.6f, 0.8f, 1.2f);
+        }
+
+        // The dead orange tree at the middle (its tub solid; its branches overhead, nothing).
+        var tree = Put("glasshouse_tree", root.position, 25f);
+        foreach (var c in tree.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c);
+        var tub = tree.AddComponent<CapsuleCollider>();
+        tub.center = new Vector3(0f, 0.6f, 0f);
+        tub.radius = 0.95f;
+        tub.height = 1.2f;
+        // Four lamps hung on chains from the vault, lit (he circles them).
+        foreach (var (e, n) in new[] { (-4.5f, 3f), (4.5f, 3f), (-4.5f, 9f), (4.5f, 9f) })
+        {
+            float th = Mathf.Acos(1f - 2f * n / GlassDepth);
+            float hang = GlassWall + Mathf.Sin(th) * GlassRidge - 0.1f;
+            var lamp = Put("glasshouse_lamp", door + new Vector3(e, hang, n), 0f);
+            foreach (var c in lamp.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (overhead: nothing to walk into)
+            var light = PointLight(lamp.transform, GlowCentre(lamp, "GlasshouseLamp_Glow"), 8f, 2.2f, LanternLight);
+            Flicker(light, 0.08f, 3f, 0.01f);
+        }
+        // A lantern on a crook by the doors, outside.
+        var outside = Put("orchard_props_lantern", door + new Vector3(-2.4f, 0f, -1.2f), 30f);
+        Flicker(PointLight(outside.transform, GlowCentre(outside, "OrchardLantern_Glow"), 6f, 1.8f, LanternLight), 0.08f, 3f, 0.01f);
+        // The doors: two leaves of iron and glass, open into the house; swung shut behind you while his fight is on.
+        var gate = new GameObject("Glasshouse Doors").AddComponent<ArenaGate>();
+        gate.transform.SetParent(root, true);
+        gate.transform.position = door + new Vector3(0f, 0f, 0.15f);
+        gate.wallSize = new Vector3(2.8f, 3f, 0.5f);
+        Transform Leaf(float hingeX, float openYaw)
+        {
+            var leaf = Put("glasshouse_leaf", door + new Vector3(hingeX, 0f, 0.15f), openYaw);
+            foreach (var c in leaf.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c);
+            return leaf.transform;
+        }
+        gate.leaves = new[] { Leaf(GlassX - 1.25f, -90f), Leaf(GlassX + 1.25f, 270f) };
+        gate.shutYaw = new[] { 0f, 180f };
+        gate.openYaw = new[] { -90f, 270f };
+        gate.shutSound = Clips("field_gate_slam");
+        gate.openSound = Clips("gate_open");
+        // (gate.boss: Father Moth, once he's here)
+        var zone = new GameObject("Arena Zone (the Glasshouse)").AddComponent<ArenaZone>(); // (nothing follows you in)
+        zone.transform.SetParent(root, true);
+        zone.transform.position = root.position + Vector3.up * 1f;
+        zone.size = new Vector3(GlassWidth, 7f, GlassDepth);
     }
 
     // The Gleaners: two on the middle terrace's west rows, two on the top terrace before the field's gate (where you

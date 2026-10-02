@@ -191,9 +191,26 @@ back toward the Hub.
 | # | Area | Reached by | Boss | Reward | Introduces |
 |---|---|---|---|---|---|
 | 1 | The Drowned City | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
-| 2 | The Orchard of Last Autumn | Hook | The Gardener | Stroke | Moths, Gleaners, Threshers |
+| 2 | The Orchard of Last Autumn | Hook | The Gardener (Father Moth, Who Gathered Autumn) | Stroke | Moths, Gleaners, Threshers |
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
+
+**The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
+its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to
+him as the Moths gather to a light, until he grew into the greatest of them: a vast moth (wings like dead autumn
+leaves, six metres across) with the stooped gardener still rising from it, in his apron, his forearms grown into its
+forelegs, ending in pruning shears; in his ribs, caged, a small lantern: the last light he tended. His arena: **the
+Glasshouse**, beyond the Unreaped Rows' far gate (the Watchman guards the way), a ruined palm house of iron ribs and
+broken panes, raised beds of dead plants, shallow water channels (you wade them; they put out flames), lamps hung on
+chains, a dead orange tree at its middle.
+- **Phase 1:** he circles the lamps out of reach. His wingbeats blow gusts of leaves that shove you, and on the
+  channels send a wave across the floor that knocks you down (a taste of the Stroke). He dives (a stall, wings flung
+  wide, the light in his chest flaring: the tell); a perfect block on the dive stuns him, down on the floor, open. Now
+  and then he lands to tend the beds: his shears sweep. He shakes Moths from his wings.
+- **Phase 2 (half):** he tears the lamps down one by one; the glasshouse goes dark but for the moon and your bow
+  lantern, and he hunts your light: dive after dive, each a chance to parry.
+- **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
+- His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Stroke**.
 
 **Boss arenas:** nothing that follows the Apprentice crosses into a Boss's (or miniboss's) arena. It stops at the
 edge and gives them up, and nothing outside notices them while they're in it.

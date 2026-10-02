@@ -993,6 +993,11 @@ namespace MyGame
                 alightGlow.enabled = on;
             if (!on)
                 return;
+            if (Shallows.In(transform.position + Vector3.up * 0.1f))
+            {
+                Douse(); // (into the water: out)
+                return;
+            }
             Health = Mathf.Max(0f, Health - alightHealthPerSecond * dt);
             Stamina = Mathf.Max(0f, Stamina - alightStaminaPerSecond * dt);
             lastStaminaUse = Time.time; // (no breath back while you burn)

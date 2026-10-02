@@ -97,7 +97,7 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator ThePressHouse_UpTheStairToTheLoft_TheRoofFades()
         {
-            var house = UnityEngine.Object.FindAnyObjectByType<Storeys>();
+            var house = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name == "Press House");
             apprentice.Teleport(new Vector3(12.4f, 1.95f, 3.5f)); // (on the floor, beside the stair's foot)
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(0, house.Level, "inside, on the floor");
@@ -219,6 +219,32 @@ namespace MyGame.Tests
             finally { Moth.Dived -= onDive; }
         }
 
+        // ---- The Glasshouse (the Gardener's arena)
+
+        // Through the field's far gateway, along the path, in at the Glasshouse's doors: inside, its roof fades.
+        [UnityTest]
+        public IEnumerator TheGlasshouse_BeyondTheFieldsFarGate_ItsRoofFadesInside()
+        {
+            var far = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate (far)");
+            var doors = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Glasshouse Doors");
+            var house = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name == "The Glasshouse");
+            Assert.IsFalse(far.Shut || doors.Shut, "open: no fight on");
+            Vector3 way = far.transform.position;
+            apprentice.Teleport(new Vector3(way.x, way.y + 0.05f, way.z - 2f));
+            yield return Walk(Vector2.up, 3.6f);
+            Assert.Greater(apprentice.transform.position.z, doors.transform.position.z + 1.5f, $"through the gateway, along the path and in at the doors ({apprentice.transform.position})");
+            Assert.AreEqual(3.3f, apprentice.transform.position.y, 0.3f, "on its floor");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, house.Level, "inside");
+            Assert.IsFalse(house.Shown(1), "the roof gone");
+            // Its channels: shallow water to wade, which puts out flames.
+            apprentice.SetAlight();
+            apprentice.Teleport(doors.transform.position + new Vector3(2f, 0.05f, 2f));
+            yield return Walk(Vector2.up, 0.8f);
+            Assert.IsFalse(apprentice.Alight, $"waded in: out ({apprentice.transform.position})");
+            Assert.IsTrue(apprentice.IsAlive && apprentice.CurrentState == Apprentice.State.Free, "no drowning in it");
+        }
+
         // ---- The Watchman (Abner Wick, Who Merits Flame)
 
         Watchman Watchman() => UnityEngine.Object.FindAnyObjectByType<Watchman>();
@@ -285,6 +311,36 @@ namespace MyGame.Tests
             }
             else
                 yield return new WaitForSeconds(1.5f);
+        }
+
+        // The Unreaped Rows: in through the gateway from the orchard; found, he shuts it behind you (the gates swing to,
+        // and hold; and the far gateway's, on to the Glasshouse), and his own music plays; beaten, they open again.
+        [UnityTest]
+        public IEnumerator TheField_FoundHeShutsTheGate_BeatenItOpens()
+        {
+            var w = Watchman();
+            var gate = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate");
+            var far = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate (far)");
+            Assert.IsFalse(gate.Shut || far.Shut);
+            Assert.AreEqual(2, w.Music.Length, "his music, both halves");
+            Assert.IsTrue(w.Music.All(m => m != null));
+            // In from the orchard's top terrace, through the gateway, while it's open.
+            Vector3 way = gate.transform.position;
+            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z - 2f));
+            yield return Walk(Vector2.up, 1.6f);
+            Assert.Greater(apprentice.transform.position.z, way.z + 0.8f, $"through the gateway ({apprentice.transform.position})");
+            yield return Reveal(w);
+            Assert.IsTrue(gate.Shut, "shut behind you");
+            Assert.IsTrue(far.Shut, "and the far one");
+            Assert.AreEqual(1f, gate.Closed, 0.01f, "swung to");
+            // Try to leave: the way's held.
+            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z + 1.5f));
+            yield return Walk(Vector2.down, 1.6f);
+            Assert.Greater(apprentice.transform.position.z, way.z, $"held in ({apprentice.transform.position})");
+            w.Slay(apprentice.transform.position);
+            yield return new WaitForSeconds(2f);
+            Assert.IsFalse(gate.Shut || far.Shut, "beaten: open again");
+            Assert.AreEqual(0f, gate.Closed, 0.01f);
         }
 
         // Six scarecrows in the field, all alike: one of them is him, still hidden, his lantern dark; no fight yet.
@@ -811,7 +867,7 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator AnArena_WhatFollowsYouNeverCrossesIn()
         {
-            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
+            var gate = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate");
             Vector3 way = gate.transform.position;
             var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
             var laden = (Laden)post.spawner.SpawnAt("Laden", new Vector3(way.x, 3.35f, way.z - 5f), Vector3.forward);
@@ -905,7 +961,7 @@ namespace MyGame.Tests
             Shot("watchman-2-found");
             yield return Frames(30);
             Shot("watchman-3-torn-free");
-            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
+            var gate = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate");
             var gateCam = new GameObject("Gate Camera").AddComponent<Camera>();
             gateCam.CopyFrom(cam);
             gateCam.targetTexture = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
@@ -1050,6 +1106,52 @@ namespace MyGame.Tests
             for (int i = 0; i < 10; i++)
                 yield return null;
             Shot("thresher-3-stalled");
+        }
+
+        // (SHOTS=dir) The Glasshouse: from the field's far gateway; at its doors; inside (the roof gone); wide.
+        [UnityTest]
+        public IEnumerator Capture_Glasshouse()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            Time.captureFramerate = 30;
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name, Camera from = null)
+            {
+                from ??= cam;
+                if (from != cam)
+                    from.Render();
+                var previous = RenderTexture.active;
+                RenderTexture.active = from.targetTexture;
+                var tex = new Texture2D(from.targetTexture.width, from.targetTexture.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            IEnumerator At(Vector3 p, string name)
+            {
+                apprentice.Teleport(p, true, true);
+                for (int i = 0; i < 45; i++)
+                    yield return null;
+                Shot(name);
+            }
+            yield return At(new Vector3(0f, 3.35f, 31.5f), "glasshouse-0-the-far-gate");
+            yield return At(new Vector3(0f, 3.35f, 36.5f), "glasshouse-1-its-doors");
+            yield return At(new Vector3(0f, 3.35f, 41f), "glasshouse-2-inside");
+            yield return At(new Vector3(-5f, 3.35f, 46.5f), "glasshouse-3-inside-north");
+            apprentice.Teleport(new Vector3(0f, 3.35f, 30f), true, true);
+            for (int i = 0; i < 20; i++)
+                yield return null;
+            var wide = new GameObject("Wide").AddComponent<Camera>();
+            wide.CopyFrom(cam);
+            wide.targetTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            wide.transform.SetPositionAndRotation(new Vector3(0f, 26f, 22f), Quaternion.Euler(52f, 0f, 0f));
+            Shot("glasshouse-4-wide", wide);
         }
 
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.
