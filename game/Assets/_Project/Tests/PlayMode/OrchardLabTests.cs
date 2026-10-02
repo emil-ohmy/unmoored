@@ -237,10 +237,10 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(0, house.Level, "inside");
             Assert.IsFalse(house.Shown(1), "the roof gone");
-            // Its channels: shallow water to wade, which puts out flames.
+            // Its channels (down its sides): shallow water to wade, which puts out flames.
             apprentice.SetAlight();
-            apprentice.Teleport(doors.transform.position + new Vector3(2f, 0.05f, 2f));
-            yield return Walk(Vector2.up, 0.8f);
+            apprentice.Teleport(doors.transform.position + new Vector3(7.4f, 0.05f, 8f));
+            yield return Walk(Vector2.right, 0.8f);
             Assert.IsFalse(apprentice.Alight, $"waded in: out ({apprentice.transform.position})");
             Assert.IsTrue(apprentice.IsAlive && apprentice.CurrentState == Apprentice.State.Free, "no drowning in it");
         }
@@ -1143,14 +1143,15 @@ namespace MyGame.Tests
             yield return At(new Vector3(0f, 3.35f, 31.5f), "glasshouse-0-the-far-gate");
             yield return At(new Vector3(0f, 3.35f, 36.5f), "glasshouse-1-its-doors");
             yield return At(new Vector3(0f, 3.35f, 41f), "glasshouse-2-inside");
-            yield return At(new Vector3(-5f, 3.35f, 46.5f), "glasshouse-3-inside-north");
+            yield return At(new Vector3(-5f, 3.35f, 50f), "glasshouse-3-inside-north");
+            yield return At(new Vector3(7.2f, 3.35f, 45f), "glasshouse-5-a-channel");
             apprentice.Teleport(new Vector3(0f, 3.35f, 30f), true, true);
             for (int i = 0; i < 20; i++)
                 yield return null;
             var wide = new GameObject("Wide").AddComponent<Camera>();
             wide.CopyFrom(cam);
             wide.targetTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
-            wide.transform.SetPositionAndRotation(new Vector3(0f, 26f, 22f), Quaternion.Euler(52f, 0f, 0f));
+            wide.transform.SetPositionAndRotation(new Vector3(0f, 32f, 24f), Quaternion.Euler(55f, 0f, 0f));
             Shot("glasshouse-4-wide", wide);
         }
 

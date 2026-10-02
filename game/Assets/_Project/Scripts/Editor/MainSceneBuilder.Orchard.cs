@@ -418,12 +418,13 @@ public static partial class MainSceneBuilder
     }
 
     // The Glasshouse: beyond the Unreaped Rows' far gateway, on a terrace of its own, the Gardener's ruined palm house:
-    // iron ribs and broken panes on a brick plinth, mossy flagstones, two shallow water channels, raised beds of dead
-    // plants, two iron columns, the dead orange tree in its tub at the middle, four lamps hung on chains. Its roof fades
-    // when you're inside (Storeys). Its doors swing shut behind you while his fight is on (ArenaGate); nothing follows
+    // iron ribs and broken panes on a brick plinth, mossy flagstones, two shallow water channels down its sides, raised
+    // beds of dead plants against the side walls, the dead orange tree in its tub against the north wall, four lamps
+    // hung on chains; the middle left open (his floor). Its roof fades when you're inside (Storeys). Its doors swing shut behind you while his fight is on (ArenaGate); nothing follows
     // you in (ArenaZone).
     const float GlassX = 0f, GlassGroundZ = 34f, GlassHouseZ = 38.2f;
-    const float GlassWidth = 16f, GlassDepth = 12f, GlassWall = 3.6f, GlassRidge = 3.0f;
+    const float GlassWidth = 24f, GlassDepth = 18f, GlassWall = 3.6f, GlassRidge = 4.0f;
+    const float GlassChannel = 8.6f, GlassChannelFrom = 1.48f, GlassChannelTo = 16.52f; // (the channels' middles, ±, and their ends, in from the doors)
 
     static void Glasshouse()
     {
@@ -448,35 +449,45 @@ public static partial class MainSceneBuilder
         };
         // The channels' water: the river's own shader, shallow and still; wade in (it puts out flames).
         var channel = GeneratedMaterial("M_ChannelWater", "MyGame/Water");
-        channel.SetColor("_DeepColor", Hex("#0e1d1c"));
-        channel.SetColor("_ShallowColor", Hex("#2a4238"));
-        channel.SetColor("_FoamColor", Hex("#8fa49a"));
-        channel.SetFloat("_FoamDistance", 0.04f);
-        channel.SetFloat("_DepthFade", 0.25f);
-        channel.SetFloat("_WaveHeight", 0.005f);
-        channel.SetFloat("_WaveLength", 1.5f);
-        channel.SetFloat("_WaveSpeed", 0.4f);
-        channel.SetFloat("_RippleScale", 3f);
-        channel.SetFloat("_RippleSpeed", 0.5f);
-        channel.SetFloat("_RippleStrength", 0.25f);
+        // (bluer than the river, against the harvest moon's orange, which would turn it olive; a strong cold sheen and
+        // glints the ripples break up, the lamps caught in it, a pale edge along the kerbs: water, at a glance)
+        channel.SetColor("_DeepColor", Hex("#0f3446"));
+        channel.SetColor("_ShallowColor", Hex("#2f6f8c"));
+        channel.SetColor("_FoamColor", Hex("#b8ccd2"));
+        channel.SetColor("_ShadowTint", Hex("#9aa6d8"));
+        channel.SetColor("_SkyColor", Hex("#33507a"));
+        channel.SetColor("_GlintColor", Hex("#9fb6d6"));
+        channel.SetFloat("_GlintThreshold", 0.978f);
+        channel.SetVector("_SheenDir", new Vector4(0f, 0.8f, 0.6f, 0f));
+        channel.SetFloat("_FoamDistance", 0.07f);
+        channel.SetFloat("_DepthFade", 0.45f);
+        channel.SetFloat("_WaveHeight", 0.01f);
+        channel.SetFloat("_WaveLength", 1.2f);
+        channel.SetFloat("_WaveSpeed", 0.5f);
+        channel.SetFloat("_RippleScale", 2.6f);
+        channel.SetFloat("_RippleSpeed", 0.6f);
+        channel.SetFloat("_RippleStrength", 0.45f);
+        channel.SetFloat("_LampReflection", 0.7f);
+        channel.SetFloat("_LampSpecular", 3.5f);
         EditorUtility.SetDirty(channel);
-        foreach (float n in new[] { 3.6f, 8.4f })
+        float length = GlassChannelTo - GlassChannelFrom;
+        foreach (float e in new[] { -GlassChannel, GlassChannel })
         {
             var water = GameObject.CreatePrimitive(PrimitiveType.Quad);
             water.name = "Channel Water";
             Object.DestroyImmediate(water.GetComponent<Collider>()); // (you wade: the bed below holds you)
             water.transform.SetParent(root, true);
-            water.transform.SetPositionAndRotation(door + new Vector3(0f, -0.1f, n), Quaternion.Euler(90f, 0f, 0f));
-            water.transform.localScale = new Vector3(GlassWidth - 0.6f, 1.16f, 1f);
+            water.transform.SetPositionAndRotation(door + new Vector3(e, -0.1f, (GlassChannelFrom + GlassChannelTo) / 2f), Quaternion.Euler(90f, 0f, 0f));
+            water.transform.localScale = new Vector3(1.1f, length + 0.06f, 1f);
             var r = water.GetComponent<MeshRenderer>();
             r.sharedMaterial = channel;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             var shallows = water.AddComponent<Shallows>();
-            shallows.size = new Vector3(GlassWidth - 0.6f, 0.8f, 1.2f);
+            shallows.size = new Vector3(1.2f, 0.8f, length + 0.1f);
         }
 
-        // The dead orange tree at the middle (its tub solid; its branches overhead, nothing).
-        var tree = Put("glasshouse_tree", root.position, 25f);
+        // The dead orange tree against the north wall (its tub solid; its branches overhead, nothing).
+        var tree = Put("glasshouse_tree", door + new Vector3(0f, 0f, GlassDepth - 1.6f), 25f);
         foreach (var c in tree.GetComponentsInChildren<Collider>())
             Object.DestroyImmediate(c);
         var tub = tree.AddComponent<CapsuleCollider>();
@@ -484,14 +495,14 @@ public static partial class MainSceneBuilder
         tub.radius = 0.95f;
         tub.height = 1.2f;
         // Four lamps hung on chains from the vault, lit (he circles them).
-        foreach (var (e, n) in new[] { (-4.5f, 3f), (4.5f, 3f), (-4.5f, 9f), (4.5f, 9f) })
+        foreach (var (e, n) in new[] { (-6f, 4.5f), (6f, 4.5f), (-6f, 13.5f), (6f, 13.5f) })
         {
             float th = Mathf.Acos(1f - 2f * n / GlassDepth);
             float hang = GlassWall + Mathf.Sin(th) * GlassRidge - 0.1f;
             var lamp = Put("glasshouse_lamp", door + new Vector3(e, hang, n), 0f);
             foreach (var c in lamp.GetComponentsInChildren<Collider>())
                 Object.DestroyImmediate(c); // (overhead: nothing to walk into)
-            var light = PointLight(lamp.transform, GlowCentre(lamp, "GlasshouseLamp_Glow"), 8f, 2.2f, LanternLight);
+            var light = PointLight(lamp.transform, GlowCentre(lamp, "GlasshouseLamp_Glow"), 10f, 2.4f, LanternLight);
             Flicker(light, 0.08f, 3f, 0.01f);
         }
         // A lantern on a crook by the doors, outside.
