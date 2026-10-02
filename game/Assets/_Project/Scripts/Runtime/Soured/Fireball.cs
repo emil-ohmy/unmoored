@@ -16,7 +16,8 @@ namespace MyGame
         public float damage = 18f, radius = 0.4f;
         public bool parryable = true;
         public bool glances;                  // perfect-blocked, it's knocked aside (not back at him)
-        public System.Action<Fireball, Defence> Done; // what became of it, once (Dodged: it missed, or passed through a dash)
+        public System.Action<Fireball, Defence> Done;
+        public AudioClip[] gutterSound;       // where it strikes // what became of it, once (Dodged: it missed, or passed through a dash)
         public bool Deflected { get; private set; }
         public Soured Owner => owner;
 
@@ -167,13 +168,7 @@ namespace MyGame
             if (soured == null || !soured.IsAlive || !soured.isActiveAndEnabled
                 || !Near(from, to, soured.transform.position + Vector3.up * 1.0f, soured.radius + 0.45f))
                 return false;
-            if (soured is Watchman w)
-                w.Scorch(from);
-            else
-            {
-                soured.TakeBurn(12f, from);
-                Burning.Set(soured, 2.5f, 5f);
-            }
+            soured.StruckByOwnFire(from); // (the Watchman: scorched; a Gleaner: up at once)
             Gutter(to);
             return true;
         }
@@ -183,7 +178,7 @@ namespace MyGame
             Finish(Defence.Dodged); // (if nothing else became of it: it missed)
             for (int i = 0; i < 18; i++)
                 Effects.Instance?.Flame(at + Random.insideUnitSphere * 0.3f, Random.insideUnitSphere * 2f + Vector3.up * 1.5f, Random.Range(0.25f, 0.5f), size * Random.Range(0.6f, 1f));
-            Sfx.Instance?.Attack((owner as Watchman)?.gutterSound, at, 0.8f, "fireball_gutter");
+            Sfx.Instance?.Attack(gutterSound, at, 0.8f, "fireball_gutter");
             Destroy(gameObject);
         }
 

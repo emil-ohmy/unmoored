@@ -266,6 +266,7 @@ namespace MyGame
             var ball = Fireball.Fire(from, direction, speed, size, target, this, fireMaterial);
             ball.damage = damage;
             ball.parryable = parryable;
+            ball.gutterSound = gutterSound;
             if (CurrentAttack == flurry)
                 ball.Done = OnSmallDone;
             Breathed?.Invoke(this, ball);
@@ -299,6 +300,8 @@ namespace MyGame
                 nextFire = Time.time + (finaleReady ? 0.5f : fireCooldown);
             }
         }
+
+        public override void StruckByOwnFire(Vector3 from) => Scorch(from);
 
         // His own fire, turned back at him: a third of him burns away.
         public void Scorch(Vector3 from)

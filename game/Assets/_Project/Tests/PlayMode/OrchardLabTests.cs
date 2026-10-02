@@ -9,6 +9,11 @@ using UnityEngine.TestTools;
 
 namespace MyGame.Tests
 {
+    static class TestVectors
+    {
+        public static Vector3 Flat(this Vector3 v) => new Vector3(v.x, 0f, v.z);
+    }
+
     // The Orchard of Last Autumn's lab (Scenes/Lab_Orchard.unity): its terraces walk up (steps) and drop down, the press
     // house's loft is reached by its stair (and the roof fades inside), the air has its leaves and mist, the night its
     // harvest moon.
@@ -26,6 +31,10 @@ namespace MyGame.Tests
             yield return null;
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
+            // The Gleaners keep out of every test but their own (their fire would cut into the rest).
+            if (!TestContext.CurrentContext.Test.Name.Contains("Gleaner"))
+                foreach (var g in UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None))
+                    g.passive = true;
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -398,6 +407,69 @@ namespace MyGame.Tests
             Assert.AreEqual(2, apprentice.Equipment.Carried(Provision.SoddenSack), "picked up: two");
         }
 
+        // ---- The Gleaners
+
+        Gleaner MiddleGleaner => UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None)
+            .Where(g => g.transform.position.y < 2.5f).OrderBy(g => g.transform.position.x).First(); // (the middle terrace's west one)
+
+        // Four in the Orchard: two in the middle rows, two before the field's gate.
+        [UnityTest]
+        public IEnumerator Gleaners_InTheRows()
+        {
+            var all = UnityEngine.Object.FindObjectsByType<Gleaner>(FindObjectsSortMode.None);
+            Assert.AreEqual(4, all.Length);
+            Assert.AreEqual(2, all.Count(g => g.transform.position.y < 2.5f), "two on the middle terrace");
+            yield return null;
+        }
+
+        // It keeps its distance: close in, and it skips away from the oar.
+        [UnityTest]
+        public IEnumerator Gleaner_SkipsAwayFromTheOar()
+        {
+            var g = MiddleGleaner;
+            Vector3 at = g.transform.position;
+            apprentice.Teleport(at + Vector3.right * 5f);
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.left);
+            yield return WaitFor(() => g.CurrentState != Soured.State.Idle, 3f, "it noticing you");
+            int hops = 0;
+            Action<Gleaner> onHop = x => { if (x == g) hops++; };
+            Gleaner.Hopped += onHop;
+            try
+            {
+                // (not while it's winding up or throwing: it's committed then; wait till it's free to move)
+                for (float t = 0f; t < 3f && g.CurrentState != Soured.State.Chase; t += Time.deltaTime)
+                    yield return null;
+                apprentice.Teleport(g.transform.position + (apprentice.transform.position - g.transform.position).Flat().normalized * 2.2f);
+                apprentice.transform.rotation = Quaternion.LookRotation((g.transform.position - apprentice.transform.position).Flat());
+                input.PressLight();
+                yield return WaitFor(() => hops > 0, 1f, "it skipping away");
+                yield return new WaitForSeconds(0.5f);
+                Assert.Greater(Vector3.Distance(g.transform.position.Flat(), apprentice.transform.position.Flat()), 3.5f, "out of the oar's reach");
+                Assert.AreEqual(g.maxHealth, g.Health, "and unhurt");
+            }
+            finally { Gleaner.Hopped -= onHop; }
+        }
+
+        // Its fire, turned back with a perfect block: it goes up at once.
+        [UnityTest]
+        public IEnumerator Gleaner_ItsFireTurnedBack_BurnsItUp()
+        {
+            var g = MiddleGleaner;
+            Fireball ball = null;
+            Action<Gleaner, Fireball> onFling = (x, f) => { if (x == g && ball == null) ball = f; };
+            Gleaner.Flung += onFling;
+            try
+            {
+                apprentice.Teleport(g.transform.position + Vector3.right * 8f);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.left);
+                yield return WaitFor(() => ball != null, 8f, "its fire");
+                yield return Parry(ball, g);
+                yield return WaitFor(() => !g.IsAlive, 3f, "it burning up");
+                Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.Gleaners), "written in the Ledger");
+            }
+            finally { Gleaner.Flung -= onFling; }
+        }
+
         // His fire taken full (not blocked): you're alight.
         [UnityTest]
         public IEnumerator TheWatchman_HisFireTaken_SetsYouAlight()
@@ -474,7 +546,7 @@ namespace MyGame.Tests
         }
 
         // A perfect block on `ball`, raised just before it arrives, facing him all the while.
-        IEnumerator Parry(Fireball ball, Watchman w)
+        IEnumerator Parry(Fireball ball, Component w)
         {
             bool done = false;
             var outcome = Defence.Dodged;
@@ -768,6 +840,47 @@ namespace MyGame.Tests
                 yield return null;
             yield return Frames(6);
             Shot("watchman-10-three-small");
+        }
+
+        // (SHOTS=dir) A Gleaner: in the rows; drawing back to throw (its lantern flaring); its fire.
+        [UnityTest]
+        public IEnumerator Capture_Gleaner()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            Time.captureFramerate = 30;
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var g = MiddleGleaner;
+            foreach (var m in Flock("Moths (middle terrace)").Moths)
+                m.Pin(m.transform.position);
+            apprentice.Teleport(g.transform.position + new Vector3(0.5f, 0.05f, -3.6f), true, true);
+            for (int i = 0; i < 20; i++)
+                yield return null;
+            Shot("gleaner-0-in-the-rows");
+            for (int i = 0; i < 200 && g.CurrentState != Soured.State.Telegraph; i++)
+                yield return null;
+            for (int i = 0; i < 18; i++)
+                yield return null;
+            Shot("gleaner-1-drawing-back");
+            for (int i = 0; i < 60 && Fireball.Live == 0; i++)
+                yield return null;
+            for (int i = 0; i < 6; i++)
+                yield return null;
+            Shot("gleaner-2-its-fire");
         }
 
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.

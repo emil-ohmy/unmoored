@@ -95,3 +95,5 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | The Apprentice catching fire (`apprentice_catch`, 2) | in game | Synth | a soft dry whumph as the cloak goes up, a rush of flame, a gasp through the mask |
 | The Apprentice alight (`apprentice_burning`, 3) | in game | Synth | played every half second while it lasts: cloth burning, a low flutter of flame, a scatter of dry cracks |
 | A Sodden Sack (`sodden_sack`) | in game | Synth | a heavy wet slap of sacking, a long hiss of steam, a few drips |
+| Gleaner drawing back (`gleaner_windup`, 2) | in game | Synth | its tell: the long pole creaking as it swings up, the lantern's flame gulping air and roaring up, a breath drawn in through the hood (its fire: `fireball_whoosh`) |
+| Gleaner skipping away (`gleaner_hop`, 3) | in game | Synth | the smock flapping, a light double scuff of feet in the leaves, the lantern rattling on its crook |

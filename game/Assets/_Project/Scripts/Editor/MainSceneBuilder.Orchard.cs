@@ -34,6 +34,7 @@ public static partial class MainSceneBuilder
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
         UpperTerrace();
         UnreapedRows(); // the field over the orchard wall: the Orchard's miniboss, among its scarecrows
+        GleanersInTheRows();
         OrchardLanterns();
         OrchardAir();
 
@@ -372,11 +373,7 @@ public static partial class MainSceneBuilder
         w.flurry.volleyInterval = 0.8f;
         w.flurry.volleyTrack = 20f;
         w.finale = Fire("Finale", "Hold", 1.7f, 7f, 0.9f); // (his last great breath: the lantern blazing)
-        w.fireMaterial = GeneratedMaterial("M_Fireball", "MyGame/Toon");
-        w.fireMaterial.SetColor("_BaseColor", new Color(1f, 0.6f, 0.25f));
-        w.fireMaterial.SetColor("_EmissionColor", new Color(1.6f, 0.7f, 0.2f));
-        w.fireMaterial.SetFloat("_OutlineWidth", 0f);
-        EditorUtility.SetDirty(w.fireMaterial);
+        w.fireMaterial = FireballMaterial();
         w.creakSound = Clips("watchman_creak");
         w.revealSound = Clips("watchman_reveal");
         w.strawSound = Clips("straw_puff");
@@ -393,6 +390,17 @@ public static partial class MainSceneBuilder
         w.lantern.enabled = false;
         Swoosh(w.gameObject, "ArmR", "HookIron", SouredSwoosh, 0.16f, "OrchardWood"); // (the hook's sweep)
         return w;
+    }
+
+    // The Gleaners: two on the middle terrace's west rows, two on the top terrace before the field's gate (where you
+    // learn to turn fire back, before the Watchman's).
+    static void GleanersInTheRows()
+    {
+        var root = new GameObject("Gleaners").transform;
+        foreach (var (at, yaw) in new[] {
+                     (new Vector3(-10.5f, MiddleTop, 6.4f), 160f), (new Vector3(-5.5f, MiddleTop, 7.2f), 200f),
+                     (new Vector3(-9.5f, UpperTop, 14.6f), 170f), (new Vector3(-4.8f, UpperTop, 12.6f), 190f) })
+            Gleaner("Gleaner", at, yaw).transform.SetParent(root, true);
     }
 
     // Lanterns on crooks along the ways, each warm, flickering, a few small pale moths circling it.
