@@ -113,12 +113,16 @@ _Avoid_: Bestiary, codex, journal, compendium
 _Avoid_: Inventory, status menu
 
 **Provision**:
-Something carried and used up: a Pitch Pot, Ember Tar, the Way Back, Warm Broth, a Bitter Root. Bought or found, each kind up to a cap; Resting doesn't refill them.
+Something carried and used up: a Pitch Pot, Ember Tar, the Way Back, Warm Broth, a Bitter Root, a Sodden Sack. Bought or found, each kind up to a cap; Resting doesn't refill them.
 _Avoid_: Consumable, item, potion
 
 **Poison**:
 What a Drowned's spit leaves in you: a build-up that ebbs if you keep clear; full, you're poisoned, losing health a while, until it wears off or is cured (a Bitter Root, a Rest).
 _Avoid_: Toxin, venom, status
+
+**Alight**:
+The Apprentice on fire: health and stamina burning away for a few seconds, from fire that lands (the Watchman's, a scarecrow going up, burning pitch). Put out by water, a Sodden Sack or a Rest.
+_Avoid_: Burning (for the Apprentice: that's a Soured's), on fire, ignited
 
 **Satchel**:
 Where the Apprentice carries Provisions, and the character screen's page for them.

@@ -73,6 +73,10 @@ business and pay their fare to row them across.
 - **Poison** (a Drowned's spit): it builds up in a meter in the middle of the screen, under the Apprentice. Two spits
   taken fill it (a plain block lets a little through), and it ebbs if you keep clear. Full, you're poisoned: about 40 health over 20 s, unless you cure it with a Bitter Root or
   a Rest.
+- **Alight:** fire that lands sets the Apprentice alight at once: the Watchman's fire taken (not blocked or parried),
+  a scarecrow going up beside you, standing in burning pitch (your own too). For about 5 s health and stamina burn
+  away (about 20 health; no breath comes back while it lasts); more fire keeps it going longer, never past 8 s. Water
+  puts it out (going under: you wash ashore, as ever), and so do a Sodden Sack and a Rest. No meter: fire is sudden.
 - **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
   LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
   - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on
@@ -142,6 +146,7 @@ business and pay their fare to row them across.
     on the water.
   - **Warm Broth** (3): mends 30 health over 10 s, and a blow doesn't stop it.
   - **Bitter Root** (3): cures poison and empties its build-up.
+  - **Sodden Sack** (3): old sacking soaked through, thrown over yourself: puts out the flames at once.
   - The belt has four slots that keep their places; an empty one is passed by. The first of a kind goes in the first
     empty slot. The Satchel page works slot-first: pick a slot (left/right), then choose what goes in it (up/down,
     with the chosen one turning, as the Oar page shows the oar). One put in another's slot swaps with it, and "empty"

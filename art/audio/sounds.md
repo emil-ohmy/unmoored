@@ -92,3 +92,6 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Watchman scorched (`watchman_scorch`) | in game | Synth | his own fire turned back on him: a rushing roar through the straw, the coat's seams going, a hollow cry through the sack |
 | Watchman's breath knocked aside (`watchman_chime`, 3) | in game | Synth | round 3, one per small fireball knocked aside in a row, rising: music-box notes of A minor (A5, C6, E6), each fuller; the third with the octave under it, a finish |
 | The row broken (`watchman_sour`) | in game | Synth | round 3, one not knocked aside: a dull wooden thud and a music-box note gone sour (two flat tines a semitone apart, beating) |
+| The Apprentice catching fire (`apprentice_catch`, 2) | in game | Synth | a soft dry whumph as the cloak goes up, a rush of flame, a gasp through the mask |
+| The Apprentice alight (`apprentice_burning`, 3) | in game | Synth | played every half second while it lasts: cloth burning, a low flutter of flame, a scatter of dry cracks |
+| A Sodden Sack (`sodden_sack`) | in game | Synth | a heavy wet slap of sacking, a long hiss of steam, a few drips |

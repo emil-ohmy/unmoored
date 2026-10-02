@@ -612,11 +612,11 @@ namespace MyGame
 
         public static Sprite IconOf(Provision p) =>
             p == Provision.PitchPot ? UiKit.PotIcon : p == Provision.EmberTar ? UiKit.TinIcon : p == Provision.WayBack ? UiKit.CordIcon
-            : p == Provision.BitterRoot ? UiKit.RootIcon : UiKit.FlaskIcon;
+            : p == Provision.BitterRoot ? UiKit.RootIcon : p == Provision.SoddenSack ? UiKit.SackIcon : UiKit.FlaskIcon;
 
         public static Color ColourOf(Provision p) =>
             p == Provision.PitchPot ? UiKit.Hex(0xc07a4e) : p == Provision.EmberTar ? UiKit.Hex(0xff8a3a) : p == Provision.WayBack ? UiKit.Hex(0xe0d4b6)
-            : p == Provision.BitterRoot ? UiKit.Hex(0xb9a36a) : UiKit.Hex(0xffc47a);
+            : p == Provision.BitterRoot ? UiKit.Hex(0xb9a36a) : p == Provision.SoddenSack ? UiKit.Hex(0x9fb4c2) : UiKit.Hex(0xffc47a);
 
         void UpdateBelt(float now)
         {

@@ -1276,6 +1276,40 @@ namespace MyGame.Tests
             Assert.IsFalse(apprentice.Poisoned, "a Rest cures it too");
         }
 
+        // Alight: health and stamina burn away (no breath back while it lasts); a Sodden Sack puts it out at once, and
+        // so does a Rest. Your own pitch burns you too.
+        [UnityTest]
+        public IEnumerator Alight_BurnsHealthAndStamina_ASoddenSackPutsItOut()
+        {
+            yield return null;
+            float health = apprentice.Health, stamina = apprentice.Stamina;
+            apprentice.SetAlight(5f);
+            Assert.IsTrue(apprentice.Alight);
+            yield return new WaitForSeconds(2f);
+            Assert.AreEqual(health - apprentice.alightHealthPerSecond * 2f, apprentice.Health, 1f, "burning");
+            Assert.Less(apprentice.Stamina, stamina - apprentice.alightStaminaPerSecond * 1.5f, "and out of breath");
+            yield return UseFromTheBelt(Provision.SoddenSack);
+            yield return new WaitForSeconds(apprentice.drinkTime + 0.1f);
+            Assert.IsFalse(apprentice.Alight, "smothered");
+            float after = apprentice.Health;
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(after, apprentice.Health, 0.01f, "and no more burning");
+            apprentice.SetAlight(5f);
+            apprentice.RestoreFully();
+            Assert.IsFalse(apprentice.Alight, "a Rest puts it out too");
+            // More fire, longer: but never past the most.
+            apprentice.SetAlight(5f);
+            apprentice.SetAlight(5f);
+            apprentice.SetAlight(5f);
+            Assert.LessOrEqual(apprentice.AlightLeft, apprentice.alightMost + 0.01f);
+            Assert.Greater(apprentice.AlightLeft, 5.5f);
+            apprentice.Douse();
+            // A Pitch Pot at your own feet.
+            PitchPot.Throw(null, apprentice.transform.position + Vector3.up * 1.2f + apprentice.transform.forward * 0.3f, apprentice.transform.position + apprentice.transform.forward * 0.4f);
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsTrue(apprentice.Alight, "your own pitch burns you too");
+        }
+
         // A perfect block turns its spit back, and a Drowned struck by its own spit is slain outright.
         [UnityTest]
         public IEnumerator TheDrowned_SpitTurnedBack_SlaysIt()

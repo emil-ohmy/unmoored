@@ -73,8 +73,8 @@ namespace MyGame
             {
                 Vector3 away = target.transform.position - transform.position;
                 away.y = 0f;
-                if (away.magnitude < burstRadius)
-                    target.TakeHit(burstDamage, away.normalized * 5f, this, blockable: false); // (fire: no guard stops it)
+                if (away.magnitude < burstRadius && target.TakeHit(burstDamage, away.normalized * 5f, this, blockable: false) == Defence.Taken) // (fire: no guard stops it)
+                    target.SetAlight(4f);
             }
             Burst?.Invoke(this);
         }

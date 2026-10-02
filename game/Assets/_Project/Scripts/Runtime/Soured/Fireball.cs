@@ -98,6 +98,8 @@ namespace MyGame
                     passed = true; // through the i-frames: it flies on
                 else
                 {
+                    if (defence == Defence.Taken)
+                        target.SetAlight(glances ? 2.5f : 4f); // (taken full: you're alight)
                     Gutter(from);
                     return;
                 }

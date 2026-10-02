@@ -358,6 +358,9 @@ public static partial class MainSceneBuilder
         controller.minMoveDistance = 0f;
         go.AddComponent<Equipment>();
         var apprentice = go.AddComponent<Apprentice>();
+        apprentice.catchSound = Clips("apprentice_catch");
+        apprentice.burningSound = Clips("apprentice_burning");
+        apprentice.sackSound = Clips("sodden_sack");
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
         go.AddComponent<OarLook>(); // the oar's step: its trims and its wood
