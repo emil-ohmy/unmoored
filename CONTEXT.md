@@ -36,12 +36,20 @@ A soul the Ferryman kept too long, turned hostile; the game's enemies. Defeat sc
 _Avoid_: Enemy, monster, hollow
 
 **Soured family**:
-A kind of Soured defined by what it couldn't let go of: the Laden, the Clinger, the Keener, the Moths, the Drowned.
+A kind of Soured defined by what it couldn't let go of: the Laden, the Clinger, the Keener, the Moths, the Drowned, the Gleaners, the Threshers.
 _Avoid_: Enemy type, species, class
 
 **Laden archer**:
 A Laden that let most of its heap go and kept a bow: shoots single arrows or a volley of three from range, and keeps its distance. A variant within the Laden family, not a family of its own.
 _Avoid_: Archer (alone), ranged Laden, bowman
+
+**Gleaner**:
+A Soured of the Orchard: a farmhand who went on gleaning after the harvest failed, a lantern on a long pole, flinging fire from it and skipping away from the oar. Its own fire, turned back, burns it up.
+_Avoid_: Farmhand, peasant, fire-thrower
+
+**Thresher**:
+A Soured of the Orchard: an old threshing machine and the man who drove it, grown into its seat. Charges in straight lines; crashed or its chain wrenched off by the Hook, it stalls. Iron: fire only stokes it.
+_Avoid_: Machine, harvester, tractor
 
 **Crossing**:
 Rowing a Lingerer from the hub jetty to the Far shore, releasing them. On the water they speak (a memory of the Ferryman); at the Far shore they go on into its light and leave a parting gift.

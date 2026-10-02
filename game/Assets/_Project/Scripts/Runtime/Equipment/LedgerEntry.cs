@@ -56,11 +56,19 @@ namespace MyGame
             "Pale and dusty, they circle a light, and come to yours. Each carries a memory; when one goes, the memory goes with it: a note, as from a music box.",
             "One at a time, each stalls, flaring, before it dives. A heavy swing goes through several; fire takes the whole flock.");
 
+        public static readonly LedgerEntry Gleaners = new LedgerEntry("gleaners", "The Gleaners", Rank.Soured, Orchard, "gleaner",
+            "After the harvest failed they went on gleaning, walking the rows at night with lanterns on long poles, picking the field over for grain that was never there.",
+            "Hard to catch: it skips back from the oar, but not while it winds up to throw. Turn its fire back with a perfect block and it goes up at once. The Hook brings it close.");
+
+        public static readonly LedgerEntry Threshers = new LedgerEntry("threshers", "The Threshers", Rank.Soured, Orchard, "thresher",
+            "The orchard's old threshing machines, and the men who drove them, still in the seat, grown into the levers. They run the rows as if there were still a harvest to bring in.",
+            "It charges straight and barely turns: step aside, and let it run into something. From the front the oar glances off; reach the driver from behind. Fire only stokes it. The Hook wrenches its chain off.");
+
         public static readonly LedgerEntry Watchman = new LedgerEntry("watchman", "Abner Wick, Who Merits Flame", Rank.Miniboss, Orchard, "watchman",
             "The man who worked the orchard, a scarecrow among scarecrows in the Unreaped Rows, still keeping watch over a harvest that never came.",
             "Straw: the oar goes through him. Turn his own fire back at him.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Watchman };
+        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -77,6 +85,8 @@ namespace MyGame
             MyGame.Clinger _ => Clinger,
             MyGame.Drowned _ => Drowned,
             MyGame.Moth _ => Moths,
+            MyGame.Gleaner _ => Gleaners,
+            MyGame.Thresher _ => Threshers,
             _ => null,
         };
 

@@ -1542,6 +1542,11 @@ namespace MyGame.Tests
             menu.Do("Give the Apprentice...");
             yield return Frames(10);
             Shot("lab-3-give");
+            input.Move = Vector2.up; // (round to the last row: the list scrolls)
+            yield return Frames(1);
+            input.Move = Vector2.zero;
+            yield return Frames(10);
+            Shot("lab-3b-give-scrolled");
             apprentice.OpenMenu.Close();
             var dummy = UnityEngine.Object.FindObjectsByType<Laden>(FindObjectsSortMode.None).First(l => l.immortal);
             post.spawner.ClearSpawned();

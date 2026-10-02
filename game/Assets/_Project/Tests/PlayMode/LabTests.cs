@@ -1118,6 +1118,29 @@ namespace MyGame.Tests
             screen.Toggle(false);
         }
 
+        // The Tester's Post has more rows than fit: its menu scrolls, the chosen one kept in view.
+        [UnityTest]
+        public IEnumerator TestersPost_ItsMenuScrolls()
+        {
+            yield return OpenTheMenu();
+            var hud = Object.FindAnyObjectByType<Hud>();
+            yield return null;
+            yield return null;
+            var rows = Menu.Rows;
+            Assert.Greater(rows.Count, 8, "more rows than fit");
+            Assert.AreEqual(0, hud.Menu.First, "from the top");
+            Assert.AreEqual(rows[0].Label, hud.Menu.ShownLabels[0]);
+            input.Move = Vector2.up; // (up from the first: round to the last)
+            yield return null;
+            input.Move = Vector2.zero;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(rows.Count - 1, Menu.Selected);
+            Assert.Greater(hud.Menu.First, 0, "scrolled down");
+            Assert.AreEqual(rows[rows.Count - 1].Label, hud.Menu.ShownLabels[hud.Menu.ShownLabels.Count - 1], "the last row in view");
+            Assert.LessOrEqual(hud.Menu.ShownLabels.Count, 8);
+        }
+
         // (the lab) The Tester's Post writes the whole Ledger in, so every page can be seen.
         [UnityTest]
         public IEnumerator TestersPost_WritesInTheWholeLedger()

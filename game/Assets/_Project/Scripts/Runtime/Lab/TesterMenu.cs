@@ -75,6 +75,12 @@ namespace MyGame
                 Add("They start", Spawner.Aggressive ? "aggressive" : "idle", "Aggressive: they know you're there. Idle: they never notice you, and never fight back.",
                     () => Spawner.Aggressive = !Spawner.Aggressive);
                 Add("Formations...", "", "The miniboss, and ready-made mixes: shield and bow, Clingers with a Laden, everything at once.", () => Go(Page.Formations));
+                if (post.residents.Length > 0)
+                    Add("The rows' own", post.ResidentsAwake ? "awake" : "asleep", "The Soured placed about this lab (the Gleaners, the Moths): asleep, they're gone, so the new thing can be tried on its own; awake, they're back where they stood.", () =>
+                    {
+                        post.SetResidents(!post.ResidentsAwake);
+                        Say(post.ResidentsAwake ? "Up they get." : "Hush. They'll keep.");
+                    });
                 Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone (and the readout's counts start again).", () =>
                 {
                     Spawner.ClearSpawned();

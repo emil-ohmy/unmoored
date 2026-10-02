@@ -585,6 +585,27 @@ namespace MyGame
             clips.PlayOnce("Stagger", duration);
         }
 
+        // Its own fire turned back at it by a perfect block (a Fireball): set alight (a Watchman's straw: a third of him
+        // burns; a Gleaner goes up at once).
+        public virtual void StruckByOwnFire(Vector3 from)
+        {
+            TakeBurn(12f, from);
+            Burning.Set(this, 2.5f, 5f);
+        }
+
+        // (a subclass) A shove of its own making (a Gleaner's hop back): carried by the controller, against walls.
+        protected void Shove(Vector3 velocity) => knockback = velocity;
+
+        // Whether there's ground to stand on at `at` (above the water, a step up or down at most): for a hop.
+        protected bool FootingAt(Vector3 at, float drop = 1.6f)
+        {
+            int count = Physics.RaycastNonAlloc(at + Vector3.up * 0.8f, Vector3.down, groundHits, 0.8f + drop, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+                if (!(groundHits[i].collider is CharacterController) && groundHits[i].point.y > waterLevel + 0.1f)
+                    return true;
+            return false;
+        }
+
         // Caught by the Apprentice's Hook: yanked over to land in front of them (over water, if need be), reeling; the
         // heavier the Soured, the slower it comes (a Boss answers otherwise: see the Anchoress).
         public virtual HookResult OnHooked(Apprentice by)

@@ -641,6 +641,124 @@ public static partial class MainSceneBuilder
         return moth;
     }
 
+    // A Gleaner: keeps its distance and skips away from the oar; flings fire from its pole's lantern (turned back, its
+    // own fire burns it up).
+    static Gleaner Gleaner(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/gleaner", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.85f, 0f);
+        controller.height = 1.7f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var g = go.AddComponent<Gleaner>();
+        g.maxHealth = 50f;
+        g.radius = 0.4f;
+        g.staggerCapacity = 40f;
+        g.staggerDuration = 0.9f;
+        g.aggroRadius = 12f;
+        g.viewHalfAngle = 110f;
+        g.noticeCloseRadius = 4f;
+        g.chaseSpeed = 2.4f;
+        g.turnSpeed = 540f;
+        g.leashRadius = 16f;
+        g.giveUpRange = 18f;
+        g.obols = 30;
+        g.eyeHeight = 1.5f;
+        g.barHeight = 2.2f;
+        g.primary = new SouredAttack
+        {
+            name = "Fling", windupClip = "Windup", strikeClip = "Fling", recoverClip = "Recover",
+            telegraph = 0.9f, strike = 0.35f, recover = 0.8f, impactAt = 0.45f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 16f, reach = 13f, arc = 180f, knockback = 3f,
+            ranged = true, projectileSpeed = 7f,
+            windupSound = Clips("gleaner_windup"), releaseSound = Clips("fireball_whoosh"),
+        };
+        g.fireMaterial = FireballMaterial();
+        g.lantern = PointLight(Bone(go, "Pole"), GlowCentre(go, "GleanerLantern_Glow"), 6.5f, g.lanternIntensity, LanternLight); // (a pool of light round it: seen in the dark rows)
+        g.hopSound = Clips("gleaner_hop");
+        g.gutterSound = Clips("fireball_gutter");
+        BeltLantern(go, g);
+        return g;
+    }
+
+    // A Thresher: an iron threshing machine, its driver grown into the seat. Charges in straight lines; crashes into what's
+    // solid; the oar glances off its front; fire stokes it; the Hook wrenches its chain off.
+    static Thresher Thresher(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/thresher", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 1.0f, 0f);
+        controller.height = 2.0f;
+        controller.radius = 0.8f;   // (round: it slides off a trunk or a post rather than catching on it)
+        controller.stepOffset = 0.3f;
+        controller.minMoveDistance = 0f;
+        var t = go.AddComponent<Thresher>();
+        t.maxHealth = 240f;
+        t.radius = 0.9f;
+        t.knockbackResistance = 1f;
+        t.staggerCapacity = 9999f; // (iron: it doesn't reel)
+        t.aggroRadius = 13f;
+        t.viewHalfAngle = 120f;
+        t.noticeCloseRadius = 3f;
+        t.chaseSpeed = 1.6f;
+        t.turnSpeed = 70f;         // (it barely turns)
+        t.leashRadius = 22f;
+        t.giveUpRange = 20f;
+        t.obols = 120;
+        t.eyeHeight = 1.8f;
+        t.barHeight = 2.9f;
+        t.deathDuration = 1.2f;
+        t.fireWeakness = 0f;
+        t.primary = new SouredAttack
+        {
+            name = "Sweep", windupClip = "SweepWindup", strikeClip = "Sweep", recoverClip = "Recover",
+            telegraph = 0.7f, strike = 0.3f, recover = 0.75f, impactAt = 0.4f,
+            lunge = 0.3f, maxLunge = 0.6f, trackUntil = 0.8f, damage = 20f, reach = 3.0f, arc = 120f, knockback = 9f,
+        };
+        t.primary.windupSound = Clips("thresher_rev");
+        t.primary.swingSound = Clips("laden_swing");
+        t.primary.swingPitch = 0.8f;
+        t.charge = new SouredAttack
+        {
+            name = "Charge", windupClip = "Rev", strikeClip = "Charge", recoverClip = "Idle",
+            telegraph = 1.1f, strike = 2.2f, recover = 0.8f, impactAt = 0f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 30f, reach = 15f, arc = 180f, knockback = 12f, scripted = true,
+            windupSound = Clips("thresher_rev"), swingSound = Clips("thresher_charge"),
+        };
+        t.vent = new SouredAttack
+        {
+            name = "Vent", windupClip = "Idle", strikeClip = "Vent", recoverClip = "Idle",
+            telegraph = 0.55f, strike = 0.5f, recover = 0.6f, impactAt = 0f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0f, damage = 10f, reach = 2.4f, arc = 360f, knockback = 7f, scripted = true,
+            windupSound = Clips("thresher_hiss"),
+        };
+        t.reel = Bone(go, "Reel");
+        var stack = new GameObject("Stack Top").transform;
+        stack.SetParent(Bone(go, "Body"), false);
+        stack.position = go.transform.position + Vector3.up * 2.55f + go.transform.forward * 0.18f;
+        t.stack = stack;
+        t.crashSound = Clips("thresher_crash");
+        t.chainSound = Clips("thresher_chain");
+        t.stokeSound = Clips("thresher_stoke");
+        t.ventSound = Clips("thresher_vent");
+        BeltLantern(go, t, "Body");
+        return t;
+    }
+
+    // A ball of fire (the Watchman's, a Gleaner's): glowing orange, no outline.
+    static Material FireballMaterial()
+    {
+        var m = GeneratedMaterial("M_Fireball", "MyGame/Toon");
+        m.SetColor("_BaseColor", new Color(1f, 0.6f, 0.25f));
+        m.SetColor("_EmissionColor", new Color(1.6f, 0.7f, 0.2f));
+        m.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
     // A flock of Moths round a light (`lamp`: none, round where it's set down).
     static MothFlock MothFlockAt(string name, Vector3 at, Transform lamp, int count)
     {
