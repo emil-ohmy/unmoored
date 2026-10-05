@@ -575,48 +575,28 @@ public static partial class MainSceneBuilder
         m.wakeLine = door.z + 11f; // (far enough in to have seen him there, folded on his tree)
         m.lampModels = lampModels;
         m.lamps = lampLights;
-        // He lands to tend the beds over the channel beside each, facing in to it.
-        m.bedSpots = new[]
-        {
-            door + new Vector3(-9.1f, 0.06f, 4.7f), door + new Vector3(-9.1f, 0.06f, 13.3f),
-            door + new Vector3(9.1f, 0.06f, 4.7f), door + new Vector3(9.1f, 0.06f, 13.3f),
-        };
-        m.bedFacing = new[] { Vector3.left, Vector3.left, Vector3.right, Vector3.right };
-        m.channelX = new[] { door.x - GlassChannel, door.x + GlassChannel };
-        m.channelFrom = door.z + GlassChannelFrom;
-        m.channelTo = door.z + GlassChannelTo;
-        m.primary = new SouredAttack
-        {
-            name = "Shears", windupClip = "ShearsDraw", strikeClip = "Shears", recoverClip = "Recover",
-            telegraph = 0.7f, strike = 0.3f, recover = 1.0f, impactAt = 0.4f,
-            lunge = 0f, maxLunge = 0f, trackUntil = 0.75f, damage = 26f, reach = 3.4f, arc = 110f, knockback = 9f,
-            windupSound = Clips("father_moth_snip"), swingSound = Clips("laden_swing"), swingPitch = 1.2f,
-        };
         SouredAttack Scripted(string name, string windup, string strike, float telegraph, float strikeTime, float recover) => new SouredAttack
         {
             name = name, windupClip = windup, strikeClip = strike, recoverClip = "Fly",
             telegraph = telegraph, strike = strikeTime, recover = recover, impactAt = 0.05f,
             lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 18f, arc = 180f, knockback = 0f, scripted = true,
         };
-        m.dive = Scripted("Dive", "Stall", "Dive", 0.85f, 1.1f, 0.6f);
-        m.gust = Scripted("Gust", "GustDraw", "Gust", 0.9f, 0.5f, 0.6f);
-        m.wave = Scripted("Wave", "Beat", "Gust", 1.2f, 0.5f, 0.8f);
+        m.dive = Scripted("Dive", "Stall", "Dive", 0.85f, 1.6f, 0.35f);
         m.shake = Scripted("Shake", "Shake", "Fly", 1.0f, 0.3f, 0.5f);
         m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, LanternLight);
         m.wingSound = Clips("father_moth_wing");
         m.wakeSound = Clips("father_moth_wake");
         m.stallSound = Clips("father_moth_stall");
         m.diveSound = Clips("father_moth_dive");
-        m.gustSound = Clips("father_moth_gust");
-        m.waveSound = Clips("father_moth_wave");
         m.shakeSound = Clips("father_moth_shake");
         m.landSound = Clips("father_moth_land");
         m.downedSound = Clips("father_moth_downed");
+        m.glanceSound = Clips("block_clang");
         m.tearSound = Clips("father_moth_tear");
         m.shatterSound = Clips("glass_lamp_shatter");
         m.deathSound = Clips("father_moth_death");
-        // The Moths he shakes from his wings (gone till then).
-        var flock = MothFlockAt("Moths (Father Moth's)", m.middle + Vector3.up * 3f, null, 5);
+        // The three Moths he shakes from his wings (gone till then).
+        var flock = MothFlockAt("Moths (Father Moth's)", m.middle + Vector3.up * 3f, null, 3);
         flock.transform.SetParent(root, true);
         m.flock = flock;
         return m;

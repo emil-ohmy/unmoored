@@ -316,123 +316,134 @@ namespace MyGame.Tests
             Assert.AreEqual(m.maxHealth, m.Health, 0.01f, "nothing landed");
         }
 
+        // Waits for his next stall (before a dive), facing him, keeping the Apprentice up.
+        IEnumerator HisStall(FatherMoth m, float seconds = 16f)
+        {
+            yield return WaitUp(() => m.Stalling, seconds, "his stall");
+            Face(m);
+        }
+
         // His dive, met with a perfect block: down he comes, sprawled on the floor, and a blow there is a riposte.
         [UnityTest]
-        public IEnumerator TheGardener_HisDivePerfectBlocked_BringsHimDown_OpenToARiposte()
+        public IEnumerator TheGardener_HisDivePerfectBlocked_KnocksHimDown_OpenToARiposte()
         {
             var m = Gardener();
-            bool dived = false;
-            Action<FatherMoth> onDive = _ => dived = true;
-            FatherMoth.Dived += onDive;
+            yield return WakeHim(m);
+            yield return HisStall(m);
+            yield return WaitFor(() => m.Diving, 2f, "his dive");
+            Face(m);
+            yield return WaitFor(() => m.Downed || Vector3.Distance(m.transform.position + Vector3.up * 1.5f, apprentice.transform.position + Vector3.up * 0.9f) < m.diveContact + 1.8f, 2f, "him close");
+            input.BlockHeld = true;
+            yield return WaitFor(() => m.Downed, 1f, "him knocked down on the block");
+            input.BlockHeld = false;
+            Assert.AreEqual(Soured.State.Stunned, m.CurrentState);
+            Assert.Less(m.Height, 0.3f, "on the floor");
+            Assert.IsFalse(m.OutOfReach);
+            yield return new WaitForSeconds(0.4f);
+            apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.4f + Vector3.up * 0.05f);
+            Face(m);
+            float before = m.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.6f);
+            Assert.Less(m.Health, before - apprentice.lightDamage * 1.5f, "a riposte: double");
+        }
+
+        // His dive dodged: he comes down where you stood and stays a moment, and the oar reaches him there.
+        [UnityTest]
+        public IEnumerator TheGardener_HisDiveDodged_HeLandsAMoment_TheOarReachesHim()
+        {
+            var m = Gardener();
+            bool landed = false;
+            Action<FatherMoth> onLand = _ => landed = true;
+            FatherMoth.LandedAfterDive += onLand;
             try
             {
                 yield return WakeHim(m);
-                yield return WaitUp(() => dived || m.CurrentState == Soured.State.Telegraph && m.CurrentAttack == m.dive, 16f, "his stall, before a dive");
+                yield return HisStall(m);
                 yield return WaitFor(() => m.Diving, 2f, "his dive");
-                Face(m);
-                yield return WaitFor(() => m.Downed || Vector3.Distance(m.transform.position + Vector3.up * 1.5f, apprentice.transform.position + Vector3.up * 0.9f) < m.diveContact + 1.8f, 2f, "him close");
-                input.BlockHeld = true;
-                yield return WaitFor(() => m.Downed, 1f, "him brought down on the block");
-                input.BlockHeld = false;
-                Assert.AreEqual(Soured.State.Stunned, m.CurrentState);
-                Assert.Less(m.Height, 0.3f, "on the floor");
-                Assert.IsFalse(m.OutOfReach);
-                yield return new WaitForSeconds(0.4f);
-                apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).normalized * 2.4f + Vector3.up * 0.05f);
+                yield return WaitFor(() => m.Height < 1.6f, 1.5f, "him coming down");
+                input.Move = Vector2.right;
+                input.PressDash();
+                yield return new WaitForSeconds(0.25f);
+                input.Move = Vector2.zero;
+                yield return WaitFor(() => landed, 1.5f, "him landed");
+                Assert.IsTrue(m.Landed && !m.OutOfReach, "on the floor, in reach");
+                yield return WaitFor(() => apprentice.CurrentState == Apprentice.State.Free, 1f, "the Apprentice free to swing");
+                apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.4f + Vector3.up * 0.05f);
                 Face(m);
                 float before = m.Health;
                 input.PressLight();
                 yield return new WaitForSeconds(0.6f);
-                Assert.Less(m.Health, before - apprentice.lightDamage * 1.5f, "a riposte: double");
+                Assert.Less(m.Health, before, "struck");
+                yield return WaitFor(() => !m.Grounded, m.landedTime + 1f, "him up again");
             }
-            finally { FatherMoth.Dived -= onDive; }
+            finally { FatherMoth.LandedAfterDive -= onLand; }
         }
 
-        // His gust: a front of leaves across the floor that shoves you (no harm in it).
+        // Three Moths shaken from his wings (only when none of his are about).
         [UnityTest]
-        public IEnumerator TheGardener_HisGust_ShovesYou_NoHarm()
+        public IEnumerator TheGardener_ShakesOutThreeMoths()
         {
             var m = Gardener();
-            bool gusted = false;
-            Action<FatherMoth> onGust = _ => gusted = true;
-            FatherMoth.Gusted += onGust;
+            bool shook = false;
+            Action<FatherMoth> onShake = _ => shook = true;
+            FatherMoth.Shook += onShake;
             try
             {
                 yield return WakeHim(m);
-                yield return WaitUp(() => gusted, 14f, "a gust");
-                Vector3 at = apprentice.transform.position;
-                float health = apprentice.Health;
-                yield return new WaitForSeconds(1.6f);
-                Assert.Greater(Vector3.Distance(apprentice.transform.position, at), 1f, "shoved");
-                Assert.AreEqual(health, apprentice.Health, 0.01f, "no harm");
+                yield return WaitUp(() => shook, 40f, "Moths shaken out");
+                yield return new WaitForSeconds(0.2f);
+                Assert.AreEqual(3, m.flock.Alive, "three of them");
             }
-            finally { FatherMoth.Gusted -= onGust; }
+            finally { FatherMoth.Shook -= onShake; }
         }
 
-        // Over a channel he beats the water into a wave that rolls across the floor: it knocks you down (no guard
-        // stops it) and puts out your flames.
+        // The Hook: in his stall it catches him and drags him down (no dive); any other time it glances off.
         [UnityTest]
-        public IEnumerator TheGardener_HisWave_KnocksYouDown_AndPutsOutYourFlames()
-        {
-            var m = Gardener();
-            bool waved = false;
-            Action<FatherMoth> onWave = _ => waved = true;
-            FatherMoth.Waved += onWave;
-            try
-            {
-                yield return WakeHim(m);
-                yield return WaitUp(() => m.Doing == FatherMoth.Intent.ToChannel || waved, 25f, "him going to the water");
-                yield return WaitUp(() => waved, 8f, "the wave");
-                apprentice.RestoreFully();
-                apprentice.SetAlight();
-                var wave = UnityEngine.Object.FindAnyObjectByType<ChannelWave>();
-                Assert.IsNotNull(wave, "rolling across the floor");
-                float health = apprentice.Health;
-                yield return WaitFor(() => wave == null || wave.Struck, 4f, "the wave reaching you");
-                Assert.IsTrue(wave != null && wave.Struck, "it reached you");
-                Assert.Less(apprentice.Health, health, "knocked down");
-                Assert.IsFalse(apprentice.Alight, "soaked: the flames out");
-            }
-            finally { FatherMoth.Waved -= onWave; }
-        }
-
-        // Now and then he lands by a bed to tend it: on the floor, the oar reaches him.
-        [UnityTest]
-        public IEnumerator TheGardener_LandsToTendTheBeds_TheOarReachesHim()
-        {
-            var m = Gardener();
-            yield return WakeHim(m);
-            yield return WaitUp(() => m.Tending, 45f, "him tending a bed");
-            Vector3 to = m.middle - m.transform.position;
-            to.y = 0f;
-            apprentice.Teleport(m.transform.position + to.normalized * 2.6f + Vector3.up * 0.05f);
-            Face(m);
-            float before = m.Health;
-            input.PressHeavy();
-            yield return new WaitForSeconds(1.0f);
-            Assert.Less(m.Health, before, "struck, down on the floor");
-        }
-
-        // The Hook catches him on the wing and drags him down to the floor.
-        [UnityTest]
-        public IEnumerator TheGardener_TheHook_DragsHimDown()
+        public IEnumerator TheGardener_TheHook_CatchesHimOnlyInHisStall()
         {
             if (!apprentice.HasHook)
                 apprentice.Restore(apprentice.Obols, 3, true);
             var m = Gardener();
             yield return WakeHim(m);
-            Vector3 under = m.transform.position;
-            apprentice.Teleport(new Vector3(under.x, m.floorY + 0.05f, under.z) + (m.middle - under).Flat().normalized * 5f);
-            Face(m);
-            input.HookHeld = true;
-            yield return new WaitForSeconds(0.3f);
-            Face(m);
-            Vector3 from = apprentice.transform.position + Vector3.up, to = m.transform.position + Vector3.up;
-            string hits = string.Join(", ", Physics.RaycastAll(from, (to - from).normalized, Vector3.Distance(from, to), ~0, QueryTriggerInteraction.Ignore).Select(h => h.collider.name));
-            Assert.AreSame(m, apprentice.HookFoe, $"[{hits}] the Hook aimed at him ({Vector3.Distance(apprentice.transform.position, m.transform.position):0.0} m)");
-            input.HookHeld = false;
-            yield return WaitFor(() => m.Downed, 2f, "him dragged down");
+            IEnumerator Throw()
+            {
+                Vector3 under = m.transform.position;
+                apprentice.Teleport(new Vector3(under.x, m.floorY + 0.05f, under.z) + (m.middle - under).Flat().normalized * 5f);
+                Face(m);
+                input.HookHeld = true;
+                yield return new WaitForSeconds(0.15f);
+                Face(m);
+                input.HookHeld = false;
+            }
+            Assert.IsFalse(m.Stalling);
+            yield return Throw();
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsFalse(m.Downed, "on the wing, it glances off");
+            yield return HisStall(m);
+            yield return Throw();
+            yield return WaitFor(() => m.Downed, 1.5f, "him dragged down out of his stall");
             Assert.Less(m.Height, 0.3f);
+            Assert.IsFalse(m.Diving, "the dive never came");
+        }
+
+        // In the dark (phase 2) his dives come in pairs: the second straight after the first, with a shorter stall; he
+        // lands only after the second.
+        [UnityTest]
+        public IEnumerator TheGardener_InTheDark_HisDivesComeInPairs()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            m.TakeBurn(m.maxHealth * 0.55f / (m.fireWeakness * AreaTraits.FireHarm), m.transform.position);
+            yield return WaitUp(() => m.Phase == 2 && m.LampsLeft == 0, 25f, "the lamps down");
+            yield return HisStall(m);
+            Assert.IsFalse(m.SecondOfPair);
+            yield return WaitUp(() => m.Diving, 2f, "the first dive");
+            yield return WaitUp(() => m.Stalling || m.Grounded, 3f, "the second stall");
+            Assert.IsFalse(m.Grounded, "no landing after the first");
+            Assert.IsTrue(m.SecondOfPair);
+            Assert.Less(m.dive.telegraph, 0.5f, "a shorter stall");
+            yield return WaitUp(() => m.Grounded, 4f, "him down after the second");
         }
 
         // At half, he tears the lamps down one by one, and the Glasshouse goes dark.
@@ -1384,7 +1395,7 @@ namespace MyGame.Tests
             Shot("glasshouse-4-wide", wide);
         }
 
-        // (SHOTS=dir) Father Moth: folded on his tree; on the wing; his stall (the tell); down on the floor; tending a bed;
+        // (SHOTS=dir) Father Moth: folded on his tree; on the wing; his stall (the tell); knocked down; landed after a dive;
         // in the dark, hunting your light.
         [UnityTest]
         public IEnumerator Capture_FatherMoth()
@@ -1425,9 +1436,9 @@ namespace MyGame.Tests
             input.BlockHeld = false;
             yield return new WaitForSeconds(0.6f);
             Shot("father-moth-3-downed");
-            yield return WaitUp(() => m.Tending, 45f, "him tending");
-            yield return new WaitForSeconds(1.2f);
-            Shot("father-moth-4-tending");
+            yield return WaitUp(() => m.Landed, 30f, "him landed after a dive");
+            yield return new WaitForSeconds(0.4f);
+            Shot("father-moth-4-landed");
             m.TakeBurn(m.maxHealth * 0.55f / (m.fireWeakness * AreaTraits.FireHarm), m.transform.position);
             yield return WaitUp(() => m.Doing == FatherMoth.Intent.Tearing && m.CurrentState == Soured.State.Busy, 12f, "him at a lamp");
             yield return new WaitForSeconds(0.5f);

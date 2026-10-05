@@ -6,13 +6,13 @@ namespace MyGame
     // and its glasshouse, grown into the greatest of the Moths: wings like dead leaves, six metres across, the stooped
     // gardener rising from them, his forearms grown into forelegs ending in pruning shears, a caged lantern in his ribs.
     // He hangs folded on the dead orange tree, like a leaf; come into the Glasshouse and he wakes.
-    // Phase 1: he circles the lamps, out of the oar's reach. His wingbeats send gusts of leaves that shove you; over a
-    // channel, he beats the water into a wave that rolls across the floor and knocks you down (dodge through it). He
-    // dives: a stall, wings flung wide, the lantern in his chest flaring (the tell); a perfect block brings him down,
-    // sprawled on the floor, open. Now and then he lands by a bed to tend it, and his shears sweep whoever comes near
-    // (the oar reaches him there). He shakes Moths from his wings. Phase 2 (at half): he tears the lamps down one by
-    // one, and in the dark (the moon, and your bow lantern) he hunts your light: dive after dive, each a chance to parry.
-    // Fire burns him badly (it doesn't lure him). The Hook drags him down out of the air, now and then.
+    // Two things, and only two: he shakes out three Moths, or he dives at you. His dive: a stall, wings flung wide, the
+    // lantern in his ribs flaring (the tell); then down at you. Dodge it and he's on the floor where you stood a moment,
+    // open to a blow or two; turn it with a perfect block and he's knocked down, stunned, every blow a riposte. The Hook
+    // catches him only in his stall: dragged down out of it, the dive never comes. On the wing the oar passes under him.
+    // Phase 2 (at half): he tears the lamps down one by one; in the dark (the moon, and your bow lantern) his dives come
+    // in pairs, the second straight after the first with a shorter tell (he lands only after the second; parry the first
+    // and the second never comes). Fire burns him badly (it doesn't lure him).
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -29,11 +29,7 @@ namespace MyGame
         public float wakeLine;                // past this (z), inside, he wakes
         public Transform[] lampModels;        // the hung lamps (torn down in phase 2)
         public Light[] lamps;                 // their lights
-        public Vector3[] bedSpots;            // where he lands to tend the beds (on the floor beside each)
-        public Vector3[] bedFacing;           // which way he faces there (into the bed)
-        public float[] channelX;              // the channels' middles
-        public float channelFrom, channelTo;  // their ends (z)
-        public MothFlock flock;               // the Moths he shakes from his wings
+        public MothFlock flock;               // the Moths he shakes from his wings (three)
 
         [Header("On the wing")]
         public float flySpeed = 7f, flyAccel = 14f;
@@ -41,38 +37,38 @@ namespace MyGame
         public float huntRadius = 6.5f, huntHeight = 3.5f, huntTurn = 0.8f;       // above, height reads as further away)
         public float reachedAbove = 1.9f;     // higher than this above the floor, the oar passes under him
 
-        [Header("His attacks")]
-        public SouredAttack dive = new SouredAttack();   // primary: the shears (on the ground)
-        public SouredAttack gust = new SouredAttack();
-        public SouredAttack wave = new SouredAttack();
+        [Header("His dive, and his Moths")]
+        public SouredAttack dive = new SouredAttack();
         public SouredAttack shake = new SouredAttack();
         public float diveSpeed = 15f, diveContact = 1.4f, diveDamage = 22f, diveKnock = 8f;
-        public float diveEvery = 5.5f, huntDiveEvery = 3.0f;
-        public float gustEvery = 7f, gustSpeed = 12f, gustWidth = 6f, gustRange = 16f, gustPush = 11f;
-        public float waveEvery = 13f, waveSpeed = 7f, waveDamage = 14f, waveKnock = 9f;
-        public float tendEvery = 16f, tendFor = 6f, tendTakes = 0.12f; // tending: until this share of him is lost
-        public float shakeEvery = 22f;
-        public float hookDownEvery = 10f, hookDown = 2.2f;
-        public float downedTime = 3.2f;       // a perfect block on his dive: down this long
+        public float diveEvery = 4.5f, huntDiveEvery = 3.2f;
+        public float stallTime = 0.85f, huntStallTime = 0.75f, secondStallTime = 0.45f; // his tell: phase 1; phase 2, the first of a pair, the second
+        public float landedTime = 1.6f;       // a dive dodged: on the floor this long
+        public float downedTime = 3.2f;       // a dive turned on a perfect block: down this long
+        public float hookDown = 2.0f;         // dragged down out of his stall on the Hook
+        public float shakeEvery = 14f;
+        [Range(0f, 1f)] public float shakeChance = 0.4f; // with no Moths of his about, the chance he shakes some out instead of diving
 
         [Header("Look and sound")]
         public Light chest;                   // the lantern in his ribs
         public float chestIntensity = 1.4f;
         public float cameraLean = 0.5f, cameraZoom = 1.45f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
-        public AudioClip[] wingSound, wakeSound, stallSound, diveSound, gustSound, waveSound, shakeSound, landSound, downedSound, tearSound, shatterSound, deathSound;
+        public AudioClip[] wingSound, wakeSound, stallSound, diveSound, shakeSound, landSound, downedSound, glanceSound, tearSound, shatterSound, deathSound;
 
-        public enum Intent { Circle, ToChannel, ToBed, Tearing }
+        public enum Intent { Circle, Tearing }
 
         public bool Woken { get; private set; }
         public int CurrentPhase { get; private set; } = 1;
         public bool Grounded { get; private set; }
-        public bool Tending => Grounded && tending;
+        public bool Landed => Grounded && landed;    // a dive dodged: on the floor a moment
         public Intent Doing => intent;
         public int LampsLeft { get; private set; }
         public bool Downed => Grounded && (CurrentState == State.Stunned || CurrentState == State.Staggered);
         public bool Diving => CurrentState == State.Strike && CurrentAttack == dive;
+        public bool Stalling => CurrentState == State.Telegraph && CurrentAttack == dive;
+        public bool SecondOfPair => secondOfPair;
         public float Height => transform.position.y - floorY;
-        public static event System.Action<FatherMoth> Woke, Dived, Landed, Waved, Gusted, PhaseTwo; // (tests)
+        public static event System.Action<FatherMoth> Woke, Dived, LandedAfterDive, Shook, PhaseTwo; // (tests)
 
         public string Title => title;
         public string Epithet => epithet;
@@ -88,18 +84,17 @@ namespace MyGame
         public override bool OutOfReach => !Grounded && Height > reachedAbove;
         protected override bool OnItsLevel() => true; // (he comes at you from above)
         protected override string IdleClip => Woken ? "Fly" : "Perched";
-        protected override string ChaseClip(float distance) => Grounded ? (tending ? "Tend" : "Land") : "Fly";
+        protected override string ChaseClip(float distance) => Grounded ? "Land" : "Fly";
         protected override Vector3 ChaseStep(Vector3 toTarget, float distance) => Vector3.zero; // (he flies: Tick)
         protected override bool LosesTarget(float distance) => !InHouse(target.transform.position);
 
         Vector3 velocity, diveDir, perch;
         Quaternion perchRotation;
         Intent intent;
-        int channel = -1, bed = -1, nextLamp;
-        int lampCircled;
-        float nextDive, nextGust, nextWave, nextTend, nextShake, nextHookDown, nextAttack, nextWing, nextLampSwitch;
-        float tendUntil, tendHealth, dropAt = -1f, orbit;
-        bool tending, rising, landing, struckThisDive, fightOn, pendingTwo;
+        int nextLamp, lampCircled, pairLeft;
+        float nextDive, nextShake, nextAttack, nextWing, nextLampSwitch;
+        float dropAt = -1f, orbit;
+        bool rising, landed, struckThisDive, pullingUp, secondOfPair, fightOn, pendingTwo;
         State was;
         string forced;                         // a clip held over the base's (sprawled on the floor, not staggering)
         (Transform lamp, Vector3 position, Quaternion rotation, float intensity)[] hung;
@@ -155,98 +150,45 @@ namespace MyGame
             Effects.Instance?.Leaves(transform.position + Vector3.up * 2f, Vector3.up * 2f, 40);
             CameraRig.Instance?.Shake(0.2f);
             float now = Time.time;
-            nextDive = now + 6f;
-            nextGust = now + 3.5f;
-            nextWave = now + 11f;
-            nextShake = now + 8f;
-            nextTend = now + 18f;
-            nextAttack = now + 2.5f;
+            nextDive = now + 3.5f;
+            nextShake = now + 6f;
+            nextAttack = now + 3f;
             Woke?.Invoke(this);
         }
 
-        // ---- choosing
+        // ---- choosing: three Moths, or a dive
 
         protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
-            if (!Woken || rising || landing || intent == Intent.Tearing || pendingTwo)
+            if (!Woken || Grounded || rising || intent == Intent.Tearing || pendingTwo)
                 return null;
-            if (Grounded)
-                return tending && distance <= primary.reach && Vector3.Angle(transform.forward, toTarget) < 80f ? primary : null;
             float now = Time.time;
-            if (now < nextAttack)
-                return null;
-            if (intent == Intent.ToChannel)
+            if (pairLeft > 0) // (phase 2: the second of a pair, straight after the first)
             {
-                if (channel < 0 || Flat(transform.position - ChannelPoint()).magnitude > 1.2f)
-                    return null;
-                nextWave = now + waveEvery;
-                return Begun(wave, 1.6f);
+                pairLeft--;
+                secondOfPair = true;
+                dive.telegraph = secondStallTime;
+                return dive;
             }
-            if (intent != Intent.Circle)
+            if (now < nextAttack || now < nextDive)
                 return null;
-            if (CurrentPhase == 1 && flock != null && now >= nextShake && flock.Alive == 0)
+            if (flock != null && MothsAbout == 0 && now >= nextShake && Random.value < shakeChance)
             {
                 nextShake = now + shakeEvery;
-                return Begun(shake, 1.2f);
+                nextAttack = now + shake.telegraph + shake.strike + shake.recover + 1.5f;
+                return shake;
             }
-            // (the water and the beds first, when their time has come: else his dives and gusts would always be ready first)
-            if (CurrentPhase == 1 && now >= nextWave && channelX != null && channelX.Length > 0)
-            {
-                intent = Intent.ToChannel; // (it comes when he's over the water)
-                channel = FarChannel();
+            if (distance > 18f)
                 return null;
-            }
-            if (CurrentPhase == 1 && now >= nextTend && bedSpots != null && bedSpots.Length > 0)
-            {
-                intent = Intent.ToBed;
-                bed = Random.Range(0, bedSpots.Length);
-                nextTend = now + tendEvery;
-                return null;
-            }
-            if (now >= nextDive && distance > 2f && distance < 18f)
-            {
-                nextDive = now + (CurrentPhase == 1 ? diveEvery * Random.Range(0.8f, 1.2f) : huntDiveEvery * Random.Range(0.85f, 1.2f));
-                if (CurrentPhase == 2 && HealthFraction < 0.25f && Random.value < 0.5f)
-                    nextDive = now + 1.4f; // (near the end: one after another)
-                dive.telegraph = CurrentPhase == 1 ? 0.85f : HealthFraction < 0.25f ? 0.62f : 0.72f;
-                return Begun(dive, 1.0f);
-            }
-            if (now >= nextGust && distance < gustRange - 2f)
-            {
-                nextGust = now + gustEvery * Random.Range(0.8f, 1.3f) * (CurrentPhase == 2 ? 1.4f : 1f);
-                return Begun(gust, 1.4f);
-            }
-            return null;
+            nextDive = now + (CurrentPhase == 1 ? diveEvery : huntDiveEvery) * Random.Range(0.85f, 1.2f);
+            secondOfPair = false;
+            pairLeft = CurrentPhase == 2 ? 1 : 0;
+            dive.telegraph = CurrentPhase == 1 ? stallTime : huntStallTime;
+            return dive;
         }
 
-        SouredAttack Begun(SouredAttack attack, float after)
-        {
-            nextAttack = Time.time + attack.telegraph + attack.strike + attack.recover + after;
-            return attack;
-        }
-
-        // The channel across the floor from you (his wave comes at you across it).
-        int FarChannel()
-        {
-            int best = 0;
-            float far = -1f;
-            for (int i = 0; i < channelX.Length; i++)
-            {
-                float d = target != null ? Mathf.Abs(target.transform.position.x - channelX[i]) : i;
-                if (d > far)
-                {
-                    far = d;
-                    best = i;
-                }
-            }
-            return best;
-        }
-
-        Vector3 ChannelPoint()
-        {
-            float z = target != null ? Mathf.Clamp(target.transform.position.z, channelFrom + 1.5f, channelTo - 1.5f) : (channelFrom + channelTo) / 2f;
-            return new Vector3(channelX[channel], floorY + 3.0f, z);
-        }
+        // His Moths about now (none while the flock is withdrawn, before he's shaken them out).
+        int MothsAbout => flock != null && flock.gameObject.activeSelf ? flock.Alive : 0;
 
         // ---- every frame
 
@@ -278,13 +220,11 @@ namespace MyGame
                     break;
                 case State.Stunned:
                 case State.Staggered:
+                case State.Busy when Grounded:
                     Hold(new Vector3(transform.position.x, floorY, transform.position.z));
                     break;
                 case State.Busy when rising:
                     Steer(new Vector3(transform.position.x, floorY + circleHeight, transform.position.z), dt, 0.6f);
-                    break;
-                case State.Busy when landing:
-                    Steer(bed >= 0 ? bedSpots[bed] : new Vector3(transform.position.x, floorY, transform.position.z), dt, 1.2f);
                     break;
                 case State.Busy when intent == Intent.Tearing:
                     if (dropAt > 0f && Time.time >= dropAt)
@@ -299,10 +239,7 @@ namespace MyGame
                 case State.Chase:
                 case State.Recover:
                 case State.Strike:
-                    if (Grounded)
-                        Tend();
-                    else
-                        Fly(dt);
+                    Fly(dt);
                     break;
             }
             // His wingbeats, heard when he's aloft.
@@ -316,28 +253,20 @@ namespace MyGame
             Lights(dt);
         }
 
-        // What follows a state's end: up off the floor after being downed; on the floor at the bed after landing.
+        // What follows a state's end: up off the floor (downed, or landed after a dive).
         void Transitions()
         {
             var now = CurrentState;
             if (now == was)
                 return;
-            if ((was == State.Stunned || was == State.Staggered) && Grounded && IsAlive)
+            if ((was == State.Stunned || was == State.Staggered) && Grounded && IsAlive && now != State.Stunned && now != State.Staggered)
             {
                 forced = null;
-                if (now != State.Stunned && now != State.Staggered)
-                    LiftOff();
+                LiftOff();
             }
-            if (was == State.Busy && landing)
-            {
-                landing = false;
-                Grounded = true;
-                tending = true;
-                tendUntil = Time.time + tendFor;
-                tendHealth = Health;
-                Landed?.Invoke(this);
-            }
-            if (was == State.Busy && rising)
+            else if (was == State.Busy && Grounded && landed && IsAlive && now != State.Stunned && now != State.Staggered)
+                LiftOff();
+            else if (was == State.Busy && rising)
                 rising = false;
             if (was == State.Busy && intent == Intent.Tearing && now == State.Chase && dropAt < 0f)
                 nextLamp++;
@@ -346,42 +275,27 @@ namespace MyGame
 
         void LiftOff()
         {
-            Grounded = false;
-            tending = false;
-            intent = pendingTwo || CurrentPhase == 2 ? intent : Intent.Circle;
+            Grounded = landed = false;
+            pairLeft = 0;
             BeBusy("Rise", 0.8f);
             rising = true;
-            nextAttack = Mathf.Max(nextAttack, Time.time + 1.2f);
+            nextAttack = Mathf.Max(nextAttack, Time.time + 1.0f);
         }
 
-        // On the wing: round a lamp (phase 1), round you (phase 2), to a channel, to a bed, to a lamp to tear down.
+        // On the wing: round a lamp (phase 1), round you (phase 2), to a lamp to tear down.
         void Fly(float dt)
         {
             Vector3 goal;
-            switch (intent)
+            if (intent == Intent.Tearing)
             {
-                case Intent.ToChannel:
-                    goal = ChannelPoint();
-                    break;
-                case Intent.ToBed:
-                    goal = bedSpots[bed] + Vector3.up * 2.4f;
-                    if (Flat(transform.position - bedSpots[bed]).magnitude < 0.8f && CurrentState == State.Chase)
-                    {
-                        landing = true;
-                        intent = Intent.Circle;
-                        BeBusy("Land", 1.0f);
-                        Sfx.Instance?.Attack(landSound, bedSpots[bed], 0.9f, "father_moth_land");
-                        return;
-                    }
-                    break;
-                case Intent.Tearing:
-                    if (nextLamp >= hung.Length)
-                    {
-                        intent = Intent.Circle;
-                        nextAttack = Time.time + 1.5f;
-                        goal = Orbit();
-                        break;
-                    }
+                if (nextLamp >= hung.Length)
+                {
+                    intent = Intent.Circle;
+                    nextAttack = Time.time + 1.5f;
+                    goal = Orbit();
+                }
+                else
+                {
                     goal = hung[nextLamp].lamp != null ? lamps[nextLamp].transform.position + Vector3.down * 0.9f : transform.position;
                     if ((transform.position - goal).magnitude < 0.8f && CurrentState == State.Chase)
                     {
@@ -390,12 +304,11 @@ namespace MyGame
                         Sfx.Instance?.Attack(tearSound, goal, 1f, "father_moth_tear");
                         return;
                     }
-                    break;
-                default:
-                    goal = Orbit();
-                    break;
+                }
             }
-            Steer(goal, dt, 1f);
+            else
+                goal = Orbit();
+            Steer(goal, dt, CurrentState == State.Recover && secondOfPair ? 0.4f : 1f);
         }
 
         // Where he'd be now on his circle: round the lamp he's at (another, now and then), or round you in the dark.
@@ -464,80 +377,88 @@ namespace MyGame
             }
             if (state == State.Strike && CurrentAttack == dive && target != null)
             {
-                diveDir = (target.transform.position + Vector3.up * 0.9f - transform.position - Vector3.up * 1.5f).normalized;
-                struckThisDive = false;
+                diveDir = (target.transform.position - transform.position).normalized; // (to where you stand: he comes down there)
+                struckThisDive = pullingUp = false;
                 Sfx.Instance?.Attack(diveSound, transform.position, 1f, "father_moth_dive");
                 Dived?.Invoke(this);
-            }
-            if (state == State.Strike && CurrentAttack == gust && target != null)
-            {
-                Vector3 from = new Vector3(transform.position.x, floorY, transform.position.z);
-                Gust.Blow(from, target.transform.position - from, target, gustSpeed, gustWidth, gustRange, gustPush);
-                Sfx.Instance?.Attack(gustSound, transform.position + Vector3.up * 2f, 1f, "father_moth_gust");
-                Gusted?.Invoke(this);
-            }
-            if (state == State.Strike && CurrentAttack == wave && channel >= 0)
-            {
-                float x = channelX[channel], toward = Mathf.Sign(middle.x - x);
-                ChannelWave.Roll(x, floorY, channelFrom, channelTo, toward, target, waveSpeed, reach.x * 2f + 1f, waveDamage, waveKnock);
-                Sfx.Instance?.Attack(waveSound, new Vector3(x, floorY, transform.position.z), 1f, "father_moth_wave");
-                CameraRig.Instance?.Shake(0.2f);
-                intent = Intent.Circle;
-                channel = -1;
-                Waved?.Invoke(this);
             }
             if (state == State.Strike && CurrentAttack == shake && flock != null)
             {
                 flock.Release(transform.position + Vector3.up * 1.6f);
                 Sfx.Instance?.Attack(shakeSound, transform.position + Vector3.up * 2f, 1f, "father_moth_shake");
                 Effects.Instance?.Leaves(transform.position + Vector3.up * 1.8f, Vector3.zero, 30);
+                Shook?.Invoke(this);
             }
             if (state == State.Stunned)
-                Down(downedTime);
+                Down();
             if (state == State.Staggered && !Grounded)
-                Down(staggerDuration); // (struck low out of the air: down he comes)
+                Down(); // (struck low out of the air: down he comes)
             if (state == State.Dying)
                 Died();
         }
 
         Vector3 ChestPoint => chest != null ? chest.transform.position : transform.position + Vector3.up * 2.5f;
 
-        // Down out of the air and on through, striking if he passes you close (a perfect block brings him down).
+        // Down at you and through where you stood, striking if he passes you close: then, on the floor, a moment (a
+        // perfect block: knocked down). The first of a pair (phase 2) pulls up off the floor instead.
         void Dive(float dt)
         {
+            if (Grounded)
+                return;
             Vector3 next = transform.position + diveDir * diveSpeed * dt;
-            if (next.y < floorY + 0.1f)
-            {
-                diveDir = new Vector3(diveDir.x, Mathf.Max(diveDir.y, 0.2f), diveDir.z).normalized; // (skimming the floor, pulling up)
+            bool floor = !pullingUp && next.y <= floorY + 0.1f;
+            if (floor)
                 next.y = floorY + 0.1f;
-            }
+            if (pullingUp && next.y > floorY + 2.6f)
+                next.y = floorY + 2.6f; // (up only so far: the next comes from there)
             Hold(next);
             velocity = diveDir * diveSpeed * 0.4f;
-            if (struckThisDive || target == null || !target.IsAlive)
-                return;
-            // (his shears and chest pass through where you stand: near enough across, and low enough)
-            if (Flat(target.transform.position - transform.position).magnitude > diveContact || transform.position.y - target.transform.position.y > 1.2f)
-                return;
-            struckThisDive = true;
-            var defence = HitTarget(diveDamage, Flat(diveDir).normalized * diveKnock);
-            if (defence == Defence.Parried)
+            if (!struckThisDive && target != null && target.IsAlive
+                // (his shears and chest pass through where you stand: near enough across, and low enough)
+                && Flat(target.transform.position - transform.position).magnitude <= diveContact && transform.position.y - target.transform.position.y <= 1.2f)
             {
-                // (turned on the oar: down he goes, in front of you, the way he came)
-                Vector3 back = -Flat(diveDir).normalized;
-                Vector3 at = target.transform.position + (back.sqrMagnitude > 0.01f ? back : -target.transform.forward) * (radius + 1.6f);
-                Hold(new Vector3(at.x, floorY, at.z));
-                Stun();
+                struckThisDive = true;
+                var defence = HitTarget(diveDamage, Flat(diveDir).normalized * diveKnock);
+                if (defence == Defence.Parried)
+                {
+                    // (turned on the oar: down he goes, in front of you, the way he came; a second dive never comes)
+                    pairLeft = 0;
+                    Vector3 back = -Flat(diveDir).normalized;
+                    Vector3 at = target.transform.position + (back.sqrMagnitude > 0.01f ? back : -target.transform.forward) * (radius + 1.6f);
+                    Hold(new Vector3(at.x, floorY, at.z));
+                    Stun();
+                    return;
+                }
             }
-            else if (defence != Defence.Dodged)
-                diveDir = new Vector3(-diveDir.x * 0.3f, 0.9f, -diveDir.z * 0.3f).normalized; // (glancing off, back up)
+            if (!floor)
+                return;
+            if (pairLeft > 0)
+            {
+                pullingUp = true; // (skimming the floor, and up for the next)
+                diveDir = new Vector3(diveDir.x, 0f, diveDir.z).normalized * 0.6f + Vector3.up * 0.8f;
+            }
+            else
+                Land();
+        }
+
+        // A dive come to the floor: he's down there a moment, open (a blow or two before he's up again).
+        void Land()
+        {
+            Grounded = landed = true;
+            velocity = Vector3.zero;
+            Hold(new Vector3(transform.position.x, floorY, transform.position.z));
+            BeBusy("Land", landedTime);
+            Effects.Instance?.Leaves(transform.position + Vector3.up * 0.5f, Vector3.zero, 20);
+            Sfx.Instance?.Attack(landSound, transform.position, 0.9f, "father_moth_land");
+            CameraRig.Instance?.Shake(0.15f);
+            LandedAfterDive?.Invoke(this);
         }
 
         // On the floor, sprawled (a perfect block on his dive; the Hook): open, and every blow a riposte while stunned.
-        void Down(float time)
+        void Down()
         {
             Grounded = true;
-            tending = false;
-            landing = rising = false;
+            landed = rising = false;
             velocity = Vector3.zero;
             forced = "Downed";
             Hold(new Vector3(transform.position.x, floorY, transform.position.z));
@@ -547,33 +468,22 @@ namespace MyGame
             CameraRig.Instance?.Shake(0.35f);
         }
 
-        // Caught on the Hook on the wing: dragged down to the floor (not too often: his strength comes back to him).
+        // The Hook: in his stall, it catches him and drags him down (the dive never comes); any other time it glances off.
         public override HookResult OnHooked(Apprentice by)
         {
-            if (!IsAlive || !Woken || Grounded || intent == Intent.Tearing || CurrentState == State.Busy || Time.time < nextHookDown)
+            if (!IsAlive || !Woken || !Stalling)
+            {
+                Effects.Instance?.BlockSpark(ChestPoint, Flat(by.transform.position - transform.position).normalized);
+                Sfx.Instance?.Attack(glanceSound, ChestPoint, 0.8f, "father_moth_glance");
                 return HookResult.Shrugged;
-            nextHookDown = Time.time + hookDownEvery;
+            }
+            pairLeft = 0;
             Vector3 away = Flat(transform.position - by.transform.position);
             Vector3 at = by.transform.position + (away.sqrMagnitude > 0.01f ? away.normalized : by.transform.forward) * 2.6f;
             Hold(new Vector3(at.x, floorY, at.z));
             StaggerNow(hookDown);
-            Down(hookDown);
+            Down();
             return HookResult.Ripped;
-        }
-
-        // ---- tending the beds
-
-        void Tend()
-        {
-            if (!tending)
-                return;
-            Hold(new Vector3(transform.position.x, floorY, transform.position.z));
-            // Bent over the bed, until you come near.
-            if (CurrentState == State.Chase && bed >= 0 && bedFacing != null && bed < bedFacing.Length && target != null
-                && Flat(target.transform.position - transform.position).magnitude > primary.reach + 2f)
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(bedFacing[bed]), 540f * Time.deltaTime);
-            if (CurrentState == State.Chase && (Time.time >= tendUntil || tendHealth - Health >= maxHealth * tendTakes || pendingTwo))
-                LiftOff();
         }
 
         // ---- phase 2: the lamps torn down, the dark
@@ -634,7 +544,7 @@ namespace MyGame
             }
             if (chest != null)
             {
-                bool telling = CurrentState == State.Telegraph && CurrentAttack == dive;
+                bool telling = Stalling;
                 float k = telling ? 1f + 3.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, dive.telegraph))
                         : 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f);
                 chest.enabled = IsAlive || StateTime < deathDuration * 0.5f;
@@ -731,10 +641,9 @@ namespace MyGame
             passive = true;
             CurrentPhase = 1;
             StopAllCoroutines();
-            Grounded = tending = rising = landing = pendingTwo = false;
+            Grounded = rising = landed = pendingTwo = pullingUp = secondOfPair = false;
             intent = Intent.Circle;
-            channel = bed = -1;
-            nextLamp = lampCircled = 0;
+            nextLamp = lampCircled = pairLeft = 0;
             dropAt = -1f;
             forced = null;
             velocity = Vector3.zero;

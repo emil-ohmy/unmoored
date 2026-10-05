@@ -70,7 +70,7 @@ namespace MyGame
 
         public static readonly LedgerEntry FatherMoth = new LedgerEntry("father_moth", "Father Moth, Who Gathered Autumn", Rank.Boss, Orchard, "father_moth",
             "The man who tended the orchard and its glasshouse. He gathered every memory of the last autumn, and they gathered to him, as Moths to a light, until he was the greatest of them.",
-            "On the wing the oar can't reach him: turn his dive with a perfect block and he comes down. Fire burns him badly. The Hook drags him down. In the dark he hunts your light.");
+            "On the wing the oar can't reach him. Dodge his dive and he's on the floor a moment; turn it with a perfect block and he's down longer. The Hook catches him only in his stall. Fire burns him badly.");
 
         public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth };
 

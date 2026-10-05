@@ -964,17 +964,6 @@ namespace MyGame
             }
         }
 
-        // Shoved by something that isn't a blow (a gust of wind): no harm, no stagger, only carried; half as far with the
-        // guard up against it, not at all mid-dodge.
-        public void Buffet(Vector3 velocity)
-        {
-            if (Invulnerable || !IsAlive)
-                return;
-            if (CurrentState == State.Blocking && Facing(transform.position - velocity))
-                velocity *= 0.5f;
-            knockback = velocity;
-        }
-
         // The flames out (a Sodden Sack, the water, a Rest).
         public void Douse()
         {

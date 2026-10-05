@@ -204,15 +204,16 @@ Glasshouse**, beyond the Unreaped Rows' far gate (the Watchman guards the way), 
 broken panes, raised beds of dead plants, shallow water channels (you wade them; they put out flames), lamps hung on
 chains, a dead orange tree against its north wall (he hangs folded on it, like a leaf, until you come in); its middle
 left open, his floor.
-- **Phase 1:** he circles the lamps out of reach. His wingbeats blow gusts of leaves that shove you, and on the
-  channels send a wave across the floor that knocks you down (a taste of the Stroke). He dives (a stall, wings flung
-  wide, the light in his chest flaring: the tell); a perfect block on the dive stuns him, down on the floor, open. Now
-  and then he lands to tend the beds: his shears sweep. He shakes Moths from his wings.
+- **Kept simple:** two things, and only two. He shakes out three Moths (when none of his are about), or he dives.
+- **Phase 1:** he circles the lamps out of reach (the oar passes under him). His dive: a stall, wings flung wide,
+  the light in his chest flaring (the tell), then down at you. Dodge it and he's on the floor where you stood a moment,
+  open to a blow or two; a perfect block knocks him down, stunned, every blow a riposte.
+- **The Hook** catches him only in his stall: dragged down out of it, the dive never comes (a shorter stun than a
+  parry's). Any other time it glances off.
 - **Phase 2 (half):** he tears the lamps down one by one; the glasshouse goes dark but for the moon and your bow
-  lantern, and he hunts your light: dive after dive, each a chance to parry.
+  lantern. The same two things, but his dives come in pairs: the second straight after the first, with a shorter
+  stall, and he lands only after the second. Parry the first and the second never comes.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
-- **The Hook** catches him on the wing and drags him down to the floor (not often: his strength comes back to him).
-  On the floor (downed, tending, dragged down) the oar reaches him; on the wing it passes under.
 - His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Stroke**.
 
 **Boss arenas:** nothing that follows the Apprentice crosses into a Boss's (or miniboss's) arena. It stops at the
