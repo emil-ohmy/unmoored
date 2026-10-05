@@ -392,9 +392,62 @@ namespace MyGame.Tests
                 yield return new WaitForSeconds(1.2f);
                 Assert.Less(m.Health, before, "struck");
                 yield return WaitUp(() => !m.Spent && m.Height > 2.5f, m.spentTime + 4f, "him up again");
-                Assert.GreaterOrEqual(m.BeatsLeft, m.beatsBeforeSpent - 1, "his beats begun again");
+                Assert.GreaterOrEqual(m.BeatsLeft, 5, "his beats begun again");
             }
             finally { FatherMoth.Exhausted -= onSpent; }
+        }
+
+        // Brought to his phase's mark, he's untouchable (no blow carries him further) until he's up; then his next
+        // phase begins.
+        [UnityTest]
+        public IEnumerator TheGardener_AtHisPhasesMark_Untouchable_TillHeRises_ThenPhaseTwo()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            yield return WaitUp(() => m.Spent, 30f, "him spent");
+            m.TakeBurn(m.maxHealth, m.transform.position); // (far more than the phase holds)
+            Assert.AreEqual(m.maxHealth * 0.75f, m.Health, 0.5f, "held at the mark");
+            Assert.IsTrue(m.Untouchable);
+            apprentice.Teleport(m.transform.position + new Vector3(0f, 0.05f, -2.6f));
+            Face(m);
+            input.PressLight();
+            yield return new WaitForSeconds(0.6f);
+            Assert.AreEqual(m.maxHealth * 0.75f, m.Health, 0.5f, "the oar takes nothing off him either");
+            Assert.AreEqual(1, m.Phase);
+            yield return WaitUp(() => m.Phase == 2, 4f, "his next phase");
+            yield return WaitUp(() => m.Height > 2.5f, 4f, "him up");
+            Assert.IsFalse(m.Untouchable, "up again: open to harm (when he's next spent)");
+        }
+
+        // Phase 2: more at once, and more kinds: a spiral stream, seed pods that burst into rings, oranges from the vault.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseTwo_Spirals_SeedPods_FallingFruit()
+        {
+            var m = Gardener();
+            var thrown = new System.Collections.Generic.List<FatherMoth.Pattern>();
+            bool pods = false, fruit = false;
+            Action<FatherMoth, FatherMoth.Pattern> onBeat = (_, p) => thrown.Add(p);
+            FatherMoth.Beat += onBeat;
+            try
+            {
+                yield return WakeHim(m);
+                yield return WaitUp(() => m.Spent, 30f, "him spent");
+                m.TakeBurn(m.maxHealth, m.transform.position);
+                yield return WaitUp(() => m.Phase == 2, 4f, "phase 2");
+                thrown.Clear();
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f));
+                yield return WaitUp(() =>
+                {
+                    pods |= SeedPod.Live > 0;
+                    fruit |= FallingFruit.Live > 0;
+                    return m.Spent;
+                }, 40f, "him spent again");
+                Assert.AreEqual(FatherMoth.Pattern.Spiral, thrown[0], "a spiral first");
+                Assert.IsTrue(pods, "seed pods");
+                Assert.IsTrue(fruit, "oranges from the vault");
+                Assert.Greater(thrown.Count, 6, "more than phase 1 threw");
+            }
+            finally { FatherMoth.Beat -= onBeat; }
         }
 
         // The Hook glances off him.
@@ -1386,6 +1439,15 @@ namespace MyGame.Tests
                 yield return WaitUp(() => m.Spent, 20f, "him spent");
                 yield return new WaitForSeconds(1f);
                 Shot("father-moth-4-spent");
+                m.TakeBurn(m.maxHealth, m.transform.position);
+                yield return WaitUp(() => m.Phase == 2 && m.Height > 2.5f, 6f, "phase 2");
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f), true, true);
+                yield return WaitUp(() => last == FatherMoth.Pattern.Spiral && Time.time - at > 1.2f, 10f, "a spiral");
+                Shot("father-moth-5-spiral");
+                yield return WaitUp(() => SeedPod.Live > 0 && last == FatherMoth.Pattern.Pods && Time.time - at > 0.9f, 15f, "seed pods down");
+                Shot("father-moth-6-seed-pods");
+                yield return WaitUp(() => FallingFruit.Live > 0 && Time.time - at > 0.7f, 15f, "oranges falling");
+                Shot("father-moth-7-oranges");
             }
             finally { FatherMoth.Beat -= onBeat; }
         }

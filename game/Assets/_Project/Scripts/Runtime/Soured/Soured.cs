@@ -512,8 +512,9 @@ namespace MyGame
                 return HitResult.Blocked;
             }
 
-            Health -= hit.Damage;
-            dealt = hit.Damage;
+            float was = Health;
+            Health = Mathf.Max(Floor, Health - hit.Damage);
+            dealt = Floor > 0f ? was - Health : hit.Damage; // (held at a floor: only what it took)
             if (immortal && Health <= 0f)
                 Health = maxHealth; // (a dummy: a full bar again)
             Sfx.Instance?.OarHit(transform.position + Vector3.up * 1.1f, hit.Heavy || stunned);
@@ -542,8 +543,9 @@ namespace MyGame
             if (Absorbs(new Hit { Damage = damage, From = from }, true))
                 return true;
             damage *= fireWeakness * AreaTraits.FireHarm; // (a Moth: paper; the Orchard: dry as old leaves)
-            Health -= damage;
-            dealt = damage;
+            float before = Health;
+            Health = Mathf.Max(Floor, Health - damage);
+            dealt = Floor > 0f ? before - Health : damage;
             if (immortal && Health <= 0f)
                 Health = maxHealth;
             flashUntil = Time.time + 0.05f;
@@ -556,6 +558,9 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // As low as its health goes for now (a Boss between phases: no blow carries it through the next).
+        protected virtual float Floor => 0f;
 
         // A blow (or `fire`) it takes without harm, answering in its own way (the Watchman: found out, he tears free;
         // found, the oar goes through straw).

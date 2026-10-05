@@ -210,7 +210,11 @@ left open, his floor.
   between them. After so many beats he's spent: he sinks to the floor and lies there a while, open to the oar, then
   rises and begins again.
 - **Four phases** (at three quarters, half, a quarter): each changes the patterns, more and more of them, and more
-  complex. Phase 1 is built; 2 to 4 are to come. The Hook glances off him.
+  complex. Phase 1: leaves alone, one pattern a beat. Phase 2: quicker beats and quicker leaves, several patterns at
+  once, and new kinds: a spiral stream of leaves, seed pods lobbed to where you stand that burst into rings, withered
+  oranges shaken down from the vault onto glowing marks (no guard stops them: step out). Phases 3 and 4 are to come.
+- **No skipping a phase:** brought down to a phase's mark, his health holds there and nothing harms him (fire neither)
+  until he rises; then the next phase begins. The Hook glances off him.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
 - His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Stroke**.
 

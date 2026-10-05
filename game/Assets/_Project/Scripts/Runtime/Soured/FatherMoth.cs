@@ -9,9 +9,11 @@ namespace MyGame
     // He keeps to one place, hovering over the north of the floor, out of the oar's reach, and beats his wings: each beat
     // (his wings raised high, the lantern in his ribs flaring: the tell) throws dead leaves at you in a pattern, to dodge,
     // block or step between. After so many beats he's spent: he sinks to the floor, his wings slack, and lies there a
-    // while, open to the oar; then he's up again. Four phases (at three quarters, half, a quarter), each its own patterns,
-    // more and more of them: only phase 1's are written yet (the later phases use them for now). Fire burns him badly.
-    // The Hook glances off him.
+    // while, open to the oar; then he's up again. Four phases (at three quarters, half, a quarter), each its own run of
+    // patterns, more and more of them: phase 1 leaves alone (a fan, three aimed, a ring); phase 2 more at once, and seed
+    // pods that burst into rings, withered oranges shaken down from the vault, a spiral stream (phases 3 and 4 use phase
+    // 2's for now). No blow carries him through a phase: brought down to its mark, he's untouchable until he's up again,
+    // and his next phase begins. Fire burns him badly. The Hook glances off him.
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -32,12 +34,24 @@ namespace MyGame
 
         [Header("His wingbeats")]
         public SouredAttack beat = new SouredAttack(); // one wingbeat: its tell, its throw, a breath after
-        public int beatsBeforeSpent = 6;      // then he sinks, exhausted
+        public float phaseOneTell = 0.6f, phaseOneBreath = 0.8f; // phase 1's beats: the tell, the breath after
         public float leafSpeed = 6.5f, leafDamage = 10f;
         public float fanSpread = 70f;         // the fan: this wide
         public int fanCount = 5, ringCount = 14, volleyCount = 3;
         public float volleyInterval = 0.35f;  // the aimed ones: one after another
         public Material leafMaterial;
+
+        [Header("Phase 2 on: more at once, and more kinds")]
+        public float hecticSpeed = 7.5f;      // their leaves, quicker
+        public float hecticTell = 0.5f, hecticBreath = 0.5f; // his beats, quicker (phase 1: the beat's own)
+        public int wideFanCount = 9, wideRingCount = 18;
+        public float wideFanSpread = 110f;
+        public float spiralTime = 2.2f, spiralEvery = 0.09f, spiralTurn = 150f; // a stream from two arms, turning
+        public int podCount = 3, podLeaves = 6;
+        public int fruitCount = 5;
+        public float fruitFall = 1.1f, fruitRadius = 1.1f, fruitDamage = 14f;
+        public Material podMaterial, fruitMaterial;
+        public AudioClip[] podSound, fruitSound;
 
         [Header("Spent")]
         public float sinkTime = 1.2f, spentTime = 5f, riseTime = 0.9f;
@@ -48,26 +62,37 @@ namespace MyGame
         public float cameraLean = 0.5f, cameraZoom = 1.45f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
         public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
 
-        public enum Pattern { Fan, Volley, Ring }
+        public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit }
         enum Mode { Hovering, Sinking, Spent, Rising }
 
-        // Phase 1's run of beats, in order (then he's spent).
-        static readonly Pattern[] PhaseOne = { Pattern.Fan, Pattern.Volley, Pattern.Fan, Pattern.Ring, Pattern.Volley, Pattern.Fan };
+        // Each phase's run of beats, in order (then he's spent); a beat throws everything in it at once.
+        static readonly Pattern[][] PhaseOne =
+        {
+            new[] { Pattern.Fan }, new[] { Pattern.Volley }, new[] { Pattern.Fan }, new[] { Pattern.Ring }, new[] { Pattern.Volley }, new[] { Pattern.Fan },
+        };
+        static readonly Pattern[][] PhaseTwo =
+        {
+            new[] { Pattern.Spiral }, new[] { Pattern.Pods }, new[] { Pattern.Fan, Pattern.Fruit }, new[] { Pattern.WideRing, Pattern.Volley },
+            new[] { Pattern.SpiralBack }, new[] { Pattern.Fruit, Pattern.Pods }, new[] { Pattern.WideFan },
+        };
+        Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : PhaseTwo; // (phases 3 and 4: their own runs, still to come)
 
         public bool Woken { get; private set; }
         public bool Grounded => mode == Mode.Spent;
         public bool Spent => mode == Mode.Spent;
         public bool Beating => CurrentAttack == beat && (CurrentState == State.Telegraph || CurrentState == State.Strike);
-        public Pattern? Thrown { get; private set; } // the pattern of the beat now (or last)
-        public int BeatsLeft => beatsBeforeSpent - beatsDone;
+        public Pattern[] Thrown { get; private set; } // the patterns of the beat now (or last)
+        public int BeatsLeft => Run.Length - beatsDone;
+        public int CurrentPhase { get; private set; } = 1;
+        public bool Untouchable => CurrentPhase < 4 && Health <= Floor + 0.01f; // (brought to his phase's mark: until he's up)
         public float Height => transform.position.y - floorY;
-        public static event System.Action<FatherMoth> Woke, Exhausted; // (tests)
+        public static event System.Action<FatherMoth> Woke, Exhausted, PhaseBegun; // (tests)
         public static event System.Action<FatherMoth, Pattern> Beat;
 
         public string Title => title;
         public string Epithet => epithet;
         public float[] PhaseMarks => new[] { 0.75f, 0.5f, 0.25f };
-        public int Phase => HealthFraction > 0.75f ? 1 : HealthFraction > 0.5f ? 2 : HealthFraction > 0.25f ? 3 : 4;
+        public int Phase => CurrentPhase;
         public AudioClip[] Music => music;
         public string Farewell => farewell;
         public string FarewellLine => farewellLine;
@@ -86,7 +111,8 @@ namespace MyGame
         Quaternion perchRotation;
         Mode mode;
         int beatsDone, volleyLeft;
-        float nextVolley, nextWing;
+        float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign;
+        bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
         bool fightOn;
         Transform focus;                       // his body (the camera leans to it: halfway, so you're both in view)
         int framing;                           // 0 not, 1 asleep on his tree, 2 his fight
@@ -128,16 +154,18 @@ namespace MyGame
 
         protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
-            if (!Woken || mode != Mode.Hovering || (transform.position - HoverPoint).magnitude > 1.5f || volleyLeft > 0)
+            if (!Woken || mode != Mode.Hovering || (transform.position - HoverPoint).magnitude > 1.5f || volleyLeft > 0 || Time.time < streamUntil)
                 return null;
-            if (beatsDone >= beatsBeforeSpent)
+            var run = Run;
+            if (beatsDone >= run.Length)
             {
                 Sink();
                 return null;
             }
-            var run = PhaseOne; // (phases 2 to 4: their own runs, still to come)
-            Thrown = run[beatsDone % run.Length];
+            Thrown = run[beatsDone];
             beatsDone++;
+            beat.telegraph = CurrentPhase == 1 ? phaseOneTell : hecticTell;
+            beat.recover = CurrentPhase == 1 ? phaseOneBreath : hecticBreath;
             return beat;
         }
 
@@ -148,19 +176,22 @@ namespace MyGame
                 Effects.Instance?.AlertFlare(ChestPoint);
                 Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.8f, "father_moth_wing");
             }
-            if (state == State.Strike && CurrentAttack == beat && Thrown.HasValue)
-                Throw(Thrown.Value);
+            if (state == State.Strike && CurrentAttack == beat && Thrown != null)
+            {
+                Sfx.Instance?.Attack(beatSound, transform.position + Vector3.up * 2f, 1f, "father_moth_beat");
+                Effects.Instance?.Leaves(transform.position + Vector3.up * 1.5f, Vector3.zero, 25);
+                foreach (var pattern in Thrown)
+                    Throw(pattern);
+            }
             if (state == State.Dying)
                 Died();
         }
 
         Vector3 ChestPoint => chest != null ? chest.transform.position : transform.position + Vector3.up * 2.5f;
 
-        // The leaves, thrown from under him at chest height.
+        // The leaves (and pods, and fruit), thrown from under him at chest height.
         void Throw(Pattern pattern)
         {
-            Sfx.Instance?.Attack(beatSound, transform.position + Vector3.up * 2f, 1f, "father_moth_beat");
-            Effects.Instance?.Leaves(transform.position + Vector3.up * 1.5f, Vector3.zero, 25);
             Beat?.Invoke(this, pattern);
             Vector3 at = Flat(target != null ? target.transform.position - transform.position : transform.forward);
             Vector3 aim = at.sqrMagnitude > 0.01f ? at.normalized : Vector3.back;
@@ -179,13 +210,50 @@ namespace MyGame
                     volleyLeft = volleyCount;
                     nextVolley = Time.time;
                     break;
+                case Pattern.WideFan:
+                    for (int i = 0; i < wideFanCount; i++)
+                        Leaf(Quaternion.Euler(0f, Mathf.Lerp(-wideFanSpread / 2f, wideFanSpread / 2f, i / (wideFanCount - 1f)), 0f) * aim);
+                    break;
+                case Pattern.WideRing:
+                    float turn2 = Random.Range(0f, 360f / wideRingCount);
+                    for (int i = 0; i < wideRingCount; i++)
+                        Leaf(Quaternion.Euler(0f, turn2 + i * 360f / wideRingCount, 0f) * Vector3.forward);
+                    break;
+                case Pattern.Spiral:
+                case Pattern.SpiralBack:
+                    streamUntil = Time.time + spiralTime;
+                    nextStream = Time.time;
+                    streamAngle = Vector3.SignedAngle(Vector3.forward, aim, Vector3.up);
+                    streamSign = pattern == Pattern.Spiral ? 1f : -1f;
+                    break;
+                case Pattern.Pods:
+                    for (int i = 0; i < podCount; i++)
+                    {
+                        Vector3 spot = Inside(target != null ? target.transform.position + (i == 0 ? Vector3.zero : Flat(Random.insideUnitSphere).normalized * Random.Range(1.5f, 3f)) : middle);
+                        SeedPod.Lob(new Vector3(transform.position.x, floorY + 1.6f, transform.position.z), new Vector3(spot.x, floorY + 0.9f, spot.z), target,
+                            podMaterial, leafMaterial, podLeaves, LeafSpeed, leafDamage, middle, walls, podSound);
+                    }
+                    break;
+                case Pattern.Fruit:
+                    for (int i = 0; i < fruitCount; i++)
+                    {
+                        Vector3 spot = Inside(target != null ? target.transform.position + (i == 0 ? Vector3.zero : Flat(Random.insideUnitSphere).normalized * Random.Range(1.6f, 4f)) : middle);
+                        FallingFruit.Drop(new Vector3(spot.x, floorY, spot.z), target, fruitMaterial, fruitFall + i * 0.12f, fruitRadius, fruitDamage, fruitSound);
+                    }
+                    break;
             }
         }
+
+        // Somewhere on the floor, inside the walls.
+        Vector3 Inside(Vector3 p) => new Vector3(Mathf.Clamp(p.x, middle.x - walls.x + 1f, middle.x + walls.x - 1f), p.y,
+                                                 Mathf.Clamp(p.z, middle.z - walls.y + 1f, middle.z + walls.y - 1f));
+
+        float LeafSpeed => CurrentPhase == 1 ? leafSpeed : hecticSpeed;
 
         void Leaf(Vector3 direction)
         {
             Vector3 from = new Vector3(transform.position.x, floorY + 0.9f, transform.position.z) + direction * 1.2f;
-            DriftLeaf.Fling(from, direction, leafSpeed, leafDamage, target, leafMaterial, middle, walls);
+            DriftLeaf.Fling(from, direction, LeafSpeed, leafDamage, target, leafMaterial, middle, walls);
         }
 
         // ---- every frame
@@ -212,6 +280,21 @@ namespace MyGame
                 nextVolley = Time.time + volleyInterval;
                 Leaf(Flat(target.transform.position - transform.position).normalized);
                 Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.4f, "father_moth_wing", 1.3f);
+            }
+            // The spiral: two arms of leaves, turning.
+            if (Time.time < streamUntil && Time.time >= nextStream)
+            {
+                nextStream = Time.time + spiralEvery;
+                streamAngle += streamSign * spiralTurn * spiralEvery;
+                for (int arm = 0; arm < 2; arm++)
+                    Leaf(Quaternion.Euler(0f, streamAngle + arm * 180f, 0f) * Vector3.forward);
+            }
+            // Brought to his mark while spent: he stirs, and is soon up (untouchable meanwhile).
+            if (mode == Mode.Spent && Untouchable && !stirred && CurrentState == State.Busy)
+            {
+                stirred = true;
+                if (StateTime < spentTime - 1.2f)
+                    BeBusy("Downed", 1.2f);
             }
             switch (mode)
             {
@@ -266,7 +349,32 @@ namespace MyGame
         {
             mode = Mode.Rising;
             beatsDone = 0;
+            stirred = false;
+            if (Untouchable)
+            {
+                // Up, and his next phase begins: a burst of leaves off him, the lantern flaring.
+                CurrentPhase++;
+                Effects.Instance?.Leaves(transform.position + Vector3.up * 1.5f, Vector3.up * 3f, 60);
+                Effects.Instance?.AlertFlare(ChestPoint);
+                CameraRig.Instance?.Shake(0.3f);
+                PhaseBegun?.Invoke(this);
+            }
             BeBusy("Rise", riseTime);
+        }
+
+        // As low as his health goes in this phase: its mark (the last phase, none).
+        protected override float Floor => CurrentPhase < 4 ? maxHealth * PhaseMarks[CurrentPhase - 1] : 0f;
+
+        // At his mark: nothing gets through till he's up (a puff of dust off him, no harm).
+        protected override bool Absorbs(Hit hit, bool fire)
+        {
+            if (!Untouchable)
+                return false;
+            Vector3 towards = Flat(hit.From - transform.position);
+            Effects.Instance?.Leaves(transform.position + Vector3.up * 1.0f + towards.normalized * 0.8f, Vector3.zero, fire ? 2 : 10);
+            if (!fire)
+                Sfx.Instance?.Attack(glanceSound, transform.position + Vector3.up, 0.5f, "father_moth_untouchable", 0.7f);
+            return true;
         }
 
         // The Hook: he's too big, and too high; it glances off.
@@ -302,7 +410,8 @@ namespace MyGame
         {
             if (chest == null)
                 return;
-            float k = CurrentState == State.Telegraph && CurrentAttack == beat ? 1f + 2.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, beat.telegraph))
+            float k = Untouchable && mode == Mode.Spent ? 2.2f + 0.6f * Mathf.Sin(Time.time * 14f) // (stirring: the light coming back)
+                    : CurrentState == State.Telegraph && CurrentAttack == beat ? 1f + 2.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, beat.telegraph))
                     : mode == Mode.Spent ? 0.35f + 0.15f * Mathf.Sin(Time.time * 3f)
                     : 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f);
             chest.enabled = IsAlive || StateTime < deathDuration * 0.5f;
@@ -337,10 +446,10 @@ namespace MyGame
         void Died()
         {
             volleyLeft = 0;
+            streamUntil = 0f;
             Sfx.Instance?.Attack(deathSound, transform.position + Vector3.up * 2f, 1f, "father_moth_death");
             Effects.Instance?.Leaves(transform.position + Vector3.up * 2f, Vector3.zero, 80);
-            foreach (var leaf in FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None))
-                Destroy(leaf.gameObject);
+            Clear();
             BossFight.Defeat(this);
             BossFight.End(this);
             fightOn = false;
@@ -361,13 +470,26 @@ namespace MyGame
             Woken = false;
             passive = true;
             mode = Mode.Hovering;
+            CurrentPhase = 1;
             beatsDone = volleyLeft = 0;
+            streamUntil = 0f;
+            stirred = false;
             Thrown = null;
             velocity = Vector3.zero;
-            foreach (var leaf in FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None))
-                Destroy(leaf.gameObject);
+            Clear();
             BossFight.End(this);
             fightOn = false;
+        }
+
+        // Everything he's thrown, gone (his leaves, pods and fruit).
+        static void Clear()
+        {
+            foreach (var leaf in FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None))
+                Destroy(leaf.gameObject);
+            foreach (var pod in FindObjectsByType<SeedPod>(FindObjectsSortMode.None))
+                Destroy(pod.gameObject);
+            foreach (var fruit in FindObjectsByType<FallingFruit>(FindObjectsSortMode.None))
+                Destroy(fruit.gameObject);
         }
 
         void OnDestroy()

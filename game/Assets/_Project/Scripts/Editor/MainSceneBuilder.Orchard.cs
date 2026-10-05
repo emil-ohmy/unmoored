@@ -577,11 +577,25 @@ public static partial class MainSceneBuilder
             lunge = 0f, maxLunge = 0f, trackUntil = 0.9f, damage = 0f, reach = 30f, arc = 180f, knockback = 0f, scripted = true,
         };
         var leaf = GeneratedMaterial("M_DriftLeaf", "MyGame/Toon");
-        leaf.SetColor("_BaseColor", Hex("#b5652a"));
-        leaf.SetColor("_EmissionColor", new Color(0.95f, 0.42f, 0.12f)); // (its edges smouldering: seen in the dark)
+        leaf.SetColor("_BaseColor", Hex("#9a4a1e"));
+        leaf.SetColor("_EmissionColor", new Color(0.6f, 0.22f, 0.05f)); // (smouldering a little: seen in the dark, still a dead leaf's brown-orange)
         leaf.SetFloat("_OutlineWidth", 0f);
         EditorUtility.SetDirty(leaf);
         m.leafMaterial = leaf;
+        var pod = GeneratedMaterial("M_SeedPod", "MyGame/Toon");
+        pod.SetColor("_BaseColor", Hex("#6b5a34"));
+        pod.SetColor("_EmissionColor", new Color(0.3f, 0.2f, 0.05f));
+        pod.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(pod);
+        m.podMaterial = pod;
+        var fruit = GeneratedMaterial("M_WitheredFruit", "MyGame/Toon");
+        fruit.SetColor("_BaseColor", Hex("#a8642a"));
+        fruit.SetColor("_EmissionColor", new Color(0.35f, 0.15f, 0.04f));
+        fruit.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(fruit);
+        m.fruitMaterial = fruit;
+        m.podSound = Clips("seed_pod_burst");
+        m.fruitSound = Clips("fruit_fall");
         m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, LanternLight);
         m.wingSound = Clips("father_moth_wing");
         m.wakeSound = Clips("father_moth_wake");
