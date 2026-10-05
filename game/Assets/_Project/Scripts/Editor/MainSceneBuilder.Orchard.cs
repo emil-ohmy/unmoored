@@ -582,23 +582,24 @@ public static partial class MainSceneBuilder
             lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 18f, arc = 180f, knockback = 0f, scripted = true,
         };
         m.dive = Scripted("Dive", "Stall", "Dive", 0.85f, 1.6f, 0.35f);
-        m.shake = Scripted("Shake", "Shake", "Fly", 1.0f, 0.3f, 0.5f);
+        m.shears = new SouredAttack // (snapped round him the moment he lands; then the window, before he's up)
+        {
+            name = "Shears", windupClip = "ShearsDraw", strikeClip = "Shears", recoverClip = "Recover",
+            telegraph = 0.25f, strike = 0.3f, recover = 1.2f, impactAt = 0.4f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.6f, damage = 20f, reach = 3.6f, arc = 180f, knockback = 9f,
+            windupSound = Clips("father_moth_snip"), swingSound = Clips("laden_swing"), swingPitch = 1.2f,
+        };
         m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, LanternLight);
         m.wingSound = Clips("father_moth_wing");
         m.wakeSound = Clips("father_moth_wake");
         m.stallSound = Clips("father_moth_stall");
         m.diveSound = Clips("father_moth_dive");
-        m.shakeSound = Clips("father_moth_shake");
         m.landSound = Clips("father_moth_land");
         m.downedSound = Clips("father_moth_downed");
         m.glanceSound = Clips("block_clang");
         m.tearSound = Clips("father_moth_tear");
         m.shatterSound = Clips("glass_lamp_shatter");
         m.deathSound = Clips("father_moth_death");
-        // The three Moths he shakes from his wings (gone till then).
-        var flock = MothFlockAt("Moths (Father Moth's)", m.middle + Vector3.up * 3f, null, 3);
-        flock.transform.SetParent(root, true);
-        m.flock = flock;
         return m;
     }
 

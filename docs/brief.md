@@ -204,14 +204,15 @@ Glasshouse**, beyond the Unreaped Rows' far gate (the Watchman guards the way), 
 broken panes, raised beds of dead plants, shallow water channels (you wade them; they put out flames), lamps hung on
 chains, a dead orange tree against its north wall (he hangs folded on it, like a leaf, until you come in); its middle
 left open, his floor.
-- **Kept simple:** two things, and only two. He shakes out three Moths (when none of his are about), or he dives.
+- **Kept simple:** one attack, his dive, and his shears when he lands from it.
 - **Phase 1:** he circles the lamps out of reach (the oar passes under him). His dive: a stall, wings flung wide,
-  the light in his chest flaring (the tell), then down at you. Dodge it and he's on the floor where you stood a moment,
-  open to a blow or two; a perfect block knocks him down, stunned, every blow a riposte.
+  the light in his chest flaring (the tell), then down at you. Dodge it and he lands where you stood, snapping his
+  shears round him at once (keep clear, block, or parry: a perfect block knocks him down); then he's on the floor a
+  moment, open, before he's up again. A perfect block on the dive itself knocks him down, stunned, every blow a riposte.
 - **The Hook** catches him only in his stall: dragged down out of it, the dive never comes (a shorter stun than a
   parry's). Any other time it glances off.
 - **Phase 2 (half):** he tears the lamps down one by one; the glasshouse goes dark but for the moon and your bow
-  lantern. The same two things, but his dives come in pairs: the second straight after the first, with a shorter
+  lantern. The same, but his dives come in pairs: the second straight after the first, with a shorter
   stall, and he lands only after the second. Parry the first and the second never comes.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
 - His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Stroke**.

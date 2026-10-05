@@ -348,9 +348,10 @@ namespace MyGame.Tests
             Assert.Less(m.Health, before - apprentice.lightDamage * 1.5f, "a riposte: double");
         }
 
-        // His dive dodged: he comes down where you stood and stays a moment, and the oar reaches him there.
+        // His dive dodged: he comes down where you stood and snaps his shears round him at once (out of their reach,
+        // they miss); then a moment on the floor, open, before he's up again.
         [UnityTest]
-        public IEnumerator TheGardener_HisDiveDodged_HeLandsAMoment_TheOarReachesHim()
+        public IEnumerator TheGardener_HisDiveDodged_HisShears_ThenAMomentOpen()
         {
             var m = Gardener();
             bool landed = false;
@@ -368,34 +369,36 @@ namespace MyGame.Tests
                 input.Move = Vector2.zero;
                 yield return WaitFor(() => landed, 1.5f, "him landed");
                 Assert.IsTrue(m.Landed && !m.OutOfReach, "on the floor, in reach");
+                yield return WaitFor(() => m.Shearing, 0.5f, "his shears, at once");
+                // Out of their reach while they swing; then in, for the window.
+                Vector3 away = (apprentice.transform.position - m.transform.position).Flat().normalized;
+                apprentice.Teleport(m.transform.position + away * 5f + Vector3.up * 0.05f);
+                yield return WaitFor(() => m.CurrentState == Soured.State.Recover, 1f, "the shears swung");
                 yield return WaitFor(() => apprentice.CurrentState == Apprentice.State.Free, 1f, "the Apprentice free to swing");
-                apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.4f + Vector3.up * 0.05f);
+                apprentice.Teleport(m.transform.position + away * 2.4f + Vector3.up * 0.05f);
                 Face(m);
                 float before = m.Health;
                 input.PressLight();
                 yield return new WaitForSeconds(0.6f);
-                Assert.Less(m.Health, before, "struck");
-                yield return WaitFor(() => !m.Grounded, m.landedTime + 1f, "him up again");
+                Assert.Less(m.Health, before, "struck in the window");
+                yield return WaitFor(() => !m.Grounded, 2f, "him up again");
             }
             finally { FatherMoth.LandedAfterDive -= onLand; }
         }
 
-        // Three Moths shaken from his wings (only when none of his are about).
+        // Stand by where he lands and his shears catch you.
         [UnityTest]
-        public IEnumerator TheGardener_ShakesOutThreeMoths()
+        public IEnumerator TheGardener_HisShears_CatchYouCloseWhenHeLands()
         {
             var m = Gardener();
-            bool shook = false;
-            Action<FatherMoth> onShake = _ => shook = true;
-            FatherMoth.Shook += onShake;
-            try
-            {
-                yield return WakeHim(m);
-                yield return WaitUp(() => shook, 40f, "Moths shaken out");
-                yield return new WaitForSeconds(0.2f);
-                Assert.AreEqual(3, m.flock.Alive, "three of them");
-            }
-            finally { FatherMoth.Shook -= onShake; }
+            yield return WakeHim(m);
+            yield return HisStall(m);
+            yield return WaitFor(() => m.Diving, 2f, "his dive");
+            yield return WaitFor(() => m.Landed, 2f, "him landed");
+            apprentice.RestoreFully();
+            apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.2f + Vector3.up * 0.05f);
+            float health = apprentice.Health;
+            yield return WaitFor(() => apprentice.Health < health, 1f, "his shears catching you");
         }
 
         // The Hook: in his stall it catches him and drags him down (no dive); any other time it glances off.
