@@ -107,6 +107,7 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Father Moth waking (`father_moth_wake`) | in game | Synth | on the dead orange tree: dead leaves crackling open (his wings unfolding), the branches creaking under him, two slow wingbeats as he lifts |
 | Father Moth's shears (`father_moth_snip`, 2) | in game | Synth | the moment he lands after a dive: the blades opened with an iron scrape, snip-snip, as he snaps them round him |
 | Father Moth's stall (`father_moth_stall`, 2) | in game | Synth | his tell before a dive: a hard crack of air as the wings are flung wide, a trembling rattle of leaves, the lantern in his ribs flaring with a rising roar |
+| Father Moth's swoop (`father_moth_swoop`, 2) | in game | Synth | its tell and its pass: the wings snapped back with a hard dry clap, a low rushing roar of air building as he comes in level, leaves torn up in his wake |
 | Father Moth diving (`father_moth_dive`, 2) | in game | Synth | a deep rushing tear of air rising as he comes, leaves streaming in it |
 | Father Moth landing (`father_moth_land`) | in game | Synth | a dive dodged, down on the floor: a last back-beat of the wings, a dull thud and a splash, leaves settling |
 | Father Moth brought down (`father_moth_downed`) | in game | Synth | his dive turned on the oar (or the Hook, in his stall): a heavy crash on stone, the shears clattering, leaves crumpling, a long hollow breath out |

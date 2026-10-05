@@ -7,7 +7,8 @@ as every Soured. Origin at the ground, where he stands when he lands (in flight 
 
 Clips: Perched (still, wings folded down over him like a dead leaf: before he wakes), Wake (2 s: the wings unfold, he
 lifts his head), Fly (a great slow wingbeat, looping), Stall (0.8 s: his tell; wings flung wide and up and held, rearing
-back, shears thrown open), Dive (wings swept back, shears thrust ahead), Downed (stunned: sprawled on the floor, the
+back, shears thrown open), Dive (wings swept back, shears thrust ahead), SwoopDraw (0.7 s: dropping low, the wings snapped right
+back: the swoop's tell), Swoop (level and low across the floor), Downed (stunned: sprawled on the floor, the
 wings splayed), Rise (0.8 s: up off the floor), Land (0.8 s), Tend (on the ground, bent over a bed, snipping: looping),
 ShearsDraw (0.7 s), Shears (0.3 s: swept across his front), Recover (1 s), GustDraw (0.9 s: the wings raised high over
 his back), Gust (0.5 s: one great beat forward), Beat (1.2 s: hammering the water below), Shake (1 s: a shudder that
@@ -68,6 +69,8 @@ STALL = dict(wings((0, -24, -22), (0, 24, 22), (0, -18, -12), (0, 18, 12)),  # (
              SnipL=(0, 0, -28), SnipR=(0, 0, 28), Legs=(80, 0, 0))
 DIVE = dict(lift(8, 62), Body=(30, 0, 0), Torso=(12, 0, 0), Head=(-8, 0, 0), ArmL=(-72, 0, -6), ArmR=(-72, 0, 6),
             SnipL=(0, 0, -20), SnipR=(0, 0, 20), Legs=(85, 0, 0))
+SWOOP = dict(lift(4, 70), Body=(4, 0, 0), Torso=(20, 0, 0), Head=(-12, 0, 0), ArmL=(-80, 0, -14), ArmR=(-80, 0, 14),
+             SnipL=(0, 0, -24), SnipR=(0, 0, 24), Legs=(85, 0, 0))  # (level, low, wings swept right back, shears ahead)
 DOWNED = dict(wings((0, 22, 12), (0, -22, -12), (0, 18, 10), (0, -18, -10)),
               Root=((0, 0, 0), (0, 0, -0.62)), Torso=(52, 0, 10), Head=(34, 0, -22), ArmL=(25, 0, -35), ArmR=(25, 0, 35),
               Abdomen=(-6, 0, 0))
@@ -95,6 +98,8 @@ ACTIONS = {
     "Fly": ("BEZIER", [(1, UP), (10, DOWN), (20, UP)]),
     "Stall": ("BEZIER", [(1, UP), (6, STALL), (20, dict(STALL, Body=(-34, 0, 0), Torso=(-30, 0, 0)))]),
     "Dive": ("BEZIER", [(1, STALL), (4, DIVE), (20, dict(DIVE, Body=(34, 0, 0)))]),
+    "SwoopDraw": ("BEZIER", [(1, UP), (6, dict(SWOOP, Body=(-10, 0, 0))), (16, SWOOP)]),
+    "Swoop": ("BEZIER", [(1, SWOOP), (10, dict(SWOOP, Body=(6, 0, 0))), (20, SWOOP)]),
     "Downed": ("BEZIER", [(1, DOWNED), (30, dict(DOWNED, Torso=(48, 0, 6), Head=(30, 0, -18))), (60, DOWNED)]),
     "Rise": ("BEZIER", [(1, DOWNED), (8, dict(lift(70), Torso=(-10, 0, 0))), (14, DOWN), (20, UP)]),
     "Land": ("BEZIER", [(1, UP), (8, dict(lift(60, 0), Body=(-24, 0, 0))), (14, dict(lift(-20), Body=(-10, 0, 0))), (20, REST)]),

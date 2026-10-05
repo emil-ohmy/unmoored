@@ -11,9 +11,12 @@ namespace MyGame
     // knocks him down); then he's on the floor a moment, open, before he's up again. Turn the dive itself with a perfect
     // block and he's knocked down, stunned, every blow a riposte. The Hook catches him only in his stall: dragged down
     // out of it, the dive never comes. On the wing the oar passes under him.
-    // Phase 2 (at half): he tears the lamps down one by one; in the dark (the moon, and your bow lantern) his dives come
-    // in pairs, the second straight after the first with a shorter tell (he lands only after the second; parry the first
-    // and the second never comes). Fire burns him badly (it doesn't lure him).
+    // His swoop: his wings snapped right back, one short flare of the lantern (the tell), dropping low; then level across
+    // the floor at chest height and up again on the far side. Dodging it only saves you (he never lands from it); a
+    // perfect block knocks him down. The Hook catches him in its tell too.
+    // Phase 2 (at half): he tears the lamps down one by one; in the dark (the moon, and your bow lantern) his attacks come
+    // two at a time (dive and dive, dive and swoop, swoop and dive), the second straight after the first with a shorter
+    // tell; he lands only after a last dive. Parry the first and the second never comes. Fire burns him badly.
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -40,6 +43,10 @@ namespace MyGame
         [Header("His dive, and his shears when he lands")]
         public SouredAttack dive = new SouredAttack();
         public SouredAttack shears = new SouredAttack(); // snapped round him the moment he lands (its recovery: the window)
+        public SouredAttack swoop = new SouredAttack();
+        public float swoopSpeed = 16f, swoopHeight = 0.3f, swoopFrom = 7f, swoopOn = 6f; // its pass: how low, from how far, how far on past you
+        public float swoopTime = 0.7f, secondSwoopTime = 0.4f; // its tell (the second of two, phase 2)
+        public float shearsBeat = 0.4f;       // landed, a beat before the shears' tell
         public float diveSpeed = 15f, diveContact = 1.4f, diveDamage = 22f, diveKnock = 8f;
         public float diveEvery = 4.5f, huntDiveEvery = 3.2f;
         public float stallTime = 0.85f, huntStallTime = 0.75f, secondStallTime = 0.45f; // his tell: phase 1; phase 2, the first of a pair, the second
@@ -50,7 +57,7 @@ namespace MyGame
         public Light chest;                   // the lantern in his ribs
         public float chestIntensity = 1.4f;
         public float cameraLean = 0.5f, cameraZoom = 1.45f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
-        public AudioClip[] wingSound, wakeSound, stallSound, diveSound, landSound, downedSound, glanceSound, tearSound, shatterSound, deathSound;
+        public AudioClip[] wingSound, wakeSound, stallSound, diveSound, swoopSound, landSound, downedSound, glanceSound, tearSound, shatterSound, deathSound;
 
         public enum Intent { Circle, Tearing }
 
@@ -64,6 +71,9 @@ namespace MyGame
         public bool Downed => Grounded && (CurrentState == State.Stunned || CurrentState == State.Staggered);
         public bool Diving => CurrentState == State.Strike && CurrentAttack == dive;
         public bool Stalling => CurrentState == State.Telegraph && CurrentAttack == dive;
+        public bool SwoopTelling => CurrentState == State.Telegraph && CurrentAttack == swoop;
+        public bool Telling => Stalling || SwoopTelling;   // either tell (the Hook catches him in it)
+        public bool Swooping => CurrentState == State.Strike && CurrentAttack == swoop;
         public bool SecondOfPair => secondOfPair;
         public float Height => transform.position.y - floorY;
         public static event System.Action<FatherMoth> Woke, Dived, LandedAfterDive, PhaseTwo; // (tests)
@@ -89,7 +99,10 @@ namespace MyGame
         Vector3 velocity, diveDir, perch;
         Quaternion perchRotation;
         Intent intent;
-        int nextLamp, lampCircled, pairLeft;
+        int nextLamp, lampCircled, streak;
+        SouredAttack queued, last;             // phase 2: the second of two, to come straight after; the last he chose
+        Vector3 swoopDir;
+        float swoopLeft;
         float nextDive, nextAttack, nextWing, nextLampSwitch;
         float dropAt = -1f, orbit;
         bool rising, landed, sheared, struckThisDive, pullingUp, secondOfPair, fightOn, pendingTwo;
@@ -165,20 +178,36 @@ namespace MyGame
             if (!Woken || Grounded || rising || intent == Intent.Tearing || pendingTwo)
                 return null;
             float now = Time.time;
-            if (pairLeft > 0) // (phase 2: the second of a pair, straight after the first)
+            if (queued != null) // (phase 2: the second of two, straight after the first)
             {
-                pairLeft--;
+                var next = queued;
+                queued = null;
                 secondOfPair = true;
-                dive.telegraph = secondStallTime;
-                return dive;
+                next.telegraph = next == dive ? secondStallTime : secondSwoopTime;
+                return next;
             }
             if (now < nextAttack || now < nextDive || distance > 18f)
                 return null;
             nextDive = now + (CurrentPhase == 1 ? diveEvery : huntDiveEvery) * Random.Range(0.85f, 1.2f);
             secondOfPair = false;
-            pairLeft = CurrentPhase == 2 ? 1 : 0;
-            dive.telegraph = CurrentPhase == 1 ? stallTime : huntStallTime;
-            return dive;
+            var first = Pick(Flat(toTarget).magnitude);
+            first.telegraph = first == dive ? (CurrentPhase == 1 ? stallTime : huntStallTime) : swoopTime;
+            if (CurrentPhase == 2)
+                queued = first == swoop ? dive : Random.value < 0.5f ? dive : swoop; // (never two swoops: one of them lands)
+            return first;
+        }
+
+        // A dive or a swoop, about evenly; never three of one in a row; a swoop only from far enough off to come in level.
+        SouredAttack Pick(float distance)
+        {
+            var next = Random.value < 0.5f ? dive : swoop;
+            if (next == last && streak >= 2)
+                next = next == dive ? swoop : dive;
+            if (next == swoop && distance < 3.5f) // (from nearer, his tell draws him off to come in level)
+                next = dive;
+            streak = next == last ? streak + 1 : 1;
+            last = next;
+            return next;
         }
 
         // ---- every frame
@@ -208,6 +237,12 @@ namespace MyGame
             {
                 case State.Strike when CurrentAttack == dive:
                     Dive(dt);
+                    break;
+                case State.Strike when CurrentAttack == swoop:
+                    Swoop(dt);
+                    break;
+                case State.Telegraph when CurrentAttack == swoop:
+                    DropForSwoop(dt);
                     break;
                 case State.Stunned:
                 case State.Staggered:
@@ -271,10 +306,10 @@ namespace MyGame
         void LiftOff()
         {
             Grounded = landed = sheared = false;
-            pairLeft = 0;
+            queued = null;
             BeBusy("Rise", 0.8f);
             rising = true;
-            nextAttack = Mathf.Max(nextAttack, Time.time + 1.0f);
+            nextAttack = Mathf.Max(nextAttack, Time.time + 2.0f); // (up, and back out on his circle, before the next)
         }
 
         // On the wing: round a lamp (phase 1), round you (phase 2), to a lamp to tear down.
@@ -370,6 +405,19 @@ namespace MyGame
                 Effects.Instance?.AlertFlare(ChestPoint);
                 Sfx.Instance?.Attack(stallSound, ChestPoint, 1f, "father_moth_stall");
             }
+            if (state == State.Telegraph && CurrentAttack == swoop)
+            {
+                Effects.Instance?.AlertFlare(ChestPoint);
+                Sfx.Instance?.Attack(swoopSound, ChestPoint, 1f, "father_moth_swoop");
+            }
+            if (state == State.Strike && CurrentAttack == swoop && target != null)
+            {
+                Vector3 to = Flat(target.transform.position - transform.position);
+                swoopDir = to.sqrMagnitude > 0.01f ? to.normalized : transform.forward;
+                swoopLeft = to.magnitude + swoopOn;
+                struckThisDive = false;
+                Dived?.Invoke(this);
+            }
             if (state == State.Strike && CurrentAttack == dive && target != null)
             {
                 diveDir = (target.transform.position - transform.position).normalized; // (to where you stand: he comes down there)
@@ -411,18 +459,13 @@ namespace MyGame
                 var defence = HitTarget(diveDamage, Flat(diveDir).normalized * diveKnock);
                 if (defence == Defence.Parried)
                 {
-                    // (turned on the oar: down he goes, in front of you, the way he came; a second dive never comes)
-                    pairLeft = 0;
-                    Vector3 back = -Flat(diveDir).normalized;
-                    Vector3 at = target.transform.position + (back.sqrMagnitude > 0.01f ? back : -target.transform.forward) * (radius + 1.6f);
-                    Hold(new Vector3(at.x, floorY, at.z));
-                    Stun();
+                    KnockedDown(diveDir); // (a second never comes)
                     return;
                 }
             }
             if (!floor)
                 return;
-            if (pairLeft > 0)
+            if (queued != null)
             {
                 pullingUp = true; // (skimming the floor, and up for the next)
                 diveDir = new Vector3(diveDir.x, 0f, diveDir.z).normalized * 0.6f + Vector3.up * 0.8f;
@@ -431,14 +474,54 @@ namespace MyGame
                 Land();
         }
 
-        // A dive come to the floor: his shears at once (ChooseAttack), then a moment open before he's up again.
+        // Turned on the oar (a dive, a swoop): down he goes, in front of you, the way he came; stunned.
+        void KnockedDown(Vector3 came)
+        {
+            queued = null;
+            Vector3 back = -Flat(came).normalized;
+            Vector3 at = target.transform.position + (back.sqrMagnitude > 0.01f ? back : -target.transform.forward) * (radius + 1.6f);
+            Hold(new Vector3(at.x, floorY, at.z));
+            Stun();
+        }
+
+        // ---- his swoop
+
+        // The tell: his wings snapped back, dropping low, drawing off from you to come in level.
+        void DropForSwoop(float dt)
+        {
+            Vector3 from = target != null ? Flat(transform.position - target.transform.position) : Vector3.forward;
+            Vector3 spot = target != null ? target.transform.position + (from.sqrMagnitude > 0.01f ? from.normalized : Vector3.forward) * swoopFrom : transform.position;
+            spot.y = floorY + swoopHeight + 0.5f;
+            Steer(spot, dt, 1.6f);
+        }
+
+        // Level across the floor at your chest, straight through where you stood, and up again past you.
+        void Swoop(float dt)
+        {
+            float step = swoopSpeed * dt;
+            Vector3 next = transform.position + swoopDir * step;
+            swoopLeft -= step;
+            next.y = swoopLeft > 0f ? Mathf.MoveTowards(transform.position.y, floorY + swoopHeight, 6f * dt)
+                                    : Mathf.MoveTowards(transform.position.y, floorY + circleHeight, 5f * dt);
+            Hold(next);
+            velocity = swoopDir * swoopSpeed * 0.4f;
+            if (struckThisDive || target == null || !target.IsAlive || swoopLeft <= 0f)
+                return;
+            if (Flat(target.transform.position - transform.position).magnitude > diveContact || transform.position.y - target.transform.position.y > 1.2f)
+                return;
+            struckThisDive = true;
+            if (HitTarget(diveDamage, swoopDir * diveKnock) == Defence.Parried)
+                KnockedDown(swoopDir);
+        }
+
+        // A dive come to the floor: a beat, his shears (ChooseAttack), then a moment open before he's up again.
         void Land()
         {
             Grounded = landed = true;
             sheared = false;
             velocity = Vector3.zero;
             Hold(new Vector3(transform.position.x, floorY, transform.position.z));
-            BeBusy("Land", 0.05f); // (a beat, then the shears)
+            BeBusy("Land", shearsBeat); // (a beat, then the shears)
             Effects.Instance?.Leaves(transform.position + Vector3.up * 0.5f, Vector3.zero, 20);
             Sfx.Instance?.Attack(landSound, transform.position, 0.9f, "father_moth_land");
             CameraRig.Instance?.Shake(0.15f);
@@ -462,13 +545,13 @@ namespace MyGame
         // The Hook: in his stall, it catches him and drags him down (the dive never comes); any other time it glances off.
         public override HookResult OnHooked(Apprentice by)
         {
-            if (!IsAlive || !Woken || !Stalling)
+            if (!IsAlive || !Woken || !Telling)
             {
                 Effects.Instance?.BlockSpark(ChestPoint, Flat(by.transform.position - transform.position).normalized);
                 Sfx.Instance?.Attack(glanceSound, ChestPoint, 0.8f, "father_moth_glance");
                 return HookResult.Shrugged;
             }
-            pairLeft = 0;
+            queued = null;
             Vector3 away = Flat(transform.position - by.transform.position);
             Vector3 at = by.transform.position + (away.sqrMagnitude > 0.01f ? away.normalized : by.transform.forward) * 2.6f;
             Hold(new Vector3(at.x, floorY, at.z));
@@ -531,8 +614,9 @@ namespace MyGame
             }
             if (chest != null)
             {
-                bool telling = Stalling;
-                float k = telling ? 1f + 3.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, dive.telegraph))
+                // (the dive's tell: a long flare, building; the swoop's: one short flare, then dim)
+                float k = Stalling ? 1f + 3.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, dive.telegraph))
+                        : SwoopTelling ? (StateTime < 0.18f ? 4.5f : 0.7f)
                         : 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f);
                 chest.enabled = IsAlive || StateTime < deathDuration * 0.5f;
                 chest.intensity = chestIntensity * k * (IsAlive ? 1f : 1f - Mathf.Clamp01(StateTime / (deathDuration * 0.5f)));
@@ -626,7 +710,8 @@ namespace MyGame
             StopAllCoroutines();
             Grounded = rising = landed = sheared = pendingTwo = pullingUp = secondOfPair = false;
             intent = Intent.Circle;
-            nextLamp = lampCircled = pairLeft = 0;
+            nextLamp = lampCircled = streak = 0;
+            queued = last = null;
             dropAt = -1f;
             forced = null;
             velocity = Vector3.zero;

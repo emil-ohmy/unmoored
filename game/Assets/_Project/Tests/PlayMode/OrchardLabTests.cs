@@ -317,7 +317,7 @@ namespace MyGame.Tests
         }
 
         // Waits for his next stall (before a dive), facing him, keeping the Apprentice up.
-        IEnumerator HisStall(FatherMoth m, float seconds = 16f)
+        IEnumerator HisStall(FatherMoth m, float seconds = 30f)
         {
             yield return WaitUp(() => m.Stalling, seconds, "his stall");
             Face(m);
@@ -398,7 +398,7 @@ namespace MyGame.Tests
             apprentice.RestoreFully();
             apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.2f + Vector3.up * 0.05f);
             float health = apprentice.Health;
-            yield return WaitFor(() => apprentice.Health < health, 1f, "his shears catching you");
+            yield return WaitFor(() => apprentice.Health < health, 2f, "his shears catching you");
         }
 
         // The Hook: in his stall it catches him and drags him down (no dive); any other time it glances off.
@@ -430,23 +430,53 @@ namespace MyGame.Tests
             Assert.IsFalse(m.Diving, "the dive never came");
         }
 
-        // In the dark (phase 2) his dives come in pairs: the second straight after the first, with a shorter stall; he
-        // lands only after the second.
+        // His swoop: level across the floor and on past you. Dodged, he never lands from it; turned on a perfect block,
+        // he's knocked down.
         [UnityTest]
-        public IEnumerator TheGardener_InTheDark_HisDivesComeInPairs()
+        public IEnumerator TheGardener_HisSwoop_DodgedHeFliesOn_PerfectBlockedHeIsDown()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            apprentice.Teleport(m.middle + Vector3.up * 0.05f); // (the middle of the floor: room for him to come in level)
+            yield return WaitUp(() => m.SwoopTelling, 30f, "his swoop's tell");
+            yield return WaitFor(() => m.Swooping, 2f, "his swoop");
+            yield return WaitFor(() => Vector3.Distance(m.transform.position, apprentice.transform.position) < 4f, 2f, "him close");
+            input.Move = Vector2.right;
+            input.PressDash();
+            yield return new WaitForSeconds(0.3f);
+            input.Move = Vector2.zero;
+            yield return WaitFor(() => !m.Swooping, 2f, "the pass over");
+            Assert.IsFalse(m.Grounded, "dodged: he flies on, never landing");
+            yield return WaitUp(() => m.SwoopTelling, 40f, "another swoop's tell");
+            yield return WaitFor(() => m.Swooping, 2f, "his swoop");
+            Face(m);
+            yield return WaitFor(() => m.Downed || Vector3.Distance(m.transform.position, apprentice.transform.position) < m.diveContact + 1.8f, 2f, "him close");
+            input.BlockHeld = true;
+            yield return WaitFor(() => m.Downed, 1f, "him knocked down on the block");
+            input.BlockHeld = false;
+            Assert.AreEqual(Soured.State.Stunned, m.CurrentState);
+        }
+
+        // In the dark (phase 2) his attacks come two at a time: the second straight after the first with a shorter tell,
+        // no landing between; he lands only after a last dive.
+        [UnityTest]
+        public IEnumerator TheGardener_InTheDark_HisAttacksComeTwoAtATime()
         {
             var m = Gardener();
             yield return WakeHim(m);
             m.TakeBurn(m.maxHealth * 0.55f / (m.fireWeakness * AreaTraits.FireHarm), m.transform.position);
             yield return WaitUp(() => m.Phase == 2 && m.LampsLeft == 0, 25f, "the lamps down");
-            yield return HisStall(m);
+            yield return WaitUp(() => m.Telling, 15f, "his first tell");
             Assert.IsFalse(m.SecondOfPair);
-            yield return WaitUp(() => m.Diving, 2f, "the first dive");
-            yield return WaitUp(() => m.Stalling || m.Grounded, 3f, "the second stall");
+            yield return WaitUp(() => m.Diving || m.Swooping, 2f, "the first");
+            yield return WaitUp(() => m.Telling || m.Grounded, 4f, "the second tell");
             Assert.IsFalse(m.Grounded, "no landing after the first");
             Assert.IsTrue(m.SecondOfPair);
-            Assert.Less(m.dive.telegraph, 0.5f, "a shorter stall");
-            yield return WaitUp(() => m.Grounded, 4f, "him down after the second");
+            Assert.Less(m.CurrentAttack.telegraph, 0.5f, "a shorter tell");
+            bool aDive = m.Stalling;
+            yield return WaitUp(() => !m.Telling && !m.Diving && !m.Swooping, 4f, "the second over");
+            if (aDive)
+                Assert.IsTrue(m.Grounded, "down after a last dive");
         }
 
         // At half, he tears the lamps down one by one, and the Glasshouse goes dark.
@@ -1439,6 +1469,11 @@ namespace MyGame.Tests
             input.BlockHeld = false;
             yield return new WaitForSeconds(0.6f);
             Shot("father-moth-3-downed");
+            apprentice.Teleport(m.middle + Vector3.up * 0.05f);
+            yield return WaitUp(() => m.SwoopTelling && m.StateTime > 0.4f, 30f, "his swoop's tell");
+            Shot("father-moth-3b-swoop-tell");
+            yield return WaitUp(() => m.Swooping && Vector3.Distance(m.transform.position, apprentice.transform.position) < 5f, 3f, "his swoop");
+            Shot("father-moth-3c-swoop");
             yield return WaitUp(() => m.Landed, 30f, "him landed after a dive");
             yield return new WaitForSeconds(0.4f);
             Shot("father-moth-4-landed");

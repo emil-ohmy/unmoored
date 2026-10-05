@@ -582,10 +582,11 @@ public static partial class MainSceneBuilder
             lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 18f, arc = 180f, knockback = 0f, scripted = true,
         };
         m.dive = Scripted("Dive", "Stall", "Dive", 0.85f, 1.6f, 0.35f);
+        m.swoop = Scripted("Swoop", "SwoopDraw", "Swoop", 0.7f, 1.6f, 0.35f);
         m.shears = new SouredAttack // (snapped round him the moment he lands; then the window, before he's up)
         {
             name = "Shears", windupClip = "ShearsDraw", strikeClip = "Shears", recoverClip = "Recover",
-            telegraph = 0.25f, strike = 0.3f, recover = 1.2f, impactAt = 0.4f,
+            telegraph = 0.5f, strike = 0.3f, recover = 1.8f, impactAt = 0.4f,
             lunge = 0f, maxLunge = 0f, trackUntil = 0.6f, damage = 20f, reach = 3.6f, arc = 180f, knockback = 9f,
             windupSound = Clips("father_moth_snip"), swingSound = Clips("laden_swing"), swingPitch = 1.2f,
         };
@@ -594,6 +595,7 @@ public static partial class MainSceneBuilder
         m.wakeSound = Clips("father_moth_wake");
         m.stallSound = Clips("father_moth_stall");
         m.diveSound = Clips("father_moth_dive");
+        m.swoopSound = Clips("father_moth_swoop");
         m.landSound = Clips("father_moth_land");
         m.downedSound = Clips("father_moth_downed");
         m.glanceSound = Clips("block_clang");
