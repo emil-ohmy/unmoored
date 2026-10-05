@@ -6,17 +6,12 @@ namespace MyGame
     // and its glasshouse, grown into the greatest of the Moths: wings like dead leaves, six metres across, the stooped
     // gardener rising from them, his forearms grown into forelegs ending in pruning shears, a caged lantern in his ribs.
     // He hangs folded on the dead orange tree, like a leaf; come into the Glasshouse and he wakes.
-    // His dive: a stall, wings flung wide, the lantern in his ribs flaring (the tell); then down at you. Dodge it and he
-    // lands where you stood, his shears snapping round him at once (back off, block, or parry them: a perfect block
-    // knocks him down); then he's on the floor a moment, open, before he's up again. Turn the dive itself with a perfect
-    // block and he's knocked down, stunned, every blow a riposte. The Hook catches him only in his stall: dragged down
-    // out of it, the dive never comes. On the wing the oar passes under him.
-    // His swoop: his wings snapped right back, one short flare of the lantern (the tell), dropping low; then level across
-    // the floor at chest height and up again on the far side. Dodging it only saves you (he never lands from it); a
-    // perfect block knocks him down. The Hook catches him in its tell too.
-    // Phase 2 (at half): he tears the lamps down one by one; in the dark (the moon, and your bow lantern) his attacks come
-    // two at a time (dive and dive, dive and swoop, swoop and dive), the second straight after the first with a shorter
-    // tell; he lands only after a last dive. Parry the first and the second never comes. Fire burns him badly.
+    // He keeps to one place, hovering over the north of the floor, out of the oar's reach, and beats his wings: each beat
+    // (his wings raised high, the lantern in his ribs flaring: the tell) throws dead leaves at you in a pattern, to dodge,
+    // block or step between. After so many beats he's spent: he sinks to the floor, his wings slack, and lies there a
+    // while, open to the oar; then he's up again. Four phases (at three quarters, half, a quarter), each its own patterns,
+    // more and more of them: only phase 1's are written yet (the later phases use them for now). Fire burns him badly.
+    // The Hook glances off him.
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -29,59 +24,50 @@ namespace MyGame
         [Header("His glasshouse")]
         public float floorY;                  // its floor
         public Vector3 middle;                // the middle of its floor
-        public Vector2 reach = new Vector2(10f, 7.5f); // how far he flies from the middle (half its width, half its depth)
+        public Vector2 reach = new Vector2(10f, 7.5f); // how far from the middle he flies (half a width, half a depth)
+        public Vector2 walls = new Vector2(11.6f, 8.6f); // half its width and depth, inside the walls (his leaves go no further)
         public float wakeLine;                // past this (z), inside, he wakes
-        public Transform[] lampModels;        // the hung lamps (torn down in phase 2)
-        public Light[] lamps;                 // their lights
+        public Vector3 hover;                 // where he keeps to on the wing (on the floor: he's up above it)
+        public float hoverHeight = 3.2f;
 
-        [Header("On the wing")]
-        public float flySpeed = 7f, flyAccel = 14f;
-        public float circleRadius = 2.6f, circleHeight = 3.2f, circleTurn = 0.6f; // round a lamp (not too high: seen from
-        public float huntRadius = 6.5f, huntHeight = 3.5f, huntTurn = 0.8f;       // above, height reads as further away)
-        public float reachedAbove = 1.9f;     // higher than this above the floor, the oar passes under him
+        [Header("His wingbeats")]
+        public SouredAttack beat = new SouredAttack(); // one wingbeat: its tell, its throw, a breath after
+        public int beatsBeforeSpent = 6;      // then he sinks, exhausted
+        public float leafSpeed = 6.5f, leafDamage = 10f;
+        public float fanSpread = 70f;         // the fan: this wide
+        public int fanCount = 5, ringCount = 14, volleyCount = 3;
+        public float volleyInterval = 0.35f;  // the aimed ones: one after another
+        public Material leafMaterial;
 
-        [Header("His dive, and his shears when he lands")]
-        public SouredAttack dive = new SouredAttack();
-        public SouredAttack shears = new SouredAttack(); // snapped round him the moment he lands (its recovery: the window)
-        public SouredAttack swoop = new SouredAttack();
-        public float swoopSpeed = 16f, swoopHeight = 0.3f, swoopFrom = 7f, swoopOn = 6f; // its pass: how low, from how far, how far on past you
-        public float swoopTime = 0.7f, secondSwoopTime = 0.4f; // its tell (the second of two, phase 2)
-        public float shearsBeat = 0.4f;       // landed, a beat before the shears' tell
-        public float diveSpeed = 15f, diveContact = 1.4f, diveDamage = 22f, diveKnock = 8f;
-        public float diveEvery = 4.5f, huntDiveEvery = 3.2f;
-        public float stallTime = 0.85f, huntStallTime = 0.75f, secondStallTime = 0.45f; // his tell: phase 1; phase 2, the first of a pair, the second
-        public float downedTime = 3.2f;       // a dive turned on a perfect block: down this long
-        public float hookDown = 2.0f;         // dragged down out of his stall on the Hook
+        [Header("Spent")]
+        public float sinkTime = 1.2f, spentTime = 5f, riseTime = 0.9f;
 
         [Header("Look and sound")]
         public Light chest;                   // the lantern in his ribs
         public float chestIntensity = 1.4f;
         public float cameraLean = 0.5f, cameraZoom = 1.45f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
-        public AudioClip[] wingSound, wakeSound, stallSound, diveSound, swoopSound, landSound, downedSound, glanceSound, tearSound, shatterSound, deathSound;
+        public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
 
-        public enum Intent { Circle, Tearing }
+        public enum Pattern { Fan, Volley, Ring }
+        enum Mode { Hovering, Sinking, Spent, Rising }
+
+        // Phase 1's run of beats, in order (then he's spent).
+        static readonly Pattern[] PhaseOne = { Pattern.Fan, Pattern.Volley, Pattern.Fan, Pattern.Ring, Pattern.Volley, Pattern.Fan };
 
         public bool Woken { get; private set; }
-        public int CurrentPhase { get; private set; } = 1;
-        public bool Grounded { get; private set; }
-        public bool Landed => Grounded && landed;    // a dive come to the floor: his shears, then a moment open
-        public bool Shearing => CurrentAttack == shears && (CurrentState == State.Telegraph || CurrentState == State.Strike);
-        public Intent Doing => intent;
-        public int LampsLeft { get; private set; }
-        public bool Downed => Grounded && (CurrentState == State.Stunned || CurrentState == State.Staggered);
-        public bool Diving => CurrentState == State.Strike && CurrentAttack == dive;
-        public bool Stalling => CurrentState == State.Telegraph && CurrentAttack == dive;
-        public bool SwoopTelling => CurrentState == State.Telegraph && CurrentAttack == swoop;
-        public bool Telling => Stalling || SwoopTelling;   // either tell (the Hook catches him in it)
-        public bool Swooping => CurrentState == State.Strike && CurrentAttack == swoop;
-        public bool SecondOfPair => secondOfPair;
+        public bool Grounded => mode == Mode.Spent;
+        public bool Spent => mode == Mode.Spent;
+        public bool Beating => CurrentAttack == beat && (CurrentState == State.Telegraph || CurrentState == State.Strike);
+        public Pattern? Thrown { get; private set; } // the pattern of the beat now (or last)
+        public int BeatsLeft => beatsBeforeSpent - beatsDone;
         public float Height => transform.position.y - floorY;
-        public static event System.Action<FatherMoth> Woke, Dived, LandedAfterDive, PhaseTwo; // (tests)
+        public static event System.Action<FatherMoth> Woke, Exhausted; // (tests)
+        public static event System.Action<FatherMoth, Pattern> Beat;
 
         public string Title => title;
         public string Epithet => epithet;
-        public float[] PhaseMarks => new[] { 0.5f };
-        public int Phase => CurrentPhase;
+        public float[] PhaseMarks => new[] { 0.75f, 0.5f, 0.25f };
+        public int Phase => HealthFraction > 0.75f ? 1 : HealthFraction > 0.5f ? 2 : HealthFraction > 0.25f ? 3 : 4;
         public AudioClip[] Music => music;
         public string Farewell => farewell;
         public string FarewellLine => farewellLine;
@@ -89,56 +75,28 @@ namespace MyGame
         public override bool Flies => true;
         protected override bool Floats => true;
         protected override bool Surface() => true;
-        public override bool OutOfReach => !Grounded && Height > reachedAbove;
-        protected override bool OnItsLevel() => true; // (he comes at you from above)
+        public override bool OutOfReach => Height > 1.9f;
+        protected override bool OnItsLevel() => true;
         protected override string IdleClip => Woken ? "Fly" : "Perched";
-        protected override string ChaseClip(float distance) => Grounded ? "Land" : "Fly";
+        protected override string ChaseClip(float distance) => "Fly";
         protected override Vector3 ChaseStep(Vector3 toTarget, float distance) => Vector3.zero; // (he flies: Tick)
         protected override bool LosesTarget(float distance) => !InHouse(target.transform.position);
 
-        Vector3 velocity, diveDir, perch;
+        Vector3 velocity, perch;
         Quaternion perchRotation;
-        Intent intent;
-        int nextLamp, lampCircled, streak;
-        SouredAttack queued, last;             // phase 2: the second of two, to come straight after; the last he chose
-        Vector3 swoopDir;
-        float swoopLeft;
-        float nextDive, nextAttack, nextWing, nextLampSwitch;
-        float dropAt = -1f, orbit;
-        bool rising, landed, sheared, struckThisDive, pullingUp, secondOfPair, fightOn, pendingTwo;
-        State was;
-        string forced;                         // a clip held over the base's (sprawled on the floor, not staggering)
-        (Transform lamp, Vector3 position, Quaternion rotation, float intensity)[] hung;
-        float[] fallSpeed;
+        Mode mode;
+        int beatsDone, volleyLeft;
+        float nextVolley, nextWing;
+        bool fightOn;
         Transform focus;                       // his body (the camera leans to it: halfway, so you're both in view)
         int framing;                           // 0 not, 1 asleep on his tree, 2 his fight
-        Light moon;
-        float moonIntensity, darkness = 1f, darkTarget = 1f;
-        Color sky, equator, ground;
 
         protected override void Awake()
         {
             base.Awake();
             perch = transform.position;
             perchRotation = transform.rotation;
-            hung = new (Transform, Vector3, Quaternion, float)[lamps?.Length ?? 0];
-            fallSpeed = new float[hung.Length];
-            for (int i = 0; i < hung.Length; i++)
-            {
-                var root = lampModels != null && i < lampModels.Length ? lampModels[i] : null;
-                var flicker = lamps[i] != null ? lamps[i].GetComponent<LightFlicker>() : null;
-                float intensity = flicker != null ? flicker.BaseIntensity : lamps[i] != null ? lamps[i].intensity : 0f;
-                hung[i] = (root, root != null ? root.position : Vector3.zero, root != null ? root.rotation : Quaternion.identity, intensity);
-            }
-            stunDuration = downedTime;
             focus = new GameObject("Father Moth (camera focus)").transform;
-            foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
-                if (l.type == LightType.Directional)
-                    moon = l;
-            moonIntensity = moon != null ? moon.intensity : 0f;
-            sky = RenderSettings.ambientSkyColor;
-            equator = RenderSettings.ambientEquatorColor;
-            ground = RenderSettings.ambientGroundColor;
         }
 
         protected override void Start()
@@ -149,6 +107,8 @@ namespace MyGame
 
         bool InHouse(Vector3 p) => Mathf.Abs(p.x - middle.x) < reach.x + 2f && Mathf.Abs(p.z - middle.z) < reach.y + 2f && p.y > floorY - 1f && p.y < floorY + 8f;
 
+        Vector3 HoverPoint => new Vector3(hover.x + Mathf.Sin(Time.time * 0.7f) * 0.6f, floorY + hoverHeight + Mathf.Sin(Time.time * 1.9f) * 0.15f, hover.z);
+
         // ---- waking
 
         void Wake()
@@ -156,58 +116,76 @@ namespace MyGame
             Woken = true;
             passive = false;
             BeBusy("Wake", 2.0f);
-            rising = true;
+            mode = Mode.Rising;
             Sfx.Instance?.Attack(wakeSound, transform.position + Vector3.up * 2f, 1f, "father_moth_wake");
             Effects.Instance?.Leaves(transform.position + Vector3.up * 2f, Vector3.up * 2f, 40);
             CameraRig.Instance?.Shake(0.2f);
-            float now = Time.time;
-            nextDive = now + 3.5f;
-            nextAttack = now + 3f;
+            beatsDone = 0;
             Woke?.Invoke(this);
         }
 
-        // ---- choosing: his dive (and on the floor after it, his shears)
+        // ---- his beats
 
         protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
-            if (Grounded && landed && !sheared)
-            {
-                sheared = true;
-                return shears; // (the moment he's down: all round him)
-            }
-            if (!Woken || Grounded || rising || intent == Intent.Tearing || pendingTwo)
+            if (!Woken || mode != Mode.Hovering || (transform.position - HoverPoint).magnitude > 1.5f || volleyLeft > 0)
                 return null;
-            float now = Time.time;
-            if (queued != null) // (phase 2: the second of two, straight after the first)
+            if (beatsDone >= beatsBeforeSpent)
             {
-                var next = queued;
-                queued = null;
-                secondOfPair = true;
-                next.telegraph = next == dive ? secondStallTime : secondSwoopTime;
-                return next;
-            }
-            if (now < nextAttack || now < nextDive || distance > 18f)
+                Sink();
                 return null;
-            nextDive = now + (CurrentPhase == 1 ? diveEvery : huntDiveEvery) * Random.Range(0.85f, 1.2f);
-            secondOfPair = false;
-            var first = Pick(Flat(toTarget).magnitude);
-            first.telegraph = first == dive ? (CurrentPhase == 1 ? stallTime : huntStallTime) : swoopTime;
-            if (CurrentPhase == 2)
-                queued = first == swoop ? dive : Random.value < 0.5f ? dive : swoop; // (never two swoops: one of them lands)
-            return first;
+            }
+            var run = PhaseOne; // (phases 2 to 4: their own runs, still to come)
+            Thrown = run[beatsDone % run.Length];
+            beatsDone++;
+            return beat;
         }
 
-        // A dive or a swoop, about evenly; never three of one in a row; a swoop only from far enough off to come in level.
-        SouredAttack Pick(float distance)
+        protected override void OnEntered(State state)
         {
-            var next = Random.value < 0.5f ? dive : swoop;
-            if (next == last && streak >= 2)
-                next = next == dive ? swoop : dive;
-            if (next == swoop && distance < 3.5f) // (from nearer, his tell draws him off to come in level)
-                next = dive;
-            streak = next == last ? streak + 1 : 1;
-            last = next;
-            return next;
+            if (state == State.Telegraph && CurrentAttack == beat)
+            {
+                Effects.Instance?.AlertFlare(ChestPoint);
+                Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.8f, "father_moth_wing");
+            }
+            if (state == State.Strike && CurrentAttack == beat && Thrown.HasValue)
+                Throw(Thrown.Value);
+            if (state == State.Dying)
+                Died();
+        }
+
+        Vector3 ChestPoint => chest != null ? chest.transform.position : transform.position + Vector3.up * 2.5f;
+
+        // The leaves, thrown from under him at chest height.
+        void Throw(Pattern pattern)
+        {
+            Sfx.Instance?.Attack(beatSound, transform.position + Vector3.up * 2f, 1f, "father_moth_beat");
+            Effects.Instance?.Leaves(transform.position + Vector3.up * 1.5f, Vector3.zero, 25);
+            Beat?.Invoke(this, pattern);
+            Vector3 at = Flat(target != null ? target.transform.position - transform.position : transform.forward);
+            Vector3 aim = at.sqrMagnitude > 0.01f ? at.normalized : Vector3.back;
+            switch (pattern)
+            {
+                case Pattern.Fan:
+                    for (int i = 0; i < fanCount; i++)
+                        Leaf(Quaternion.Euler(0f, Mathf.Lerp(-fanSpread / 2f, fanSpread / 2f, fanCount > 1 ? i / (fanCount - 1f) : 0.5f), 0f) * aim);
+                    break;
+                case Pattern.Ring:
+                    float turn = Random.Range(0f, 360f / ringCount);
+                    for (int i = 0; i < ringCount; i++)
+                        Leaf(Quaternion.Euler(0f, turn + i * 360f / ringCount, 0f) * Vector3.forward);
+                    break;
+                case Pattern.Volley:
+                    volleyLeft = volleyCount;
+                    nextVolley = Time.time;
+                    break;
+            }
+        }
+
+        void Leaf(Vector3 direction)
+        {
+            Vector3 from = new Vector3(transform.position.x, floorY + 0.9f, transform.position.z) + direction * 1.2f;
+            DriftLeaf.Fling(from, direction, leafSpeed, leafDamage, target, leafMaterial, middle, walls);
         }
 
         // ---- every frame
@@ -217,172 +195,96 @@ namespace MyGame
             if (!IsAlive)
             {
                 Fall(dt);
-                Lights(dt);
+                Chest();
                 return;
             }
-            Transitions();
             if (!Woken)
             {
                 if (target != null && target.IsAlive && InHouse(target.transform.position) && target.transform.position.z > wakeLine)
                     Wake();
-                Lights(dt);
+                Chest();
                 return;
             }
-            if (CurrentPhase == 1 && HealthFraction <= 0.5f)
-                pendingTwo = true;
-            if (pendingTwo && !Grounded && (CurrentState == State.Chase || CurrentState == State.Recover))
-                BeginTearing();
-
-            switch (CurrentState)
+            // The aimed ones of a volley, one after another, each at where you are now.
+            if (volleyLeft > 0 && Time.time >= nextVolley && target != null)
             {
-                case State.Strike when CurrentAttack == dive:
-                    Dive(dt);
+                volleyLeft--;
+                nextVolley = Time.time + volleyInterval;
+                Leaf(Flat(target.transform.position - transform.position).normalized);
+                Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.4f, "father_moth_wing", 1.3f);
+            }
+            switch (mode)
+            {
+                case Mode.Sinking:
+                    Steer(new Vector3(hover.x, floorY, hover.z), dt, 0.5f);
+                    if (CurrentState != State.Busy)
+                        Spend();
                     break;
-                case State.Strike when CurrentAttack == swoop:
-                    Swoop(dt);
-                    break;
-                case State.Telegraph when CurrentAttack == swoop:
-                    DropForSwoop(dt);
-                    break;
-                case State.Stunned:
-                case State.Staggered:
-                case State.Busy when Grounded:
-                case State.Telegraph when Grounded:
-                case State.Strike when Grounded:
-                case State.Recover when Grounded:
-                case State.Chase when Grounded:
+                case Mode.Spent:
                     Hold(new Vector3(transform.position.x, floorY, transform.position.z));
+                    if (CurrentState != State.Busy && CurrentState != State.Staggered)
+                        RiseAgain();
                     break;
-                case State.Busy when rising:
-                    Steer(new Vector3(transform.position.x, floorY + circleHeight, transform.position.z), dt, 0.6f);
+                case Mode.Rising:
+                    Steer(HoverPoint, dt, 0.7f);
+                    if (CurrentState != State.Busy)
+                        mode = Mode.Hovering;
                     break;
-                case State.Busy when intent == Intent.Tearing:
-                    if (dropAt > 0f && Time.time >= dropAt)
-                        TearDown();
-                    Hover(dt);
-                    break;
-                case State.Telegraph:
-                    Hover(dt);
-                    if (CurrentAttack == dive && Random.value < 30f * Time.deltaTime)
-                        Effects.Instance?.Flame(ChestPoint + Random.insideUnitSphere * 0.1f, Vector3.up * 0.6f, 0.25f, 0.08f);
-                    break;
-                case State.Chase:
-                case State.Recover:
-                case State.Strike:
-                    Fly(dt);
-                    break;
-            }
-            // His wingbeats, heard when he's aloft.
-            if (!Grounded && Time.time >= nextWing && CurrentState != State.Strike)
-            {
-                nextWing = Time.time + 0.9f;
-                Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.55f, "father_moth_wing");
-            }
-            if (forced != null && clips.Current != forced)
-                clips.PlayOnce(forced, Mathf.Max(0.1f, (CurrentState == State.Stunned ? downedTime : hookDown) - StateTime));
-            Lights(dt);
-        }
-
-        // What follows a state's end: up off the floor (downed, or landed after a dive).
-        void Transitions()
-        {
-            var now = CurrentState;
-            if (now == was)
-                return;
-            if ((was == State.Stunned || was == State.Staggered) && Grounded && IsAlive && now != State.Stunned && now != State.Staggered)
-            {
-                forced = null;
-                LiftOff();
-            }
-            else if (was == State.Recover && Grounded && landed && sheared && IsAlive && now == State.Chase)
-                LiftOff(); // (the shears swung, the moment open gone: up again)
-            else if (was == State.Busy && rising)
-                rising = false;
-            if (was == State.Busy && intent == Intent.Tearing && now == State.Chase && dropAt < 0f)
-                nextLamp++;
-            was = now;
-        }
-
-        void LiftOff()
-        {
-            Grounded = landed = sheared = false;
-            queued = null;
-            BeBusy("Rise", 0.8f);
-            rising = true;
-            nextAttack = Mathf.Max(nextAttack, Time.time + 2.0f); // (up, and back out on his circle, before the next)
-        }
-
-        // On the wing: round a lamp (phase 1), round you (phase 2), to a lamp to tear down.
-        void Fly(float dt)
-        {
-            Vector3 goal;
-            if (intent == Intent.Tearing)
-            {
-                if (nextLamp >= hung.Length)
-                {
-                    intent = Intent.Circle;
-                    nextAttack = Time.time + 1.5f;
-                    goal = Orbit();
-                }
-                else
-                {
-                    goal = hung[nextLamp].lamp != null ? lamps[nextLamp].transform.position + Vector3.down * 0.9f : transform.position;
-                    if ((transform.position - goal).magnitude < 0.8f && CurrentState == State.Chase)
+                default:
+                    Steer(HoverPoint, dt, 1f);
+                    if (Time.time >= nextWing && CurrentState == State.Chase)
                     {
-                        BeBusy("Tear", 1.3f);
-                        dropAt = Time.time + 0.8f;
-                        Sfx.Instance?.Attack(tearSound, goal, 1f, "father_moth_tear");
-                        return;
+                        nextWing = Time.time + 0.9f;
+                        Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.5f, "father_moth_wing");
                     }
-                }
+                    break;
             }
-            else
-                goal = Orbit();
-            Steer(goal, dt, CurrentState == State.Recover && secondOfPair ? 0.4f : 1f);
+            Chest();
         }
 
-        // Where he'd be now on his circle: round the lamp he's at (another, now and then), or round you in the dark.
-        Vector3 Orbit()
+        // Spent: down he sinks, his wings slack.
+        void Sink()
         {
-            bool hunting = CurrentPhase == 2 || LampsLeft == 0;
-            orbit += Time.deltaTime * (hunting ? huntTurn : circleTurn);
-            Vector3 centre;
-            float radius, height;
-            if (hunting && target != null)
-            {
-                centre = target.transform.position;
-                radius = huntRadius;
-                height = huntHeight;
-            }
-            else
-            {
-                if (Time.time >= nextLampSwitch && hung.Length > 0)
-                {
-                    nextLampSwitch = Time.time + Random.Range(7f, 11f);
-                    lampCircled = (lampCircled + 1 + Random.Range(0, Mathf.Max(1, hung.Length - 1))) % hung.Length;
-                }
-                centre = hung.Length > 0 && lamps[lampCircled] != null ? lamps[lampCircled].transform.position : middle;
-                radius = circleRadius;
-                height = circleHeight;
-            }
-            var p = centre + new Vector3(Mathf.Cos(orbit) * radius, 0f, Mathf.Sin(orbit) * radius);
-            p.y = floorY + height;
-            return p;
+            mode = Mode.Sinking;
+            BeBusy("Land", sinkTime);
+            Exhausted?.Invoke(this);
         }
 
-        // Towards `goal`, easing in, never out of his glasshouse nor up through its vault.
+        // On the floor, sprawled, heaving: open to the oar a while.
+        void Spend()
+        {
+            mode = Mode.Spent;
+            Hold(new Vector3(transform.position.x, floorY, transform.position.z));
+            BeBusy("Downed", spentTime);
+            Effects.Instance?.Rubble(new Vector3(transform.position.x, floorY, transform.position.z), 1.0f);
+            Effects.Instance?.Leaves(transform.position + Vector3.up, Vector3.zero, 30);
+            Sfx.Instance?.Attack(downedSound, transform.position + Vector3.up, 1f, "father_moth_downed");
+            CameraRig.Instance?.Shake(0.3f);
+        }
+
+        void RiseAgain()
+        {
+            mode = Mode.Rising;
+            beatsDone = 0;
+            BeBusy("Rise", riseTime);
+        }
+
+        // The Hook: he's too big, and too high; it glances off.
+        public override HookResult OnHooked(Apprentice by)
+        {
+            Effects.Instance?.BlockSpark(ChestPoint, Flat(by.transform.position - transform.position).normalized);
+            Sfx.Instance?.Attack(glanceSound, ChestPoint, 0.8f, "father_moth_glance");
+            return HookResult.Shrugged;
+        }
+
+        // ---- moving
+
+        // Towards `goal`, easing in, never out of his glasshouse.
         void Steer(Vector3 goal, float dt, float pace)
         {
-            Vector3 to = goal - transform.position;
-            Vector3 want = Vector3.ClampMagnitude(to * 2f, flySpeed * pace);
-            velocity = Vector3.MoveTowards(velocity, want, flyAccel * dt);
+            Vector3 want = Vector3.ClampMagnitude((goal - transform.position) * 2f, 7f * pace);
+            velocity = Vector3.MoveTowards(velocity, want, 14f * dt);
             Hold(transform.position + velocity * dt);
-        }
-
-        void Hover(float dt)
-        {
-            velocity = Vector3.MoveTowards(velocity, Vector3.zero, flyAccel * dt);
-            Hold(transform.position + velocity * dt + Vector3.up * Mathf.Sin(Time.time * 4f) * 0.15f * dt);
         }
 
         // (outside his bounds, as off his tree, he's drawn back in, not snapped)
@@ -390,256 +292,21 @@ namespace MyGame
         {
             float step = 6f * Time.deltaTime;
             p.x = Mathf.MoveTowards(p.x, Mathf.Clamp(p.x, middle.x - reach.x, middle.x + reach.x), step);
-            float north = middle.z + reach.y - (intent == Intent.Tearing ? 0f : Mathf.Max(0f, p.y - floorY) * 0.85f); // (seen from above, the higher he is the further north he looks: never over the wall; but he goes to the lamps to tear them down)
-            p.z = Mathf.MoveTowards(p.z, Mathf.Clamp(p.z, middle.z - reach.y, Mathf.Max(middle.z - reach.y, north)), step);
+            p.z = Mathf.MoveTowards(p.z, Mathf.Clamp(p.z, middle.z - reach.y, middle.z + reach.y), step);
             p.y = Mathf.Clamp(p.y, floorY, floorY + 6f);
             PlaceAt(p);
         }
 
-        // ---- his dive
-
-        protected override void OnEntered(State state)
+        // The lantern in his ribs: flaring as he raises his wings to beat, dim when he's spent.
+        void Chest()
         {
-            if (state == State.Telegraph && CurrentAttack == dive)
-            {
-                Effects.Instance?.AlertFlare(ChestPoint);
-                Sfx.Instance?.Attack(stallSound, ChestPoint, 1f, "father_moth_stall");
-            }
-            if (state == State.Telegraph && CurrentAttack == swoop)
-            {
-                Effects.Instance?.AlertFlare(ChestPoint);
-                Sfx.Instance?.Attack(swoopSound, ChestPoint, 1f, "father_moth_swoop");
-            }
-            if (state == State.Strike && CurrentAttack == swoop && target != null)
-            {
-                Vector3 to = Flat(target.transform.position - transform.position);
-                swoopDir = to.sqrMagnitude > 0.01f ? to.normalized : transform.forward;
-                swoopLeft = to.magnitude + swoopOn;
-                struckThisDive = false;
-                Dived?.Invoke(this);
-            }
-            if (state == State.Strike && CurrentAttack == dive && target != null)
-            {
-                diveDir = (target.transform.position - transform.position).normalized; // (to where you stand: he comes down there)
-                struckThisDive = pullingUp = false;
-                Sfx.Instance?.Attack(diveSound, transform.position, 1f, "father_moth_dive");
-                Dived?.Invoke(this);
-            }
-            if (state == State.Strike && CurrentAttack == shears)
-                Effects.Instance?.Leaves(transform.position + Vector3.up * 0.8f, Vector3.zero, 25);
-            if (state == State.Stunned)
-                Down();
-            if (state == State.Staggered && !Grounded)
-                Down(); // (struck low out of the air: down he comes)
-            if (state == State.Dying)
-                Died();
-        }
-
-        Vector3 ChestPoint => chest != null ? chest.transform.position : transform.position + Vector3.up * 2.5f;
-
-        // Down at you and through where you stood, striking if he passes you close: then, on the floor, a moment (a
-        // perfect block: knocked down). The first of a pair (phase 2) pulls up off the floor instead.
-        void Dive(float dt)
-        {
-            if (Grounded)
+            if (chest == null)
                 return;
-            Vector3 next = transform.position + diveDir * diveSpeed * dt;
-            bool floor = !pullingUp && next.y <= floorY + 0.1f;
-            if (floor)
-                next.y = floorY + 0.1f;
-            if (pullingUp && next.y > floorY + 2.6f)
-                next.y = floorY + 2.6f; // (up only so far: the next comes from there)
-            Hold(next);
-            velocity = diveDir * diveSpeed * 0.4f;
-            if (!struckThisDive && target != null && target.IsAlive
-                // (his shears and chest pass through where you stand: near enough across, and low enough)
-                && Flat(target.transform.position - transform.position).magnitude <= diveContact && transform.position.y - target.transform.position.y <= 1.2f)
-            {
-                struckThisDive = true;
-                var defence = HitTarget(diveDamage, Flat(diveDir).normalized * diveKnock);
-                if (defence == Defence.Parried)
-                {
-                    KnockedDown(diveDir); // (a second never comes)
-                    return;
-                }
-            }
-            if (!floor)
-                return;
-            if (queued != null)
-            {
-                pullingUp = true; // (skimming the floor, and up for the next)
-                diveDir = new Vector3(diveDir.x, 0f, diveDir.z).normalized * 0.6f + Vector3.up * 0.8f;
-            }
-            else
-                Land();
-        }
-
-        // Turned on the oar (a dive, a swoop): down he goes, in front of you, the way he came; stunned.
-        void KnockedDown(Vector3 came)
-        {
-            queued = null;
-            Vector3 back = -Flat(came).normalized;
-            Vector3 at = target.transform.position + (back.sqrMagnitude > 0.01f ? back : -target.transform.forward) * (radius + 1.6f);
-            Hold(new Vector3(at.x, floorY, at.z));
-            Stun();
-        }
-
-        // ---- his swoop
-
-        // The tell: his wings snapped back, dropping low, drawing off from you to come in level.
-        void DropForSwoop(float dt)
-        {
-            Vector3 from = target != null ? Flat(transform.position - target.transform.position) : Vector3.forward;
-            Vector3 spot = target != null ? target.transform.position + (from.sqrMagnitude > 0.01f ? from.normalized : Vector3.forward) * swoopFrom : transform.position;
-            spot.y = floorY + swoopHeight + 0.5f;
-            Steer(spot, dt, 1.6f);
-        }
-
-        // Level across the floor at your chest, straight through where you stood, and up again past you.
-        void Swoop(float dt)
-        {
-            float step = swoopSpeed * dt;
-            Vector3 next = transform.position + swoopDir * step;
-            swoopLeft -= step;
-            next.y = swoopLeft > 0f ? Mathf.MoveTowards(transform.position.y, floorY + swoopHeight, 6f * dt)
-                                    : Mathf.MoveTowards(transform.position.y, floorY + circleHeight, 5f * dt);
-            Hold(next);
-            velocity = swoopDir * swoopSpeed * 0.4f;
-            if (struckThisDive || target == null || !target.IsAlive || swoopLeft <= 0f)
-                return;
-            if (Flat(target.transform.position - transform.position).magnitude > diveContact || transform.position.y - target.transform.position.y > 1.2f)
-                return;
-            struckThisDive = true;
-            if (HitTarget(diveDamage, swoopDir * diveKnock) == Defence.Parried)
-                KnockedDown(swoopDir);
-        }
-
-        // A dive come to the floor: a beat, his shears (ChooseAttack), then a moment open before he's up again.
-        void Land()
-        {
-            Grounded = landed = true;
-            sheared = false;
-            velocity = Vector3.zero;
-            Hold(new Vector3(transform.position.x, floorY, transform.position.z));
-            BeBusy("Land", shearsBeat); // (a beat, then the shears)
-            Effects.Instance?.Leaves(transform.position + Vector3.up * 0.5f, Vector3.zero, 20);
-            Sfx.Instance?.Attack(landSound, transform.position, 0.9f, "father_moth_land");
-            CameraRig.Instance?.Shake(0.15f);
-            LandedAfterDive?.Invoke(this);
-        }
-
-        // On the floor, sprawled (a perfect block on his dive; the Hook): open, and every blow a riposte while stunned.
-        void Down()
-        {
-            Grounded = true;
-            landed = rising = false;
-            velocity = Vector3.zero;
-            forced = "Downed";
-            Hold(new Vector3(transform.position.x, floorY, transform.position.z));
-            Effects.Instance?.Rubble(new Vector3(transform.position.x, floorY, transform.position.z), 1.0f);
-            Effects.Instance?.Leaves(transform.position + Vector3.up, Vector3.zero, 30);
-            Sfx.Instance?.Attack(downedSound, transform.position + Vector3.up, 1f, "father_moth_downed");
-            CameraRig.Instance?.Shake(0.35f);
-        }
-
-        // The Hook: in his stall, it catches him and drags him down (the dive never comes); any other time it glances off.
-        public override HookResult OnHooked(Apprentice by)
-        {
-            if (!IsAlive || !Woken || !Telling)
-            {
-                Effects.Instance?.BlockSpark(ChestPoint, Flat(by.transform.position - transform.position).normalized);
-                Sfx.Instance?.Attack(glanceSound, ChestPoint, 0.8f, "father_moth_glance");
-                return HookResult.Shrugged;
-            }
-            queued = null;
-            Vector3 away = Flat(transform.position - by.transform.position);
-            Vector3 at = by.transform.position + (away.sqrMagnitude > 0.01f ? away.normalized : by.transform.forward) * 2.6f;
-            Hold(new Vector3(at.x, floorY, at.z));
-            StaggerNow(hookDown);
-            Down();
-            return HookResult.Ripped;
-        }
-
-        // ---- phase 2: the lamps torn down, the dark
-
-        void BeginTearing()
-        {
-            pendingTwo = false;
-            CurrentPhase = 2;
-            intent = Intent.Tearing;
-            nextLamp = 0;
-            dropAt = -1f;
-            PhaseTwo?.Invoke(this);
-        }
-
-        void TearDown()
-        {
-            dropAt = -1f;
-            int i = nextLamp;
-            if (i < 0 || i >= hung.Length)
-                return;
-            fallSpeed[i] = 0.01f; // (falling: Lights)
-            Sfx.Instance?.Attack(tearSound, lamps[i].transform.position, 1f, "father_moth_tear");
-            LampsLeft = Mathf.Max(0, LampsLeft - 1);
-            darkTarget = Mathf.Lerp(0.3f, 1f, LampsLeft / (float)Mathf.Max(1, hung.Length));
-        }
-
-        // The lamps (falling, out), the dark (the moon and the ambient, at `darkness` of themselves), his chest lantern.
-        void Lights(float dt)
-        {
-            for (int i = 0; i < hung.Length; i++)
-            {
-                if (fallSpeed[i] <= 0f || hung[i].lamp == null)
-                    continue;
-                var lamp = hung[i].lamp;
-                fallSpeed[i] += 18f * Time.deltaTime;
-                lamp.position += Vector3.down * fallSpeed[i] * Time.deltaTime;
-                lamp.rotation = Quaternion.RotateTowards(lamp.rotation, hung[i].rotation * Quaternion.Euler(70f, 0f, 20f), 200f * Time.deltaTime);
-                Intensity(lamps[i], hung[i].intensity * Mathf.Clamp01(1f - fallSpeed[i] / 8f));
-                if (lamps[i].transform.position.y <= floorY + 0.25f)
-                {
-                    fallSpeed[i] = -1f; // (shattered)
-                    Intensity(lamps[i], 0f);
-                    lamps[i].enabled = false;
-                    foreach (var r in lamp.GetComponentsInChildren<Renderer>())
-                        r.enabled = false;
-                    Effects.Instance?.Rubble(new Vector3(lamps[i].transform.position.x, floorY, lamps[i].transform.position.z), 0.6f);
-                    Sfx.Instance?.Attack(shatterSound, lamps[i].transform.position, 1f, "glass_lamp_shatter");
-                }
-            }
-            if (IsAlive)
-            {
-                darkness = Mathf.MoveTowards(darkness, darkTarget, Time.deltaTime * 0.6f);
-                Dim(darkness);
-            }
-            if (chest != null)
-            {
-                // (the dive's tell: a long flare, building; the swoop's: one short flare, then dim)
-                float k = Stalling ? 1f + 3.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, dive.telegraph))
-                        : SwoopTelling ? (StateTime < 0.18f ? 4.5f : 0.7f)
-                        : 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f);
-                chest.enabled = IsAlive || StateTime < deathDuration * 0.5f;
-                chest.intensity = chestIntensity * k * (IsAlive ? 1f : 1f - Mathf.Clamp01(StateTime / (deathDuration * 0.5f)));
-            }
-        }
-
-        static void Intensity(Light light, float value)
-        {
-            var flicker = light.GetComponent<LightFlicker>();
-            if (flicker != null)
-                flicker.BaseIntensity = value;
-            else
-                light.intensity = value;
-        }
-
-        // The night's light, at `k` of itself (the moon, the ambient); never his lamps (they go one by one), nor your lantern.
-        void Dim(float k)
-        {
-            if (moon != null)
-                moon.intensity = moonIntensity * Mathf.Lerp(0.5f, 1f, k);
-            RenderSettings.ambientSkyColor = sky * k;
-            RenderSettings.ambientEquatorColor = equator * k;
-            RenderSettings.ambientGroundColor = ground * k;
+            float k = CurrentState == State.Telegraph && CurrentAttack == beat ? 1f + 2.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, beat.telegraph))
+                    : mode == Mode.Spent ? 0.35f + 0.15f * Mathf.Sin(Time.time * 3f)
+                    : 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f);
+            chest.enabled = IsAlive || StateTime < deathDuration * 0.5f;
+            chest.intensity = chestIntensity * k * (IsAlive ? 1f : 1f - Mathf.Clamp01(StateTime / (deathDuration * 0.5f)));
         }
 
         // ---- the fight, and its end
@@ -666,30 +333,17 @@ namespace MyGame
             }
         }
 
-        // Beaten: he folds and falls; the lantern in his ribs goes out.
+        // Beaten: he folds and falls; the lantern in his ribs goes out; his leaves fall where they are.
         void Died()
         {
-            forced = null;
+            volleyLeft = 0;
             Sfx.Instance?.Attack(deathSound, transform.position + Vector3.up * 2f, 1f, "father_moth_death");
             Effects.Instance?.Leaves(transform.position + Vector3.up * 2f, Vector3.zero, 80);
+            foreach (var leaf in FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None))
+                Destroy(leaf.gameObject);
             BossFight.Defeat(this);
             BossFight.End(this);
             fightOn = false;
-            StartCoroutine(NightReturns());
-        }
-
-        // He's gone: the night comes back in (the moon, the ambient; not his lamps).
-        System.Collections.IEnumerator NightReturns()
-        {
-            float from = darkness;
-            for (float t = 0f; t < 1f; t += Time.deltaTime / 3f)
-            {
-                darkness = Mathf.Lerp(from, 1f, t);
-                Dim(darkness);
-                yield return null;
-            }
-            darkness = darkTarget = 1f;
-            Dim(1f);
         }
 
         void Fall(float dt)
@@ -706,38 +360,18 @@ namespace MyGame
             base.Reform();
             Woken = false;
             passive = true;
-            CurrentPhase = 1;
-            StopAllCoroutines();
-            Grounded = rising = landed = sheared = pendingTwo = pullingUp = secondOfPair = false;
-            intent = Intent.Circle;
-            nextLamp = lampCircled = streak = 0;
-            queued = last = null;
-            dropAt = -1f;
-            forced = null;
+            mode = Mode.Hovering;
+            beatsDone = volleyLeft = 0;
+            Thrown = null;
             velocity = Vector3.zero;
-            was = CurrentState;
-            for (int i = 0; i < hung.Length; i++)
-            {
-                if (hung[i].lamp == null)
-                    continue;
-                hung[i].lamp.SetPositionAndRotation(hung[i].position, hung[i].rotation);
-                foreach (var r in hung[i].lamp.GetComponentsInChildren<Renderer>())
-                    r.enabled = true;
-                lamps[i].enabled = true;
-                Intensity(lamps[i], hung[i].intensity);
-                fallSpeed[i] = 0f;
-            }
-            LampsLeft = hung.Length;
-            darkness = darkTarget = 1f;
-            Dim(1f);
+            foreach (var leaf in FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None))
+                Destroy(leaf.gameObject);
             BossFight.End(this);
             fightOn = false;
         }
 
         void OnDestroy()
         {
-            if (moon != null)
-                Dim(1f); // (never leave the night dark)
             if (focus != null)
                 Destroy(focus.gameObject);
         }

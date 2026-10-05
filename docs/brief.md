@@ -204,20 +204,13 @@ Glasshouse**, beyond the Unreaped Rows' far gate (the Watchman guards the way), 
 broken panes, raised beds of dead plants, shallow water channels (you wade them; they put out flames), lamps hung on
 chains, a dead orange tree against its north wall (he hangs folded on it, like a leaf, until you come in); its middle
 left open, his floor.
-- **Kept simple:** two attacks, his dive (and his shears when he lands from it) and his swoop.
-- **Phase 1:** he circles the lamps out of reach (the oar passes under him). His dive: a stall, wings flung wide,
-  the light in his chest flaring (the tell), then down at you. Dodge it and he lands where you stood, snapping his
-  shears round him at once (keep clear, block, or parry: a perfect block knocks him down); then he's on the floor a
-  moment, open, before he's up again. A perfect block on the dive itself knocks him down, stunned, every blow a riposte.
-  His swoop: his wings snapped right back and one short flare of the lantern (the tell), dropping low; then level
-  across the floor at chest height and up again past you. Dodging only saves you (he never lands from it); a perfect
-  block knocks him down. Which one is coming is the read: against the dive both answers pay, against the swoop only the
-  parry does.
-- **The Hook** catches him only in a tell (either): dragged down out of it, the dive never comes (a shorter stun than a
-  parry's). Any other time it glances off.
-- **Phase 2 (half):** he tears the lamps down one by one; the glasshouse goes dark but for the moon and your bow
-  lantern. The same, but two at a time (dive and dive, dive and swoop, swoop and dive): the second straight after
-  the first, with a shorter tell, and he lands only after a last dive. Parry the first and the second never comes.
+- **A static fight, of dodging:** he keeps to one place, hovering over the north of the floor, out of the oar's reach,
+  and beats his wings. Each beat (his wings raised high, the light in his chest flaring: the tell) throws dead leaves at
+  you in a pattern: a fan, a few aimed one after another, a ring all round him. Dodge through them, block them, or step
+  between them. After so many beats he's spent: he sinks to the floor and lies there a while, open to the oar, then
+  rises and begins again.
+- **Four phases** (at three quarters, half, a quarter): each changes the patterns, more and more of them, and more
+  complex. Phase 1 is built; 2 to 4 are to come. The Hook glances off him.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
 - His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Stroke**.
 

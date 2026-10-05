@@ -496,9 +496,7 @@ public static partial class MainSceneBuilder
         tub.center = new Vector3(0f, 0.6f, 0f);
         tub.radius = 0.95f;
         tub.height = 1.2f;
-        // Four lamps hung on chains from the vault, lit (he circles them; at half, he tears them down).
-        var lampModels = new System.Collections.Generic.List<Transform>();
-        var lampLights = new System.Collections.Generic.List<Light>();
+        // Four lamps hung on chains from the vault, lit.
         foreach (var (e, n) in new[] { (-6f, 4.5f), (6f, 4.5f), (-6f, 13.5f), (6f, 13.5f) })
         {
             float th = Mathf.Acos(1f - 2f * n / GlassDepth);
@@ -508,8 +506,6 @@ public static partial class MainSceneBuilder
                 Object.DestroyImmediate(c); // (overhead: nothing to walk into)
             var light = PointLight(lamp.transform, GlowCentre(lamp, "GlasshouseLamp_Glow"), 10f, 2.4f, LanternLight);
             Flicker(light, 0.08f, 3f, 0.01f);
-            lampModels.Add(lamp.transform);
-            lampLights.Add(light);
         }
         // A lantern on a crook by the doors, outside.
         var outside = Put("orchard_props_lantern", door + new Vector3(-2.4f, 0f, -1.2f), 30f);
@@ -531,7 +527,7 @@ public static partial class MainSceneBuilder
         gate.openYaw = new[] { -90f, 270f };
         gate.shutSound = Clips("field_gate_slam");
         gate.openSound = Clips("gate_open");
-        var moth = FatherMoth(root, door, lampModels.ToArray(), lampLights.ToArray());
+        var moth = FatherMoth(root, door);
         gate.boss = moth;
         var zone = new GameObject("Arena Zone (the Glasshouse)").AddComponent<ArenaZone>(); // (nothing follows you in)
         zone.transform.SetParent(root, true);
@@ -540,7 +536,7 @@ public static partial class MainSceneBuilder
     }
 
     // Father Moth, Who Gathered Autumn (the Gardener): folded on the dead orange tree like a leaf until you come in.
-    static FatherMoth FatherMoth(Transform root, Vector3 door, Transform[] lampModels, Light[] lampLights)
+    static FatherMoth FatherMoth(Transform root, Vector3 door)
     {
         var go = Place("Characters/father_moth", door + new Vector3(0f, 1.3f, GlassDepth - 1.6f), 180f); // (on the tree, facing the doors)
         go.name = "Father Moth";
@@ -554,8 +550,7 @@ public static partial class MainSceneBuilder
         m.maxHealth = 800f;
         m.radius = 1.4f;
         m.knockbackResistance = 1f;
-        m.staggerCapacity = 140f;
-        m.staggerDuration = 1.6f;
+        m.staggerCapacity = 9999f;    // (spent on the floor, nothing cuts it short)
         m.aggroRadius = 30f;
         m.viewHalfAngle = 180f;
         m.noticeCloseRadius = 30f;
@@ -572,35 +567,27 @@ public static partial class MainSceneBuilder
         m.floorY = UpperTop + 0.06f;
         m.middle = door + new Vector3(0f, 0.06f, GlassDepth / 2f);
         m.reach = new Vector2(GlassWidth / 2f - 2.5f, GlassDepth / 2f - 3f); // (kept in from the walls: seen from above, he's never over them)
+        m.walls = new Vector2(GlassWidth / 2f - 0.4f, GlassDepth / 2f - 0.4f);
         m.wakeLine = door.z + 11f; // (far enough in to have seen him there, folded on his tree)
-        m.lampModels = lampModels;
-        m.lamps = lampLights;
-        SouredAttack Scripted(string name, string windup, string strike, float telegraph, float strikeTime, float recover) => new SouredAttack
+        m.hover = door + new Vector3(0f, 0.06f, 12f); // (over the north of the floor: the rest of it is yours, to dodge in)
+        m.beat = new SouredAttack // (a wingbeat: his wings raised high, the lantern in his ribs flaring; then the leaves)
         {
-            name = name, windupClip = windup, strikeClip = strike, recoverClip = "Fly",
-            telegraph = telegraph, strike = strikeTime, recover = recover, impactAt = 0.05f,
-            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 18f, arc = 180f, knockback = 0f, scripted = true,
+            name = "Beat", windupClip = "GustDraw", strikeClip = "Gust", recoverClip = "Fly",
+            telegraph = 0.6f, strike = 0.4f, recover = 0.8f, impactAt = 0.05f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.9f, damage = 0f, reach = 30f, arc = 180f, knockback = 0f, scripted = true,
         };
-        m.dive = Scripted("Dive", "Stall", "Dive", 0.85f, 1.6f, 0.35f);
-        m.swoop = Scripted("Swoop", "SwoopDraw", "Swoop", 0.7f, 1.6f, 0.35f);
-        m.shears = new SouredAttack // (snapped round him the moment he lands; then the window, before he's up)
-        {
-            name = "Shears", windupClip = "ShearsDraw", strikeClip = "Shears", recoverClip = "Recover",
-            telegraph = 0.5f, strike = 0.3f, recover = 1.8f, impactAt = 0.4f,
-            lunge = 0f, maxLunge = 0f, trackUntil = 0.6f, damage = 20f, reach = 3.6f, arc = 180f, knockback = 9f,
-            windupSound = Clips("father_moth_snip"), swingSound = Clips("laden_swing"), swingPitch = 1.2f,
-        };
+        var leaf = GeneratedMaterial("M_DriftLeaf", "MyGame/Toon");
+        leaf.SetColor("_BaseColor", Hex("#b5652a"));
+        leaf.SetColor("_EmissionColor", new Color(0.95f, 0.42f, 0.12f)); // (its edges smouldering: seen in the dark)
+        leaf.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(leaf);
+        m.leafMaterial = leaf;
         m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, LanternLight);
         m.wingSound = Clips("father_moth_wing");
         m.wakeSound = Clips("father_moth_wake");
-        m.stallSound = Clips("father_moth_stall");
-        m.diveSound = Clips("father_moth_dive");
-        m.swoopSound = Clips("father_moth_swoop");
-        m.landSound = Clips("father_moth_land");
+        m.beatSound = Clips("father_moth_beat");
         m.downedSound = Clips("father_moth_downed");
         m.glanceSound = Clips("block_clang");
-        m.tearSound = Clips("father_moth_tear");
-        m.shatterSound = Clips("glass_lamp_shatter");
         m.deathSound = Clips("father_moth_death");
         return m;
     }

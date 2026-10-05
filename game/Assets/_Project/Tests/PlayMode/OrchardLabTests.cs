@@ -316,186 +316,100 @@ namespace MyGame.Tests
             Assert.AreEqual(m.maxHealth, m.Health, 0.01f, "nothing landed");
         }
 
-        // Waits for his next stall (before a dive), facing him, keeping the Apprentice up.
-        IEnumerator HisStall(FatherMoth m, float seconds = 30f)
-        {
-            yield return WaitUp(() => m.Stalling, seconds, "his stall");
-            Face(m);
-        }
-
-        // His dive, met with a perfect block: down he comes, sprawled on the floor, and a blow there is a riposte.
+        // He keeps to one place, over the north of the floor, wherever you go.
         [UnityTest]
-        public IEnumerator TheGardener_HisDivePerfectBlocked_KnocksHimDown_OpenToARiposte()
+        public IEnumerator TheGardener_KeepsToOnePlace_OverTheNorthOfTheFloor()
         {
             var m = Gardener();
             yield return WakeHim(m);
-            yield return HisStall(m);
-            yield return WaitFor(() => m.Diving, 2f, "his dive");
-            Face(m);
-            yield return WaitFor(() => m.Downed || Vector3.Distance(m.transform.position + Vector3.up * 1.5f, apprentice.transform.position + Vector3.up * 0.9f) < m.diveContact + 1.8f, 2f, "him close");
-            input.BlockHeld = true;
-            yield return WaitFor(() => m.Downed, 1f, "him knocked down on the block");
-            input.BlockHeld = false;
-            Assert.AreEqual(Soured.State.Stunned, m.CurrentState);
-            Assert.Less(m.Height, 0.3f, "on the floor");
-            Assert.IsFalse(m.OutOfReach);
-            yield return new WaitForSeconds(0.4f);
-            apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.4f + Vector3.up * 0.05f);
-            Face(m);
-            float before = m.Health;
-            input.PressLight();
-            yield return new WaitForSeconds(0.6f);
-            Assert.Less(m.Health, before - apprentice.lightDamage * 1.5f, "a riposte: double");
+            yield return WaitUp(() => (m.transform.position - m.hover).Flat().magnitude < 1.5f, 4f, "him at his place");
+            apprentice.Teleport(m.middle + new Vector3(-6f, 0.05f, -4f));
+            float furthest = 0f;
+            for (float t = 0f; t < 6f; t += Time.deltaTime)
+            {
+                if (apprentice.Health < apprentice.maxHealth * 0.6f)
+                    apprentice.RestoreFully();
+                furthest = Mathf.Max(furthest, (m.transform.position - m.hover).Flat().magnitude);
+                yield return null;
+            }
+            Assert.Less(furthest, 1.5f, "he stays put");
         }
 
-        // His dive dodged: he comes down where you stood and snaps his shears round him at once (out of their reach,
-        // they miss); then a moment on the floor, open, before he's up again.
+        // His beats throw leaves in phase 1's run: a fan, three aimed, a fan, a ring, three aimed, a fan; then he's spent.
         [UnityTest]
-        public IEnumerator TheGardener_HisDiveDodged_HisShears_ThenAMomentOpen()
+        public IEnumerator TheGardener_HisBeats_ThrowLeavesInPatterns_ThenHesSpent()
         {
             var m = Gardener();
-            bool landed = false;
-            Action<FatherMoth> onLand = _ => landed = true;
-            FatherMoth.LandedAfterDive += onLand;
+            var thrown = new System.Collections.Generic.List<FatherMoth.Pattern>();
+            int fanLeaves = -1;
+            Action<FatherMoth, FatherMoth.Pattern> onBeat = (_, p) => thrown.Add(p);
+            FatherMoth.Beat += onBeat;
             try
             {
                 yield return WakeHim(m);
-                yield return HisStall(m);
-                yield return WaitFor(() => m.Diving, 2f, "his dive");
-                yield return WaitFor(() => m.Height < 1.6f, 1.5f, "him coming down");
-                input.Move = Vector2.right;
-                input.PressDash();
-                yield return new WaitForSeconds(0.25f);
-                input.Move = Vector2.zero;
-                yield return WaitFor(() => landed, 1.5f, "him landed");
-                Assert.IsTrue(m.Landed && !m.OutOfReach, "on the floor, in reach");
-                yield return WaitFor(() => m.Shearing, 0.5f, "his shears, at once");
-                // Out of their reach while they swing; then in, for the window.
-                Vector3 away = (apprentice.transform.position - m.transform.position).Flat().normalized;
-                apprentice.Teleport(m.transform.position + away * 5f + Vector3.up * 0.05f);
-                yield return WaitFor(() => m.CurrentState == Soured.State.Recover, 1f, "the shears swung");
-                yield return WaitFor(() => apprentice.CurrentState == Apprentice.State.Free, 1f, "the Apprentice free to swing");
-                apprentice.Teleport(m.transform.position + away * 2.4f + Vector3.up * 0.05f);
-                Face(m);
-                float before = m.Health;
-                input.PressLight();
-                yield return new WaitForSeconds(0.6f);
-                Assert.Less(m.Health, before, "struck in the window");
-                yield return WaitFor(() => !m.Grounded, 2f, "him up again");
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+                yield return WaitUp(() => thrown.Count >= 1, 6f, "his first beat");
+                yield return null;
+                fanLeaves = DriftLeaf.Live;
+                yield return WaitUp(() => m.Spent, 30f, "him spent");
+                CollectionAssert.AreEqual(new[] { FatherMoth.Pattern.Fan, FatherMoth.Pattern.Volley, FatherMoth.Pattern.Fan,
+                                                  FatherMoth.Pattern.Ring, FatherMoth.Pattern.Volley, FatherMoth.Pattern.Fan }, thrown);
+                Assert.GreaterOrEqual(fanLeaves, m.fanCount, "a fan of five");
             }
-            finally { FatherMoth.LandedAfterDive -= onLand; }
+            finally { FatherMoth.Beat -= onBeat; }
         }
 
-        // Stand by where he lands and his shears catch you.
+        // A leaf strikes you if you stand in its way.
         [UnityTest]
-        public IEnumerator TheGardener_HisShears_CatchYouCloseWhenHeLands()
+        public IEnumerator TheGardener_HisLeaves_StrikeYouInTheirWay()
         {
             var m = Gardener();
             yield return WakeHim(m);
-            yield return HisStall(m);
-            yield return WaitFor(() => m.Diving, 2f, "his dive");
-            yield return WaitFor(() => m.Landed, 2f, "him landed");
-            apprentice.RestoreFully();
-            apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.2f + Vector3.up * 0.05f);
+            apprentice.Teleport(m.hover + new Vector3(0f, 0.05f, -5f));
             float health = apprentice.Health;
-            yield return WaitFor(() => apprentice.Health < health, 2f, "his shears catching you");
+            yield return WaitFor(() => apprentice.Health < health, 8f, "a leaf striking you");
         }
 
-        // The Hook: in his stall it catches him and drags him down (no dive); any other time it glances off.
+        // Spent, he's on the floor a while and the oar reaches him; then he rises and begins again.
         [UnityTest]
-        public IEnumerator TheGardener_TheHook_CatchesHimOnlyInHisStall()
+        public IEnumerator TheGardener_Spent_OnTheFloor_TheOarReachesHim_ThenHeRises()
+        {
+            var m = Gardener();
+            bool exhausted = false;
+            Action<FatherMoth> onSpent = _ => exhausted = true;
+            FatherMoth.Exhausted += onSpent;
+            try
+            {
+                yield return WakeHim(m);
+                yield return WaitUp(() => m.Spent, 30f, "him spent");
+                Assert.IsTrue(exhausted);
+                Assert.Less(m.Height, 0.3f, "on the floor");
+                Assert.IsFalse(m.OutOfReach);
+                apprentice.Teleport(m.transform.position + new Vector3(0f, 0.05f, -2.6f));
+                Face(m);
+                float before = m.Health;
+                input.PressHeavy();
+                yield return new WaitForSeconds(1.2f);
+                Assert.Less(m.Health, before, "struck");
+                yield return WaitUp(() => !m.Spent && m.Height > 2.5f, m.spentTime + 4f, "him up again");
+                Assert.GreaterOrEqual(m.BeatsLeft, m.beatsBeforeSpent - 1, "his beats begun again");
+            }
+            finally { FatherMoth.Exhausted -= onSpent; }
+        }
+
+        // The Hook glances off him.
+        [UnityTest]
+        public IEnumerator TheGardener_TheHook_GlancesOff()
         {
             if (!apprentice.HasHook)
                 apprentice.Restore(apprentice.Obols, 3, true);
             var m = Gardener();
             yield return WakeHim(m);
-            IEnumerator Throw()
-            {
-                Vector3 under = m.transform.position;
-                apprentice.Teleport(new Vector3(under.x, m.floorY + 0.05f, under.z) + (m.middle - under).Flat().normalized * 5f);
-                Face(m);
-                input.HookHeld = true;
-                yield return new WaitForSeconds(0.15f);
-                Face(m);
-                input.HookHeld = false;
-            }
-            Assert.IsFalse(m.Stalling);
-            yield return Throw();
-            yield return new WaitForSeconds(0.6f);
-            Assert.IsFalse(m.Downed, "on the wing, it glances off");
-            yield return HisStall(m);
-            yield return Throw();
-            yield return WaitFor(() => m.Downed, 1.5f, "him dragged down out of his stall");
-            Assert.Less(m.Height, 0.3f);
-            Assert.IsFalse(m.Diving, "the dive never came");
+            Assert.AreEqual(HookResult.Shrugged, m.OnHooked(apprentice));
+            Assert.Greater(m.Height, 2f, "still up there");
         }
 
-        // His swoop: level across the floor and on past you. Dodged, he never lands from it; turned on a perfect block,
-        // he's knocked down.
-        [UnityTest]
-        public IEnumerator TheGardener_HisSwoop_DodgedHeFliesOn_PerfectBlockedHeIsDown()
-        {
-            var m = Gardener();
-            yield return WakeHim(m);
-            apprentice.Teleport(m.middle + Vector3.up * 0.05f); // (the middle of the floor: room for him to come in level)
-            yield return WaitUp(() => m.SwoopTelling, 30f, "his swoop's tell");
-            yield return WaitFor(() => m.Swooping, 2f, "his swoop");
-            yield return WaitFor(() => Vector3.Distance(m.transform.position, apprentice.transform.position) < 4f, 2f, "him close");
-            input.Move = Vector2.right;
-            input.PressDash();
-            yield return new WaitForSeconds(0.3f);
-            input.Move = Vector2.zero;
-            yield return WaitFor(() => !m.Swooping, 2f, "the pass over");
-            Assert.IsFalse(m.Grounded, "dodged: he flies on, never landing");
-            yield return WaitUp(() => m.SwoopTelling, 40f, "another swoop's tell");
-            yield return WaitFor(() => m.Swooping, 2f, "his swoop");
-            Face(m);
-            yield return WaitFor(() => m.Downed || Vector3.Distance(m.transform.position, apprentice.transform.position) < m.diveContact + 1.8f, 2f, "him close");
-            input.BlockHeld = true;
-            yield return WaitFor(() => m.Downed, 1f, "him knocked down on the block");
-            input.BlockHeld = false;
-            Assert.AreEqual(Soured.State.Stunned, m.CurrentState);
-        }
-
-        // In the dark (phase 2) his attacks come two at a time: the second straight after the first with a shorter tell,
-        // no landing between; he lands only after a last dive.
-        [UnityTest]
-        public IEnumerator TheGardener_InTheDark_HisAttacksComeTwoAtATime()
-        {
-            var m = Gardener();
-            yield return WakeHim(m);
-            m.TakeBurn(m.maxHealth * 0.55f / (m.fireWeakness * AreaTraits.FireHarm), m.transform.position);
-            yield return WaitUp(() => m.Phase == 2 && m.LampsLeft == 0, 25f, "the lamps down");
-            yield return WaitUp(() => m.Telling, 15f, "his first tell");
-            Assert.IsFalse(m.SecondOfPair);
-            yield return WaitUp(() => m.Diving || m.Swooping, 2f, "the first");
-            yield return WaitUp(() => m.Telling || m.Grounded, 4f, "the second tell");
-            Assert.IsFalse(m.Grounded, "no landing after the first");
-            Assert.IsTrue(m.SecondOfPair);
-            Assert.Less(m.CurrentAttack.telegraph, 0.5f, "a shorter tell");
-            bool aDive = m.Stalling;
-            yield return WaitUp(() => !m.Telling && !m.Diving && !m.Swooping, 4f, "the second over");
-            if (aDive)
-                Assert.IsTrue(m.Grounded, "down after a last dive");
-        }
-
-        // At half, he tears the lamps down one by one, and the Glasshouse goes dark.
-        [UnityTest]
-        public IEnumerator TheGardener_AtHalf_TearsTheLampsDown_ItGoesDark()
-        {
-            var m = Gardener();
-            yield return WakeHim(m);
-            Color ambient = RenderSettings.ambientSkyColor;
-            m.TakeBurn(m.maxHealth * 0.55f / (m.fireWeakness * AreaTraits.FireHarm), m.transform.position);
-            Assert.Less(m.HealthFraction, 0.5f);
-            yield return WaitFor(() => m.Phase == 2, 3f, "his second phase");
-            yield return WaitFor(() => m.LampsLeft == 0, 20f, "every lamp torn down");
-            yield return new WaitForSeconds(2f);
-            Assert.Less(RenderSettings.ambientSkyColor.grayscale, ambient.grayscale * 0.6f, "dark");
-            Assert.IsTrue(m.lamps.All(l => !l.enabled || l.intensity < 0.05f), "the lamps out");
-        }
-
-        // Beaten: "MOTHBALLED", written in the Ledger, the doors open; resting brings him (and his lamps) back.
+        // Beaten: "MOTHBALLED", written in the Ledger, the doors open.
         [UnityTest]
         public IEnumerator TheGardener_Beaten_HisFarewell_TheLedger_TheDoorsOpen()
         {
@@ -514,6 +428,7 @@ namespace MyGame.Tests
                 Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.FatherMoth), "written in the Ledger");
                 Assert.IsFalse(GlasshouseDoors().Shut, "the doors open again");
                 Assert.IsNull(BossFight.Current);
+                Assert.AreEqual(0, DriftLeaf.Live, "his leaves gone");
             }
             finally { BossFight.Defeated -= onDefeat; }
         }
@@ -1428,8 +1343,7 @@ namespace MyGame.Tests
             Shot("glasshouse-4-wide", wide);
         }
 
-        // (SHOTS=dir) Father Moth: folded on his tree; on the wing; his stall (the tell); knocked down; landed after a dive;
-        // in the dark, hunting your light.
+        // (SHOTS=dir) Father Moth: folded on his tree; at his place on the wing; a fan of leaves; a ring; spent on the floor.
         [UnityTest]
         public IEnumerator Capture_FatherMoth()
         {
@@ -1451,39 +1365,29 @@ namespace MyGame.Tests
                 File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
             }
             var m = Gardener();
-            var doors = GlasshouseDoors();
-            apprentice.Teleport(doors.transform.position + new Vector3(0f, 0.1f, 10.5f), true, true);
-            yield return new WaitForSeconds(1f);
-            Assert.IsFalse(m.Woken);
-            Shot("father-moth-0-on-his-tree");
-            yield return WakeHim(m);
-            yield return new WaitForSeconds(1.5f);
-            Shot("father-moth-1-on-the-wing");
-            yield return WaitUp(() => m.CurrentState == Soured.State.Telegraph && m.CurrentAttack == m.dive && m.StateTime > 0.5f, 20f, "his stall");
-            Shot("father-moth-2-his-stall");
-            yield return WaitUp(() => m.Diving, 2f, "his dive");
-            Face(m);
-            yield return WaitUp(() => m.Downed || Vector3.Distance(m.transform.position, apprentice.transform.position) < m.diveContact + 2.2f, 2f, "him close");
-            input.BlockHeld = true;
-            yield return WaitUp(() => m.Downed, 1f, "him down");
-            input.BlockHeld = false;
-            yield return new WaitForSeconds(0.6f);
-            Shot("father-moth-3-downed");
-            apprentice.Teleport(m.middle + Vector3.up * 0.05f);
-            yield return WaitUp(() => m.SwoopTelling && m.StateTime > 0.4f, 30f, "his swoop's tell");
-            Shot("father-moth-3b-swoop-tell");
-            yield return WaitUp(() => m.Swooping && Vector3.Distance(m.transform.position, apprentice.transform.position) < 5f, 3f, "his swoop");
-            Shot("father-moth-3c-swoop");
-            yield return WaitUp(() => m.Landed, 30f, "him landed after a dive");
-            yield return new WaitForSeconds(0.4f);
-            Shot("father-moth-4-landed");
-            m.TakeBurn(m.maxHealth * 0.55f / (m.fireWeakness * AreaTraits.FireHarm), m.transform.position);
-            yield return WaitUp(() => m.Doing == FatherMoth.Intent.Tearing && m.CurrentState == Soured.State.Busy, 12f, "him at a lamp");
-            yield return new WaitForSeconds(0.5f);
-            Shot("father-moth-5-tearing-a-lamp");
-            yield return WaitUp(() => m.LampsLeft == 0, 20f, "the lamps down");
-            yield return WaitUp(() => m.CurrentState == Soured.State.Telegraph && m.CurrentAttack == m.dive && m.StateTime > 0.4f, 12f, "his stall in the dark");
-            Shot("father-moth-6-in-the-dark");
+            FatherMoth.Pattern? last = null;
+            float at = 0f;
+            Action<FatherMoth, FatherMoth.Pattern> onBeat = (_, p) => { last = p; at = Time.time; };
+            FatherMoth.Beat += onBeat;
+            try
+            {
+                var doors = GlasshouseDoors();
+                apprentice.Teleport(doors.transform.position + new Vector3(0f, 0.1f, 10.5f), true, true);
+                yield return new WaitForSeconds(1f);
+                Shot("father-moth-0-on-his-tree");
+                yield return WakeHim(m);
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f), true, true);
+                yield return new WaitForSeconds(1.5f);
+                Shot("father-moth-1-at-his-place");
+                yield return WaitUp(() => last == FatherMoth.Pattern.Fan && Time.time - at > 0.5f, 10f, "a fan");
+                Shot("father-moth-2-a-fan");
+                yield return WaitUp(() => last == FatherMoth.Pattern.Ring && Time.time - at > 0.7f, 20f, "a ring");
+                Shot("father-moth-3-a-ring");
+                yield return WaitUp(() => m.Spent, 20f, "him spent");
+                yield return new WaitForSeconds(1f);
+                Shot("father-moth-4-spent");
+            }
+            finally { FatherMoth.Beat -= onBeat; }
         }
 
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.
