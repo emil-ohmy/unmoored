@@ -5,6 +5,8 @@ namespace MyGame
     // A dead leaf thrown out of Father Moth's autumn hollow: pointed, with its stalk, its edges smouldering faintly (seen in
     // the dark); out of the hollow it sinks to chest height, then drifts straight on, tumbling over as it goes. It strikes whoever it reaches: a dodge goes through
     // it, a block stops it (a perfect block knocks it away), and it's gone at the glasshouse's walls.
+    // An ember (phase 4): a leaf burning bright, with a light of its own. Turned with a perfect block, it flies back into
+    // the hollow it came from, and he chokes on it.
     public sealed class DriftLeaf : MonoBehaviour
     {
         public static int Live { get; private set; } // (tests)
@@ -13,6 +15,11 @@ namespace MyGame
         Vector3 velocity;
         float damage, knock, life, spin, tumble, settleY, sink;
         bool passed;                           // dodged through: it goes on, and never strikes them
+        FatherMoth owner;                      // an ember's: where it goes back to, turned
+        bool returning;
+        AudioClip[] turnSound;
+        public bool Ember => owner != null;
+        public bool Returning => returning;
         Vector3 middle;
         Vector2 bounds;
         Transform body;
@@ -94,6 +101,26 @@ namespace MyGame
             return shape;
         }
 
+        // Burning: brighter, bigger, a light of its own; turned on a perfect block, back into `owner`'s hollow.
+        public void Kindle(FatherMoth owner, Material ember, AudioClip[] turnSound)
+        {
+            this.owner = owner;
+            this.turnSound = turnSound;
+            if (body != null)
+            {
+                body.localScale *= 1.35f;
+                if (ember != null)
+                    body.GetComponent<MeshRenderer>().sharedMaterial = ember;
+            }
+            var glow = new GameObject("Ember Light").AddComponent<Light>();
+            glow.transform.SetParent(transform, false);
+            glow.type = LightType.Point;
+            glow.color = new Color(1f, 0.55f, 0.2f);
+            glow.range = 3.2f;
+            glow.intensity = 2.6f;
+            glow.shadows = LightShadows.None;
+        }
+
         void OnEnable() => Live++;
         void OnDisable() => Live--;
 
@@ -101,13 +128,32 @@ namespace MyGame
         {
             float dt = Time.deltaTime;
             life += dt;
-            transform.position += velocity * dt;
-            if (transform.position.y > settleY)
-                transform.position = new Vector3(transform.position.x, Mathf.MoveTowards(transform.position.y, settleY, sink * dt), transform.position.z);
+            if (!returning)
+            {
+                transform.position += velocity * dt;
+                if (transform.position.y > settleY)
+                    transform.position = new Vector3(transform.position.x, Mathf.MoveTowards(transform.position.y, settleY, sink * dt), transform.position.z);
+            }
             // Tumbling over about its length, and a slow turn: a leaf on the wind.
             tumble += 420f * dt;
             if (body != null)
                 body.localRotation = Quaternion.Euler(0f, Mathf.Sin(life * 3f) * 25f + spin * life, 0f) * Quaternion.Euler(0f, 0f, tumble);
+            if (Ember && Random.value < 30f * dt)
+                Effects.Instance?.Flame(transform.position, Vector3.up * 0.6f - velocity * 0.1f, Random.Range(0.2f, 0.35f), Random.Range(0.06f, 0.12f));
+            if (returning)
+            {
+                // Back into his hollow, wherever he's got to.
+                Vector3 home = owner != null ? owner.HollowPoint - transform.position : Vector3.zero;
+                velocity = home.normalized * 13f;
+                transform.position += velocity * dt; // (it climbs too: no settling)
+                if (owner == null || !owner.IsAlive || home.magnitude < 0.8f || life > 6f)
+                {
+                    if (owner != null && owner.IsAlive && home.magnitude < 0.8f)
+                        owner.SwallowEmber();
+                    Destroy(gameObject);
+                }
+                return;
+            }
             Vector3 p = transform.position;
             if (Mathf.Abs(p.x - middle.x) > bounds.x || Mathf.Abs(p.z - middle.z) > bounds.y || life > 8f)
             {
@@ -122,6 +168,12 @@ namespace MyGame
             var defence = target.TakeHit(damage, velocity.normalized * knock);
             if (defence == Defence.Dodged)
                 passed = true;
+            else if (defence == Defence.Parried && Ember)
+            {
+                returning = true; // (turned: back where it came from)
+                life = 0f;
+                Sfx.Instance?.Attack(turnSound, transform.position, 1f, "ember_turned");
+            }
             else
                 Gone(true);
         }

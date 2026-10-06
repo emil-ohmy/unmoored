@@ -219,7 +219,10 @@ left open, his floor.
   you on foot: quick snips two or three at a time, a wide sweep of his shears, a lunge across the floor when you're off.
   His shears turn your blows. Two ways through: dodge him till he's spent (a dozen strikes, and he collapses, open), or
   turn a strike with a perfect block (stunned, a riposte's chance). At the quarter mark he takes to the air again.
-- **Phase 4 (a quarter), on the wing again:** the last; to come (for now it repeats phase 2).
+- **Phase 4 (a quarter), on the wing again, in the dark:** he tears the four lamps down one by one, and the glasshouse
+  goes far darker than the night outside: the hollow in his belly, your bow lantern, his smouldering leaves. He no longer
+  tires of his own accord. Among his throws come embers, leaves burning bright: turn one with a perfect block and it
+  flies back into his hollow, and he chokes on it; three, and down he comes, open.
 - **No skipping a phase:** brought down to a phase's mark, his health holds there and nothing harms him (fire neither)
   until he rises; then the next phase begins. The Hook glances off him.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.

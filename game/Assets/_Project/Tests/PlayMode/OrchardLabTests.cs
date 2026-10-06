@@ -519,6 +519,54 @@ namespace MyGame.Tests
             yield return WaitUp(() => m.Phase == 4 && m.Height > 2.5f, 5f, "phase 4, on the wing");
         }
 
+        // Phase 4: he tears the lamps down one by one, and it goes dark, far darker than the night outside.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_TearsTheLampsDown_ItGoesVeryDark()
+        {
+            var m = Gardener();
+            var moon = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
+            float moonBefore = moon.intensity, ambientBefore = RenderSettings.ambientSkyColor.grayscale;
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(4);
+            Assert.AreEqual(4, m.Phase);
+            yield return WaitUp(() => m.LampsLeft == 0, 30f, "every lamp torn down");
+            yield return new WaitForSeconds(2.5f);
+            Assert.Less(moon.intensity, moonBefore * 0.12f, "the moon all but gone");
+            Assert.Less(RenderSettings.ambientSkyColor.grayscale, ambientBefore * 0.12f, "and the night's own light");
+            Assert.IsTrue(m.lamps.All(l => !l.enabled || l.intensity < 0.05f), "the lamps out");
+        }
+
+        // An ember turned with a perfect block flies back into his hollow, and he chokes; three, and he's down.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_EmbersTurnedBack_HeChokes_ThreeAndHesDown()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(4);
+            yield return WaitUp(() => m.LampsLeft == 0, 30f, "the lamps down");
+            // (other leaves strike now and then, and a struck Apprentice is untouchable a moment: an ember may pass; the next)
+            for (int tries = 0; tries < 5 && m.Swallowed == 0; tries++)
+            {
+                DriftLeaf ember = null;
+                yield return WaitUp(() => (ember = UnityEngine.Object.FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None).FirstOrDefault(l => l.Ember && !l.Returning)) != null, 20f, "an ember");
+                Face(m);
+                yield return WaitUp(() => ember == null || (ember.transform.position - apprentice.transform.position).Flat().magnitude < 1.0f, 4f, "the ember close");
+                if (ember == null)
+                    continue;
+                input.BlockHeld = true;
+                yield return WaitFor(() => ember == null || ember.Returning || (ember.transform.position - apprentice.transform.position).Flat().magnitude > 1.5f, 1f, "the ember met");
+                input.BlockHeld = false;
+                if (ember != null && ember.Returning)
+                    yield return WaitFor(() => m.Swallowed == 1, 3f, "him choking on it");
+                yield return new WaitForSeconds(0.6f);
+            }
+            Assert.AreEqual(1, m.Swallowed, "an ember turned back into him");
+            m.SwallowEmber();
+            m.SwallowEmber();
+            yield return WaitUp(() => m.Spent, 6f, "him down");
+            Assert.IsFalse(m.OutOfReach);
+        }
+
         // The Hook glances off him.
         [UnityTest]
         public IEnumerator TheGardener_TheHook_GlancesOff()
@@ -1530,6 +1578,16 @@ namespace MyGame.Tests
                 Shot("father-moth-9-lunge-drawn");
                 yield return WaitUp(() => m.CurrentAttack == m.sweep && m.CurrentState == Soured.State.Strike, 20f, "a sweep");
                 Shot("father-moth-10-sweep");
+                // Phase 4, in the dark.
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f), true, true);
+                m.BeginAt(4);
+                yield return WaitUp(() => m.LampsLeft == 2 && m.CurrentState == Soured.State.Busy, 20f, "a lamp being torn down");
+                Shot("father-moth-11-tearing-a-lamp");
+                yield return WaitUp(() => m.LampsLeft == 0, 25f, "the lamps down");
+                yield return new WaitForSeconds(2.5f);
+                Shot("father-moth-12-in-the-dark");
+                yield return WaitUp(() => UnityEngine.Object.FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None).Any(l => l.Ember && (l.transform.position - apprentice.transform.position).Flat().magnitude < 4f), 20f, "an ember coming");
+                Shot("father-moth-13-an-ember");
             }
             finally { FatherMoth.Beat -= onBeat; }
         }

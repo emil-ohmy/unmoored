@@ -496,7 +496,9 @@ public static partial class MainSceneBuilder
         tub.center = new Vector3(0f, 0.6f, 0f);
         tub.radius = 0.95f;
         tub.height = 1.2f;
-        // Four lamps hung on chains from the vault, lit.
+        // Four lamps hung on chains from the vault, lit (in his last phase, he tears them down).
+        var lampModels = new System.Collections.Generic.List<Transform>();
+        var lampLights = new System.Collections.Generic.List<Light>();
         foreach (var (e, n) in new[] { (-6f, 4.5f), (6f, 4.5f), (-6f, 13.5f), (6f, 13.5f) })
         {
             float th = Mathf.Acos(1f - 2f * n / GlassDepth);
@@ -506,6 +508,8 @@ public static partial class MainSceneBuilder
                 Object.DestroyImmediate(c); // (overhead: nothing to walk into)
             var light = PointLight(lamp.transform, GlowCentre(lamp, "GlasshouseLamp_Glow"), 10f, 2.4f, LanternLight);
             Flicker(light, 0.08f, 3f, 0.01f);
+            lampModels.Add(lamp.transform);
+            lampLights.Add(light);
         }
         // A lantern on a crook by the doors, outside.
         var outside = Put("orchard_props_lantern", door + new Vector3(-2.4f, 0f, -1.2f), 30f);
@@ -527,7 +531,7 @@ public static partial class MainSceneBuilder
         gate.openYaw = new[] { -90f, 270f };
         gate.shutSound = Clips("field_gate_slam");
         gate.openSound = Clips("gate_open");
-        var moth = FatherMoth(root, door);
+        var moth = FatherMoth(root, door, lampModels.ToArray(), lampLights.ToArray());
         gate.boss = moth;
         var zone = new GameObject("Arena Zone (the Glasshouse)").AddComponent<ArenaZone>(); // (nothing follows you in)
         zone.transform.SetParent(root, true);
@@ -536,7 +540,7 @@ public static partial class MainSceneBuilder
     }
 
     // Father Moth, Who Gathered Autumn (the Gardener): folded on the dead orange tree like a leaf until you come in.
-    static FatherMoth FatherMoth(Transform root, Vector3 door)
+    static FatherMoth FatherMoth(Transform root, Vector3 door, Transform[] lampModels, Light[] lampLights)
     {
         var go = Place("Characters/father_moth", door + new Vector3(0f, 1.3f, GlassDepth - 1.6f), 180f); // (on the tree, facing the doors)
         go.name = "Father Moth";
@@ -594,6 +598,19 @@ public static partial class MainSceneBuilder
         leaf.SetFloat("_OutlineWidth", 0f);
         EditorUtility.SetDirty(leaf);
         m.leafMaterial = leaf;
+        // Phase 4: the lamps he tears down, and his embers (a leaf burning bright: turned, back into him).
+        m.lampModels = lampModels;
+        m.lamps = lampLights;
+        var ember = GeneratedMaterial("M_EmberLeaf", "MyGame/Toon");
+        ember.SetColor("_BaseColor", Hex("#ffb35a"));
+        ember.SetColor("_EmissionColor", new Color(2.4f, 1.1f, 0.3f));
+        ember.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(ember);
+        m.emberMaterial = ember;
+        m.tearSound = Clips("father_moth_tear");
+        m.shatterSound = Clips("glass_lamp_shatter");
+        m.emberTurnSound = Clips("fireball_whoosh");
+        m.chokeSound = Clips("fireball_gutter");
         var pod = GeneratedMaterial("M_SeedPod", "MyGame/Toon");
         pod.SetColor("_BaseColor", Hex("#6b5a34"));
         pod.SetColor("_EmissionColor", new Color(0.3f, 0.2f, 0.05f));

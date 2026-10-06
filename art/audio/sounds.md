@@ -112,3 +112,5 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | A withered orange landing (`fruit_fall`, 3) | in game | Synth | shaken down from the glasshouse's vault: a soft wet thud on the stone, the rind splitting, seeds skittering |
 | Father Moth's shears drawn (`father_moth_snip`, 2) | in game | Synth | phase 3, afoot, before a snip or a sweep: the blades opened with an iron scrape, snip-snip |
 | Father Moth's lunge drawn (`father_moth_stall`, 2) | in game | Synth | phase 3, before his lunge: a hard crack of air as he rears, a trembling rattle of leaves, the lantern in his ribs flaring |
+| Father Moth tearing a lamp down (`father_moth_tear`, 2) | in game | Synth | phase 4: its chain wrenched taut, snapping, the links rattling loose |
+| A lamp shattering (`glass_lamp_shatter`, 2) | in game | Synth | an iron clank, the glass bursting, shards skittering, the flame gone with a puff |

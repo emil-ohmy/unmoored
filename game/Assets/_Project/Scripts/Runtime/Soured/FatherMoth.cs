@@ -18,7 +18,10 @@ namespace MyGame
     // relentless: quick snips (two or three at a time), a wide sweep of his shears, a lunge across the floor when you're
     // off. His shears turn your blows; two ways through: dodge him till he's spent (a dozen strikes, and he collapses,
     // open, as ever), or turn a strike with a perfect block (stunned, a riposte's chance). Brought to the quarter mark,
-    // he takes to the air again: phase 4 (the last, on the wing: for now phase 2's run).
+    // he takes to the air again: phase 4, the last. He tears the lamps down one by one, and it goes dark, darker than the
+    // night outside: the hollow in his belly, your bow lantern, his smouldering leaves. He no longer tires of his own
+    // accord; among his throws come embers, leaves burning bright: turn one with a perfect block and it flies back into
+    // his hollow, and he chokes on it. Three, and down he comes.
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -68,6 +71,15 @@ namespace MyGame
         public float meleeStun = 1.6f;        // a strike turned on a perfect block: stunned this long
         public float roused = 1.5f;           // up off the floor onto his forelegs, wings flung wide
 
+        [Header("Phase 4: the dark, and his embers")]
+        public Transform[] lampModels;        // the hung lamps (torn down as phase 4 begins)
+        public Light[] lamps;                 // their lights
+        public float darkest = 0.07f;         // the night's light with every lamp down (the moon, the ambient)
+        public int embersToFell = 3;          // embers turned back into him: then he's down
+        public float emberSpeed = 5.5f, emberDamage = 18f;
+        public Material emberMaterial;
+        public AudioClip[] tearSound, shatterSound, emberTurnSound, chokeSound;
+
         [Header("Spent")]
         public float sinkTime = 1.8f, collapseTime = 0.5f, spentTime = 5f, riseTime = 0.9f;
         public float tiredSag = 0.9f;         // how far he's sunk by his last beat
@@ -81,7 +93,7 @@ namespace MyGame
         public float cameraLean = 0.5f, cameraZoom = 1.55f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
         public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
 
-        public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit }
+        public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit, Ember }
         enum Mode { Hovering, Sinking, Spent, Rising, Afoot }
 
         // Each phase's run of beats, in order (then he's spent); a beat throws everything in it at once.
@@ -94,9 +106,16 @@ namespace MyGame
             new[] { Pattern.Spiral }, new[] { Pattern.Pods }, new[] { Pattern.Fruit, Pattern.Fan }, new[] { Pattern.WideRing, Pattern.Volley },
             new[] { Pattern.SpiralBack }, new[] { Pattern.Fruit, Pattern.Pods }, new[] { Pattern.WideFan },
         };
-        Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : PhaseTwo; // (phases 3 and 4: their own runs, still to come)
+        static readonly Pattern[][] PhaseFour =
+        {
+            new[] { Pattern.Ember, Pattern.Fan }, new[] { Pattern.Spiral }, new[] { Pattern.Ember, Pattern.Pods }, new[] { Pattern.Fruit, Pattern.Volley },
+            new[] { Pattern.Ember, Pattern.WideRing }, new[] { Pattern.SpiralBack }, new[] { Pattern.Ember, Pattern.Fruit }, new[] { Pattern.WideFan, Pattern.Volley },
+        };
+        Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : CurrentPhase == 4 ? PhaseFour : PhaseTwo; // (phase 3 is afoot: no run)
 
         public bool Woken { get; private set; }
+        public int LampsLeft { get; private set; }
+        public int Swallowed { get; private set; }     // phase 4: embers turned back into him, this time
         public bool Afoot => mode == Mode.Afoot;       // phase 3: on the floor, coming after you
         public int Strikes => strikes;
         public bool Grounded => mode == Mode.Spent && !collapsing;
@@ -140,6 +159,13 @@ namespace MyGame
         bool collapsing;                       // spent: hitting the floor (then sprawled)
         bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
         bool fightOn;
+        (Transform lamp, Vector3 position, Quaternion rotation, float intensity)[] hung;
+        float[] fallSpeed;
+        int nextLamp;
+        float dropAt = -1f;
+        Light moon;
+        float moonIntensity, darkness = 1f, darkTarget = 1f;
+        Color sky, equator, ground;
         Transform focus;                       // his body (the camera leans to it: halfway, so you're both in view)
         int framing;                           // 0 not, 1 asleep on his tree, 2 his fight
 
@@ -150,6 +176,22 @@ namespace MyGame
             perchRotation = transform.rotation;
             focus = new GameObject("Father Moth (camera focus)").transform;
             stunDuration = meleeStun;
+            hung = new (Transform, Vector3, Quaternion, float)[lamps?.Length ?? 0];
+            fallSpeed = new float[hung.Length];
+            for (int i = 0; i < hung.Length; i++)
+            {
+                var root = lampModels != null && i < lampModels.Length ? lampModels[i] : null;
+                var flicker = lamps[i] != null ? lamps[i].GetComponent<LightFlicker>() : null;
+                float intensity = flicker != null ? flicker.BaseIntensity : lamps[i] != null ? lamps[i].intensity : 0f;
+                hung[i] = (root, root != null ? root.position : Vector3.zero, root != null ? root.rotation : Quaternion.identity, intensity);
+            }
+            foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+                if (l.type == LightType.Directional)
+                    moon = l;
+            moonIntensity = moon != null ? moon.intensity : 0f;
+            sky = RenderSettings.ambientSkyColor;
+            equator = RenderSettings.ambientEquatorColor;
+            ground = RenderSettings.ambientGroundColor;
         }
 
         protected override void Start()
@@ -164,7 +206,8 @@ namespace MyGame
         Vector3 HoverPoint => new Vector3(hover.x + Mathf.Sin(Time.time * 0.7f) * 0.6f, floorY + hoverHeight - tiredSag * Tiredness + Mathf.Sin(Time.time * 1.9f) * 0.15f, hover.z);
 
         // How spent he is (0 fresh, 1 at his last beat): he sags, his beats grow heavy, his lantern dims, he wobbles.
-        public float Tiredness => mode == Mode.Hovering ? Mathf.Clamp01(beatsDone / (float)Mathf.Max(1, Run.Length))
+        public float Tiredness => mode == Mode.Hovering && CurrentPhase == 4 ? Mathf.Clamp01(Swallowed / (float)Mathf.Max(1, embersToFell))
+                                : mode == Mode.Hovering ? Mathf.Clamp01(beatsDone / (float)Mathf.Max(1, Run.Length))
                                 : mode == Mode.Afoot ? Mathf.Clamp01(strikes / (float)Mathf.Max(1, strikesBeforeSpent)) : 0f;
 
         // ---- waking
@@ -190,11 +233,18 @@ namespace MyGame
                 return Strike(distance);
             if (!Woken || mode != Mode.Hovering || (transform.position - HoverPoint).magnitude > 1.5f || volleyLeft > 0 || Time.time < streamUntil)
                 return null;
+            if (CurrentPhase == 4 && nextLamp < hung.Length)
+                return null; // (the lamps first)
             var run = Run;
             if (beatsDone >= run.Length)
             {
-                Sink();
-                return null;
+                if (CurrentPhase == 4)
+                    beatsDone = 0; // (in the dark he doesn't tire of himself: only his embers bring him down)
+                else
+                {
+                    Sink();
+                    return null;
+                }
             }
             Thrown = run[beatsDone];
             beatsDone++;
@@ -268,6 +318,9 @@ namespace MyGame
                 case Pattern.SpiralBack:
                     Spin(aim, spiralTurn, spiralEvery, spiralTime, pattern == Pattern.Spiral ? 1f : -1f);
                     break;
+                case Pattern.Ember:
+                    Leaf(aim, emberSpeed, emberDamage).Kindle(this, emberMaterial, emberTurnSound);
+                    break;
                 case Pattern.Pods:
                     for (int i = 0; i < podCount; i++)
                     {
@@ -305,14 +358,38 @@ namespace MyGame
         float LeafSpeed => CurrentPhase == 1 ? leafSpeed : hecticSpeed;
 
         // A leaf out of the autumn hollow on his back: up out of it, then sinking to chest height as it comes.
-        void Leaf(Vector3 direction)
+        DriftLeaf Leaf(Vector3 direction, float speed = -1f, float damage = -1f)
         {
             Vector3 from = HollowPoint + Vector3.up * 0.2f + direction * 0.4f;
-            DriftLeaf.Fling(from, direction, LeafSpeed, leafDamage, target, leafMaterial, middle, walls, settleY: floorY + 0.9f);
             kick = Mathf.Min(kick + 0.35f, 0.6f); // (the hollow throbs with each)
+            return DriftLeaf.Fling(from, direction, speed > 0f ? speed : LeafSpeed, damage > 0f ? damage : leafDamage, target, leafMaterial, middle, walls,
+                settleY: floorY + 0.9f);
         }
 
-        Vector3 HollowPoint => hollow != null ? hollow.position : transform.position + Vector3.up * 1.8f;
+        // An ember turned back into his hollow: he chokes on it (a gout of flame, his flight faltering); enough, and down.
+        public void SwallowEmber()
+        {
+            if (!IsAlive || mode != Mode.Hovering)
+                return;
+            Swallowed++;
+            for (int i = 0; i < 30; i++)
+                Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.3f, Random.insideUnitSphere * 2f + Vector3.up * 1.5f, Random.Range(0.3f, 0.6f), Random.Range(0.12f, 0.25f));
+            Effects.Instance?.AlertFlare(ChestPoint);
+            Sfx.Instance?.Attack(chokeSound, HollowPoint, 1f, "father_moth_choke");
+            CameraRig.Instance?.Shake(0.3f);
+            HitStop.Trigger(0.12f);
+            volleyLeft = 0;
+            streamUntil = 0f;
+            if (Swallowed >= embersToFell)
+            {
+                Swallowed = 0;
+                Sink();
+            }
+            else
+                BeBusy("Stagger", 0.8f);
+        }
+
+        public Vector3 HollowPoint => hollow != null ? hollow.position : transform.position + Vector3.up * 1.8f;
 
         // The hollow: throbbing slowly; swelling and brightening through a tell; a kick with every leaf; a trickle of
         // leaves out of it always (more as it swells).
@@ -328,7 +405,7 @@ namespace MyGame
             if (hollowLight != null)
             {
                 hollowLight.enabled = dim > 0f;
-                hollowLight.intensity = hollowIntensity * dim * (0.7f + 1.6f * (swell + kick) + 0.15f * Mathf.Sin(Time.time * 2.4f));
+                hollowLight.intensity = hollowIntensity * (CurrentPhase == 4 ? 1.6f : 1f) * dim * (0.7f + 1.6f * (swell + kick) + 0.15f * Mathf.Sin(Time.time * 2.4f));
             }
             if (Woken && IsAlive && Random.value < (telling ? 26f : 3f) * dim * Time.deltaTime)
                 Effects.Instance?.Leaves(HollowPoint + Vector3.up * 0.15f, Vector3.up * Random.Range(1f, 2.2f), 1);
@@ -457,6 +534,11 @@ namespace MyGame
                         mode = Mode.Hovering;
                     break;
                 default:
+                    if (CurrentPhase == 4 && nextLamp < hung.Length)
+                    {
+                        TearStep(dt);
+                        break;
+                    }
                     Steer(HoverPoint, dt, 1f);
                     if (Time.time >= nextWing && CurrentState == State.Chase)
                     {
@@ -467,6 +549,7 @@ namespace MyGame
                     clips.SetLoopSpeed(clips.Current == "Fly" ? 1f - 0.4f * Tiredness : 1f);
                     break;
             }
+            Lights();
             Chest();
         }
 
@@ -526,6 +609,107 @@ namespace MyGame
                 PhaseBegun?.Invoke(this);
             }
             BeBusy("Rise", riseTime);
+        }
+
+        // ---- the lamps torn down (phase 4), and the dark
+
+        // To the next lamp, up under it; there, he tears it down.
+        void TearStep(float dt)
+        {
+            if (CurrentState == State.Busy)
+            {
+                Hover(dt);
+                if (dropAt > 0f && Time.time >= dropAt)
+                    TearDown();
+                return;
+            }
+            if (hung[nextLamp].lamp == null || lamps[nextLamp] == null)
+            {
+                nextLamp++;
+                return;
+            }
+            Vector3 goal = lamps[nextLamp].transform.position + Vector3.down * 0.9f;
+            Steer(goal, dt, 1f);
+            if ((transform.position - goal).magnitude < 0.8f && CurrentState == State.Chase)
+            {
+                BeBusy("Tear", 1.3f);
+                dropAt = Time.time + 0.8f;
+                Sfx.Instance?.Attack(tearSound, goal, 1f, "father_moth_tear");
+            }
+        }
+
+        void TearDown()
+        {
+            dropAt = -1f;
+            int i = nextLamp++;
+            if (i < 0 || i >= hung.Length)
+                return;
+            fallSpeed[i] = 0.01f; // (falling: Lights)
+            LampsLeft = Mathf.Max(0, LampsLeft - 1);
+            darkTarget = Mathf.Lerp(darkest, 1f, LampsLeft / (float)Mathf.Max(1, hung.Length));
+        }
+
+        // The lamps (falling, out), the dark (the moon and the ambient, at `darkness` of themselves).
+        void Lights()
+        {
+            for (int i = 0; i < hung.Length; i++)
+            {
+                if (fallSpeed[i] <= 0f || hung[i].lamp == null)
+                    continue;
+                var lamp = hung[i].lamp;
+                fallSpeed[i] += 18f * Time.deltaTime;
+                lamp.position += Vector3.down * fallSpeed[i] * Time.deltaTime;
+                lamp.rotation = Quaternion.RotateTowards(lamp.rotation, hung[i].rotation * Quaternion.Euler(70f, 0f, 20f), 200f * Time.deltaTime);
+                Intensity(lamps[i], hung[i].intensity * Mathf.Clamp01(1f - fallSpeed[i] / 8f));
+                if (lamps[i].transform.position.y <= floorY + 0.25f)
+                {
+                    fallSpeed[i] = -1f; // (shattered)
+                    Intensity(lamps[i], 0f);
+                    lamps[i].enabled = false;
+                    foreach (var r in lamp.GetComponentsInChildren<Renderer>())
+                        r.enabled = false;
+                    Effects.Instance?.Rubble(new Vector3(lamps[i].transform.position.x, floorY, lamps[i].transform.position.z), 0.6f);
+                    Sfx.Instance?.Attack(shatterSound, lamps[i].transform.position, 1f, "glass_lamp_shatter");
+                }
+            }
+            if (IsAlive)
+            {
+                darkness = Mathf.MoveTowards(darkness, darkTarget, Time.deltaTime * 0.5f);
+                Dim(darkness);
+            }
+        }
+
+        static void Intensity(Light light, float value)
+        {
+            var flicker = light.GetComponent<LightFlicker>();
+            if (flicker != null)
+                flicker.BaseIntensity = value;
+            else
+                light.intensity = value;
+        }
+
+        // The night's light, at `k` of itself (the moon, the ambient); never his lamps (they go one by one), nor your lantern.
+        void Dim(float k)
+        {
+            if (moon != null)
+                moon.intensity = moonIntensity * k;
+            RenderSettings.ambientSkyColor = sky * k;
+            RenderSettings.ambientEquatorColor = equator * k;
+            RenderSettings.ambientGroundColor = ground * k;
+        }
+
+        // He's gone: the night comes back in (the moon, the ambient; not his lamps).
+        System.Collections.IEnumerator NightReturns()
+        {
+            float from = darkness;
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 3f)
+            {
+                darkness = Mathf.Lerp(from, 1f, t);
+                Dim(darkness);
+                yield return null;
+            }
+            darkness = darkTarget = 1f;
+            Dim(1f);
         }
 
         // Up onto his forelegs, wings flung wide, the hollow blazing: then after you.
@@ -610,6 +794,12 @@ namespace MyGame
             Hold(transform.position + velocity * dt);
         }
 
+        void Hover(float dt)
+        {
+            velocity = Vector3.MoveTowards(velocity, Vector3.zero, 14f * dt);
+            Hold(transform.position + velocity * dt);
+        }
+
         // (outside his bounds, as off his tree, he's drawn back in, not snapped)
         void Hold(Vector3 p)
         {
@@ -666,6 +856,7 @@ namespace MyGame
             Sfx.Instance?.Attack(deathSound, transform.position + Vector3.up * 2f, 1f, "father_moth_death");
             Effects.Instance?.Leaves(transform.position + Vector3.up * 2f, Vector3.zero, 80);
             Clear();
+            StartCoroutine(NightReturns());
             BossFight.Defeat(this);
             BossFight.End(this);
             fightOn = false;
@@ -688,7 +879,25 @@ namespace MyGame
             mode = Mode.Hovering;
             collapsing = false;
             strikes = snipsLeft = 0;
+            Swallowed = 0;
             CurrentPhase = 1;
+            StopAllCoroutines();
+            nextLamp = 0;
+            dropAt = -1f;
+            for (int i = 0; i < hung.Length; i++)
+            {
+                if (hung[i].lamp == null)
+                    continue;
+                hung[i].lamp.SetPositionAndRotation(hung[i].position, hung[i].rotation);
+                foreach (var r in hung[i].lamp.GetComponentsInChildren<Renderer>())
+                    r.enabled = true;
+                lamps[i].enabled = true;
+                Intensity(lamps[i], hung[i].intensity);
+                fallSpeed[i] = 0f;
+            }
+            LampsLeft = hung.Length;
+            darkness = darkTarget = 1f;
+            Dim(1f);
             beatsDone = volleyLeft = 0;
             streamUntil = 0f;
             stirred = false;
@@ -712,6 +921,8 @@ namespace MyGame
 
         void OnDestroy()
         {
+            if (moon != null)
+                Dim(1f); // (never leave the night dark)
             if (focus != null)
                 Destroy(focus.gameObject);
         }
