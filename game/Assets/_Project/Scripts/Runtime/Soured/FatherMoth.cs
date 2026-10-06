@@ -60,6 +60,9 @@ namespace MyGame
 
         [Header("Look and sound")]
         public Light chest;                   // the lantern in his ribs
+        public Transform hollow;              // the autumn hollow on his back: his leaves come out of it (it throbs)
+        public Light hollowLight;
+        public float hollowIntensity = 2f;
         public float chestIntensity = 1.4f;
         public float cameraLean = 0.5f, cameraZoom = 1.55f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
         public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
@@ -115,6 +118,7 @@ namespace MyGame
         int beatsDone, volleyLeft;
         float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign, streamEvery, streamTurn;
         int flicks;
+        float kick;                            // the hollow's throb from a leaf just thrown
         bool collapsing;                       // spent: hitting the floor (then sprawled)
         bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
         bool fightOn;
@@ -245,7 +249,7 @@ namespace MyGame
                     for (int i = 0; i < podCount; i++)
                     {
                         Vector3 spot = Inside(target != null ? target.transform.position + (i == 0 ? Vector3.zero : Flat(Random.insideUnitSphere).normalized * Random.Range(1.5f, 3f)) : middle);
-                        SeedPod.Lob(new Vector3(transform.position.x, floorY + 1.6f, transform.position.z), new Vector3(spot.x, floorY + 0.9f, spot.z), target,
+                        SeedPod.Lob(HollowPoint + Vector3.up * 0.2f, new Vector3(spot.x, floorY + 0.9f, spot.z), target,
                             podMaterial, leafMaterial, podLeaves, LeafSpeed, leafDamage, middle, walls, podSound);
                     }
                     break;
@@ -277,10 +281,34 @@ namespace MyGame
 
         float LeafSpeed => CurrentPhase == 1 ? leafSpeed : hecticSpeed;
 
-        void Leaf(Vector3 direction, float outFrom = 1.2f)
+        // A leaf out of the autumn hollow on his back: up out of it, then sinking to chest height as it comes.
+        void Leaf(Vector3 direction)
         {
-            Vector3 from = new Vector3(transform.position.x, floorY + 0.9f, transform.position.z) + direction * outFrom;
-            DriftLeaf.Fling(from, direction, LeafSpeed, leafDamage, target, leafMaterial, middle, walls);
+            Vector3 from = HollowPoint + Vector3.up * 0.2f + direction * 0.4f;
+            DriftLeaf.Fling(from, direction, LeafSpeed, leafDamage, target, leafMaterial, middle, walls, settleY: floorY + 0.9f);
+            kick = Mathf.Min(kick + 0.35f, 0.6f); // (the hollow throbs with each)
+        }
+
+        Vector3 HollowPoint => hollow != null ? hollow.position : transform.position + Vector3.up * 1.8f;
+
+        // The hollow: throbbing slowly; swelling and brightening through a tell; a kick with every leaf; a trickle of
+        // leaves out of it always (more as it swells).
+        void Hollow()
+        {
+            kick = Mathf.MoveTowards(kick, 0f, Time.deltaTime * 2.5f);
+            bool telling = CurrentState == State.Telegraph && CurrentAttack == beat;
+            float swell = telling ? 0.35f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, beat.telegraph)) : 0f;
+            float dim = !IsAlive ? 0f : mode == Mode.Spent || mode == Mode.Sinking ? 0.3f : 1f - 0.4f * Tiredness;
+            float pulse = 1f + 0.06f * Mathf.Sin(Time.time * 2.4f) + swell + kick;
+            if (hollow != null)
+                hollow.localScale = Vector3.one * (dim > 0f ? pulse : 0.7f);
+            if (hollowLight != null)
+            {
+                hollowLight.enabled = dim > 0f;
+                hollowLight.intensity = hollowIntensity * dim * (0.7f + 1.6f * (swell + kick) + 0.15f * Mathf.Sin(Time.time * 2.4f));
+            }
+            if (Woken && IsAlive && Random.value < (telling ? 26f : 3f) * dim * Time.deltaTime)
+                Effects.Instance?.Leaves(HollowPoint + Vector3.up * 0.15f, Vector3.up * Random.Range(1f, 2.2f), 1);
         }
 
         // ---- every frame
@@ -323,7 +351,7 @@ namespace MyGame
                     for (int arm = 0; arm < 2; arm++)
                     {
                         Vector3 dir = Quaternion.Euler(0f, streamAngle + arm * 180f, 0f) * Vector3.forward;
-                        Leaf(dir, 2.6f);
+                        Leaf(dir);
                     }
                 }
             }
@@ -490,6 +518,7 @@ namespace MyGame
 
         void LateUpdate()
         {
+            Hollow(); // (after the clips: the hollow's own swell)
             bool on = Woken && IsAlive && target != null && target.IsAlive && InHouse(target.transform.position);
             if (on)
                 BossFight.Begin(this);

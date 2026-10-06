@@ -2,8 +2,8 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // A dead leaf flung from Father Moth's wings: pointed, with its stalk, its edges smouldering faintly (seen in the dark),
-    // drifting straight on at chest height and tumbling over as it goes. It strikes whoever it reaches: a dodge goes through
+    // A dead leaf thrown out of Father Moth's autumn hollow: pointed, with its stalk, its edges smouldering faintly (seen in
+    // the dark); out of the hollow it sinks to chest height, then drifts straight on, tumbling over as it goes. It strikes whoever it reaches: a dodge goes through
     // it, a block stops it (a perfect block knocks it away), and it's gone at the glasshouse's walls.
     public sealed class DriftLeaf : MonoBehaviour
     {
@@ -11,7 +11,7 @@ namespace MyGame
 
         Apprentice target;
         Vector3 velocity;
-        float damage, knock, life, spin, tumble;
+        float damage, knock, life, spin, tumble, settleY, sink;
         bool passed;                           // dodged through: it goes on, and never strikes them
         Vector3 middle;
         Vector2 bounds;
@@ -20,7 +20,7 @@ namespace MyGame
         static Mesh shape;
 
         public static DriftLeaf Fling(Vector3 from, Vector3 direction, float speed, float damage, Apprentice target, Material material,
-                                      Vector3 middle, Vector2 bounds, float size = 1.25f)
+                                      Vector3 middle, Vector2 bounds, float size = 1.25f, float settleY = float.NaN)
         {
             var go = new GameObject("Drift Leaf");
             direction.y = 0f;
@@ -34,6 +34,8 @@ namespace MyGame
             leaf.spin = Random.Range(-90f, 90f);
             leaf.tumble = Random.Range(0f, 360f);
             go.transform.position = from;
+            leaf.settleY = float.IsNaN(settleY) ? from.y : settleY;
+            leaf.sink = Mathf.Max(0f, from.y - leaf.settleY) / 0.45f; // (down to chest height in about half a second)
             go.transform.rotation = Quaternion.LookRotation(leaf.velocity);
             // The leaf itself, lying along its way, tumbling about its length (its own child, so the drift stays straight).
             var body = new GameObject("Leaf", typeof(MeshFilter), typeof(MeshRenderer));
@@ -100,6 +102,8 @@ namespace MyGame
             float dt = Time.deltaTime;
             life += dt;
             transform.position += velocity * dt;
+            if (transform.position.y > settleY)
+                transform.position = new Vector3(transform.position.x, Mathf.MoveTowards(transform.position.y, settleY, sink * dt), transform.position.z);
             // Tumbling over about its length, and a slow turn: a leaf on the wind.
             tumble += 420f * dt;
             if (body != null)

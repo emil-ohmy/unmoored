@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // A seed pod flung from Father Moth's wings (phase 2): a dry husk lobbed to where you stood, where it lies a moment,
+    // A seed pod thrown out of Father Moth's autumn hollow (phase 2): a dry husk lobbed to where you stood, where it lies a moment,
     // swelling and glowing (the tell), then bursts into a ring of leaves.
     public sealed class SeedPod : MonoBehaviour
     {

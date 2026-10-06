@@ -199,13 +199,15 @@ back toward the Hub.
 its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to
 him as the Moths gather to a light, until he grew into the greatest of them: a vast moth (wings like dead autumn
 leaves, six metres across) with the stooped gardener still rising from it, in his apron, his forearms grown into its
-forelegs, ending in pruning shears; in his ribs, caged, a small lantern: the last light he tended. His arena: **the
+forelegs, ending in pruning shears; in his ribs, caged, a small lantern: the last light he tended; in his belly, the
+autumn hollow, a ragged glowing opening ringed with dead leaves, that his leaves pour out of. His arena: **the
 Glasshouse**, beyond the Unreaped Rows' far gate (the Watchman guards the way), a ruined palm house of iron ribs and
 broken panes, raised beds of dead plants, shallow water channels (you wade them; they put out flames), lamps hung on
 chains, a dead orange tree against its north wall (he hangs folded on it, like a leaf, until you come in); its middle
 left open, his floor.
 - **A static fight, of dodging:** he keeps to one place, hovering over the north of the floor, out of the oar's reach,
-  and beats his wings. Each beat (his wings raised high, the light in his chest flaring: the tell) throws dead leaves at
+  and beats his wings. Each beat (his wings raised high, the light in his chest flaring, the hollow in his belly
+  swelling and brightening: the tell) throws dead leaves out of that hollow at
   you in a pattern: a fan, a few aimed one after another, a ring all round him. Dodge through them, block them, or step
   between them. After so many beats he's spent: he sinks to the floor and lies there a while, open to the oar, then
   rises and begins again.

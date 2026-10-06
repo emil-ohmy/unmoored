@@ -2,7 +2,8 @@
 (veined, blotched, ragged at the edges: six metres across), and rising from its thorax where its head should be, the
 stooped old gardener in his apron and flat cap, a moth's feathered antennae growing from his brow. His forearms have
 grown into its forelegs, long and jointed, each ending in a pair of pruning shears; four thin moth legs beneath. In his
-ribs, caged, a small lantern: the last light he tended (it glows; it flares with his tell). The same sickly green eyes
+ribs, caged, a small lantern: the last light he tended (it glows; it flares with his tell). In his belly,
+below the apron, the autumn hollow: a ragged glowing opening ringed with dead leaves, that his leaves pour out of. The same sickly green eyes
 as every Soured. Origin at the ground, where he stands when he lands (in flight the game holds him up).
 
 Clips: Perched (still, wings folded down over him like a dead leaf: before he wakes), Wake (2 s: the wings unfold, he
@@ -36,6 +37,7 @@ BONES = {
     "ArmR": (SHOULDER, WRIST, "Torso"),
     "SnipL": ((-WRIST[0], WRIST[1], WRIST[2]), (-WRIST[0], WRIST[1] - 0.3, 0.2), "ArmL"),
     "SnipR": (WRIST, (WRIST[0], WRIST[1] - 0.3, 0.2), "ArmR"),
+    "Hollow": ((0, -0.6, 1.22), (0, -0.85, 1.22), "Body"),
     "WingL": ((-0.35, -0.1, WING_Z), (-3.0, -0.5, WING_Z), "Body"),
     "WingR": ((0.35, -0.1, WING_Z), (3.0, -0.5, WING_Z), "Body"),
     "HindL": ((-0.3, 0.3, WING_Z - 0.1), (-2.0, 1.0, WING_Z - 0.1), "Body"),
@@ -188,6 +190,19 @@ def build():
     ]
     for k, (y, z, r) in enumerate([(0.75, 1.41, 0.435), (1.15, 1.33, 0.405), (1.55, 1.24, 0.35), (1.95, 1.12, 0.26)]):
         parts.append(part("Band", kit.cylinder(10, r, 0.09), fur_dark, M((0, y, z), rot=(90 - 12 - k * 4, 0, 0)), smooth=True, group="Abdomen"))
+    # The autumn hollow in his belly, low on the front of the moth below the gardener's apron, between his forelegs: a
+    # ragged opening ringed with dead leaves curling back from it, an ember glow deep in it (the leaves he throws come
+    # out of it; it throbs, and swells before a throw).
+    parts += [
+        part("HollowRim", kit.cylinder(14, 0.36, 0.14), kit.mat("HollowDark", "#1e140e"), M((0, -0.56, 1.22), rot=(80, 0, 0)), group="Hollow"),
+        part("HollowGlow", kit.cylinder(14, 0.26, 0.04), kit.mat("FatherMothHollow_Glow", "#ff9a40"), M((0, -0.64, 1.23), rot=(80, 0, 0)), group="Hollow"),
+    ]
+    rim_leaf = kit.mat("HollowLeaf", "#8a4a20")
+    for k in range(9):
+        a = math.tau * k / 9 + 0.2
+        base = (math.cos(a) * 0.32, -0.63, 1.22 + math.sin(a) * 0.32)
+        tip = (math.cos(a) * 0.6, -0.7 - 0.05 * (k % 2), 1.22 + math.sin(a) * 0.6)
+        parts.append(part("HollowLeaf", kit.cone(4, 0.09, 0.0, math.dist(base, tip)), rim_leaf, kit.along(base, tip), group="Hollow"))
     # The gardener, rising from it: stooped, in a shirt, his apron, his flat cap.
     parts += [
         part("Waist", kit.tube([(0, -0.3, 1.66), (0, -0.52, 2.1), (0, -0.7, 2.52), (0, -0.8, 2.78)], [0.3, 0.29, 0.31, 0.27], seg=10),

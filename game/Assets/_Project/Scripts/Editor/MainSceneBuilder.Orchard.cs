@@ -597,6 +597,8 @@ public static partial class MainSceneBuilder
         m.podSound = Clips("seed_pod_burst");
         m.fruitSound = Clips("fruit_fall");
         m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, LanternLight);
+        m.hollow = Bone(go, "Hollow");
+        m.hollowLight = PointLight(m.hollow, GlowCentre(go, "FatherMothHollow_Glow"), 5f, m.hollowIntensity, new Color(1f, 0.55f, 0.2f));
         m.wingSound = Clips("father_moth_wing");
         m.wakeSound = Clips("father_moth_wake");
         m.beatSound = Clips("father_moth_beat");
