@@ -110,3 +110,5 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Father Moth beaten (`father_moth_death`) | in game | Synth | his wings folding with a long dry crackle, a great soft fall, a last breath; faintly, music-box notes going down (A, E, D), unresolved |
 | A seed pod bursting (`seed_pod_burst`, 2) | in game | Synth | Father Moth's, phase 2: a sharp papery pop, leaves flung out |
 | A withered orange landing (`fruit_fall`, 3) | in game | Synth | shaken down from the glasshouse's vault: a soft wet thud on the stone, the rind splitting, seeds skittering |
+| Father Moth's shears drawn (`father_moth_snip`, 2) | in game | Synth | phase 3, afoot, before a snip or a sweep: the blades opened with an iron scrape, snip-snip |
+| Father Moth's lunge drawn (`father_moth_stall`, 2) | in game | Synth | phase 3, before his lunge: a hard crack of air as he rears, a trembling rattle of leaves, the lantern in his ribs flaring |

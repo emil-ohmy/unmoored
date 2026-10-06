@@ -214,7 +214,12 @@ left open, his floor.
 - **Four phases** (at three quarters, half, a quarter): each changes the patterns, more and more of them, and more
   complex. Phase 1: leaves alone, one pattern a beat. Phase 2: quicker beats and quicker leaves, several patterns at
   once, and new kinds: a spiral stream of leaves, seed pods lobbed to where you stand that burst into rings, withered
-  oranges shaken down from the vault onto glowing marks (no guard stops them: step out). Phases 3 and 4 are to come.
+  oranges shaken down from the vault onto glowing marks (no guard stops them: step out).
+- **Phase 3 (half), afoot and relentless:** he doesn't fly up again but heaves himself onto his forelegs and comes after
+  you on foot: quick snips two or three at a time, a wide sweep of his shears, a lunge across the floor when you're off.
+  His shears turn your blows. Two ways through: dodge him till he's spent (a dozen strikes, and he collapses, open), or
+  turn a strike with a perfect block (stunned, a riposte's chance). At the quarter mark he takes to the air again.
+- **Phase 4 (a quarter), on the wing again:** the last; to come (for now it repeats phase 2).
 - **No skipping a phase:** brought down to a phase's mark, his health holds there and nothing harms him (fire neither)
   until he rises; then the next phase begins. The Hook glances off him.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.

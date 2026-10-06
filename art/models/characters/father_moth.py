@@ -15,7 +15,8 @@ ShearsDraw (0.7 s), Shears (0.3 s: swept across his front), Recover (1 s), GustD
 his back), Gust (0.5 s: one great beat forward), Beat (1.2 s: hammering the water below), Shake (1 s: a shudder that
 shakes Moths from his wings), Tear (1.3 s: reaching up, tearing down), Stagger, Death (he folds and falls), Spin (wings flat out wide, turning: looping),
 FlickL / FlickR (one wing snapped down to throw), Falter (spent: weak, uneven beats, sagging), Collapse (down onto the
-floor, sprawled).
+floor, sprawled), Scuttle (afoot, coming on: looping), ThrustDraw / Thrust (both shears raised, then driven forward:
+his lunge), Rouse (up off the floor onto his forelegs, wings flung wide: the start of his melee).
 """
 import math
 
@@ -101,6 +102,22 @@ def flick(side):
     return dict(wings((0, 30, 0), (0, -50, 25), (0, 24, 0), (0, -38, 15)), Body=(4, 8, 0), Torso=(0, 0, -10), Legs=(75, 0, 0))
 
 
+GROUND = dict(lift(28, 42), Torso=(14, 0, 0), Head=(-10, 0, 0))  # (afoot: wings half-raised and back, stooped forward, shears down)
+
+
+def scuttle(k):
+    """Afoot, coming on: forelegs and shears stepping by turns, the body bobbing."""
+    s = 1 if k % 2 else -1
+    return dict(GROUND, ArmL=(-14 * s, 0, 0), ArmR=(14 * s, 0, 0), Legs=(0, 0, 8 * s), Body=(3, 0, 3 * s),
+                Root=((0, 0, 0), (0, 0, 0.06 if k % 2 else 0.0)))
+
+
+THRUST_DRAWN = dict(lift(50, 20), Body=(-14, 0, 0), Torso=(-24, 0, 0), Head=(-12, 0, 0), ArmL=(-110, 0, -20), ArmR=(-110, 0, 20),
+                    SnipL=(0, 0, -30), SnipR=(0, 0, 30))  # (rearing back, both shears raised and open)
+THRUST = dict(lift(-10, 50), Body=(16, 0, 0), Torso=(30, 0, 0), Head=(10, 0, 0), ArmL=(-62, 0, 6), ArmR=(-62, 0, -6),
+              Root=((0, 0, 0), (0, -0.3, 0)))  # (driven forward and low, both shears snapping shut ahead)
+
+
 def falter(k):
     """A weak, uneven beat, sagging (more with each k)."""
     a = 30 - k * 6
@@ -124,6 +141,10 @@ ACTIONS = {
     "Downed": ("BEZIER", [(1, DOWNED), (15, dict(DOWNED, Torso=(40, 0, 6), Head=(22, 0, -18), Abdomen=(-12, 0, 0),
                                              **wings((0, 16, 8), (0, -16, -8), (0, 14, 8), (0, -14, -8)))),
                           (30, DOWNED), (45, dict(DOWNED, Torso=(41, 0, -4), Head=(24, 0, -14), Abdomen=(-12, 0, 0))), (60, DOWNED)]),  # (heaving, spent)
+    "Scuttle": ("BEZIER", [(1 + k * 6, scuttle(k)) for k in range(5)]),
+    "ThrustDraw": ("BEZIER", [(1, GROUND), (10, THRUST_DRAWN), (17, dict(THRUST_DRAWN, Torso=(-28, 0, 0)))]),
+    "Thrust": ("BEZIER", [(1, THRUST_DRAWN), (4, THRUST), (10, dict(THRUST, Torso=(32, 0, 0)))]),
+    "Rouse": ("BEZIER", [(1, DOWNED), (10, dict(GROUND, Torso=(-10, 0, 0))), (18, dict(STALL, Legs=(0, 0, 0))), (30, dict(STALL, Legs=(0, 0, 0))), (40, GROUND)]),
     "Spin": ("LINEAR", [(1, SPREAD), (10, dict(SPREAD, **lift(8, -6))), (20, SPREAD)]),
     "FlickL": ("BEZIER", [(1, UP), (3, flick(-1)), (8, UP)]),
     "FlickR": ("BEZIER", [(1, UP), (3, flick(1)), (8, UP)]),

@@ -16,6 +16,7 @@ namespace MyGame
         readonly List<Row> rows = new List<Row>();
         readonly List<(string description, System.Action action)> actions = new List<(string, System.Action)>();
         Page page;
+        static int gardenerPhase = 1;
 
         public TesterMenu(TesterPost post, Apprentice apprentice)
         {
@@ -81,6 +82,18 @@ namespace MyGame
                         post.SetResidents(!post.ResidentsAwake);
                         Say(post.ResidentsAwake ? "Up they get." : "Hush. They'll keep.");
                     });
+                var moth = Object.FindAnyObjectByType<FatherMoth>();
+                if (moth != null)
+                {
+                    Add("Father Moth: phase", $"{gardenerPhase}", "Which of his four phases to face him from: 1 and 2 his leaves, 3 afoot, 4 the last.", () =>
+                        gardenerPhase = gardenerPhase % 4 + 1);
+                    Add("Face Father Moth", $"phase {gardenerPhase}", "Into the Glasshouse, and his fight begun at the phase chosen (at its health).", () =>
+                    {
+                        apprentice.Teleport(moth.middle + new Vector3(0f, 0.05f, -5f));
+                        moth.BeginAt(gardenerPhase);
+                        Say(gardenerPhase == 1 ? "He's waking." : $"Phase {gardenerPhase}. Mind his shears.");
+                    });
+                }
                 Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone (and the readout's counts start again).", () =>
                 {
                     Spawner.ClearSpawned();

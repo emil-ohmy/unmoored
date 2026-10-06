@@ -14,6 +14,11 @@ namespace MyGame
     // pods that burst into rings, withered oranges shaken down from the vault, a spiral stream (phases 3 and 4 use phase
     // 2's for now). No blow carries him through a phase: brought down to its mark, he's untouchable until he's up again,
     // and his next phase begins. Fire burns him badly. The Hook glances off him.
+    // Phase 3 (from half): he doesn't fly up again. He heaves himself onto his forelegs and comes after you on foot,
+    // relentless: quick snips (two or three at a time), a wide sweep of his shears, a lunge across the floor when you're
+    // off. His shears turn your blows; two ways through: dodge him till he's spent (a dozen strikes, and he collapses,
+    // open, as ever), or turn a strike with a perfect block (stunned, a riposte's chance). Brought to the quarter mark,
+    // he takes to the air again: phase 4 (the last, on the wing: for now phase 2's run).
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -54,6 +59,15 @@ namespace MyGame
         public Material podMaterial, fruitMaterial;
         public AudioClip[] podSound, fruitSound;
 
+        [Header("Phase 3: afoot, relentless")]
+        public SouredAttack snip = new SouredAttack();   // quick, often two or three at a time
+        public SouredAttack sweep = new SouredAttack();  // wide
+        public SouredAttack lunge = new SouredAttack();  // across the floor at you when you're off
+        public float footSpeed = 4.2f;
+        public int strikesBeforeSpent = 12;
+        public float meleeStun = 1.6f;        // a strike turned on a perfect block: stunned this long
+        public float roused = 1.5f;           // up off the floor onto his forelegs, wings flung wide
+
         [Header("Spent")]
         public float sinkTime = 1.8f, collapseTime = 0.5f, spentTime = 5f, riseTime = 0.9f;
         public float tiredSag = 0.9f;         // how far he's sunk by his last beat
@@ -68,7 +82,7 @@ namespace MyGame
         public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
 
         public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit }
-        enum Mode { Hovering, Sinking, Spent, Rising }
+        enum Mode { Hovering, Sinking, Spent, Rising, Afoot }
 
         // Each phase's run of beats, in order (then he's spent); a beat throws everything in it at once.
         static readonly Pattern[][] PhaseOne =
@@ -83,6 +97,8 @@ namespace MyGame
         Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : PhaseTwo; // (phases 3 and 4: their own runs, still to come)
 
         public bool Woken { get; private set; }
+        public bool Afoot => mode == Mode.Afoot;       // phase 3: on the floor, coming after you
+        public int Strikes => strikes;
         public bool Grounded => mode == Mode.Spent && !collapsing;
         public bool Spent => mode == Mode.Spent && !collapsing;  // sprawled on the floor (not still dropping)
         public bool Beating => CurrentAttack == beat && (CurrentState == State.Telegraph || CurrentState == State.Strike);
@@ -106,10 +122,12 @@ namespace MyGame
         protected override bool Floats => true;
         protected override bool Surface() => true;
         public override bool OutOfReach => Height > 1.9f;
+        protected override bool BlocksHit(Hit hit) => mode == Mode.Afoot && CurrentState != State.Stunned; // (afoot, his shears turn your blows)
+        protected override Vector3 ChaseStep(Vector3 toTarget, float distance) =>
+            mode == Mode.Afoot && distance > 2.4f && target != null ? PathDirection(target.transform.position) * footSpeed * (1f - 0.3f * Tiredness) : Vector3.zero;
         protected override bool OnItsLevel() => true;
         protected override string IdleClip => Woken ? "Fly" : "Perched";
-        protected override string ChaseClip(float distance) => "Fly";
-        protected override Vector3 ChaseStep(Vector3 toTarget, float distance) => Vector3.zero; // (he flies: Tick)
+        protected override string ChaseClip(float distance) => mode == Mode.Afoot ? (distance > 2.4f ? "Scuttle" : "Land") : "Fly";
         protected override bool LosesTarget(float distance) => !InHouse(target.transform.position);
 
         Vector3 velocity, perch;
@@ -117,7 +135,7 @@ namespace MyGame
         Mode mode;
         int beatsDone, volleyLeft;
         float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign, streamEvery, streamTurn;
-        int flicks;
+        int flicks, strikes, snipsLeft;
         float kick;                            // the hollow's throb from a leaf just thrown
         bool collapsing;                       // spent: hitting the floor (then sprawled)
         bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
@@ -131,6 +149,7 @@ namespace MyGame
             perch = transform.position;
             perchRotation = transform.rotation;
             focus = new GameObject("Father Moth (camera focus)").transform;
+            stunDuration = meleeStun;
         }
 
         protected override void Start()
@@ -139,12 +158,14 @@ namespace MyGame
             Reform();
         }
 
-        bool InHouse(Vector3 p) => Mathf.Abs(p.x - middle.x) < reach.x + 2f && Mathf.Abs(p.z - middle.z) < reach.y + 2f && p.y > floorY - 1f && p.y < floorY + 8f;
+        // Inside his glasshouse (its walls, not just where he flies).
+        bool InHouse(Vector3 p) => Mathf.Abs(p.x - middle.x) < walls.x + 0.5f && Mathf.Abs(p.z - middle.z) < walls.y + 0.5f && p.y > floorY - 1f && p.y < floorY + 8f;
 
         Vector3 HoverPoint => new Vector3(hover.x + Mathf.Sin(Time.time * 0.7f) * 0.6f, floorY + hoverHeight - tiredSag * Tiredness + Mathf.Sin(Time.time * 1.9f) * 0.15f, hover.z);
 
         // How spent he is (0 fresh, 1 at his last beat): he sags, his beats grow heavy, his lantern dims, he wobbles.
-        public float Tiredness => mode == Mode.Hovering ? Mathf.Clamp01(beatsDone / (float)Mathf.Max(1, Run.Length)) : 0f;
+        public float Tiredness => mode == Mode.Hovering ? Mathf.Clamp01(beatsDone / (float)Mathf.Max(1, Run.Length))
+                                : mode == Mode.Afoot ? Mathf.Clamp01(strikes / (float)Mathf.Max(1, strikesBeforeSpent)) : 0f;
 
         // ---- waking
 
@@ -165,6 +186,8 @@ namespace MyGame
 
         protected override SouredAttack ChooseAttack(Vector3 toTarget, float distance)
         {
+            if (mode == Mode.Afoot)
+                return Strike(distance);
             if (!Woken || mode != Mode.Hovering || (transform.position - HoverPoint).magnitude > 1.5f || volleyLeft > 0 || Time.time < streamUntil)
                 return null;
             var run = Run;
@@ -311,6 +334,37 @@ namespace MyGame
                 Effects.Instance?.Leaves(HollowPoint + Vector3.up * 0.15f, Vector3.up * Random.Range(1f, 2.2f), 1);
         }
 
+        // Afoot (phase 3): snips (two or three at a time), a sweep, a lunge when you're off; spent after so many.
+        SouredAttack Strike(float distance)
+        {
+            if (strikes >= strikesBeforeSpent)
+            {
+                Spend();
+                return null;
+            }
+            SouredAttack next = null;
+            if (snipsLeft > 0 && distance <= snip.reach + 1f)
+            {
+                snipsLeft--;
+                next = snip;
+            }
+            else if (distance > 4.5f && distance < 9f)
+                next = lunge;
+            else if (distance <= sweep.reach)
+            {
+                if (Random.value < 0.55f)
+                {
+                    snipsLeft = Random.Range(1, 3); // (two or three in all)
+                    next = snip;
+                }
+                else
+                    next = sweep;
+            }
+            if (next != null)
+                strikes++;
+            return next;
+        }
+
         // ---- every frame
 
         protected override void Tick(float dt)
@@ -368,8 +422,13 @@ namespace MyGame
                 if (StateTime < spentTime - 1.2f)
                     BeBusy("Downed", 1.2f);
             }
+            if (mode == Mode.Afoot && Untouchable && CurrentState != State.Busy)
+                TakeWing();
             switch (mode)
             {
+                case Mode.Afoot:
+                    Hold(new Vector3(transform.position.x, floorY, transform.position.z));
+                    break;
                 case Mode.Sinking:
                     // Faltering, wing over wing, lower and lower (the last of it, a drop).
                     float u = Mathf.Clamp01(StateTime / sinkTime);
@@ -443,9 +502,20 @@ namespace MyGame
 
         void RiseAgain()
         {
-            mode = Mode.Rising;
             beatsDone = 0;
             stirred = false;
+            // Phase 3: not up into the air, but onto his forelegs, after you (and so on, till the quarter mark).
+            if ((CurrentPhase == 2 && Untouchable) || (CurrentPhase == 3 && !Untouchable))
+            {
+                if (CurrentPhase == 2)
+                {
+                    CurrentPhase = 3;
+                    PhaseBegun?.Invoke(this);
+                }
+                Rouse();
+                return;
+            }
+            mode = Mode.Rising;
             if (Untouchable)
             {
                 // Up, and his next phase begins: a burst of leaves off him, the lantern flaring.
@@ -456,6 +526,55 @@ namespace MyGame
                 PhaseBegun?.Invoke(this);
             }
             BeBusy("Rise", riseTime);
+        }
+
+        // Up onto his forelegs, wings flung wide, the hollow blazing: then after you.
+        void Rouse()
+        {
+            mode = Mode.Afoot;
+            strikes = snipsLeft = 0;
+            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+            BeBusy("Rouse", roused);
+            Effects.Instance?.Leaves(transform.position + Vector3.up * 1.2f, Vector3.up * 2.5f, 50);
+            Effects.Instance?.AlertFlare(ChestPoint);
+            Sfx.Instance?.Attack(wakeSound, transform.position + Vector3.up * 2f, 1f, "father_moth_wake");
+            CameraRig.Instance?.Shake(0.35f);
+        }
+
+        // Brought to the quarter mark afoot: he takes to the air for the last of it (phase 4).
+        void TakeWing()
+        {
+            CurrentPhase = 4;
+            mode = Mode.Rising;
+            beatsDone = 0;
+            Effects.Instance?.Leaves(transform.position + Vector3.up * 1.5f, Vector3.up * 3f, 60);
+            Effects.Instance?.AlertFlare(ChestPoint);
+            CameraRig.Instance?.Shake(0.3f);
+            BeBusy("Rise", riseTime);
+            PhaseBegun?.Invoke(this);
+        }
+
+        // (the lab, the tests) His fight begun at `phase`: at its health, in its place (afoot for phase 3).
+        public void BeginAt(int phase)
+        {
+            phase = Mathf.Clamp(phase, 1, 4);
+            Reform();
+            Woken = true;
+            passive = false;
+            CurrentPhase = phase;
+            SetHealth(phase == 1 ? maxHealth : maxHealth * PhaseMarks[phase - 2]);
+            if (phase == 3)
+            {
+                PlaceAt(new Vector3(hover.x, floorY, hover.z));
+                Rouse();
+            }
+            else
+            {
+                PlaceAt(new Vector3(hover.x, floorY + hoverHeight, hover.z));
+                mode = Mode.Rising;
+                BeBusy("Rise", riseTime);
+            }
+            Woke?.Invoke(this);
         }
 
         // As low as his health goes in this phase: its mark (the last phase, none).
@@ -568,6 +687,7 @@ namespace MyGame
             passive = true;
             mode = Mode.Hovering;
             collapsing = false;
+            strikes = snipsLeft = 0;
             CurrentPhase = 1;
             beatsDone = volleyLeft = 0;
             streamUntil = 0f;

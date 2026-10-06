@@ -576,6 +576,18 @@ public static partial class MainSceneBuilder
             telegraph = 0.6f, strike = 0.4f, recover = 0.8f, impactAt = 0.05f,
             lunge = 0f, maxLunge = 0f, trackUntil = 0.9f, damage = 0f, reach = 30f, arc = 180f, knockback = 0f, scripted = true,
         };
+        // Phase 3, afoot: snips, a sweep, a lunge (his shears turn blows; a perfect block on a strike stuns him).
+        SouredAttack Shears(string name, string windup, string strike, float telegraph, float strikeTime, float recover, float damage,
+                            float reach, float arc, float lunge, float maxLunge, string windupSound) => new SouredAttack
+        {
+            name = name, windupClip = windup, strikeClip = strike, recoverClip = "Land",
+            telegraph = telegraph, strike = strikeTime, recover = recover, impactAt = 0.45f,
+            lunge = lunge, maxLunge = maxLunge, trackUntil = 0.75f, damage = damage, reach = reach, arc = arc, knockback = 8f,
+            windupSound = Clips(windupSound), swingSound = Clips("laden_swing"), swingPitch = 1.2f,
+        };
+        m.snip = Shears("Snip", "ShearsDraw", "Shears", 0.45f, 0.22f, 0.25f, 14f, 3.0f, 70f, 0.4f, 1.5f, "father_moth_snip");
+        m.sweep = Shears("Sweep", "ShearsDraw", "Shears", 0.65f, 0.3f, 0.45f, 20f, 3.6f, 130f, 0.6f, 2f, "father_moth_snip");
+        m.lunge = Shears("Lunge", "ThrustDraw", "Thrust", 0.7f, 0.4f, 0.6f, 22f, 3.0f, 60f, 1f, 6.5f, "father_moth_stall");
         var leaf = GeneratedMaterial("M_DriftLeaf", "MyGame/Toon");
         leaf.SetColor("_BaseColor", Hex("#9a4a1e"));
         leaf.SetColor("_EmissionColor", new Color(0.6f, 0.22f, 0.05f)); // (smouldering a little: seen in the dark, still a dead leaf's brown-orange)

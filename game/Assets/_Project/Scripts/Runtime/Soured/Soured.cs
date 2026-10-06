@@ -638,6 +638,8 @@ namespace MyGame
 
         protected void LoseHealth(float amount) => Health = Mathf.Max(1f, Health - amount); // (never a kill)
 
+        protected void SetHealth(float health) => Health = Mathf.Clamp(health, 1f, maxHealth); // (the lab: a Boss begun at a later phase)
+
         protected Vector3 SpawnPosition => spawnPosition;
 
         // Where it keeps to (its leash is measured from here) and walks back to: where it stood, unless it belongs with

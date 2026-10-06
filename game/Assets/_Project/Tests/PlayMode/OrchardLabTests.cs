@@ -450,6 +450,75 @@ namespace MyGame.Tests
             finally { FatherMoth.Beat -= onBeat; }
         }
 
+        // Phase 2 brought to its mark: he doesn't fly up again, but heaves himself onto his forelegs (phase 3, afoot).
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseTwosMark_HeComesAfterYouAfoot()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(2);
+            Assert.AreEqual(2, m.Phase);
+            yield return WaitUp(() => m.Spent, 45f, "him spent");
+            m.TakeBurn(m.maxHealth, m.transform.position);
+            Assert.AreEqual(m.maxHealth * 0.5f, m.Health, 0.5f, "held at half");
+            yield return WaitUp(() => m.Phase == 3 && m.Afoot, 4f, "phase 3, afoot");
+            Assert.Less(m.Height, 0.3f, "on the floor");
+        }
+
+        // Afoot, his shears turn your blows; a perfect block on a strike stuns him, and then the oar gets through.
+        [UnityTest]
+        public IEnumerator TheGardener_Afoot_HisShearsTurnBlows_APerfectBlockStunsHim()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(3);
+            yield return WaitUp(() => m.Afoot && m.CurrentState == Soured.State.Chase, 3f, "him afoot");
+            apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.6f + Vector3.up * 0.05f);
+            Face(m);
+            float before = m.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.4f);
+            Assert.AreEqual(before, m.Health, 0.01f, "turned on his shears");
+            yield return WaitUp(() => m.CurrentState == Soured.State.Strike, 6f, "a strike coming");
+            Face(m);
+            input.BlockHeld = true;
+            yield return WaitFor(() => m.CurrentState == Soured.State.Stunned, 1f, "him stunned on the block");
+            input.BlockHeld = false;
+            yield return new WaitForSeconds(0.25f);
+            Face(m);
+            before = m.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(m.Health, before, "a riposte gets through");
+        }
+
+        // Dodged (or not) through a dozen strikes, he's spent: down, open; then up onto his forelegs again.
+        [UnityTest]
+        public IEnumerator TheGardener_Afoot_ADozenStrikes_ThenHesSpent_ThenAfootAgain()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(3);
+            yield return WaitUp(() => m.Spent, 60f, "him spent");
+            Assert.GreaterOrEqual(m.Strikes, m.strikesBeforeSpent);
+            Assert.IsFalse(m.OutOfReach);
+            yield return WaitUp(() => m.Afoot && !m.Spent, m.spentTime + 4f, "him afoot again");
+            Assert.AreEqual(3, m.Phase);
+        }
+
+        // Brought to the quarter mark afoot, he takes to the air again: phase 4.
+        [UnityTest]
+        public IEnumerator TheGardener_Afoot_AtTheQuarterMark_HeTakesWing()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(3);
+            yield return WaitUp(() => m.Afoot && m.CurrentState == Soured.State.Chase, 3f, "him afoot");
+            m.TakeBurn(m.maxHealth, m.transform.position);
+            Assert.AreEqual(m.maxHealth * 0.25f, m.Health, 0.5f, "held at the quarter");
+            yield return WaitUp(() => m.Phase == 4 && m.Height > 2.5f, 5f, "phase 4, on the wing");
+        }
+
         // The Hook glances off him.
         [UnityTest]
         public IEnumerator TheGardener_TheHook_GlancesOff()
@@ -1452,6 +1521,15 @@ namespace MyGame.Tests
                 Shot("father-moth-6-seed-pods");
                 yield return WaitUp(() => FallingFruit.Live > 0 && Time.time - at > 0.7f, 15f, "oranges falling");
                 Shot("father-moth-7-oranges");
+                // Phase 3, afoot.
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f), true, true);
+                m.BeginAt(3);
+                yield return new WaitForSeconds(0.8f);
+                Shot("father-moth-8-roused");
+                yield return WaitUp(() => m.CurrentState == Soured.State.Telegraph && m.CurrentAttack == m.lunge && m.StateTime > 0.5f, 8f, "a lunge drawn");
+                Shot("father-moth-9-lunge-drawn");
+                yield return WaitUp(() => m.CurrentAttack == m.sweep && m.CurrentState == Soured.State.Strike, 20f, "a sweep");
+                Shot("father-moth-10-sweep");
             }
             finally { FatherMoth.Beat -= onBeat; }
         }
