@@ -483,8 +483,7 @@ namespace MyGame
                 }
                 if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead)
                     planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
-                controller.Move((planar + knockback + drag + Vector3.up * verticalVelocity) * dt);
-            drag = Vector3.zero; // (a pull holds only while something keeps pulling)
+                controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
             TrackSafeGround(dt);
             if (transform.position.y < waterLevel && IsAlive && CurrentState != State.Hooking && CurrentState != State.Sinking && CurrentState != State.Rowing)
@@ -965,15 +964,6 @@ namespace MyGame
             }
         }
 
-        // Pulled (Father Moth's gathering: drawn in towards him), this frame: walking against it is slower, with it faster.
-        public void Drag(Vector3 velocity)
-        {
-            if (IsAlive && CurrentState != State.Dead && CurrentState != State.Rowing)
-                drag = velocity;
-        }
-
-        Vector3 drag;
-
         // The flames out (a Sodden Sack, the water, a Rest).
         public void Douse()
         {
@@ -1160,9 +1150,11 @@ namespace MyGame
         }
 
         // `blockable` false: no guard stops it (a gout of fire; only a dodge or a sidestep escapes it).
-        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null, bool blockable = true)
+        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null, bool blockable = true, bool unavoidable = false)
         {
-            if (Invulnerable)
+            if (unavoidable && CurrentState != State.Dead && CurrentState != State.Rowing && CurrentState != State.Sinking)
+                blockable = false; // (no dodging it either: only cover saves you)
+            else if (Invulnerable)
             {
                 if (CurrentState == State.Dashing)
                     Announce("dodged");

@@ -551,31 +551,76 @@ namespace MyGame.Tests
             Assert.IsTrue(m.lamps.All(l => !l.enabled || l.intensity < 0.05f), "the lamps out");
         }
 
-        // His gathering (phase 4): to the middle, a roar; then everything drawn in (you too, dragged towards him); then let
-        // go at once, a ring through the whole floor; then he's spent.
+        // Phase 4: the vault coming down (debris to dodge) while he gathers; one great section crashes in and stays; behind
+        // it, his blast can't reach you; then he's down for good.
         [UnityTest]
-        public IEnumerator TheGardener_PhaseFour_HisGathering_DrawsYouIn_LetsGo_ThenHesSpent()
+        public IEnumerator TheGardener_PhaseFour_BehindTheFallenVault_HisBlastCantReachYou_ThenHesDownForGood()
         {
             var m = Gardener();
-            bool released = false;
-            Action<FatherMoth> onRelease = _ => released = true;
-            FatherMoth.Released += onRelease;
+            bool? sheltered = null;
+            Action<FatherMoth, bool> onBlast = (_, safe) => sheltered = safe;
+            FatherMoth.Blasted += onBlast;
             try
             {
                 apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -6f));
                 m.BeginAt(4);
-                yield return WaitUp(() => m.Gathers == FatherMoth.Gathering.Drawing, 60f, "his gathering");
-                Assert.Less(Vector3.Distance(m.transform.position.Flat(), m.middle.Flat()), 1.2f, "over the middle of the floor");
-                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -6f));
-                yield return new WaitForSeconds(1.5f);
-                float near = (apprentice.transform.position - m.middle).Flat().magnitude;
-                Assert.Less(near, 5.5f, $"dragged in towards him ({near:0.0} m)");
-                Assert.Greater(DriftLeaf.Live, 0, "his leaves drawn in");
-                yield return WaitUp(() => released, 6f, "him letting it go");
-                Assert.IsNotNull(UnityEngine.Object.FindAnyObjectByType<Shockwave>(), "a ring through the whole floor");
-                yield return WaitUp(() => m.Spent, 6f, "him spent");
+                yield return WaitUp(() => FallingDebris.Live > 0, 15f, "debris falling");
+                yield return WaitUp(() => m.Shelter != null && m.Shelter.Down, 30f, "a section of the vault down, standing");
+                Assert.IsTrue(m.Gathers == FatherMoth.Gathering.Drawing, "still gathering");
+                // Behind it: it between him and you.
+                Vector3 away = (m.Shelter.transform.position - m.transform.position).Flat().normalized;
+                yield return WaitUp(() =>
+                {
+                    apprentice.Teleport(m.Shelter.transform.position + away * 1.3f + Vector3.up * 0.05f);
+                    apprentice.RestoreFully();
+                    return sheltered.HasValue;
+                }, 10f, "his blast");
+                Assert.IsTrue(sheltered.Value, "sheltered by the fallen vault");
+                Assert.AreEqual(apprentice.maxHealth, apprentice.Health, 0.01f, "untouched by it");
+                yield return WaitUp(() => m.Spent, 6f, "him fallen");
+                yield return new WaitForSeconds(8f);
+                Assert.IsTrue(m.Spent && m.Final, "down for good");
+                float before = m.Health;
+                apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.6f + Vector3.up * 0.05f);
+                Face(m);
+                input.PressHeavy();
+                yield return new WaitForSeconds(1.2f);
+                Assert.Less(m.Health, before, "and open to the oar");
             }
-            finally { FatherMoth.Released -= onRelease; }
+            finally { FatherMoth.Blasted -= onBlast; }
+        }
+
+        // In the open when he lets go, his blast all but ends you (no dodging it).
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_InTheOpen_HisBlastAllButEndsYou()
+        {
+            var m = Gardener();
+            bool? sheltered = null;
+            float before = 0f;
+            Action<FatherMoth, bool> onBlast = (_, safe) => sheltered = safe;
+            FatherMoth.Blasted += onBlast;
+            try
+            {
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -6f));
+                m.BeginAt(4);
+                yield return WaitUp(() => m.Shelter != null && m.Shelter.Down, 40f, "the section down");
+                yield return WaitUp(() =>
+                {
+                    if (sheltered.HasValue)
+                        return true;
+                    // In the open: the side of him away from the section; ready to dodge as it goes.
+                    Vector3 off = (m.transform.position - m.Shelter.transform.position).Flat().normalized;
+                    apprentice.Teleport(m.transform.position.Flat() + Vector3.up * (m.floorY + 0.05f) + off * 4f);
+                    apprentice.RestoreFully();
+                    before = apprentice.Health;
+                    if (m.StateTime > m.gatherTime - 0.15f)
+                        input.PressDash();
+                    return false;
+                }, 10f, "his blast");
+                Assert.IsFalse(sheltered.Value);
+                Assert.IsTrue(!apprentice.IsAlive || apprentice.Health <= before - m.blastDamage + 0.5f, $"struck: {apprentice.Health}");
+            }
+            finally { FatherMoth.Blasted -= onBlast; }
         }
 
         // The Hook glances off him.
@@ -1597,11 +1642,23 @@ namespace MyGame.Tests
                 yield return WaitUp(() => m.LampsLeft == 0, 25f, "the lamps down");
                 yield return new WaitForSeconds(2.5f);
                 Shot("father-moth-12-in-the-dark");
-                yield return WaitUp(() => m.Gathers == FatherMoth.Gathering.Drawing && m.StateTime > 2.5f, 60f, "his gathering");
-                Shot("father-moth-13-gathering");
-                yield return WaitUp(() => UnityEngine.Object.FindAnyObjectByType<Shockwave>() != null, 5f, "the release");
-                yield return new WaitForSeconds(0.35f);
-                Shot("father-moth-14-release");
+                yield return WaitUp(() => FallingDebris.Live > 1 && m.Gathers == FatherMoth.Gathering.Drawing, 30f, "debris, and his gathering");
+                yield return new WaitForSeconds(0.6f);
+                Shot("father-moth-13-gathering-debris");
+                yield return WaitUp(() => m.Shelter != null && m.Shelter.Down, 30f, "the section down");
+                Vector3 away = (m.Shelter.transform.position - m.transform.position).Flat().normalized;
+                apprentice.Teleport(m.Shelter.transform.position + away * 1.3f + Vector3.up * 0.05f, true, true);
+                yield return new WaitForSeconds(0.5f);
+                Shot("father-moth-14-behind-the-section");
+                yield return WaitUp(() => m.Final, 10f, "the blast");
+                yield return null;
+                yield return null;
+                Shot("father-moth-15-blast");
+                yield return new WaitForSeconds(0.8f);
+                Shot("father-moth-16-after");
+                yield return WaitUp(() => m.Spent, 6f, "him fallen");
+                yield return new WaitForSeconds(1f);
+                Shot("father-moth-17-down-for-good");
             }
             finally { FatherMoth.Beat -= onBeat; }
         }

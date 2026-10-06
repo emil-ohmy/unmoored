@@ -604,6 +604,16 @@ public static partial class MainSceneBuilder
         m.screamSound = Clips("father_moth_scream");
         m.shatterSound = Clips("glass_lamp_shatter");
         m.roarSound = Clips("father_moth_stall"); // (to the middle, rearing: the lantern in his ribs roaring up)
+        m.sectionSound = Clips("thresher_crash"); // (a great iron-and-glass impact)
+        var iron = GeneratedMaterial("M_VaultIron", "MyGame/Toon");
+        iron.SetColor("_BaseColor", Hex("#2f2d33"));
+        EditorUtility.SetDirty(iron);
+        var glass = GeneratedMaterial("M_VaultGlass", "MyGame/Toon");
+        glass.SetColor("_BaseColor", Hex("#9db3aa"));
+        glass.SetColor("_EmissionColor", new Color(0.08f, 0.1f, 0.09f));
+        EditorUtility.SetDirty(glass);
+        m.ironMaterial = iron;
+        m.glassMaterial = glass;
         m.gatherSound = Clips("father_moth_gather");
         m.releaseSound = Clips("father_moth_release");
         var pod = GeneratedMaterial("M_SeedPod", "MyGame/Toon");

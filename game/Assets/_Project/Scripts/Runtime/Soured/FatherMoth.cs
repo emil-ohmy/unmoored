@@ -19,10 +19,11 @@ namespace MyGame
     // off. His shears turn your blows; two ways through: dodge him till he's spent (a dozen strikes, and he collapses,
     // open, as ever), or turn a strike with a perfect block (stunned, a riposte's chance). Brought to the quarter mark,
     // he takes to the air again: phase 4, the last. He screams, the glasshouse shakes, and every lamp falls at once; it goes dark, darker than the
-    // night outside: the hollow in his belly, your bow lantern, his smouldering leaves. After his run of throws he
-    // gathers: to the middle of the floor, a roar, then his hollow draws everything in, every leaf in the glasshouse
-    // spiralling to him (those that catch you hurt) and you with them, dragged harder and harder; then he lets it all go
-    // at once, one great ring bursting out through the whole floor (no gap in it: dodge through it). Then he's spent.
+    // night outside: the hollow in his belly, your bow lantern. The vault starts coming down (the glasshouse rumbling,
+    // debris falling on glowing marks: dodge them) while he gathers in the middle of the floor, his hollow swelling into a
+    // blinding sun. Then one great section of the vault crashes in and stays standing: get behind it. He lets it all go:
+    // a blast as bright as noon, through the whole glasshouse; behind that section it can't reach you, in the open it
+    // all but ends you (no dodging it). Then he falls, spent for good: finish him.
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -77,11 +78,12 @@ namespace MyGame
         public Light[] lamps;                 // their lights
         public float darkest = 0.07f;         // the night's light with every lamp down (the moon, the ambient)
         public float gatherHeight = 3.0f;     // over the middle of the floor
-        public float roarTime = 1.1f, gatherTime = 4.2f, releaseTime = 0.7f;
-        public float pullFrom = 1.4f, pullTo = 3.4f; // how hard he drags you in (m/s), as it builds (you walk at 5)
-        public float drawnPerSecond = 8f, drawnSpeed = 6f, drawnDamage = 10f;
-        public float releaseRadius = 16f, releaseSpeed = 11f, releaseWidth = 1.4f, releaseDamage = 30f, releaseKnock = 11f;
-        public AudioClip[] screamSound, shatterSound, roarSound, gatherSound, releaseSound;
+        public float roarTime = 1.1f, gatherTime = 12f, releaseTime = 0.7f; // gathering: his hollow swelling to a sun
+        public float shieldLead = 5f, shieldFall = 1.8f, shieldDamage = 25f; // the vault section: down this long before the blast
+        public float debrisEvery = 0.7f, debrisFall = 1.2f, debrisRadius = 1.2f, debrisDamage = 22f;
+        public float blastDamage = 90f, blastKnock = 12f;
+        public Material ironMaterial, glassMaterial;
+        public AudioClip[] screamSound, shatterSound, roarSound, gatherSound, releaseSound, sectionSound;
         public float screamTime = 2.2f;
 
         [Header("Spent")]
@@ -110,13 +112,7 @@ namespace MyGame
             new[] { Pattern.Spiral }, new[] { Pattern.Pods }, new[] { Pattern.Fruit, Pattern.Fan }, new[] { Pattern.WideRing, Pattern.Volley },
             new[] { Pattern.SpiralBack }, new[] { Pattern.Fruit, Pattern.Pods }, new[] { Pattern.WideFan },
         };
-        // (then his gathering)
-        static readonly Pattern[][] PhaseFour =
-        {
-            new[] { Pattern.Fruit, Pattern.Fan }, new[] { Pattern.Spiral }, new[] { Pattern.Pods, Pattern.Volley },
-            new[] { Pattern.WideRing }, new[] { Pattern.Fruit, Pattern.Volley }, new[] { Pattern.SpiralBack },
-        };
-        Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : CurrentPhase == 4 ? PhaseFour : PhaseTwo; // (phase 3 is afoot: no run)
+        Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : PhaseTwo; // (phase 3 is afoot; phase 4, his gathering: no run)
 
         public bool Woken { get; private set; }
         public int LampsLeft { get; private set; }
@@ -132,7 +128,8 @@ namespace MyGame
         public int CurrentPhase { get; private set; } = 1;
         public bool Untouchable => CurrentPhase < 4 && Health <= Floor + 0.01f; // (brought to his phase's mark: until he's up)
         public float Height => transform.position.y - floorY;
-        public static event System.Action<FatherMoth> Woke, Exhausted, PhaseBegun, Screamed, GatherBegun, Released; // (tests)
+        public static event System.Action<FatherMoth> Woke, Exhausted, PhaseBegun, Screamed, GatherBegun, ShelterFalling, Released; // (tests)
+        public static event System.Action<FatherMoth, bool> Blasted; // (tests) the blast, and whether you were sheltered from it
         public static event System.Action<FatherMoth, Pattern> Beat;
 
         public string Title => title;
@@ -161,7 +158,12 @@ namespace MyGame
         int beatsDone, volleyLeft;
         float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign, streamEvery, streamTurn;
         int flicks, strikes, snipsLeft;
-        float nextDrawn;
+        float nextDebris, blastGlow;
+        bool quaking;                          // phase 4: the vault coming down, from his scream to his blast
+        VaultSection section;                  // the one that stays standing: the shelter from his blast
+        Light blastLight;
+        public bool Final { get; private set; } // his blast let go: spent for good
+        public VaultSection Shelter => section;
         float kick;                            // the hollow's throb from a leaf just thrown
         bool collapsing;                       // spent: hitting the floor (then sprawled)
         bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
@@ -238,15 +240,16 @@ namespace MyGame
                 return Strike(distance);
             if (!Woken || mode != Mode.Hovering || (transform.position - HoverPoint).magnitude > 1.5f || volleyLeft > 0 || Time.time < streamUntil)
                 return null;
-            if (CurrentPhase == 4 && LampsLeft > 0)
-                return null; // (his scream first: the lamps down)
+            if (CurrentPhase == 4)
+            {
+                if (LampsLeft == 0 && !Final)
+                    Gather(); // (his scream, the lamps down: then his gathering)
+                return null;
+            }
             var run = Run;
             if (beatsDone >= run.Length)
             {
-                if (CurrentPhase == 4)
-                    Gather(); // (in the dark his run ends in his gathering: then he's spent)
-                else
-                    Sink();
+                Sink();
                 return null;
             }
             Thrown = run[beatsDone];
@@ -378,8 +381,8 @@ namespace MyGame
 
         Vector3 GatherPoint => new Vector3(middle.x, floorY + gatherHeight, middle.z);
 
-        // To the middle; a roar; drawing everything in (and you, harder and harder; his leaves spiralling to him); letting
-        // it all go at once (a ring through the whole floor); then spent.
+        // To the middle; a roar; gathering (his hollow swelling to a sun; the vault coming down around you, and one great
+        // section of it crashing in to stand); the blast; then he falls, spent for good.
         void GatherStep(float dt)
         {
             switch (Gathers)
@@ -403,14 +406,15 @@ namespace MyGame
                         Gathers = Gathering.Drawing;
                         BeBusy("Gather", gatherTime);
                         Sfx.Instance?.Attack(gatherSound, transform.position + Vector3.up * 2f, 1f, "father_moth_gather");
-                        nextDrawn = Time.time;
                     }
                     break;
                 case Gathering.Drawing:
                     Hover(dt);
                     Draw();
+                    if (section == null && StateTime >= gatherTime - shieldLead - shieldFall)
+                        DropShelter();
                     if (CurrentState != State.Busy)
-                        Release();
+                        Blast();
                     break;
                 case Gathering.Releasing:
                     Hover(dt);
@@ -423,31 +427,13 @@ namespace MyGame
             }
         }
 
-        // Everything drawn in: you (harder as it builds), his leaves from every wall spiralling to him, the air full of them.
+        // Gathering: the air full of leaves streaming in to him and whirling round, his hollow swelling, blazing.
         void Draw()
         {
             float u = Mathf.Clamp01(StateTime / gatherTime);
             Vector3 at = new Vector3(transform.position.x, floorY, transform.position.z);
-            if (target != null && target.IsAlive && InHouse(target.transform.position))
-            {
-                Vector3 to = at - target.transform.position;
-                to.y = 0f;
-                if (to.magnitude > 1.2f)
-                    target.Drag(to.normalized * Mathf.Lerp(pullFrom, pullTo, u * u));
-            }
-            // The harmful ones: from the walls, swirling in (one way round: you can read the stream and slip between).
-            while (Time.time >= nextDrawn)
-            {
-                nextDrawn += 1f / (drawnPerSecond * Mathf.Lerp(0.6f, 1.3f, u));
-                float a = Random.Range(0f, Mathf.PI * 2f);
-                Vector3 from = new Vector3(middle.x + Mathf.Cos(a) * walls.x * 0.95f, floorY + 0.9f, middle.z + Mathf.Sin(a) * walls.y * 0.95f);
-                var leaf = DriftLeaf.Fling(from, at - from, drawnSpeed, drawnDamage, target, leafMaterial, middle, walls + Vector2.one, 1.0f);
-                leaf.DrawIn(at, 1f);
-            }
-            // The rest of the air, streaming in (no harm: the look of it), thicker as it builds; and a ring of them whirling
-            // close round him.
             for (int k = 0; k < 4; k++)
-                if (Random.value < Mathf.Lerp(30f, 60f, u) * Time.deltaTime)
+                if (Random.value < Mathf.Lerp(25f, 60f, u) * Time.deltaTime)
                 {
                     float a = Random.Range(0f, Mathf.PI * 2f);
                     Vector3 from = at + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * Random.Range(4f, 11f) + Vector3.up * Random.Range(0.3f, 3f);
@@ -460,30 +446,94 @@ namespace MyGame
                     Vector3 round = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
                     Effects.Instance?.Leaves(at + round * Random.Range(2f, 3f) + Vector3.up * Random.Range(1f, 3.5f), Vector3.Cross(Vector3.up, round) * 7f - round * 2f, 1);
                 }
-            kick = Mathf.Max(kick, 0.25f * u); // (the hollow swelling as it fills)
-            if (Random.value < 4f * Time.deltaTime)
-                CameraRig.Instance?.Shake(0.05f + 0.12f * u);
+            kick = Mathf.Max(kick, 0.35f * u); // (the hollow swelling as it fills)
+            // The last moments: flames pouring off his hollow, blinding.
+            if (u > 0.85f && Random.value < 60f * Time.deltaTime)
+                Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.4f, Random.insideUnitSphere * 2.5f, Random.Range(0.3f, 0.5f), Random.Range(0.15f, 0.3f));
         }
 
-        // All of it let go at once: one great ring through the whole floor (no gap: dodge through it).
-        void Release()
+        // One great section of the vault, torn loose: down on a big glowing mark, and it stays standing (your shelter).
+        void DropShelter()
+        {
+            float a = Random.Range(0f, Mathf.PI * 2f);
+            Vector3 spot = new Vector3(middle.x + Mathf.Cos(a) * 6.5f, floorY, middle.z + Mathf.Sin(a) * 5.5f);
+            spot = Inside(spot);
+            spot.y = floorY;
+            section = VaultSection.Drop(spot, new Vector3(transform.position.x, floorY, transform.position.z), target, ironMaterial, glassMaterial,
+                shieldFall, shieldDamage, sectionSound);
+            ShelterFalling?.Invoke(this);
+        }
+
+        // The vault coming down (from his scream to his blast): debris on glowing marks, half of it near you; the
+        // glasshouse rumbling, harder as his blast comes.
+        void Quake()
+        {
+            if (!quaking)
+                return;
+            float u = Gathers == Gathering.Drawing ? Mathf.Clamp01(StateTime / gatherTime) : 0f;
+            if (Random.value < 6f * Time.deltaTime)
+                CameraRig.Instance?.Shake(0.06f + 0.18f * u);
+            if (Time.time < nextDebris)
+                return;
+            nextDebris = Time.time + debrisEvery * Random.Range(0.7f, 1.3f);
+            Vector3 spot = Random.value < 0.5f && target != null
+                ? target.transform.position + Flat(Random.insideUnitSphere) * Random.Range(0f, 2.5f)
+                : middle + new Vector3(Random.Range(-walls.x, walls.x), 0f, Random.Range(-walls.y, walls.y));
+            spot = Inside(spot);
+            spot.y = floorY;
+            if (section != null && Vector3.Distance(Flat(spot), Flat(section.transform.position)) < 2.5f)
+                return; // (not on the shelter)
+            if (Vector3.Distance(Flat(spot), Flat(transform.position)) < 2f)
+                return; // (nor on him)
+            FallingDebris.Drop(spot, target, ironMaterial, glassMaterial, debrisFall, debrisRadius, debrisDamage, shatterSound);
+            for (int k = 0; k < 4; k++)
+                Effects.Instance?.Leaves(spot + Vector3.up * 5.5f + Random.insideUnitSphere, Vector3.down * 2f, 1); // (dust shaken off it as it goes)
+        }
+
+        // All of it let go at once: a blast as bright as noon through the whole glasshouse. Behind the vault section, it
+        // can't reach you; in the open, it all but ends you (no dodging it). Then he falls, spent for good.
+        void Blast()
         {
             Gathers = Gathering.Releasing;
+            Final = true;
+            quaking = false;
             BeBusy("Release", releaseTime);
-            foreach (var leaf in FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None))
-                Destroy(leaf.gameObject); // (the ones drawn in: in him now, and out again)
+            foreach (var d in FindObjectsByType<FallingDebris>(FindObjectsSortMode.None))
+                Destroy(d.gameObject);
             Vector3 at = new Vector3(transform.position.x, floorY, transform.position.z);
-            Shockwave.Spread(at, target, releaseRadius, releaseSpeed, releaseWidth, releaseDamage, releaseKnock, new Color(1f, 0.55f, 0.18f, 0.9f));
-            for (int i = 0; i < 160; i++)
+            if (target != null && target.IsAlive && InHouse(target.transform.position))
             {
-                float a = i * Mathf.PI * 2f / 160f;
-                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
-                Effects.Instance?.Leaves(at + dir * 1.2f + Vector3.up * 0.9f, dir * releaseSpeed + Vector3.up * Random.Range(0f, 1.5f), 1);
+                Vector3 chest = target.transform.position + Vector3.up * 1f;
+                bool sheltered = section != null && section.Shields(HollowPoint, chest);
+                if (!sheltered)
+                    target.TakeHit(blastDamage, Flat(target.transform.position - at).normalized * blastKnock, null, blockable: false, unavoidable: true);
+                Blasted?.Invoke(this, sheltered);
             }
+            // Blinding: the screen white, the whole glasshouse lit as by noon, a light like the sun at him; then the dark again.
+            ScreenFlash.Flash(new Color(1f, 0.97f, 0.88f), 0.2f, 2.6f);
+            darkness = 7f;
+            blastGlow = 1f;
+            if (blastLight == null)
+            {
+                blastLight = new GameObject("Blast").AddComponent<Light>();
+                blastLight.type = LightType.Point;
+                blastLight.color = new Color(1f, 0.92f, 0.75f);
+                blastLight.shadows = LightShadows.Hard;
+            }
+            blastLight.transform.position = HollowPoint;
+            blastLight.range = 45f;
+            Shockwave.Spread(at, null, 18f, 16f, 2.5f, 0f, 0f, new Color(1f, 0.85f, 0.5f, 1f));
+            for (int i = 0; i < 200; i++)
+            {
+                float a = i * Mathf.PI * 2f / 200f;
+                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                Effects.Instance?.Leaves(at + dir * 1.2f + Vector3.up * Random.Range(0.4f, 3f), dir * Random.Range(10f, 16f) + Vector3.up * Random.Range(0f, 2f), 1);
+            }
+            for (int i = 0; i < 60; i++)
+                Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.6f, Random.insideUnitSphere * 6f, Random.Range(0.4f, 0.8f), Random.Range(0.3f, 0.6f));
             Sfx.Instance?.Attack(releaseSound, transform.position + Vector3.up, 1f, "father_moth_release");
-            Effects.Instance?.AlertFlare(ChestPoint);
-            CameraRig.Instance?.Shake(0.8f);
-            HitStop.Trigger(0.1f);
+            CameraRig.Instance?.Shake(1.2f);
+            HitStop.Trigger(0.25f);
             kick = 0.6f;
             Released?.Invoke(this);
         }
@@ -504,7 +554,9 @@ namespace MyGame
             if (hollowLight != null)
             {
                 hollowLight.enabled = dim > 0f;
-                float filling = Gathers == Gathering.Drawing ? 1f + 2.5f * Mathf.Clamp01(StateTime / gatherTime) : 1f; // (blazing as he gathers)
+                float load = Gathers == Gathering.Drawing ? Mathf.Clamp01(StateTime / gatherTime) : 0f;
+                float filling = 1f + 9f * load * load; // (swelling to a sun as he gathers)
+                hollowLight.range = Mathf.Lerp(5f, 16f, load);
                 hollowLight.intensity = filling * hollowIntensity * (CurrentPhase == 4 ? 1.6f : 1f) * dim * (0.7f + 1.6f * (swell + kick) + 0.15f * Mathf.Sin(Time.time * 2.4f));
             }
             if (Woken && IsAlive && Random.value < (telling ? 26f : 3f) * dim * Time.deltaTime)
@@ -652,6 +704,7 @@ namespace MyGame
                     clips.SetLoopSpeed(clips.Current == "Fly" ? 1f - 0.4f * Tiredness : 1f);
                     break;
             }
+            Quake();
             Lights();
             Chest();
         }
@@ -679,7 +732,7 @@ namespace MyGame
             collapsing = false;
             transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
             Hold(new Vector3(transform.position.x, floorY, transform.position.z));
-            BeBusy("Downed", spentTime);
+            BeBusy("Downed", Final ? float.MaxValue : spentTime); // (after his blast: for good)
             Effects.Instance?.Rubble(new Vector3(transform.position.x, floorY, transform.position.z), 1.0f);
             Effects.Instance?.Leaves(transform.position + Vector3.up, Vector3.zero, 30);
             Sfx.Instance?.Attack(downedSound, transform.position + Vector3.up, 1f, "father_moth_downed");
@@ -729,6 +782,8 @@ namespace MyGame
                         fallSpeed[i] = 0.01f; // (falling, all at once: Lights)
                     LampsLeft = 0;
                     darkTarget = darkest;
+                    quaking = true; // (and the vault starts coming down)
+                    nextDebris = Time.time + 1f;
                     CameraRig.Instance?.Shake(0.8f);
                     for (int k = 0; k < 60; k++) // (dust and leaves shaken down off the vault)
                         Effects.Instance?.Leaves(middle + new Vector3(Random.Range(-reach.x, reach.x), 5.5f, Random.Range(-reach.y, reach.y)), Vector3.down, 1);
@@ -772,8 +827,14 @@ namespace MyGame
             }
             if (IsAlive)
             {
-                darkness = Mathf.MoveTowards(darkness, darkTarget, Time.deltaTime * 0.5f);
+                darkness = Mathf.MoveTowards(darkness, darkTarget, Time.deltaTime * (darkness > 1f ? 2.6f : 0.5f)); // (after the blast: the dark back fast)
                 Dim(darkness);
+            }
+            if (blastLight != null)
+            {
+                blastGlow = Mathf.MoveTowards(blastGlow, 0f, Time.deltaTime / 2.6f);
+                blastLight.intensity = 60f * blastGlow * blastGlow;
+                blastLight.enabled = blastGlow > 0.001f;
             }
         }
 
@@ -978,6 +1039,15 @@ namespace MyGame
             collapsing = false;
             strikes = snipsLeft = 0;
             Gathers = Gathering.None;
+            Final = quaking = false;
+            blastGlow = 0f;
+            if (blastLight != null)
+                blastLight.enabled = false;
+            if (section != null)
+                Destroy(section.gameObject);
+            section = null;
+            foreach (var d in FindObjectsByType<FallingDebris>(FindObjectsSortMode.None))
+                Destroy(d.gameObject);
             CurrentPhase = 1;
             StopAllCoroutines();
             dropAt = -1f;
@@ -1018,6 +1088,8 @@ namespace MyGame
 
         void OnDestroy()
         {
+            if (blastLight != null)
+                Destroy(blastLight.gameObject);
             if (moon != null)
                 Dim(1f); // (never leave the night dark)
             if (focus != null)

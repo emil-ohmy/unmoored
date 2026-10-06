@@ -5,7 +5,7 @@ namespace MyGame
     // A dead leaf thrown out of Father Moth's autumn hollow: pointed, with its stalk, its edges smouldering faintly (seen in
     // the dark); out of the hollow it sinks to chest height, then drifts straight on, tumbling over as it goes. It strikes
     // whoever it reaches: a dodge goes through it, a block stops it (a perfect block knocks it away), and it's gone at the
-    // glasshouse's walls. Caught in his gathering (phase 4), it spirals in to him instead.
+    // glasshouse's walls.
     public sealed class DriftLeaf : MonoBehaviour
     {
         public static int Live { get; private set; } // (tests)
@@ -14,9 +14,6 @@ namespace MyGame
         Vector3 velocity;
         float damage, knock, life, spin, tumble, settleY, sink;
         bool passed;                           // dodged through: it goes on, and never strikes them
-        bool drawn;                            // drawn in (his gathering): spiralling in towards `centre`, gone there
-        Vector3 centre;
-        float swirl;
         Vector3 middle;
         Vector2 bounds;
         Transform body;
@@ -52,14 +49,6 @@ namespace MyGame
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             leaf.body = body.transform;
             return leaf;
-        }
-
-        // Caught in his gathering: it spirals in towards `centre` (swirling one way or the other), and is gone there.
-        public void DrawIn(Vector3 centre, float swirl)
-        {
-            drawn = true;
-            this.centre = centre;
-            this.swirl = swirl;
         }
 
         // A leaf: pointed at the tip, broadest a little below the middle, a short stalk; both faces, flat in its own XZ plane
@@ -113,19 +102,6 @@ namespace MyGame
         {
             float dt = Time.deltaTime;
             life += dt;
-            if (drawn)
-            {
-                // Spiralling in to him.
-                Vector3 inward = centre - transform.position;
-                inward.y = 0f;
-                if (inward.magnitude < 1.6f)
-                {
-                    Destroy(gameObject); // (into him)
-                    return;
-                }
-                Vector3 tangent = Vector3.Cross(Vector3.up, inward.normalized) * swirl;
-                velocity = (inward.normalized * 0.7f + tangent * 0.7f).normalized * velocity.magnitude;
-            }
             transform.position += velocity * dt;
             if (transform.position.y > settleY)
                 transform.position = new Vector3(transform.position.x, Mathf.MoveTowards(transform.position.y, settleY, sink * dt), transform.position.z);
