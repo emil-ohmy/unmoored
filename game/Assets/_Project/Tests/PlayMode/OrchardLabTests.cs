@@ -559,6 +559,7 @@ namespace MyGame.Tests
             {
                 DriftLeaf ember = null;
                 yield return WaitUp(() => (ember = UnityEngine.Object.FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None).FirstOrDefault(l => l.Ember && !l.Returning)) != null, 20f, "an ember");
+                Assert.AreEqual(1, m.Thrown.Length, "an ember comes alone in its beat");
                 Face(m);
                 yield return WaitUp(() => ember == null || (ember.transform.position - apprentice.transform.position).Flat().magnitude < 1.0f, 4f, "the ember close");
                 if (ember == null)

@@ -611,6 +611,7 @@ public static partial class MainSceneBuilder
         m.shatterSound = Clips("glass_lamp_shatter");
         m.emberTurnSound = Clips("fireball_whoosh");
         m.chokeSound = Clips("fireball_gutter");
+        m.emberThrowSound = Clips("apprentice_catch"); // (a whumph and a rush of flame)
         var pod = GeneratedMaterial("M_SeedPod", "MyGame/Toon");
         pod.SetColor("_BaseColor", Hex("#6b5a34"));
         pod.SetColor("_EmissionColor", new Color(0.3f, 0.2f, 0.05f));

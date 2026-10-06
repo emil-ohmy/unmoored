@@ -77,6 +77,8 @@ namespace MyGame
         public float darkest = 0.07f;         // the night's light with every lamp down (the moon, the ambient)
         public int embersToFell = 3;          // embers turned back into him: then he's down
         public float emberSpeed = 5.5f, emberDamage = 18f;
+        public float emberTell = 0.9f;        // his beat before an ember: longer, flames roaring out of his hollow
+        public AudioClip[] emberThrowSound;
         public Material emberMaterial;
         public AudioClip[] tearSound, shatterSound, emberTurnSound, chokeSound;
 
@@ -106,10 +108,12 @@ namespace MyGame
             new[] { Pattern.Spiral }, new[] { Pattern.Pods }, new[] { Pattern.Fruit, Pattern.Fan }, new[] { Pattern.WideRing, Pattern.Volley },
             new[] { Pattern.SpiralBack }, new[] { Pattern.Fruit, Pattern.Pods }, new[] { Pattern.WideFan },
         };
+        // (an ember always alone in its beat, every third: you know it's coming, and nothing else is in the air)
         static readonly Pattern[][] PhaseFour =
         {
-            new[] { Pattern.Ember, Pattern.Fan }, new[] { Pattern.Spiral }, new[] { Pattern.Ember, Pattern.Pods }, new[] { Pattern.Fruit, Pattern.Volley },
-            new[] { Pattern.Ember, Pattern.WideRing }, new[] { Pattern.SpiralBack }, new[] { Pattern.Ember, Pattern.Fruit }, new[] { Pattern.WideFan, Pattern.Volley },
+            new[] { Pattern.Fan, Pattern.Fruit }, new[] { Pattern.Spiral }, new[] { Pattern.Ember },
+            new[] { Pattern.Pods, Pattern.Volley }, new[] { Pattern.WideRing }, new[] { Pattern.Ember },
+            new[] { Pattern.Fruit, Pattern.Volley }, new[] { Pattern.SpiralBack }, new[] { Pattern.Ember },
         };
         Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : CurrentPhase == 4 ? PhaseFour : PhaseTwo; // (phase 3 is afoot: no run)
 
@@ -155,6 +159,8 @@ namespace MyGame
         int beatsDone, volleyLeft;
         float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign, streamEvery, streamTurn;
         int flicks, strikes, snipsLeft;
+        DriftLeaf liveEmber;                   // the ember out now (none: null; a destroyed one reads as null)
+        public bool EmberTelling => CurrentState == State.Telegraph && CurrentAttack == beat && Thrown != null && Thrown[0] == Pattern.Ember;
         float kick;                            // the hollow's throb from a leaf just thrown
         bool collapsing;                       // spent: hitting the floor (then sprawled)
         bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
@@ -235,6 +241,8 @@ namespace MyGame
                 return null;
             if (CurrentPhase == 4 && nextLamp < hung.Length)
                 return null; // (the lamps first)
+            if (liveEmber != null)
+                return null; // (an ember out: nothing else till it's dealt with)
             var run = Run;
             if (beatsDone >= run.Length)
             {
@@ -263,7 +271,7 @@ namespace MyGame
                 default:
                     beat.windupClip = "GustDraw"; beat.strikeClip = "Gust"; break;
             }
-            beat.telegraph = CurrentPhase == 1 ? phaseOneTell : hecticTell;
+            beat.telegraph = Thrown[0] == Pattern.Ember ? emberTell : CurrentPhase == 1 ? phaseOneTell : hecticTell;
             beat.recover = CurrentPhase == 1 ? phaseOneBreath : hecticBreath;
             return beat;
         }
@@ -319,7 +327,9 @@ namespace MyGame
                     Spin(aim, spiralTurn, spiralEvery, spiralTime, pattern == Pattern.Spiral ? 1f : -1f);
                     break;
                 case Pattern.Ember:
-                    Leaf(aim, emberSpeed, emberDamage).Kindle(this, emberMaterial, emberTurnSound);
+                    liveEmber = Leaf(aim, emberSpeed, emberDamage);
+                    liveEmber.Kindle(this, emberMaterial, emberTurnSound);
+                    Sfx.Instance?.Attack(emberThrowSound, HollowPoint, 1f, "father_moth_ember");
                     break;
                 case Pattern.Pods:
                     for (int i = 0; i < podCount; i++)
@@ -407,6 +417,11 @@ namespace MyGame
                 hollowLight.enabled = dim > 0f;
                 hollowLight.intensity = hollowIntensity * (CurrentPhase == 4 ? 1.6f : 1f) * dim * (0.7f + 1.6f * (swell + kick) + 0.15f * Mathf.Sin(Time.time * 2.4f));
             }
+            if (EmberTelling)
+                for (int k = 0; k < 3; k++)
+                    if (Random.value < 30f * Time.deltaTime)
+                        Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.25f, Vector3.up * Random.Range(1f, 2.2f) + Random.insideUnitSphere * 0.6f,
+                            Random.Range(0.35f, 0.6f), Random.Range(0.14f, 0.28f)); // (an ember coming: flames roaring out of him)
             if (Woken && IsAlive && Random.value < (telling ? 26f : 3f) * dim * Time.deltaTime)
                 Effects.Instance?.Leaves(HollowPoint + Vector3.up * 0.15f, Vector3.up * Random.Range(1f, 2.2f), 1);
         }

@@ -108,7 +108,7 @@ namespace MyGame
             this.turnSound = turnSound;
             if (body != null)
             {
-                body.localScale *= 1.35f;
+                body.localScale *= 1.7f;
                 if (ember != null)
                     body.GetComponent<MeshRenderer>().sharedMaterial = ember;
             }
@@ -116,10 +116,13 @@ namespace MyGame
             glow.transform.SetParent(transform, false);
             glow.type = LightType.Point;
             glow.color = new Color(1f, 0.55f, 0.2f);
-            glow.range = 3.2f;
-            glow.intensity = 2.6f;
+            glow.range = 4.2f;
+            glow.intensity = 3.6f;
             glow.shadows = LightShadows.None;
+            this.glow = glow;
         }
+
+        Light glow;
 
         void OnEnable() => Live++;
         void OnDisable() => Live--;
@@ -138,8 +141,16 @@ namespace MyGame
             tumble += 420f * dt;
             if (body != null)
                 body.localRotation = Quaternion.Euler(0f, Mathf.Sin(life * 3f) * 25f + spin * life, 0f) * Quaternion.Euler(0f, 0f, tumble);
-            if (Ember && Random.value < 30f * dt)
-                Effects.Instance?.Flame(transform.position, Vector3.up * 0.6f - velocity * 0.1f, Random.Range(0.2f, 0.35f), Random.Range(0.06f, 0.12f));
+            if (Ember)
+            {
+                // Burning: a thick trail of flame, licking up off it; its light flickering.
+                for (int k = 0; k < 3; k++)
+                    if (Random.value < 30f * dt)
+                        Effects.Instance?.Flame(transform.position + Random.insideUnitSphere * 0.15f, Vector3.up * Random.Range(0.6f, 1.4f) - velocity * 0.15f,
+                            Random.Range(0.3f, 0.5f), Random.Range(0.12f, 0.24f));
+                if (glow != null)
+                    glow.intensity = 3.6f * (0.8f + 0.35f * Mathf.PerlinNoise(Time.time * 12f, life));
+            }
             if (returning)
             {
                 // Back into his hollow, wherever he's got to.
