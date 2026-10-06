@@ -16,7 +16,8 @@ his back), Gust (0.5 s: one great beat forward), Beat (1.2 s: hammering the wate
 shakes Moths from his wings), Tear (1.3 s: reaching up, tearing down), Stagger, Death (he folds and falls), Spin (wings flat out wide, turning: looping),
 FlickL / FlickR (one wing snapped down to throw), Falter (spent: weak, uneven beats, sagging), Collapse (down onto the
 floor, sprawled), Scuttle (afoot, coming on: looping), ThrustDraw / Thrust (both shears raised, then driven forward:
-his lunge), Rouse (up off the floor onto his forelegs, wings flung wide: the start of his melee).
+his lunge), Rouse (up off the floor onto his forelegs, wings flung wide: the start of his melee), Gather (arched back, wings and
+shears flung wide, trembling: drawing everything in), Release (snapped forward and down: letting it all go).
 """
 import math
 
@@ -118,6 +119,12 @@ THRUST = dict(lift(-10, 50), Body=(16, 0, 0), Torso=(30, 0, 0), Head=(10, 0, 0),
               Root=((0, 0, 0), (0, -0.3, 0)))  # (driven forward and low, both shears snapping shut ahead)
 
 
+GATHER = dict(wings((0, -6, -18), (0, 6, 18), (0, -5, -12), (0, 5, 12)), Body=(-26, 0, 0), Torso=(-34, 0, 0), Head=(-30, 0, 0),
+              ArmL=(-100, 0, -60), ArmR=(-100, 0, 60), SnipL=(0, 0, -30), SnipR=(0, 0, 30), Legs=(80, 0, 0))  # (arched back, flung wide: drawing everything in)
+RELEASE = dict(wings((0, 50, 40), (0, -50, -40), (0, 40, 30), (0, -40, -30)), Body=(24, 0, 0), Torso=(36, 0, 0), Head=(20, 0, 0),
+               ArmL=(-40, 0, 20), ArmR=(-40, 0, -20), Legs=(80, 0, 0))  # (snapped forward and down: letting it all go)
+
+
 def falter(k):
     """A weak, uneven beat, sagging (more with each k)."""
     a = 30 - k * 6
@@ -145,6 +152,9 @@ ACTIONS = {
     "ThrustDraw": ("BEZIER", [(1, GROUND), (10, THRUST_DRAWN), (17, dict(THRUST_DRAWN, Torso=(-28, 0, 0)))]),
     "Thrust": ("BEZIER", [(1, THRUST_DRAWN), (4, THRUST), (10, dict(THRUST, Torso=(32, 0, 0)))]),
     "Rouse": ("BEZIER", [(1, DOWNED), (10, dict(GROUND, Torso=(-10, 0, 0))), (18, dict(STALL, Legs=(0, 0, 0))), (30, dict(STALL, Legs=(0, 0, 0))), (40, GROUND)]),
+    "Gather": ("BEZIER", [(1, GATHER), (4, dict(GATHER, Body=(-24, 3, 0), Torso=(-32, 0, 2))), (8, dict(GATHER, Body=(-27, -3, 0), Torso=(-35, 0, -2))),
+                          (12, GATHER)]),  # (held, trembling)
+    "Release": ("BEZIER", [(1, GATHER), (3, RELEASE), (14, dict(RELEASE, Torso=(44, 0, 0), Head=(28, 0, 0)))]),
     "Spin": ("LINEAR", [(1, SPREAD), (10, dict(SPREAD, **lift(8, -6))), (20, SPREAD)]),
     "FlickL": ("BEZIER", [(1, UP), (3, flick(-1)), (8, UP)]),
     "FlickR": ("BEZIER", [(1, UP), (3, flick(1)), (8, UP)]),

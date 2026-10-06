@@ -598,20 +598,14 @@ public static partial class MainSceneBuilder
         leaf.SetFloat("_OutlineWidth", 0f);
         EditorUtility.SetDirty(leaf);
         m.leafMaterial = leaf;
-        // Phase 4: the lamps he tears down, and his embers (a leaf burning bright: turned, back into him).
+        // Phase 4: the lamps his scream brings down, and his gathering.
         m.lampModels = lampModels;
         m.lamps = lampLights;
-        var ember = GeneratedMaterial("M_EmberLeaf", "MyGame/Toon");
-        ember.SetColor("_BaseColor", Hex("#ffb35a"));
-        ember.SetColor("_EmissionColor", new Color(2.4f, 1.1f, 0.3f));
-        ember.SetFloat("_OutlineWidth", 0f);
-        EditorUtility.SetDirty(ember);
-        m.emberMaterial = ember;
         m.screamSound = Clips("father_moth_scream");
         m.shatterSound = Clips("glass_lamp_shatter");
-        m.emberTurnSound = Clips("fireball_whoosh");
-        m.chokeSound = Clips("fireball_gutter");
-        m.emberThrowSound = Clips("apprentice_catch"); // (a whumph and a rush of flame)
+        m.roarSound = Clips("father_moth_stall"); // (to the middle, rearing: the lantern in his ribs roaring up)
+        m.gatherSound = Clips("father_moth_gather");
+        m.releaseSound = Clips("father_moth_release");
         var pod = GeneratedMaterial("M_SeedPod", "MyGame/Toon");
         pod.SetColor("_BaseColor", Hex("#6b5a34"));
         pod.SetColor("_EmissionColor", new Color(0.3f, 0.2f, 0.05f));

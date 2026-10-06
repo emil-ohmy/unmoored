@@ -220,10 +220,11 @@ left open, his floor.
   His shears turn your blows. Two ways through: dodge him till he's spent (a dozen strikes, and he collapses, open), or
   turn a strike with a perfect block (stunned, a riposte's chance). At the quarter mark he takes to the air again.
 - **Phase 4 (a quarter), on the wing again, in the dark:** he screams, the glasshouse shakes, and all four lamps fall
-  at once, shattering; it goes far darker than the night outside: the hollow in his belly, your bow lantern, his smouldering leaves. He no longer
-  tires of his own accord. Every third beat is an ember, alone (a longer tell, flames roaring out of his hollow; nothing
-  else thrown with it, nor till it's dealt with): a leaf burning fiercely, lighting the floor as it comes. Turn it with a
-  perfect block and it flies back into his hollow, and he chokes on it; three, and down he comes, open.
+  at once, shattering; it goes far darker than the night outside: the hollow in his belly, your bow lantern, his
+  smouldering leaves. After his run of throws he gathers: to the middle of the floor, a roar, then his hollow draws
+  everything in, every leaf in the glasshouse spiralling to him (those that catch you hurt) and you with them, dragged
+  harder and harder (run against it); then he lets it all go at once, one great ring bursting out through the whole floor
+  (no gap: dodge through it). Then he's spent, open.
 - **No skipping a phase:** brought down to a phase's mark, his health holds there and nothing harms him (fire neither)
   until he rises; then the next phase begins. The Hook glances off him.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.

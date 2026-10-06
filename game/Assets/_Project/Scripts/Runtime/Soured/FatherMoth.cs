@@ -19,9 +19,10 @@ namespace MyGame
     // off. His shears turn your blows; two ways through: dodge him till he's spent (a dozen strikes, and he collapses,
     // open, as ever), or turn a strike with a perfect block (stunned, a riposte's chance). Brought to the quarter mark,
     // he takes to the air again: phase 4, the last. He screams, the glasshouse shakes, and every lamp falls at once; it goes dark, darker than the
-    // night outside: the hollow in his belly, your bow lantern, his smouldering leaves. He no longer tires of his own
-    // accord; among his throws come embers, leaves burning bright: turn one with a perfect block and it flies back into
-    // his hollow, and he chokes on it. Three, and down he comes.
+    // night outside: the hollow in his belly, your bow lantern, his smouldering leaves. After his run of throws he
+    // gathers: to the middle of the floor, a roar, then his hollow draws everything in, every leaf in the glasshouse
+    // spiralling to him (those that catch you hurt) and you with them, dragged harder and harder; then he lets it all go
+    // at once, one great ring bursting out through the whole floor (no gap in it: dodge through it). Then he's spent.
     public sealed class FatherMoth : Soured, IBoss
     {
         [Header("Father Moth")]
@@ -71,16 +72,16 @@ namespace MyGame
         public float meleeStun = 1.6f;        // a strike turned on a perfect block: stunned this long
         public float roused = 1.5f;           // up off the floor onto his forelegs, wings flung wide
 
-        [Header("Phase 4: the dark, and his embers")]
+        [Header("Phase 4: the dark, and his gathering")]
         public Transform[] lampModels;        // the hung lamps (torn down as phase 4 begins)
         public Light[] lamps;                 // their lights
         public float darkest = 0.07f;         // the night's light with every lamp down (the moon, the ambient)
-        public int embersToFell = 3;          // embers turned back into him: then he's down
-        public float emberSpeed = 5.5f, emberDamage = 18f;
-        public float emberTell = 0.9f;        // his beat before an ember: longer, flames roaring out of his hollow
-        public AudioClip[] emberThrowSound;
-        public Material emberMaterial;
-        public AudioClip[] screamSound, shatterSound, emberTurnSound, chokeSound;
+        public float gatherHeight = 3.0f;     // over the middle of the floor
+        public float roarTime = 1.1f, gatherTime = 4.2f, releaseTime = 0.7f;
+        public float pullFrom = 1.4f, pullTo = 3.4f; // how hard he drags you in (m/s), as it builds (you walk at 5)
+        public float drawnPerSecond = 8f, drawnSpeed = 6f, drawnDamage = 10f;
+        public float releaseRadius = 16f, releaseSpeed = 11f, releaseWidth = 1.4f, releaseDamage = 30f, releaseKnock = 11f;
+        public AudioClip[] screamSound, shatterSound, roarSound, gatherSound, releaseSound;
         public float screamTime = 2.2f;
 
         [Header("Spent")]
@@ -96,8 +97,8 @@ namespace MyGame
         public float cameraLean = 0.5f, cameraZoom = 1.55f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
         public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
 
-        public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit, Ember }
-        enum Mode { Hovering, Sinking, Spent, Rising, Afoot }
+        public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit }
+        enum Mode { Hovering, Sinking, Spent, Rising, Afoot, Gathering }
 
         // Each phase's run of beats, in order (then he's spent); a beat throws everything in it at once.
         static readonly Pattern[][] PhaseOne =
@@ -109,18 +110,18 @@ namespace MyGame
             new[] { Pattern.Spiral }, new[] { Pattern.Pods }, new[] { Pattern.Fruit, Pattern.Fan }, new[] { Pattern.WideRing, Pattern.Volley },
             new[] { Pattern.SpiralBack }, new[] { Pattern.Fruit, Pattern.Pods }, new[] { Pattern.WideFan },
         };
-        // (an ember always alone in its beat, every third: you know it's coming, and nothing else is in the air)
+        // (then his gathering)
         static readonly Pattern[][] PhaseFour =
         {
-            new[] { Pattern.Fan, Pattern.Fruit }, new[] { Pattern.Spiral }, new[] { Pattern.Ember },
-            new[] { Pattern.Pods, Pattern.Volley }, new[] { Pattern.WideRing }, new[] { Pattern.Ember },
-            new[] { Pattern.Fruit, Pattern.Volley }, new[] { Pattern.SpiralBack }, new[] { Pattern.Ember },
+            new[] { Pattern.Fruit, Pattern.Fan }, new[] { Pattern.Spiral }, new[] { Pattern.Pods, Pattern.Volley },
+            new[] { Pattern.WideRing }, new[] { Pattern.Fruit, Pattern.Volley }, new[] { Pattern.SpiralBack },
         };
         Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : CurrentPhase == 4 ? PhaseFour : PhaseTwo; // (phase 3 is afoot: no run)
 
         public bool Woken { get; private set; }
         public int LampsLeft { get; private set; }
-        public int Swallowed { get; private set; }     // phase 4: embers turned back into him, this time
+        public enum Gathering { None, ToMiddle, Roaring, Drawing, Releasing }
+        public Gathering Gathers { get; private set; }  // phase 4: where he is in his gathering
         public bool Afoot => mode == Mode.Afoot;       // phase 3: on the floor, coming after you
         public int Strikes => strikes;
         public bool Grounded => mode == Mode.Spent && !collapsing;
@@ -131,7 +132,7 @@ namespace MyGame
         public int CurrentPhase { get; private set; } = 1;
         public bool Untouchable => CurrentPhase < 4 && Health <= Floor + 0.01f; // (brought to his phase's mark: until he's up)
         public float Height => transform.position.y - floorY;
-        public static event System.Action<FatherMoth> Woke, Exhausted, PhaseBegun, Screamed; // (tests)
+        public static event System.Action<FatherMoth> Woke, Exhausted, PhaseBegun, Screamed, GatherBegun, Released; // (tests)
         public static event System.Action<FatherMoth, Pattern> Beat;
 
         public string Title => title;
@@ -160,8 +161,7 @@ namespace MyGame
         int beatsDone, volleyLeft;
         float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign, streamEvery, streamTurn;
         int flicks, strikes, snipsLeft;
-        DriftLeaf liveEmber;                   // the ember out now (none: null; a destroyed one reads as null)
-        public bool EmberTelling => CurrentState == State.Telegraph && CurrentAttack == beat && Thrown != null && Thrown[0] == Pattern.Ember;
+        float nextDrawn;
         float kick;                            // the hollow's throb from a leaf just thrown
         bool collapsing;                       // spent: hitting the floor (then sprawled)
         bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
@@ -212,8 +212,7 @@ namespace MyGame
         Vector3 HoverPoint => new Vector3(hover.x + Mathf.Sin(Time.time * 0.7f) * 0.6f, floorY + hoverHeight - tiredSag * Tiredness + Mathf.Sin(Time.time * 1.9f) * 0.15f, hover.z);
 
         // How spent he is (0 fresh, 1 at his last beat): he sags, his beats grow heavy, his lantern dims, he wobbles.
-        public float Tiredness => mode == Mode.Hovering && CurrentPhase == 4 ? Mathf.Clamp01(Swallowed / (float)Mathf.Max(1, embersToFell))
-                                : mode == Mode.Hovering ? Mathf.Clamp01(beatsDone / (float)Mathf.Max(1, Run.Length))
+        public float Tiredness => mode == Mode.Hovering ? Mathf.Clamp01(beatsDone / (float)Mathf.Max(1, Run.Length))
                                 : mode == Mode.Afoot ? Mathf.Clamp01(strikes / (float)Mathf.Max(1, strikesBeforeSpent)) : 0f;
 
         // ---- waking
@@ -241,18 +240,14 @@ namespace MyGame
                 return null;
             if (CurrentPhase == 4 && LampsLeft > 0)
                 return null; // (his scream first: the lamps down)
-            if (liveEmber != null)
-                return null; // (an ember out: nothing else till it's dealt with)
             var run = Run;
             if (beatsDone >= run.Length)
             {
                 if (CurrentPhase == 4)
-                    beatsDone = 0; // (in the dark he doesn't tire of himself: only his embers bring him down)
+                    Gather(); // (in the dark his run ends in his gathering: then he's spent)
                 else
-                {
                     Sink();
-                    return null;
-                }
+                return null;
             }
             Thrown = run[beatsDone];
             beatsDone++;
@@ -271,7 +266,7 @@ namespace MyGame
                 default:
                     beat.windupClip = "GustDraw"; beat.strikeClip = "Gust"; break;
             }
-            beat.telegraph = Thrown[0] == Pattern.Ember ? emberTell : CurrentPhase == 1 ? phaseOneTell : hecticTell;
+            beat.telegraph = CurrentPhase == 1 ? phaseOneTell : hecticTell;
             beat.recover = CurrentPhase == 1 ? phaseOneBreath : hecticBreath;
             return beat;
         }
@@ -326,11 +321,6 @@ namespace MyGame
                 case Pattern.SpiralBack:
                     Spin(aim, spiralTurn, spiralEvery, spiralTime, pattern == Pattern.Spiral ? 1f : -1f);
                     break;
-                case Pattern.Ember:
-                    liveEmber = Leaf(aim, emberSpeed, emberDamage);
-                    liveEmber.Kindle(this, emberMaterial, emberTurnSound);
-                    Sfx.Instance?.Attack(emberThrowSound, HollowPoint, 1f, "father_moth_ember");
-                    break;
                 case Pattern.Pods:
                     for (int i = 0; i < podCount; i++)
                     {
@@ -376,27 +366,126 @@ namespace MyGame
                 settleY: floorY + 0.9f);
         }
 
-        // An ember turned back into his hollow: he chokes on it (a gout of flame, his flight faltering); enough, and down.
-        public void SwallowEmber()
+        // ---- his gathering (phase 4)
+
+        void Gather()
         {
-            if (!IsAlive || mode != Mode.Hovering)
-                return;
-            Swallowed++;
-            for (int i = 0; i < 30; i++)
-                Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.3f, Random.insideUnitSphere * 2f + Vector3.up * 1.5f, Random.Range(0.3f, 0.6f), Random.Range(0.12f, 0.25f));
-            Effects.Instance?.AlertFlare(ChestPoint);
-            Sfx.Instance?.Attack(chokeSound, HollowPoint, 1f, "father_moth_choke");
-            CameraRig.Instance?.Shake(0.3f);
-            HitStop.Trigger(0.12f);
+            mode = Mode.Gathering;
+            Gathers = Gathering.ToMiddle;
             volleyLeft = 0;
             streamUntil = 0f;
-            if (Swallowed >= embersToFell)
+        }
+
+        Vector3 GatherPoint => new Vector3(middle.x, floorY + gatherHeight, middle.z);
+
+        // To the middle; a roar; drawing everything in (and you, harder and harder; his leaves spiralling to him); letting
+        // it all go at once (a ring through the whole floor); then spent.
+        void GatherStep(float dt)
+        {
+            switch (Gathers)
             {
-                Swallowed = 0;
-                Sink();
+                case Gathering.ToMiddle:
+                    Steer(GatherPoint, dt, 1.2f);
+                    if (CurrentState == State.Chase && (transform.position - GatherPoint).magnitude < 0.8f)
+                    {
+                        Gathers = Gathering.Roaring;
+                        BeBusy("Rouse", roarTime);
+                        Sfx.Instance?.Attack(roarSound, transform.position + Vector3.up * 2f, 1f, "father_moth_roar");
+                        Effects.Instance?.AlertFlare(ChestPoint);
+                        CameraRig.Instance?.Shake(0.35f);
+                        GatherBegun?.Invoke(this);
+                    }
+                    break;
+                case Gathering.Roaring:
+                    Hover(dt);
+                    if (CurrentState != State.Busy)
+                    {
+                        Gathers = Gathering.Drawing;
+                        BeBusy("Gather", gatherTime);
+                        Sfx.Instance?.Attack(gatherSound, transform.position + Vector3.up * 2f, 1f, "father_moth_gather");
+                        nextDrawn = Time.time;
+                    }
+                    break;
+                case Gathering.Drawing:
+                    Hover(dt);
+                    Draw();
+                    if (CurrentState != State.Busy)
+                        Release();
+                    break;
+                case Gathering.Releasing:
+                    Hover(dt);
+                    if (CurrentState != State.Busy)
+                    {
+                        Gathers = Gathering.None;
+                        Sink();
+                    }
+                    break;
             }
-            else
-                BeBusy("Stagger", 0.8f);
+        }
+
+        // Everything drawn in: you (harder as it builds), his leaves from every wall spiralling to him, the air full of them.
+        void Draw()
+        {
+            float u = Mathf.Clamp01(StateTime / gatherTime);
+            Vector3 at = new Vector3(transform.position.x, floorY, transform.position.z);
+            if (target != null && target.IsAlive && InHouse(target.transform.position))
+            {
+                Vector3 to = at - target.transform.position;
+                to.y = 0f;
+                if (to.magnitude > 1.2f)
+                    target.Drag(to.normalized * Mathf.Lerp(pullFrom, pullTo, u * u));
+            }
+            // The harmful ones: from the walls, swirling in (one way round: you can read the stream and slip between).
+            while (Time.time >= nextDrawn)
+            {
+                nextDrawn += 1f / (drawnPerSecond * Mathf.Lerp(0.6f, 1.3f, u));
+                float a = Random.Range(0f, Mathf.PI * 2f);
+                Vector3 from = new Vector3(middle.x + Mathf.Cos(a) * walls.x * 0.95f, floorY + 0.9f, middle.z + Mathf.Sin(a) * walls.y * 0.95f);
+                var leaf = DriftLeaf.Fling(from, at - from, drawnSpeed, drawnDamage, target, leafMaterial, middle, walls + Vector2.one, 1.0f);
+                leaf.DrawIn(at, 1f);
+            }
+            // The rest of the air, streaming in (no harm: the look of it), thicker as it builds; and a ring of them whirling
+            // close round him.
+            for (int k = 0; k < 4; k++)
+                if (Random.value < Mathf.Lerp(30f, 60f, u) * Time.deltaTime)
+                {
+                    float a = Random.Range(0f, Mathf.PI * 2f);
+                    Vector3 from = at + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * Random.Range(4f, 11f) + Vector3.up * Random.Range(0.3f, 3f);
+                    Effects.Instance?.Leaves(from, (at + Vector3.up * gatherHeight * 0.5f - from).normalized * Random.Range(6f, 9f) + Vector3.Cross(Vector3.up, at - from).normalized * 4f, 1);
+                }
+            for (int k = 0; k < 2; k++)
+                if (Random.value < 40f * Time.deltaTime)
+                {
+                    float a = Time.time * 4f + k * Mathf.PI + Random.Range(-0.3f, 0.3f);
+                    Vector3 round = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                    Effects.Instance?.Leaves(at + round * Random.Range(2f, 3f) + Vector3.up * Random.Range(1f, 3.5f), Vector3.Cross(Vector3.up, round) * 7f - round * 2f, 1);
+                }
+            kick = Mathf.Max(kick, 0.25f * u); // (the hollow swelling as it fills)
+            if (Random.value < 4f * Time.deltaTime)
+                CameraRig.Instance?.Shake(0.05f + 0.12f * u);
+        }
+
+        // All of it let go at once: one great ring through the whole floor (no gap: dodge through it).
+        void Release()
+        {
+            Gathers = Gathering.Releasing;
+            BeBusy("Release", releaseTime);
+            foreach (var leaf in FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None))
+                Destroy(leaf.gameObject); // (the ones drawn in: in him now, and out again)
+            Vector3 at = new Vector3(transform.position.x, floorY, transform.position.z);
+            Shockwave.Spread(at, target, releaseRadius, releaseSpeed, releaseWidth, releaseDamage, releaseKnock, new Color(1f, 0.55f, 0.18f, 0.9f));
+            for (int i = 0; i < 160; i++)
+            {
+                float a = i * Mathf.PI * 2f / 160f;
+                Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                Effects.Instance?.Leaves(at + dir * 1.2f + Vector3.up * 0.9f, dir * releaseSpeed + Vector3.up * Random.Range(0f, 1.5f), 1);
+            }
+            Sfx.Instance?.Attack(releaseSound, transform.position + Vector3.up, 1f, "father_moth_release");
+            Effects.Instance?.AlertFlare(ChestPoint);
+            CameraRig.Instance?.Shake(0.8f);
+            HitStop.Trigger(0.1f);
+            kick = 0.6f;
+            Released?.Invoke(this);
         }
 
         public Vector3 HollowPoint => hollow != null ? hollow.position : transform.position + Vector3.up * 1.8f;
@@ -415,13 +504,9 @@ namespace MyGame
             if (hollowLight != null)
             {
                 hollowLight.enabled = dim > 0f;
-                hollowLight.intensity = hollowIntensity * (CurrentPhase == 4 ? 1.6f : 1f) * dim * (0.7f + 1.6f * (swell + kick) + 0.15f * Mathf.Sin(Time.time * 2.4f));
+                float filling = Gathers == Gathering.Drawing ? 1f + 2.5f * Mathf.Clamp01(StateTime / gatherTime) : 1f; // (blazing as he gathers)
+                hollowLight.intensity = filling * hollowIntensity * (CurrentPhase == 4 ? 1.6f : 1f) * dim * (0.7f + 1.6f * (swell + kick) + 0.15f * Mathf.Sin(Time.time * 2.4f));
             }
-            if (EmberTelling)
-                for (int k = 0; k < 3; k++)
-                    if (Random.value < 30f * Time.deltaTime)
-                        Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.25f, Vector3.up * Random.Range(1f, 2.2f) + Random.insideUnitSphere * 0.6f,
-                            Random.Range(0.35f, 0.6f), Random.Range(0.14f, 0.28f)); // (an ember coming: flames roaring out of him)
             if (Woken && IsAlive && Random.value < (telling ? 26f : 3f) * dim * Time.deltaTime)
                 Effects.Instance?.Leaves(HollowPoint + Vector3.up * 0.15f, Vector3.up * Random.Range(1f, 2.2f), 1);
         }
@@ -518,6 +603,9 @@ namespace MyGame
                 TakeWing();
             switch (mode)
             {
+                case Mode.Gathering:
+                    GatherStep(dt);
+                    break;
                 case Mode.Afoot:
                     Hold(new Vector3(transform.position.x, floorY, transform.position.z));
                     break;
@@ -889,7 +977,7 @@ namespace MyGame
             mode = Mode.Hovering;
             collapsing = false;
             strikes = snipsLeft = 0;
-            Swallowed = 0;
+            Gathers = Gathering.None;
             CurrentPhase = 1;
             StopAllCoroutines();
             dropAt = -1f;

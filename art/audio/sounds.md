@@ -114,3 +114,5 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Father Moth's lunge drawn (`father_moth_stall`, 2) | in game | Synth | phase 3, before his lunge: a hard crack of air as he rears, a trembling rattle of leaves, the lantern in his ribs flaring |
 | Father Moth's scream (`father_moth_scream`) | in game | Synth | phase 4 begins: an old man's hoarse cry torn ragged, rising into a dry rasping shriek of wings and leaves, the glasshouse's iron ringing under it |
 | A lamp shattering (`glass_lamp_shatter`, 2) | in game | Synth | an iron clank, the glass bursting, shards skittering, the flame gone with a puff |
+| Father Moth gathering (`father_moth_gather`) | in game | Synth | phase 4's ultimate: a great breath drawn in that never ends, wind rushing inward and rising, leaves swirling, the hollow's roar deepening |
+| Father Moth letting it go (`father_moth_release`) | in game | Synth | a huge deep whoomph, a blast of wind and leaves tearing outward, the glasshouse's panes rattling in their iron |

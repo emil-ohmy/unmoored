@@ -551,36 +551,31 @@ namespace MyGame.Tests
             Assert.IsTrue(m.lamps.All(l => !l.enabled || l.intensity < 0.05f), "the lamps out");
         }
 
-        // An ember turned with a perfect block flies back into his hollow, and he chokes; three, and he's down.
+        // His gathering (phase 4): to the middle, a roar; then everything drawn in (you too, dragged towards him); then let
+        // go at once, a ring through the whole floor; then he's spent.
         [UnityTest]
-        public IEnumerator TheGardener_PhaseFour_EmbersTurnedBack_HeChokes_ThreeAndHesDown()
+        public IEnumerator TheGardener_PhaseFour_HisGathering_DrawsYouIn_LetsGo_ThenHesSpent()
         {
             var m = Gardener();
-            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
-            m.BeginAt(4);
-            yield return WaitUp(() => m.LampsLeft == 0, 30f, "the lamps down");
-            // (other leaves strike now and then, and a struck Apprentice is untouchable a moment: an ember may pass; the next)
-            for (int tries = 0; tries < 5 && m.Swallowed == 0; tries++)
+            bool released = false;
+            Action<FatherMoth> onRelease = _ => released = true;
+            FatherMoth.Released += onRelease;
+            try
             {
-                DriftLeaf ember = null;
-                yield return WaitUp(() => (ember = UnityEngine.Object.FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None).FirstOrDefault(l => l.Ember && !l.Returning)) != null, 20f, "an ember");
-                Assert.AreEqual(1, m.Thrown.Length, "an ember comes alone in its beat");
-                Face(m);
-                yield return WaitUp(() => ember == null || (ember.transform.position - apprentice.transform.position).Flat().magnitude < 1.0f, 4f, "the ember close");
-                if (ember == null)
-                    continue;
-                input.BlockHeld = true;
-                yield return WaitFor(() => ember == null || ember.Returning || (ember.transform.position - apprentice.transform.position).Flat().magnitude > 1.5f, 1f, "the ember met");
-                input.BlockHeld = false;
-                if (ember != null && ember.Returning)
-                    yield return WaitFor(() => m.Swallowed == 1, 3f, "him choking on it");
-                yield return new WaitForSeconds(0.6f);
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -6f));
+                m.BeginAt(4);
+                yield return WaitUp(() => m.Gathers == FatherMoth.Gathering.Drawing, 60f, "his gathering");
+                Assert.Less(Vector3.Distance(m.transform.position.Flat(), m.middle.Flat()), 1.2f, "over the middle of the floor");
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -6f));
+                yield return new WaitForSeconds(1.5f);
+                float near = (apprentice.transform.position - m.middle).Flat().magnitude;
+                Assert.Less(near, 5.5f, $"dragged in towards him ({near:0.0} m)");
+                Assert.Greater(DriftLeaf.Live, 0, "his leaves drawn in");
+                yield return WaitUp(() => released, 6f, "him letting it go");
+                Assert.IsNotNull(UnityEngine.Object.FindAnyObjectByType<Shockwave>(), "a ring through the whole floor");
+                yield return WaitUp(() => m.Spent, 6f, "him spent");
             }
-            Assert.AreEqual(1, m.Swallowed, "an ember turned back into him");
-            m.SwallowEmber();
-            m.SwallowEmber();
-            yield return WaitUp(() => m.Spent, 6f, "him down");
-            Assert.IsFalse(m.OutOfReach);
+            finally { FatherMoth.Released -= onRelease; }
         }
 
         // The Hook glances off him.
@@ -1602,8 +1597,11 @@ namespace MyGame.Tests
                 yield return WaitUp(() => m.LampsLeft == 0, 25f, "the lamps down");
                 yield return new WaitForSeconds(2.5f);
                 Shot("father-moth-12-in-the-dark");
-                yield return WaitUp(() => UnityEngine.Object.FindObjectsByType<DriftLeaf>(FindObjectsSortMode.None).Any(l => l.Ember && (l.transform.position - apprentice.transform.position).Flat().magnitude < 4f), 20f, "an ember coming");
-                Shot("father-moth-13-an-ember");
+                yield return WaitUp(() => m.Gathers == FatherMoth.Gathering.Drawing && m.StateTime > 2.5f, 60f, "his gathering");
+                Shot("father-moth-13-gathering");
+                yield return WaitUp(() => UnityEngine.Object.FindAnyObjectByType<Shockwave>() != null, 5f, "the release");
+                yield return new WaitForSeconds(0.35f);
+                Shot("father-moth-14-release");
             }
             finally { FatherMoth.Beat -= onBeat; }
         }

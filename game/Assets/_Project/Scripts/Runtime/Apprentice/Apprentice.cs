@@ -483,7 +483,8 @@ namespace MyGame
                 }
                 if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead)
                     planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
-                controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
+                controller.Move((planar + knockback + drag + Vector3.up * verticalVelocity) * dt);
+            drag = Vector3.zero; // (a pull holds only while something keeps pulling)
             }
             TrackSafeGround(dt);
             if (transform.position.y < waterLevel && IsAlive && CurrentState != State.Hooking && CurrentState != State.Sinking && CurrentState != State.Rowing)
@@ -963,6 +964,15 @@ namespace MyGame
                 Warned?.Invoke("Alight", "Water puts it out. So does a Sodden Sack, or a Rest");
             }
         }
+
+        // Pulled (Father Moth's gathering: drawn in towards him), this frame: walking against it is slower, with it faster.
+        public void Drag(Vector3 velocity)
+        {
+            if (IsAlive && CurrentState != State.Dead && CurrentState != State.Rowing)
+                drag = velocity;
+        }
+
+        Vector3 drag;
 
         // The flames out (a Sodden Sack, the water, a Rest).
         public void Douse()
