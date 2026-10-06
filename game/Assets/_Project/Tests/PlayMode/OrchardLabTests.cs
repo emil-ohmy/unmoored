@@ -529,9 +529,9 @@ namespace MyGame.Tests
             yield return WaitUp(() => m.Phase == 4 && m.Height > 2.5f, 5f, "phase 4, on the wing");
         }
 
-        // Phase 4: he tears the lamps down one by one, and it goes dark, far darker than the night outside.
+        // Phase 4: he screams, and every lamp falls at once; it goes dark, far darker than the night outside.
         [UnityTest]
-        public IEnumerator TheGardener_PhaseFour_TearsTheLampsDown_ItGoesVeryDark()
+        public IEnumerator TheGardener_PhaseFour_HisScreamBringsTheLampsDown_ItGoesVeryDark()
         {
             var m = Gardener();
             var moon = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
@@ -539,7 +539,12 @@ namespace MyGame.Tests
             apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
             m.BeginAt(4);
             Assert.AreEqual(4, m.Phase);
-            yield return WaitUp(() => m.LampsLeft == 0, 30f, "every lamp torn down");
+            bool screamed = false;
+            Action<FatherMoth> onScream = _ => screamed = true;
+            FatherMoth.Screamed += onScream;
+            yield return WaitUp(() => m.LampsLeft == 0, 12f, "every lamp down");
+            FatherMoth.Screamed -= onScream;
+            Assert.IsTrue(screamed, "brought down by his scream");
             yield return new WaitForSeconds(2.5f);
             Assert.Less(moon.intensity, moonBefore * 0.12f, "the moon all but gone");
             Assert.Less(RenderSettings.ambientSkyColor.grayscale, ambientBefore * 0.12f, "and the night's own light");
@@ -1592,8 +1597,8 @@ namespace MyGame.Tests
                 // Phase 4, in the dark.
                 apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f), true, true);
                 m.BeginAt(4);
-                yield return WaitUp(() => m.LampsLeft == 2 && m.CurrentState == Soured.State.Busy, 20f, "a lamp being torn down");
-                Shot("father-moth-11-tearing-a-lamp");
+                yield return WaitUp(() => m.LampsLeft == 0 && m.CurrentState == Soured.State.Busy && m.StateTime > 0.75f, 20f, "his scream, the lamps falling");
+                Shot("father-moth-11-the-lamps-falling");
                 yield return WaitUp(() => m.LampsLeft == 0, 25f, "the lamps down");
                 yield return new WaitForSeconds(2.5f);
                 Shot("father-moth-12-in-the-dark");

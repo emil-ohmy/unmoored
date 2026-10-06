@@ -18,7 +18,7 @@ namespace MyGame
     // relentless: quick snips (two or three at a time), a wide sweep of his shears, a lunge across the floor when you're
     // off. His shears turn your blows; two ways through: dodge him till he's spent (a dozen strikes, and he collapses,
     // open, as ever), or turn a strike with a perfect block (stunned, a riposte's chance). Brought to the quarter mark,
-    // he takes to the air again: phase 4, the last. He tears the lamps down one by one, and it goes dark, darker than the
+    // he takes to the air again: phase 4, the last. He screams, the glasshouse shakes, and every lamp falls at once; it goes dark, darker than the
     // night outside: the hollow in his belly, your bow lantern, his smouldering leaves. He no longer tires of his own
     // accord; among his throws come embers, leaves burning bright: turn one with a perfect block and it flies back into
     // his hollow, and he chokes on it. Three, and down he comes.
@@ -80,7 +80,8 @@ namespace MyGame
         public float emberTell = 0.9f;        // his beat before an ember: longer, flames roaring out of his hollow
         public AudioClip[] emberThrowSound;
         public Material emberMaterial;
-        public AudioClip[] tearSound, shatterSound, emberTurnSound, chokeSound;
+        public AudioClip[] screamSound, shatterSound, emberTurnSound, chokeSound;
+        public float screamTime = 2.2f;
 
         [Header("Spent")]
         public float sinkTime = 1.8f, collapseTime = 0.5f, spentTime = 5f, riseTime = 0.9f;
@@ -130,7 +131,7 @@ namespace MyGame
         public int CurrentPhase { get; private set; } = 1;
         public bool Untouchable => CurrentPhase < 4 && Health <= Floor + 0.01f; // (brought to his phase's mark: until he's up)
         public float Height => transform.position.y - floorY;
-        public static event System.Action<FatherMoth> Woke, Exhausted, PhaseBegun; // (tests)
+        public static event System.Action<FatherMoth> Woke, Exhausted, PhaseBegun, Screamed; // (tests)
         public static event System.Action<FatherMoth, Pattern> Beat;
 
         public string Title => title;
@@ -167,7 +168,6 @@ namespace MyGame
         bool fightOn;
         (Transform lamp, Vector3 position, Quaternion rotation, float intensity)[] hung;
         float[] fallSpeed;
-        int nextLamp;
         float dropAt = -1f;
         Light moon;
         float moonIntensity, darkness = 1f, darkTarget = 1f;
@@ -239,8 +239,8 @@ namespace MyGame
                 return Strike(distance);
             if (!Woken || mode != Mode.Hovering || (transform.position - HoverPoint).magnitude > 1.5f || volleyLeft > 0 || Time.time < streamUntil)
                 return null;
-            if (CurrentPhase == 4 && nextLamp < hung.Length)
-                return null; // (the lamps first)
+            if (CurrentPhase == 4 && LampsLeft > 0)
+                return null; // (his scream first: the lamps down)
             if (liveEmber != null)
                 return null; // (an ember out: nothing else till it's dealt with)
             var run = Run;
@@ -549,9 +549,9 @@ namespace MyGame
                         mode = Mode.Hovering;
                     break;
                 default:
-                    if (CurrentPhase == 4 && nextLamp < hung.Length)
+                    if (CurrentPhase == 4 && LampsLeft > 0)
                     {
-                        TearStep(dt);
+                        Scream(dt);
                         break;
                     }
                     Steer(HoverPoint, dt, 1f);
@@ -628,40 +628,35 @@ namespace MyGame
 
         // ---- the lamps torn down (phase 4), and the dark
 
-        // To the next lamp, up under it; there, he tears it down.
-        void TearStep(float dt)
+        // He screams: the glasshouse shakes, and every lamp falls at once (a beat apart, the chains giving).
+        void Scream(float dt)
         {
             if (CurrentState == State.Busy)
             {
                 Hover(dt);
                 if (dropAt > 0f && Time.time >= dropAt)
-                    TearDown();
+                {
+                    dropAt = -1f;
+                    for (int i = 0; i < hung.Length; i++)
+                        fallSpeed[i] = 0.01f; // (falling, all at once: Lights)
+                    LampsLeft = 0;
+                    darkTarget = darkest;
+                    CameraRig.Instance?.Shake(0.8f);
+                    for (int k = 0; k < 60; k++) // (dust and leaves shaken down off the vault)
+                        Effects.Instance?.Leaves(middle + new Vector3(Random.Range(-reach.x, reach.x), 5.5f, Random.Range(-reach.y, reach.y)), Vector3.down, 1);
+                }
                 return;
             }
-            if (hung[nextLamp].lamp == null || lamps[nextLamp] == null)
+            Steer(HoverPoint, dt, 1f);
+            if (CurrentState == State.Chase && dropAt < 0f && (transform.position - HoverPoint).magnitude < 1.5f)
             {
-                nextLamp++;
-                return;
+                BeBusy("Rouse", screamTime); // (wings flung wide, rearing: his cry)
+                dropAt = Time.time + 0.6f;
+                Sfx.Instance?.Attack(screamSound, transform.position + Vector3.up * 2f, 1f, "father_moth_scream");
+                CameraRig.Instance?.Shake(0.4f);
+                Effects.Instance?.AlertFlare(ChestPoint);
+                Screamed?.Invoke(this);
             }
-            Vector3 goal = lamps[nextLamp].transform.position + Vector3.down * 0.9f;
-            Steer(goal, dt, 1f);
-            if ((transform.position - goal).magnitude < 0.8f && CurrentState == State.Chase)
-            {
-                BeBusy("Tear", 1.3f);
-                dropAt = Time.time + 0.8f;
-                Sfx.Instance?.Attack(tearSound, goal, 1f, "father_moth_tear");
-            }
-        }
-
-        void TearDown()
-        {
-            dropAt = -1f;
-            int i = nextLamp++;
-            if (i < 0 || i >= hung.Length)
-                return;
-            fallSpeed[i] = 0.01f; // (falling: Lights)
-            LampsLeft = Mathf.Max(0, LampsLeft - 1);
-            darkTarget = Mathf.Lerp(darkest, 1f, LampsLeft / (float)Mathf.Max(1, hung.Length));
         }
 
         // The lamps (falling, out), the dark (the moon and the ambient, at `darkness` of themselves).
@@ -897,7 +892,6 @@ namespace MyGame
             Swallowed = 0;
             CurrentPhase = 1;
             StopAllCoroutines();
-            nextLamp = 0;
             dropAt = -1f;
             for (int i = 0; i < hung.Length; i++)
             {

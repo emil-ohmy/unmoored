@@ -607,7 +607,7 @@ public static partial class MainSceneBuilder
         ember.SetFloat("_OutlineWidth", 0f);
         EditorUtility.SetDirty(ember);
         m.emberMaterial = ember;
-        m.tearSound = Clips("father_moth_tear");
+        m.screamSound = Clips("father_moth_scream");
         m.shatterSound = Clips("glass_lamp_shatter");
         m.emberTurnSound = Clips("fireball_whoosh");
         m.chokeSound = Clips("fireball_gutter");

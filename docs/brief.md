@@ -219,8 +219,8 @@ left open, his floor.
   you on foot: quick snips two or three at a time, a wide sweep of his shears, a lunge across the floor when you're off.
   His shears turn your blows. Two ways through: dodge him till he's spent (a dozen strikes, and he collapses, open), or
   turn a strike with a perfect block (stunned, a riposte's chance). At the quarter mark he takes to the air again.
-- **Phase 4 (a quarter), on the wing again, in the dark:** he tears the four lamps down one by one, and the glasshouse
-  goes far darker than the night outside: the hollow in his belly, your bow lantern, his smouldering leaves. He no longer
+- **Phase 4 (a quarter), on the wing again, in the dark:** he screams, the glasshouse shakes, and all four lamps fall
+  at once, shattering; it goes far darker than the night outside: the hollow in his belly, your bow lantern, his smouldering leaves. He no longer
   tires of his own accord. Every third beat is an ember, alone (a longer tell, flames roaring out of his hollow; nothing
   else thrown with it, nor till it's dealt with): a leaf burning fiercely, lighting the floor as it comes. Turn it with a
   perfect block and it flies back into his hollow, and he chokes on it; three, and down he comes, open.
