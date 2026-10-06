@@ -1436,6 +1436,10 @@ namespace MyGame.Tests
                 Shot("father-moth-2-a-fan");
                 yield return WaitUp(() => last == FatherMoth.Pattern.Ring && Time.time - at > 0.7f, 20f, "a ring");
                 Shot("father-moth-3-a-ring");
+                yield return WaitUp(() => m.Tiredness > 0.8f, 20f, "him tired");
+                Shot("father-moth-3b-tired");
+                yield return WaitUp(() => m.CurrentState == Soured.State.Busy && !m.Spent && m.Height < 2.2f && m.Height > 1.0f, 20f, "him faltering");
+                Shot("father-moth-3c-faltering");
                 yield return WaitUp(() => m.Spent, 20f, "him spent");
                 yield return new WaitForSeconds(1f);
                 Shot("father-moth-4-spent");

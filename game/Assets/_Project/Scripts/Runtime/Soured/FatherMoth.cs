@@ -46,7 +46,8 @@ namespace MyGame
         public float hecticTell = 0.5f, hecticBreath = 0.5f; // his beats, quicker (phase 1: the beat's own)
         public int wideFanCount = 9, wideRingCount = 18;
         public float wideFanSpread = 110f;
-        public float spiralTime = 2.2f, spiralEvery = 0.09f, spiralTurn = 150f; // a stream from two arms, turning
+        public float spiralTime = 2.2f, spiralEvery = 0.09f, spiralTurn = 150f; // a stream from both wingtips, as he turns
+        public float ringTime = 0.6f;         // a ring: once round, this quickly
         public int podCount = 3, podLeaves = 6;
         public int fruitCount = 5;
         public float fruitFall = 1.1f, fruitRadius = 1.1f, fruitDamage = 14f;
@@ -54,12 +55,13 @@ namespace MyGame
         public AudioClip[] podSound, fruitSound;
 
         [Header("Spent")]
-        public float sinkTime = 1.2f, spentTime = 5f, riseTime = 0.9f;
+        public float sinkTime = 1.8f, collapseTime = 0.5f, spentTime = 5f, riseTime = 0.9f;
+        public float tiredSag = 0.9f;         // how far he's sunk by his last beat
 
         [Header("Look and sound")]
         public Light chest;                   // the lantern in his ribs
         public float chestIntensity = 1.4f;
-        public float cameraLean = 0.5f, cameraZoom = 1.45f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
+        public float cameraLean = 0.5f, cameraZoom = 1.55f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
         public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
 
         public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit }
@@ -72,14 +74,14 @@ namespace MyGame
         };
         static readonly Pattern[][] PhaseTwo =
         {
-            new[] { Pattern.Spiral }, new[] { Pattern.Pods }, new[] { Pattern.Fan, Pattern.Fruit }, new[] { Pattern.WideRing, Pattern.Volley },
+            new[] { Pattern.Spiral }, new[] { Pattern.Pods }, new[] { Pattern.Fruit, Pattern.Fan }, new[] { Pattern.WideRing, Pattern.Volley },
             new[] { Pattern.SpiralBack }, new[] { Pattern.Fruit, Pattern.Pods }, new[] { Pattern.WideFan },
         };
         Pattern[][] Run => CurrentPhase == 1 ? PhaseOne : PhaseTwo; // (phases 3 and 4: their own runs, still to come)
 
         public bool Woken { get; private set; }
-        public bool Grounded => mode == Mode.Spent;
-        public bool Spent => mode == Mode.Spent;
+        public bool Grounded => mode == Mode.Spent && !collapsing;
+        public bool Spent => mode == Mode.Spent && !collapsing;  // sprawled on the floor (not still dropping)
         public bool Beating => CurrentAttack == beat && (CurrentState == State.Telegraph || CurrentState == State.Strike);
         public Pattern[] Thrown { get; private set; } // the patterns of the beat now (or last)
         public int BeatsLeft => Run.Length - beatsDone;
@@ -111,7 +113,9 @@ namespace MyGame
         Quaternion perchRotation;
         Mode mode;
         int beatsDone, volleyLeft;
-        float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign;
+        float nextVolley, nextWing, streamUntil, nextStream, streamAngle, streamSign, streamEvery, streamTurn;
+        int flicks;
+        bool collapsing;                       // spent: hitting the floor (then sprawled)
         bool stirred;                          // brought to his mark, spent: he's stirring, and soon up
         bool fightOn;
         Transform focus;                       // his body (the camera leans to it: halfway, so you're both in view)
@@ -133,7 +137,10 @@ namespace MyGame
 
         bool InHouse(Vector3 p) => Mathf.Abs(p.x - middle.x) < reach.x + 2f && Mathf.Abs(p.z - middle.z) < reach.y + 2f && p.y > floorY - 1f && p.y < floorY + 8f;
 
-        Vector3 HoverPoint => new Vector3(hover.x + Mathf.Sin(Time.time * 0.7f) * 0.6f, floorY + hoverHeight + Mathf.Sin(Time.time * 1.9f) * 0.15f, hover.z);
+        Vector3 HoverPoint => new Vector3(hover.x + Mathf.Sin(Time.time * 0.7f) * 0.6f, floorY + hoverHeight - tiredSag * Tiredness + Mathf.Sin(Time.time * 1.9f) * 0.15f, hover.z);
+
+        // How spent he is (0 fresh, 1 at his last beat): he sags, his beats grow heavy, his lantern dims, he wobbles.
+        public float Tiredness => mode == Mode.Hovering ? Mathf.Clamp01(beatsDone / (float)Mathf.Max(1, Run.Length)) : 0f;
 
         // ---- waking
 
@@ -164,6 +171,21 @@ namespace MyGame
             }
             Thrown = run[beatsDone];
             beatsDone++;
+            // (each throw its own motion: a beat forward for a fan; a spin for a ring or a spiral; a wing flicked for each
+            // aimed one; a shudder for pods; reaching up to strike the vault for its oranges)
+            switch (Thrown[0])
+            {
+                case Pattern.Ring: case Pattern.WideRing: case Pattern.Spiral: case Pattern.SpiralBack:
+                    beat.windupClip = "GustDraw"; beat.strikeClip = "Spin"; break;
+                case Pattern.Volley:
+                    beat.windupClip = "GustDraw"; beat.strikeClip = "FlickL"; break;
+                case Pattern.Pods:
+                    beat.windupClip = "Shake"; beat.strikeClip = "FlickR"; break;
+                case Pattern.Fruit:
+                    beat.windupClip = "Tear"; beat.strikeClip = "Gust"; break;
+                default:
+                    beat.windupClip = "GustDraw"; beat.strikeClip = "Gust"; break;
+            }
             beat.telegraph = CurrentPhase == 1 ? phaseOneTell : hecticTell;
             beat.recover = CurrentPhase == 1 ? phaseOneBreath : hecticBreath;
             return beat;
@@ -202,9 +224,7 @@ namespace MyGame
                         Leaf(Quaternion.Euler(0f, Mathf.Lerp(-fanSpread / 2f, fanSpread / 2f, fanCount > 1 ? i / (fanCount - 1f) : 0.5f), 0f) * aim);
                     break;
                 case Pattern.Ring:
-                    float turn = Random.Range(0f, 360f / ringCount);
-                    for (int i = 0; i < ringCount; i++)
-                        Leaf(Quaternion.Euler(0f, turn + i * 360f / ringCount, 0f) * Vector3.forward);
+                    Spin(aim, 360f / ringTime, ringTime / (ringCount / 2f), ringTime, Random.value < 0.5f ? 1f : -1f);
                     break;
                 case Pattern.Volley:
                     volleyLeft = volleyCount;
@@ -215,16 +235,11 @@ namespace MyGame
                         Leaf(Quaternion.Euler(0f, Mathf.Lerp(-wideFanSpread / 2f, wideFanSpread / 2f, i / (wideFanCount - 1f)), 0f) * aim);
                     break;
                 case Pattern.WideRing:
-                    float turn2 = Random.Range(0f, 360f / wideRingCount);
-                    for (int i = 0; i < wideRingCount; i++)
-                        Leaf(Quaternion.Euler(0f, turn2 + i * 360f / wideRingCount, 0f) * Vector3.forward);
+                    Spin(aim, 360f / ringTime, ringTime / (wideRingCount / 2f), ringTime, Random.value < 0.5f ? 1f : -1f);
                     break;
                 case Pattern.Spiral:
                 case Pattern.SpiralBack:
-                    streamUntil = Time.time + spiralTime;
-                    nextStream = Time.time;
-                    streamAngle = Vector3.SignedAngle(Vector3.forward, aim, Vector3.up);
-                    streamSign = pattern == Pattern.Spiral ? 1f : -1f;
+                    Spin(aim, spiralTurn, spiralEvery, spiralTime, pattern == Pattern.Spiral ? 1f : -1f);
                     break;
                 case Pattern.Pods:
                     for (int i = 0; i < podCount; i++)
@@ -244,15 +259,27 @@ namespace MyGame
             }
         }
 
+        // He spins, his wings flat out, a leaf off each wingtip as it sweeps round (a ring: once round, quickly; a spiral:
+        // slower, longer).
+        void Spin(Vector3 aim, float turn, float every, float time, float sign)
+        {
+            streamUntil = Time.time + time;
+            nextStream = Time.time;
+            streamEvery = every;
+            streamTurn = turn;
+            streamAngle = Vector3.SignedAngle(Vector3.forward, aim, Vector3.up);
+            streamSign = sign;
+        }
+
         // Somewhere on the floor, inside the walls.
         Vector3 Inside(Vector3 p) => new Vector3(Mathf.Clamp(p.x, middle.x - walls.x + 1f, middle.x + walls.x - 1f), p.y,
                                                  Mathf.Clamp(p.z, middle.z - walls.y + 1f, middle.z + walls.y - 1f));
 
         float LeafSpeed => CurrentPhase == 1 ? leafSpeed : hecticSpeed;
 
-        void Leaf(Vector3 direction)
+        void Leaf(Vector3 direction, float outFrom = 1.2f)
         {
-            Vector3 from = new Vector3(transform.position.x, floorY + 0.9f, transform.position.z) + direction * 1.2f;
+            Vector3 from = new Vector3(transform.position.x, floorY + 0.9f, transform.position.z) + direction * outFrom;
             DriftLeaf.Fling(from, direction, LeafSpeed, leafDamage, target, leafMaterial, middle, walls);
         }
 
@@ -279,18 +306,35 @@ namespace MyGame
                 volleyLeft--;
                 nextVolley = Time.time + volleyInterval;
                 Leaf(Flat(target.transform.position - transform.position).normalized);
+                if (Time.time >= streamUntil) // (spinning, he throws them from the spin)
+                    clips.PlayOnce(flicks++ % 2 == 0 ? "FlickL" : "FlickR", 0.3f); // (a wing snapped down for each)
                 Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.4f, "father_moth_wing", 1.3f);
             }
-            // The spiral: two arms of leaves, turning.
-            if (Time.time < streamUntil && Time.time >= nextStream)
+            // Spinning: a leaf off each wingtip as it sweeps round (his wings point along the stream).
+            if (Time.time < streamUntil)
             {
-                nextStream = Time.time + spiralEvery;
-                streamAngle += streamSign * spiralTurn * spiralEvery;
-                for (int arm = 0; arm < 2; arm++)
-                    Leaf(Quaternion.Euler(0f, streamAngle + arm * 180f, 0f) * Vector3.forward);
+                streamAngle += streamSign * streamTurn * Time.deltaTime;
+                transform.rotation = Quaternion.Euler(0f, streamAngle - 90f, 0f);
+                if (clips.Current != "Spin")
+                    clips.Loop("Spin", 0.1f);
+                if (Time.time >= nextStream)
+                {
+                    nextStream = Time.time + streamEvery;
+                    for (int arm = 0; arm < 2; arm++)
+                    {
+                        Vector3 dir = Quaternion.Euler(0f, streamAngle + arm * 180f, 0f) * Vector3.forward;
+                        Leaf(dir, 2.6f);
+                    }
+                }
+            }
+            // Tired, near the end of his run: he wobbles in the air.
+            else if (mode == Mode.Hovering && Tiredness > 0.6f)
+            {
+                float lean = Mathf.Sin(Time.time * 3.1f) * 14f * (Tiredness - 0.6f) / 0.4f;
+                transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, lean);
             }
             // Brought to his mark while spent: he stirs, and is soon up (untouchable meanwhile).
-            if (mode == Mode.Spent && Untouchable && !stirred && CurrentState == State.Busy)
+            if (mode == Mode.Spent && !collapsing && Untouchable && !stirred && CurrentState == State.Busy)
             {
                 stirred = true;
                 if (StateTime < spentTime - 1.2f)
@@ -299,14 +343,26 @@ namespace MyGame
             switch (mode)
             {
                 case Mode.Sinking:
-                    Steer(new Vector3(hover.x, floorY, hover.z), dt, 0.5f);
+                    // Faltering, wing over wing, lower and lower (the last of it, a drop).
+                    float u = Mathf.Clamp01(StateTime / sinkTime);
+                    Vector3 down = new Vector3(transform.position.x, Mathf.Lerp(floorY + hoverHeight - tiredSag, floorY + 0.6f, u * u), transform.position.z);
+                    Hold(new Vector3(transform.position.x, Mathf.MoveTowards(transform.position.y, down.y, 4f * dt), transform.position.z));
+                    transform.rotation = Quaternion.Euler(Mathf.Sin(Time.time * 7f) * 6f, transform.eulerAngles.y, Mathf.Sin(Time.time * 4.3f) * 12f);
                     if (CurrentState != State.Busy)
                         Spend();
                     break;
                 case Mode.Spent:
-                    Hold(new Vector3(transform.position.x, floorY, transform.position.z));
+                    if (collapsing && CurrentState == State.Busy)
+                        Hold(new Vector3(transform.position.x, Mathf.MoveTowards(transform.position.y, floorY, 6f * dt), transform.position.z));
+                    else
+                        Hold(new Vector3(transform.position.x, floorY, transform.position.z));
                     if (CurrentState != State.Busy && CurrentState != State.Staggered)
-                        RiseAgain();
+                    {
+                        if (collapsing)
+                            Sprawl();
+                        else
+                            RiseAgain();
+                    }
                     break;
                 case Mode.Rising:
                     Steer(HoverPoint, dt, 0.7f);
@@ -317,26 +373,38 @@ namespace MyGame
                     Steer(HoverPoint, dt, 1f);
                     if (Time.time >= nextWing && CurrentState == State.Chase)
                     {
-                        nextWing = Time.time + 0.9f;
-                        Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.5f, "father_moth_wing");
+                        // (his beats heavier as he tires: slower, lower)
+                        nextWing = Time.time + 0.9f + 0.5f * Tiredness;
+                        Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.5f, "father_moth_wing", 1f - 0.2f * Tiredness);
                     }
+                    clips.SetLoopSpeed(clips.Current == "Fly" ? 1f - 0.4f * Tiredness : 1f);
                     break;
             }
             Chest();
         }
 
-        // Spent: down he sinks, his wings slack.
+        // Spent: his wings falter, beat by weak beat, and he sinks.
         void Sink()
         {
             mode = Mode.Sinking;
-            BeBusy("Land", sinkTime);
+            clips.SetLoopSpeed(1f);
+            BeBusy("Falter", sinkTime);
             Exhausted?.Invoke(this);
         }
 
-        // On the floor, sprawled, heaving: open to the oar a while.
+        // The last of it: he drops, and hits the floor.
         void Spend()
         {
             mode = Mode.Spent;
+            collapsing = true;
+            BeBusy("Collapse", collapseTime);
+        }
+
+        // On the floor, sprawled, heaving: open to the oar a while.
+        void Sprawl()
+        {
+            collapsing = false;
+            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
             Hold(new Vector3(transform.position.x, floorY, transform.position.z));
             BeBusy("Downed", spentTime);
             Effects.Instance?.Rubble(new Vector3(transform.position.x, floorY, transform.position.z), 1.0f);
@@ -412,8 +480,8 @@ namespace MyGame
                 return;
             float k = Untouchable && mode == Mode.Spent ? 2.2f + 0.6f * Mathf.Sin(Time.time * 14f) // (stirring: the light coming back)
                     : CurrentState == State.Telegraph && CurrentAttack == beat ? 1f + 2.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, beat.telegraph))
-                    : mode == Mode.Spent ? 0.35f + 0.15f * Mathf.Sin(Time.time * 3f)
-                    : 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f);
+                    : mode == Mode.Spent || mode == Mode.Sinking ? 0.35f + 0.15f * Mathf.Sin(Time.time * 3f)
+                    : (0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f)) * (1f - 0.5f * Tiredness); // (dimming as he tires)
             chest.enabled = IsAlive || StateTime < deathDuration * 0.5f;
             chest.intensity = chestIntensity * k * (IsAlive ? 1f : 1f - Mathf.Clamp01(StateTime / (deathDuration * 0.5f)));
         }
@@ -470,6 +538,7 @@ namespace MyGame
             Woken = false;
             passive = true;
             mode = Mode.Hovering;
+            collapsing = false;
             CurrentPhase = 1;
             beatsDone = volleyLeft = 0;
             streamUntil = 0f;

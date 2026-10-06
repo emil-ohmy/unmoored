@@ -12,7 +12,9 @@ back: the swoop's tell), Swoop (level and low across the floor), Downed (stunned
 wings splayed), Rise (0.8 s: up off the floor), Land (0.8 s), Tend (on the ground, bent over a bed, snipping: looping),
 ShearsDraw (0.7 s), Shears (0.3 s: swept across his front), Recover (1 s), GustDraw (0.9 s: the wings raised high over
 his back), Gust (0.5 s: one great beat forward), Beat (1.2 s: hammering the water below), Shake (1 s: a shudder that
-shakes Moths from his wings), Tear (1.3 s: reaching up, tearing down), Stagger, Death (he folds and falls).
+shakes Moths from his wings), Tear (1.3 s: reaching up, tearing down), Stagger, Death (he folds and falls), Spin (wings flat out wide, turning: looping),
+FlickL / FlickR (one wing snapped down to throw), Falter (spent: weak, uneven beats, sagging), Collapse (down onto the
+floor, sprawled).
 """
 import math
 
@@ -87,6 +89,23 @@ FALLEN = dict(wings((0, -40, 70), (0, 40, -70), (0, -30, 60), (0, 30, -60)),
               Abdomen=(-8, 0, 0))
 
 
+SPREAD = dict(lift(2, -6), Body=(0, 0, 0), Torso=(-6, 0, 0), ArmL=(-40, 0, -50), ArmR=(-40, 0, 50), Legs=(80, 0, 0))  # (spinning: flat out, wide)
+
+
+def flick(side):
+    """One wing snapped down and forward (throwing a leaf), the other held up."""
+    if side < 0:
+        return dict(wings((0, -50, -25), (0, 30, 0), (0, -38, -15), (0, 24, 0)), Body=(4, -8, 0), Torso=(0, 0, 10), Legs=(75, 0, 0))
+    return dict(wings((0, 30, 0), (0, -50, 25), (0, 24, 0), (0, -38, 15)), Body=(4, 8, 0), Torso=(0, 0, -10), Legs=(75, 0, 0))
+
+
+def falter(k):
+    """A weak, uneven beat, sagging (more with each k)."""
+    a = 30 - k * 6
+    return dict(lift(a if k % 2 == 0 else -a * 0.5, k * 4), Body=(-6 + k * 4, (5 if k % 2 else -5) * (1 + k * 0.3), 0),
+                Torso=(k * 6, 0, 0), Head=(k * 7, 0, 0), ArmL=(-35 + k * 8, 0, 0), ArmR=(-35 + k * 8, 0, 0), Legs=(max(0, 75 - k * 18), 0, 0))
+
+
 def shudder(k):
     return dict(lift(14 + (6 if k % 2 else -6)), Body=(0, 7 if k % 2 else -7, 0), Torso=(-6, 0, 4 if k % 2 else -4), **{"Legs": (75, 0, 0)})
 
@@ -100,7 +119,14 @@ ACTIONS = {
     "Dive": ("BEZIER", [(1, STALL), (4, DIVE), (20, dict(DIVE, Body=(34, 0, 0)))]),
     "SwoopDraw": ("BEZIER", [(1, UP), (6, dict(SWOOP, Body=(-10, 0, 0))), (16, SWOOP)]),
     "Swoop": ("BEZIER", [(1, SWOOP), (10, dict(SWOOP, Body=(6, 0, 0))), (20, SWOOP)]),
-    "Downed": ("BEZIER", [(1, DOWNED), (30, dict(DOWNED, Torso=(48, 0, 6), Head=(30, 0, -18))), (60, DOWNED)]),
+    "Downed": ("BEZIER", [(1, DOWNED), (15, dict(DOWNED, Torso=(40, 0, 6), Head=(22, 0, -18), Abdomen=(-12, 0, 0),
+                                             **wings((0, 16, 8), (0, -16, -8), (0, 14, 8), (0, -14, -8)))),
+                          (30, DOWNED), (45, dict(DOWNED, Torso=(41, 0, -4), Head=(24, 0, -14), Abdomen=(-12, 0, 0))), (60, DOWNED)]),  # (heaving, spent)
+    "Spin": ("LINEAR", [(1, SPREAD), (10, dict(SPREAD, **lift(8, -6))), (20, SPREAD)]),
+    "FlickL": ("BEZIER", [(1, UP), (3, flick(-1)), (8, UP)]),
+    "FlickR": ("BEZIER", [(1, UP), (3, flick(1)), (8, UP)]),
+    "Falter": ("BEZIER", [(1, UP)] + [(4 + k * 5, falter(k)) for k in range(6)] + [(34, dict(falter(5), **lift(-30, 30)))]),
+    "Collapse": ("BEZIER", [(1, dict(falter(5), **lift(-30, 30))), (5, dict(DOWNED, Root=((0, 0, 0), (0, 0, -0.3)), Torso=(70, 0, 10))), (12, DOWNED)]),
     "Rise": ("BEZIER", [(1, DOWNED), (8, dict(lift(70), Torso=(-10, 0, 0))), (14, DOWN), (20, UP)]),
     "Land": ("BEZIER", [(1, UP), (8, dict(lift(60, 0), Body=(-24, 0, 0))), (14, dict(lift(-20), Body=(-10, 0, 0))), (20, REST)]),
     "Tend": ("BEZIER", [(1, TEND), (10, dict(TEND, ArmR=(-30, 0, -14), SnipR=(0, 0, 26))), (20, dict(TEND, ArmR=(-24, 0, -6))),

@@ -569,7 +569,7 @@ public static partial class MainSceneBuilder
         m.reach = new Vector2(GlassWidth / 2f - 2.5f, GlassDepth / 2f - 3f); // (kept in from the walls: seen from above, he's never over them)
         m.walls = new Vector2(GlassWidth / 2f - 0.4f, GlassDepth / 2f - 0.4f);
         m.wakeLine = door.z + 11f; // (far enough in to have seen him there, folded on his tree)
-        m.hover = door + new Vector3(0f, 0.06f, 12f); // (over the north of the floor: the rest of it is yours, to dodge in)
+        m.hover = door + new Vector3(0f, 0.06f, 10.5f); // (over the north of the floor: the rest of it is yours, to dodge in)
         m.beat = new SouredAttack // (a wingbeat: his wings raised high, the lantern in his ribs flaring; then the leaves)
         {
             name = "Beat", windupClip = "GustDraw", strikeClip = "Gust", recoverClip = "Fly",
