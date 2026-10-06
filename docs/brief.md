@@ -222,8 +222,10 @@ left open, his floor.
 - **Phase 4 (a quarter), on the wing again, in the dark:** he screams, the glasshouse shakes, and all four lamps fall
   at once, shattering; it goes far darker than the night outside: the hollow in his belly, your bow lantern, his
   smouldering leaves. No more throws: the vault starts coming down (the glasshouse rumbling, debris falling onto glowing
-  marks: dodge them) while he gathers in the middle of the floor, his hollow swelling into a blinding sun. Then one great
-  section of the vault crashes in and stays standing: get behind it. He lets it all go, a blast as bright as noon through
+  marks, most of it right where you stand: keep moving) while he charges in the middle of the floor: motes of light
+  streaming into his hollow, rings of light closing in on it faster and faster, an orb in it swelling to a blinding sun,
+  a sound that never stops building. Then one great section of the vault crashes in a run away from you (never already
+  between you and him) and stays standing: get behind it. He lets it all go, a blast as bright as noon through
   the whole glasshouse (the screen white): behind that section it can't reach you; in the open it all but ends you (no
   dodging it). Then he falls, spent for good: finish him.
 - **No skipping a phase:** brought down to a phase's mark, his health holds there and nothing harms him (fire neither)

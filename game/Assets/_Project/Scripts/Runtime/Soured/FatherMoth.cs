@@ -80,10 +80,12 @@ namespace MyGame
         public float gatherHeight = 3.0f;     // over the middle of the floor
         public float roarTime = 1.1f, gatherTime = 12f, releaseTime = 0.7f; // gathering: his hollow swelling to a sun
         public float shieldLead = 5f, shieldFall = 1.8f, shieldDamage = 25f; // the vault section: down this long before the blast
-        public float debrisEvery = 0.7f, debrisFall = 1.2f, debrisRadius = 1.2f, debrisDamage = 22f;
+        public float debrisEvery = 0.45f, debrisFall = 1.0f, debrisRadius = 1.3f, debrisDamage = 22f;
+        [Range(0f, 1f)] public float debrisAtYou = 0.7f; // the share of it coming down right where you stand (stand still, and it finds you)
+        public Material orbMaterial;          // the charge blazing in his hollow
         public float blastDamage = 90f, blastKnock = 12f;
         public Material ironMaterial, glassMaterial;
-        public AudioClip[] screamSound, shatterSound, roarSound, gatherSound, releaseSound, sectionSound;
+        public AudioClip[] screamSound, shatterSound, roarSound, chargeSound, releaseSound, sectionSound;
         public float screamTime = 2.2f;
 
         [Header("Spent")]
@@ -162,6 +164,8 @@ namespace MyGame
         bool quaking;                          // phase 4: the vault coming down, from his scream to his blast
         VaultSection section;                  // the one that stays standing: the shelter from his blast
         Light blastLight;
+        Transform orb;                         // the charge in his hollow, swelling
+        float nextRing;
         public bool Final { get; private set; } // his blast let go: spent for good
         public VaultSection Shelter => section;
         float kick;                            // the hollow's throb from a leaf just thrown
@@ -405,7 +409,7 @@ namespace MyGame
                     {
                         Gathers = Gathering.Drawing;
                         BeBusy("Gather", gatherTime);
-                        Sfx.Instance?.Attack(gatherSound, transform.position + Vector3.up * 2f, 1f, "father_moth_gather");
+                        Sfx.Instance?.Attack(chargeSound, transform.position + Vector3.up * 2f, 1f, "father_moth_charge"); // (twelve seconds, building)
                     }
                     break;
                 case Gathering.Drawing:
@@ -447,18 +451,64 @@ namespace MyGame
                     Effects.Instance?.Leaves(at + round * Random.Range(2f, 3f) + Vector3.up * Random.Range(1f, 3.5f), Vector3.Cross(Vector3.up, round) * 7f - round * 2f, 1);
                 }
             kick = Mathf.Max(kick, 0.35f * u); // (the hollow swelling as it fills)
+            Charge(u);
             // The last moments: flames pouring off his hollow, blinding.
             if (u > 0.85f && Random.value < 60f * Time.deltaTime)
                 Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.4f, Random.insideUnitSphere * 2.5f, Random.Range(0.3f, 0.5f), Random.Range(0.15f, 0.3f));
         }
 
+        // The charge, building: motes of light streaming into his hollow from all round, rings of light closing in on him
+        // (faster and faster), and a blazing orb in the hollow, swelling and shuddering.
+        void Charge(float u)
+        {
+            Vector3 core = HollowPoint;
+            int motes = Mathf.RoundToInt(Mathf.Lerp(1f, 6f, u));
+            for (int k = 0; k < motes; k++)
+                if (Random.value < 30f * Time.deltaTime)
+                {
+                    Vector3 from = core + Random.onUnitSphere * Random.Range(3f, 7f);
+                    from.y = Mathf.Max(from.y, floorY + 0.3f);
+                    float life = Random.Range(0.4f, 0.7f);
+                    Effects.Instance?.Wisp(from, Color.Lerp(new Color(1f, 0.6f, 0.25f), new Color(1f, 0.95f, 0.8f), u), (core - from) / life, life);
+                }
+            if (Time.time >= nextRing)
+            {
+                nextRing = Time.time + Mathf.Lerp(1.1f, 0.18f, u * u);
+                // (closing in on the orb itself)
+                ChargeRing.Close(core, Mathf.Lerp(9f, 6f, u), Mathf.Lerp(0.9f, 0.45f, u), 0.9f,
+                    new Color(1f, Mathf.Lerp(0.55f, 0.9f, u), Mathf.Lerp(0.2f, 0.7f, u), Mathf.Lerp(0.5f, 1f, u)));
+            }
+            if (orb == null)
+            {
+                orb = GameObject.CreatePrimitive(PrimitiveType.Sphere).transform;
+                orb.name = "Charge";
+                Destroy(orb.GetComponent<Collider>());
+                var r = orb.GetComponent<MeshRenderer>();
+                if (orbMaterial != null)
+                    r.sharedMaterial = orbMaterial;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            orb.gameObject.SetActive(true);
+            orb.position = core;
+            float shudder = 1f + 0.08f * u * Mathf.Sin(Time.time * Mathf.Lerp(8f, 40f, u));
+            orb.localScale = Vector3.one * Mathf.Lerp(0.25f, 1.6f, u * u) * shudder;
+        }
+
         // One great section of the vault, torn loose: down on a big glowing mark, and it stays standing (your shelter).
         void DropShelter()
         {
-            float a = Random.Range(0f, Mathf.PI * 2f);
-            Vector3 spot = new Vector3(middle.x + Mathf.Cos(a) * 6.5f, floorY, middle.z + Mathf.Sin(a) * 5.5f);
-            spot = Inside(spot);
-            spot.y = floorY;
+            // (round the middle from where you are, a quarter turn either way: a run to it, never already shielding you)
+            Vector3 you = target != null ? Flat(target.transform.position - middle) : Vector3.back;
+            float yours = Mathf.Atan2(you.z, you.x);
+            Vector3 spot = middle;
+            for (int tries = 0; tries < 8; tries++)
+            {
+                float a = yours + (Random.value < 0.5f ? 1f : -1f) * Random.Range(70f, 115f) * Mathf.Deg2Rad;
+                spot = Inside(new Vector3(middle.x + Mathf.Cos(a) * 6.5f, floorY, middle.z + Mathf.Sin(a) * 5.5f));
+                spot.y = floorY;
+                if (target == null || Flat(spot - target.transform.position).magnitude >= 4.5f)
+                    break;
+            }
             section = VaultSection.Drop(spot, new Vector3(transform.position.x, floorY, transform.position.z), target, ironMaterial, glassMaterial,
                 shieldFall, shieldDamage, sectionSound);
             ShelterFalling?.Invoke(this);
@@ -476,8 +526,8 @@ namespace MyGame
             if (Time.time < nextDebris)
                 return;
             nextDebris = Time.time + debrisEvery * Random.Range(0.7f, 1.3f);
-            Vector3 spot = Random.value < 0.5f && target != null
-                ? target.transform.position + Flat(Random.insideUnitSphere) * Random.Range(0f, 2.5f)
+            Vector3 spot = Random.value < debrisAtYou && target != null
+                ? target.transform.position + Flat(Random.insideUnitSphere) * Random.Range(0f, 0.7f) // (right where you stand)
                 : middle + new Vector3(Random.Range(-walls.x, walls.x), 0f, Random.Range(-walls.y, walls.y));
             spot = Inside(spot);
             spot.y = floorY;
@@ -496,6 +546,8 @@ namespace MyGame
         {
             Gathers = Gathering.Releasing;
             Final = true;
+            if (orb != null)
+                orb.gameObject.SetActive(false);
             quaking = false;
             BeBusy("Release", releaseTime);
             foreach (var d in FindObjectsByType<FallingDebris>(FindObjectsSortMode.None))
@@ -1046,6 +1098,8 @@ namespace MyGame
             if (section != null)
                 Destroy(section.gameObject);
             section = null;
+            if (orb != null)
+                orb.gameObject.SetActive(false);
             foreach (var d in FindObjectsByType<FallingDebris>(FindObjectsSortMode.None))
                 Destroy(d.gameObject);
             CurrentPhase = 1;
@@ -1088,6 +1142,8 @@ namespace MyGame
 
         void OnDestroy()
         {
+            if (orb != null)
+                Destroy(orb.gameObject);
             if (blastLight != null)
                 Destroy(blastLight.gameObject);
             if (moon != null)

@@ -567,6 +567,8 @@ namespace MyGame.Tests
                 yield return WaitUp(() => FallingDebris.Live > 0, 15f, "debris falling");
                 yield return WaitUp(() => m.Shelter != null && m.Shelter.Down, 30f, "a section of the vault down, standing");
                 Assert.IsTrue(m.Gathers == FatherMoth.Gathering.Drawing, "still gathering");
+                Assert.IsFalse(m.Shelter.Shields(m.HollowPoint, apprentice.transform.position + Vector3.up), "it doesn't land shielding you: a run to it");
+                Assert.GreaterOrEqual((m.Shelter.transform.position - apprentice.transform.position).Flat().magnitude, 3.5f, "a way off from you");
                 // Behind it: it between him and you.
                 Vector3 away = (m.Shelter.transform.position - m.transform.position).Flat().normalized;
                 yield return WaitUp(() =>
@@ -588,6 +590,19 @@ namespace MyGame.Tests
                 Assert.Less(m.Health, before, "and open to the oar");
             }
             finally { FatherMoth.Blasted -= onBlast; }
+        }
+
+        // Stand still while the vault comes down, and it finds you.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_StandStill_TheDebrisFindsYou()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(3f, 0.05f, -5f));
+            m.BeginAt(4);
+            yield return WaitUp(() => FallingDebris.Live > 0, 15f, "the vault coming down");
+            apprentice.RestoreFully();
+            float before = apprentice.Health;
+            yield return WaitFor(() => apprentice.Health < before, 5f, "a piece coming down on you");
         }
 
         // In the open when he lets go, his blast all but ends you (no dodging it).

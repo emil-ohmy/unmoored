@@ -614,7 +614,13 @@ public static partial class MainSceneBuilder
         EditorUtility.SetDirty(glass);
         m.ironMaterial = iron;
         m.glassMaterial = glass;
-        m.gatherSound = Clips("father_moth_gather");
+        m.chargeSound = Clips("father_moth_charge");
+        var orb = GeneratedMaterial("M_ChargeOrb", "MyGame/Toon");
+        orb.SetColor("_BaseColor", new Color(1f, 0.85f, 0.6f));
+        orb.SetColor("_EmissionColor", new Color(4f, 2.6f, 1.2f)); // (blazing)
+        orb.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(orb);
+        m.orbMaterial = orb;
         m.releaseSound = Clips("father_moth_release");
         var pod = GeneratedMaterial("M_SeedPod", "MyGame/Toon");
         pod.SetColor("_BaseColor", Hex("#6b5a34"));
