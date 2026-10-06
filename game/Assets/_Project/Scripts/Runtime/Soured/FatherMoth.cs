@@ -85,6 +85,7 @@ namespace MyGame
         public Material orbMaterial;          // the charge blazing in his hollow
         public float blastDamage = 90f, blastKnock = 12f;
         public Material ironMaterial, glassMaterial;
+        public Material shelterGlassMaterial; // the fallen section's panes, glowing pale blue (debris: plain glass)
         public AudioClip[] screamSound, shatterSound, roarSound, chargeSound, releaseSound, sectionSound;
         public float screamTime = 2.2f;
 
@@ -165,7 +166,7 @@ namespace MyGame
         VaultSection section;                  // the one that stays standing: the shelter from his blast
         Light blastLight;
         Transform orb;                         // the charge in his hollow, swelling
-        float nextRing;
+        AudioSource chargeVoice;               // his charge's own voice (twelve seconds: the shared ones would be taken from under it)
         public bool Final { get; private set; } // his blast let go: spent for good
         public VaultSection Shelter => section;
         float kick;                            // the hollow's throb from a leaf just thrown
@@ -187,6 +188,12 @@ namespace MyGame
             perch = transform.position;
             perchRotation = transform.rotation;
             focus = new GameObject("Father Moth (camera focus)").transform;
+            chargeVoice = gameObject.AddComponent<AudioSource>();
+            chargeVoice.playOnAwake = false;
+            chargeVoice.spatialBlend = 0.3f; // (heard wherever you are in the glasshouse)
+            chargeVoice.rolloffMode = AudioRolloffMode.Linear;
+            chargeVoice.minDistance = 8f;
+            chargeVoice.maxDistance = 40f;
             stunDuration = meleeStun;
             hung = new (Transform, Vector3, Quaternion, float)[lamps?.Length ?? 0];
             fallSpeed = new float[hung.Length];
@@ -409,7 +416,12 @@ namespace MyGame
                     {
                         Gathers = Gathering.Drawing;
                         BeBusy("Gather", gatherTime);
-                        Sfx.Instance?.Attack(chargeSound, transform.position + Vector3.up * 2f, 1f, "father_moth_charge"); // (twelve seconds, building)
+                        if (chargeVoice != null && chargeSound != null && chargeSound.Length > 0) // (twelve seconds, building: its own voice)
+                        {
+                            chargeVoice.clip = chargeSound[0];
+                            chargeVoice.volume = Settings.Effects * 0.7f;
+                            chargeVoice.Play();
+                        }
                     }
                     break;
                 case Gathering.Drawing:
@@ -457,26 +469,32 @@ namespace MyGame
                 Effects.Instance?.Flame(HollowPoint + Random.insideUnitSphere * 0.4f, Random.insideUnitSphere * 2.5f, Random.Range(0.3f, 0.5f), Random.Range(0.15f, 0.3f));
         }
 
-        // The charge, building: motes of light streaming into his hollow from all round, rings of light closing in on him
-        // (faster and faster), and a blazing orb in the hollow, swelling and shuddering.
+        // The charge, building: energy sucked into his hollow from all round, streaks of light drawn in faster and denser,
+        // motes swirling in; an orb in the hollow swelling to a sun, shuddering.
         void Charge(float u)
         {
             Vector3 core = HollowPoint;
-            int motes = Mathf.RoundToInt(Mathf.Lerp(1f, 6f, u));
-            for (int k = 0; k < motes; k++)
+            Color hot = Color.Lerp(new Color(1f, 0.55f, 0.2f), new Color(1f, 0.95f, 0.8f), u);
+            // Streaks: drawn in along straight lines from a sphere round him, arriving as they fade (faster as it builds).
+            int streaks = Mathf.RoundToInt(Mathf.Lerp(2f, 9f, u));
+            for (int k = 0; k < streaks; k++)
                 if (Random.value < 30f * Time.deltaTime)
                 {
-                    Vector3 from = core + Random.onUnitSphere * Random.Range(3f, 7f);
-                    from.y = Mathf.Max(from.y, floorY + 0.3f);
-                    float life = Random.Range(0.4f, 0.7f);
-                    Effects.Instance?.Wisp(from, Color.Lerp(new Color(1f, 0.6f, 0.25f), new Color(1f, 0.95f, 0.8f), u), (core - from) / life, life);
+                    Vector3 dir = Random.onUnitSphere;
+                    dir.y = Mathf.Abs(dir.y) * 0.6f - 0.15f; // (mostly level, a little from above and below)
+                    float distance = Random.Range(3.5f, 8f), life = Mathf.Lerp(0.55f, 0.3f, u);
+                    Vector3 from = core + dir.normalized * distance;
+                    from.y = Mathf.Max(from.y, floorY + 0.2f);
+                    Effects.Instance?.Streak(from, (core - from) / life, hot, life, Mathf.Lerp(0.08f, 0.16f, u));
                 }
-            if (Time.time >= nextRing)
+            // Motes, swirling in.
+            if (Random.value < Mathf.Lerp(20f, 60f, u) * Time.deltaTime)
             {
-                nextRing = Time.time + Mathf.Lerp(1.1f, 0.18f, u * u);
-                // (closing in on the orb itself)
-                ChargeRing.Close(core, Mathf.Lerp(9f, 6f, u), Mathf.Lerp(0.9f, 0.45f, u), 0.9f,
-                    new Color(1f, Mathf.Lerp(0.55f, 0.9f, u), Mathf.Lerp(0.2f, 0.7f, u), Mathf.Lerp(0.5f, 1f, u)));
+                Vector3 from = core + Random.onUnitSphere * Random.Range(2f, 5f);
+                from.y = Mathf.Max(from.y, floorY + 0.3f);
+                float life = Random.Range(0.4f, 0.7f);
+                Vector3 inward = (core - from) / life;
+                Effects.Instance?.Wisp(from, hot, inward + Vector3.Cross(Vector3.up, inward).normalized * 2f, life);
             }
             if (orb == null)
             {
@@ -492,6 +510,8 @@ namespace MyGame
             orb.position = core;
             float shudder = 1f + 0.08f * u * Mathf.Sin(Time.time * Mathf.Lerp(8f, 40f, u));
             orb.localScale = Vector3.one * Mathf.Lerp(0.25f, 1.6f, u * u) * shudder;
+            if (chargeVoice != null)
+                chargeVoice.volume = Settings.Effects * Mathf.Lerp(0.7f, 1f, u);
         }
 
         // One great section of the vault, torn loose: down on a big glowing mark, and it stays standing (your shelter).
@@ -509,7 +529,8 @@ namespace MyGame
                 if (target == null || Flat(spot - target.transform.position).magnitude >= 4.5f)
                     break;
             }
-            section = VaultSection.Drop(spot, new Vector3(transform.position.x, floorY, transform.position.z), target, ironMaterial, glassMaterial,
+            section = VaultSection.Drop(spot, new Vector3(transform.position.x, floorY, transform.position.z), target, ironMaterial,
+                shelterGlassMaterial != null ? shelterGlassMaterial : glassMaterial,
                 shieldFall, shieldDamage, sectionSound);
             ShelterFalling?.Invoke(this);
         }
@@ -546,6 +567,8 @@ namespace MyGame
         {
             Gathers = Gathering.Releasing;
             Final = true;
+            if (chargeVoice != null)
+                chargeVoice.Stop();
             if (orb != null)
                 orb.gameObject.SetActive(false);
             quaking = false;
@@ -1100,6 +1123,8 @@ namespace MyGame
             section = null;
             if (orb != null)
                 orb.gameObject.SetActive(false);
+            if (chargeVoice != null)
+                chargeVoice.Stop();
             foreach (var d in FindObjectsByType<FallingDebris>(FindObjectsSortMode.None))
                 Destroy(d.gameObject);
             CurrentPhase = 1;

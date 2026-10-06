@@ -612,6 +612,11 @@ public static partial class MainSceneBuilder
         glass.SetColor("_BaseColor", Hex("#9db3aa"));
         glass.SetColor("_EmissionColor", new Color(0.08f, 0.1f, 0.09f));
         EditorUtility.SetDirty(glass);
+        var shelter = GeneratedMaterial("M_ShelterGlass", "MyGame/Toon");
+        shelter.SetColor("_BaseColor", Hex("#a9cfe0"));
+        shelter.SetColor("_EmissionColor", new Color(0.35f, 0.6f, 0.85f)); // (a cold pale-blue glow: the shelter, against his orange)
+        EditorUtility.SetDirty(shelter);
+        m.shelterGlassMaterial = shelter;
         m.ironMaterial = iron;
         m.glassMaterial = glass;
         m.chargeSound = Clips("father_moth_charge");

@@ -12,7 +12,7 @@ namespace MyGame
         public Material flameMaterial; // MyGame/Particle with a tongue of flame (burning: pitch, a Soured alight, a tarred oar)
         public Material strawMaterial; // MyGame/ParticleLit (straw is lit, not light: a scarecrow bursting)
 
-        ParticleSystem sparks, flash, fare, glints, wisps;
+        ParticleSystem sparks, flash, fare, glints, wisps, streaks;
         ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
         ParticleSystem flames, straw, smoke;
         Transform fareTarget;
@@ -25,6 +25,14 @@ namespace MyGame
         {
             Instance = this;
             sparks = Build("Block Sparks", sparkMaterial, stretch: true);
+            // Streaks of light (energy drawn in): stretched like the sparks, but weightless, longer, many.
+            streaks = Build("Energy Streaks", sparkMaterial, stretch: true);
+            var streakMain = streaks.main;
+            streakMain.gravityModifier = 0f;
+            streakMain.maxParticles = 500;
+            var streakRenderer = streaks.GetComponent<ParticleSystemRenderer>();
+            streakRenderer.velocityScale = 0.09f;
+            streakRenderer.lengthScale = 1f;
             flash = Build("Block Flash", flashMaterial, stretch: false);
             fare = BuildFare();
             glints = BuildGlints();
@@ -470,6 +478,23 @@ namespace MyGame
         }
 
         // A blocked hit: a spray of sparks off the surface plus a quick expanding ring.
+        // A streak of light, stretched along its way (the sparks' stretched particles): energy drawn in (Father Moth's
+        // charge).
+        public void Streak(Vector3 at, Vector3 velocity, Color colour, float lifetime, float size = 0.12f)
+        {
+            if (streaks == null)
+                return;
+            streaks.Emit(new ParticleSystem.EmitParams
+            {
+                position = at,
+                velocity = velocity,
+                startColor = colour,
+                startSize = size,
+                startLifetime = lifetime,
+                applyShapeToPosition = false,
+            }, 1);
+        }
+
         public void BlockSpark(Vector3 position, Vector3 normal)
         {
             var rotation = Quaternion.LookRotation(normal.sqrMagnitude > 0.001f ? normal : Vector3.up);
