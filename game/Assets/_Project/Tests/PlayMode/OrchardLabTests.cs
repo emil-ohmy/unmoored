@@ -479,11 +479,21 @@ namespace MyGame.Tests
             input.PressLight();
             yield return new WaitForSeconds(0.4f);
             Assert.AreEqual(before, m.Health, 0.01f, "turned on his shears");
-            yield return WaitUp(() => m.CurrentState == Soured.State.Strike, 6f, "a strike coming");
-            Face(m);
-            input.BlockHeld = true;
-            yield return WaitFor(() => m.CurrentState == Soured.State.Stunned, 1f, "him stunned on the block");
-            input.BlockHeld = false;
+            // (a strike can miss, or land while the Apprentice is untouchable from the last: try the next)
+            for (int tries = 0; tries < 5 && m.CurrentState != Soured.State.Stunned; tries++)
+            {
+                yield return WaitUp(() => m.CurrentState == Soured.State.Strike, 6f, "a strike coming");
+                Face(m);
+                input.BlockHeld = true;
+                yield return WaitFor(() => m.CurrentState != Soured.State.Strike, 1f, "the strike over");
+                input.BlockHeld = false;
+                if (m.CurrentState != Soured.State.Stunned)
+                {
+                    yield return new WaitForSeconds(0.4f);
+                    apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.4f + Vector3.up * 0.05f);
+                }
+            }
+            Assert.AreEqual(Soured.State.Stunned, m.CurrentState, "him stunned on the block");
             yield return new WaitForSeconds(0.25f);
             Face(m);
             before = m.Health;
