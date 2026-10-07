@@ -10,6 +10,7 @@ namespace MyGame
         bool DashPressed { get; }
         bool LightPressed { get; }
         bool HeavyPressed { get; }
+        bool HeavyHeld { get; } // (with the Stroke: hold to draw it back, let go to send the wave)
         bool HealPressed { get; }
         bool InteractPressed { get; }
         bool LockPressed { get; }
@@ -64,6 +65,7 @@ namespace MyGame
         public bool DashPressed => dash.WasPressedThisFrame();
         public bool LightPressed => lightAttack.WasPressedThisFrame();
         public bool HeavyPressed => heavyAttack.WasPressedThisFrame();
+        public bool HeavyHeld => heavyAttack.IsPressed();
         public bool HealPressed => heal.WasPressedThisFrame();
         public bool InteractPressed => interact.WasPressedThisFrame();
         public bool LockPressed => lockOn.WasPressedThisFrame();
@@ -146,6 +148,7 @@ namespace MyGame
         public bool LockPressed => Take(ref lockOn);
         public bool HookHeld { get; set; }
         public bool BlockHeld { get; set; }
+        public bool HeavyHeld { get; set; }
 
         public int SwitchTarget
         {

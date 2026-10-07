@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -123,6 +123,16 @@ namespace MyGame
         public float throwTime = 0.4f, drinkTime = 0.7f, wayBackTime = 1.4f;
         public float tarDuration = 30f, tarDamage = 1.3f, tarBurnSeconds = 2.5f, tarBurnPerSecond = 5f;
         public float brothAmount = 30f, brothDuration = 10f;
+
+        [Header("The Stroke (an Ability: hold the heavy attack, let go: a wave)")]
+        public float strokeHold = 0.3f;       // the heavy held this far into its windup: drawn back as the Stroke instead
+        public float strokeMinDraw = 0.2f;    // drawn at least this long (let go sooner: it goes then)
+        public float strokeLaunch = 0.17f;    // from letting go to the wave leaving the blade (the clip's sweep)
+        public float strokeRecovery = 0.45f;
+        public float strokeStaminaCost = 40f; // in all (the heavy's share is spent as it starts)
+        public float strokeReach = 4.2f, strokeArc = 110f, strokeSpeed = 12f;
+        public float strokeDamage = 6f, strokePush = 26f, strokeStagger = 0.9f;
+        public AudioClip[] strokeDrawSound, strokeSound;
 
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
@@ -367,6 +377,10 @@ namespace MyGame
                     planar = UpdateAttack();
                     break;
 
+                case State.Stroke:
+                    UpdateStroke(dt);
+                    break;
+
                 case State.Healing:
                     if (stateTime >= healDuration)
                     {
@@ -425,6 +439,8 @@ namespace MyGame
                     UpdateRowing(dt, inMenu);
                     break;
             }
+            if (CurrentState != State.Stroke && strokeVoice != null && strokeVoice.isPlaying)
+                StopStrokeVoice(); // (the draw broken off: a blow, a fall)
             if (CurrentState != State.Free && CurrentState != State.Rowing || inMenu)
             {
                 Nearby = null;
@@ -512,6 +528,12 @@ namespace MyGame
             float windup = isHeavy ? heavyWindup : lightWindup;
             float active = isHeavy ? heavyActive : lightActive;
             float recovery = isHeavy ? heavyRecovery : lightRecovery;
+            // With the Stroke, a heavy still held partway up its windup is drawn back instead (a tap is just the heavy).
+            if (isHeavy && HasStroke && Input.HeavyHeld && stateTime >= strokeHold && stateTime < windup)
+            {
+                DrawStroke();
+                return Vector3.zero;
+            }
 
             if (stateTime >= windup && stateTime < windup + active)
             {
@@ -608,6 +630,93 @@ namespace MyGame
             Enter(State.Attacking);
             float total = heavy ? heavyWindup + heavyActive + heavyRecovery : lightWindup + lightActive + lightRecovery;
             clips.PlayOnce(heavy ? "Heavy" : (step % 2 == 0 ? "Light1" : "Light2"), total);
+        }
+
+        // ------------------------------------------------------------ the Stroke
+
+        bool strokeLoosed, waveSent;
+        AudioSource strokeVoice;
+
+        public bool DrawingStroke => CurrentState == State.Stroke && !strokeLoosed;
+        public StrokeWave LastWave { get; private set; } // (tests)
+
+        // How far it's drawn (0..1 over most of a second; the blade's sheen brightens with it).
+        public float StrokeDrawn => DrawingStroke ? Mathf.Clamp01(stateTime / 0.7f) : 0f;
+
+        // Drawn back low on the oar's side, the blade turned to the water that isn't there; held, it gathers.
+        void DrawStroke()
+        {
+            Enter(State.Stroke);
+            strokeLoosed = waveSent = false;
+            clips.Loop("StrokeDraw", 0.12f);
+            if (strokeVoice == null)
+            {
+                strokeVoice = gameObject.AddComponent<AudioSource>();
+                strokeVoice.playOnAwake = false;
+                strokeVoice.spatialBlend = 0.6f;
+                strokeVoice.minDistance = 4f;
+            }
+            if (strokeDrawSound != null && strokeDrawSound.Length > 0)
+            {
+                strokeVoice.clip = strokeDrawSound[Random.Range(0, strokeDrawSound.Length)];
+                strokeVoice.volume = Settings.Effects;
+                strokeVoice.Play();
+            }
+        }
+
+        void UpdateStroke(float dt)
+        {
+            if (!strokeLoosed)
+            {
+                // Rooted, turning (slowly) to aim it.
+                Vector3 aim = LockTarget != null ? ToLockTarget() : MoveDirection();
+                if (aim.sqrMagnitude > 0.001f)
+                    transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(aim), turnSpeed * 0.5f * dt);
+                if (HasBuffered(Act.Dash))
+                {
+                    StopStrokeVoice();
+                    Enter(State.Free); // (a dash lets it go unspent)
+                    TryConsumeBuffer();
+                    return;
+                }
+                if (!Input.HeavyHeld && stateTime >= strokeMinDraw)
+                    LooseStroke();
+                return;
+            }
+            if (!waveSent && stateTime >= strokeLaunch)
+                SendWave();
+            if (waveSent && HasBuffered(Act.Dash))
+                TryConsumeBuffer(); // a dash may cancel its recovery
+            else if (stateTime >= strokeLaunch + strokeRecovery)
+                ToFreeAndConsume();
+        }
+
+        // Let go: the sweep, low across the front.
+        void LooseStroke()
+        {
+            Enter(State.Stroke);
+            strokeLoosed = true;
+            Spend(Mathf.Max(0f, strokeStaminaCost - heavyStaminaCost));
+            StopStrokeVoice();
+            clips.PlayOnce("Stroke", strokeLaunch + strokeRecovery);
+            Sfx.Instance?.OarSwing(transform.position + Vector3.up, true);
+        }
+
+        void SendWave()
+        {
+            waveSent = true;
+            ThrowOffClingers(transform.forward); // (shrugged off the back as the oar sweeps round)
+            LastWave = StrokeWave.Send(transform.position + transform.forward * 0.5f, transform.forward, strokeReach, strokeArc,
+                                       strokeSpeed, strokeDamage * DamageFactor, strokePush, strokeStagger);
+            Sfx.Instance?.Attack(strokeSound, transform.position + transform.forward * 1.5f + Vector3.up * 0.5f, 1f, "stroke_wave");
+            CameraRig.Instance?.Shake(0.3f);
+            HitStop.Trigger(0.05f);
+        }
+
+        void StopStrokeVoice()
+        {
+            if (strokeVoice != null)
+                strokeVoice.Stop();
         }
 
         // ------------------------------------------------------------ lock-on
@@ -776,7 +885,7 @@ namespace MyGame
 
         void RegenerateStamina(float dt)
         {
-            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking;
+            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking || CurrentState == State.Stroke;
             float rate = CurrentState == State.Blocking ? 0.4f : 1f; // holding a block slows recovery
             if (!busy && Time.time - lastStaminaUse >= staminaRegenDelay)
                 Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * rate * dt);

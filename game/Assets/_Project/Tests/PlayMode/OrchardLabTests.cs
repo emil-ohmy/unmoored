@@ -1815,6 +1815,57 @@ namespace MyGame.Tests
             finally { FatherMoth.Beat -= onBeat; }
         }
 
+        // (SHOTS=dir) The Stroke: drawn back, let go, the wave rolling out through three Laden.
+        [UnityTest]
+        public IEnumerator Capture_StrokeWave()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            try
+            {
+                Vector3 at = apprentice.transform.position; // (where the lab begins: open ground)
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+                apprentice.GiveStroke();
+                foreach (var x in new[] { -1.6f, 0f, 1.6f })
+                {
+                    var laden = post.spawner.SpawnAt("Laden", at + new Vector3(x, 0f, 2.6f + (x == 0f ? 0.4f : 0f)), Vector3.back);
+                    laden.passive = true;
+                }
+                yield return new WaitForSeconds(2.5f);
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return new WaitForSeconds(0.9f);
+                Shot("stroke-1-drawn");
+                input.HeavyHeld = false;
+                yield return WaitUp(() => apprentice.LastWave != null && apprentice.LastWave.Radius > 1.4f, 2f, "the wave out");
+                Shot("stroke-2-wave");
+                yield return WaitUp(() => apprentice.LastWave != null && apprentice.LastWave.Radius > 2.8f, 2f, "further");
+                Shot("stroke-3-wave-through-them");
+                yield return WaitUp(() => apprentice.LastWave != null && apprentice.LastWave.Radius >= apprentice.strokeReach, 2f, "spent");
+                Shot("stroke-4-spent");
+                yield return new WaitForSeconds(0.4f);
+                Shot("stroke-5-after");
+            }
+            finally { cam.targetTexture = null; }
+        }
+
         // (SHOTS=dir) The Stroke on each of the five oars: the Drowned Moon's sheen on the blade, close up in the world
         // and turning on the Oar page.
         [UnityTest]

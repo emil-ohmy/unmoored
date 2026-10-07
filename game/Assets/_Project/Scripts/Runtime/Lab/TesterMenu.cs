@@ -150,7 +150,7 @@ namespace MyGame
                     equipment.charmSlots = Mathf.Min(3, equipment.charmSlots + 1);
                 }, equipment.charmSlots >= 3);
                 Add("The Hook", apprentice.HasHook ? "Owned" : "Take", "Pull to hook posts, yank Soured.", apprentice.GiveHook, apprentice.HasHook);
-                Add("The Stroke", apprentice.HasStroke ? "Owned" : "Take", "The Drowned Moon in the oar blade (the waves come next).", apprentice.GiveStroke, apprentice.HasStroke);
+                Add("The Stroke", apprentice.HasStroke ? "Owned" : "Take", "The Drowned Moon in the oar blade: hold the heavy attack, let go, a wave.", apprentice.GiveStroke, apprentice.HasStroke);
                 Add("500 Obols", $"{apprentice.Obols}", "Obols (souls, basically).", () => apprentice.GainObols(500));
                 Add("A full Satchel", $"{Provision.All.Length} kinds", "Every Provision, as many as the Satchel takes of each (and on the belt).", () =>
                 {

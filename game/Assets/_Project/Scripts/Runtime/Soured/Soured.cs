@@ -371,6 +371,9 @@ namespace MyGame
             if (!Sheltered(transform.position) && Sheltered(transform.position + (planar + knockback) * Mathf.Max(dt, 0.02f) + Flat(planar + knockback).normalized * radius))
                 planar = knockback = Vector3.zero; // (an arena it doesn't belong to: it never crosses in; hooked in, it walks out)
             knockback *= Mathf.Exp(-8f * dt);
+            // Shoved to the brink, its middle over the water and only its edge on the lip: it goes over, not balancing there.
+            if (!Floats && !Drowned && knockback.sqrMagnitude > 0.01f && !FootingAt(transform.position, 1.2f))
+                knockback = Flat(knockback).normalized * Mathf.Max(knockback.magnitude, 3f);
             if (Drowned)
             {
                 planar = knockback = Vector3.zero;
@@ -532,6 +535,40 @@ namespace MyGame
             }
             else if (CurrentState == State.Idle)
                 Notice(); // hitting a sleeper wakes it
+            return HitResult.Landed;
+        }
+
+        // The Stroke's wave (the Drowned Moon in the oar blade): water, not an edge, so no guard stops it. A little harm,
+        // a shove (off an edge into the water: fair play) and a stagger; the great take the harm only (a Boss, a Boss's
+        // part), the heavy less of the shove (half their knockbackResistance: the tide moves what a blow can't). Under
+        // the water (a Drowned), it passes over.
+        public HitResult TakeWave(Vector3 push, float damage, Vector3 from, float stagger)
+        {
+            if (!IsAlive || OutOfReach || Unhittable)
+                return HitResult.Missed;
+            if (Absorbs(new Hit { Damage = damage, From = from }, false))
+            {
+                dealt = 0f;
+                Struck?.Invoke(this, HitResult.Landed, 0f);
+                return HitResult.Landed;
+            }
+            float was = Health;
+            Health = Mathf.Max(Floor, Health - damage);
+            dealt = Floor > 0f ? was - Health : damage;
+            if (immortal && Health <= 0f)
+                Health = maxHealth;
+            lastHitTime = Time.time;
+            flashUntil = Time.time + 0.08f;
+            Struck?.Invoke(this, HitResult.Landed, dealt);
+            bool great = this is IBoss || (BossFight.Current is IBossParts parts && parts.Owns(this));
+            if (!great)
+                knockback = push * (1f - 0.5f * knockbackResistance);
+            if (Health <= 0f)
+                Die(new Hit { Damage = damage, From = from, Knockback = push });
+            else if (!great && CurrentState != State.Staggered)
+                StaggerNow(stagger);
+            else if (CurrentState == State.Idle)
+                Notice();
             return HitResult.Landed;
         }
 

@@ -73,6 +73,18 @@ LIGHT1_HIT = swing(5, 88, 0.08)  # the contact pose (the recoil off a Laden's he
 # a stub hidden against the hood. The follow-through carries on down.
 HEAVY_RAISED = {"Oar": ((-78, 0, 30), (-0.22, 0.08, 0.3)), "Body": (-12, 0, 22), "Head": (12, 0, -12), "Root": ((0, 0, 0), (0, 0.04, -0.03))}
 HEAVY_CHOP = {"Oar": ((70, 0, -14), (-0.28, -0.22, 0.02)), "Body": (10, 0, -12), "Head": (-10, 0, 8), "Root": ((0, 0, 0), (0, -0.06, -0.06))}
+# The Stroke (with the Drowned Moon in the blade): drawn back low round the oar's side, crouched, the blade turned
+# down to water that isn't there (StrokeDraw, held: a strain in it); let go, it sweeps low across the front like a
+# paddle pulled through the water, and the wave leaves the blade as it passes the front (frame 6 of 18).
+def low(phi, pitch, step=0.0, lift=-0.12, lean=14.0, crouch=0.08):
+    pose = swing(phi, pitch, step, lift)
+    pose["Body"] = (lean, 0, pose["Body"][2])
+    pose["Root"] = ((0, 0, 0), (0, -step, -crouch))
+    return pose
+
+
+STROKE_DRAWN = low(150, 104)
+STROKE_STRAIN = low(156, 108, lean=17.0, crouch=0.1)
 # The Hook's whirl while aiming: round a small circle above the shoulder, turning with it, one turn per 16 frames.
 HOOK_WHIRL_CENTRE = (-0.06, -0.2, 0.78)  # offset from its rest at the hip: up above the shoulder, a little ahead
 HOOK_AIM_BODY = {"Body": (-5, 0, 0), "Head": (2, 0, 0), "Oar": (-28, 0, 4)}
@@ -132,6 +144,15 @@ ACTIONS = {
         (19, HEAVY_CHOP),
         (23, {"Oar": ((100, 0, -28), (-0.32, -0.24, -0.1)), "Body": (15, 0, -18), "Head": (-12, 0, 12), "Root": ((0, 0, 0), (0, -0.08, -0.1))}),
         (35, REST),
+    ]),
+    "StrokeDraw": ("BEZIER", [(1, STROKE_DRAWN), (12, STROKE_STRAIN), (24, STROKE_DRAWN)]),
+    "Stroke": ("BEZIER", [
+        (1, STROKE_STRAIN),
+        (4, low(80, 102, 0.05)),
+        (6, low(0, 100, 0.1, lean=10.0)),
+        (8, low(-70, 98, 0.12, lift=-0.06, lean=8.0)),
+        (10, low(-110, 92, 0.12, lift=0.0, lean=6.0, crouch=0.05)),
+        (18, REST),
     ]),
     # Blocked by a Laden's heap: the oar strikes it and springs back, jarring the Apprentice (the recoil). Each starts
     # from its attack's contact pose, so the blow is seen to land before it bounces.

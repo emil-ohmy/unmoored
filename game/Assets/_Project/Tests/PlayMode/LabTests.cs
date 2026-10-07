@@ -713,6 +713,158 @@ namespace MyGame.Tests
             Assert.Less(FlatDistance(laden.transform.position, apprentice.transform.position), 2.5f, "and across the first floor to you");
         }
 
+        // ---- the Stroke (hold the heavy attack, let go: a wave)
+
+        // Holds the heavy attack (with the Stroke: drawn back) for `seconds`, then lets go.
+        IEnumerator Stroke(float seconds = 0.6f)
+        {
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return new WaitForSeconds(seconds);
+            input.HeavyHeld = false;
+        }
+
+        // Faces the Apprentice towards `at`.
+        void Face(Vector3 at)
+        {
+            Vector3 to = at - apprentice.transform.position;
+            to.y = 0f;
+            apprentice.transform.rotation = Quaternion.LookRotation(to);
+        }
+
+        // A tap is still just the heavy attack, with the Stroke or without; held, without it, it's the heavy too.
+        [UnityTest]
+        public IEnumerator TheStroke_ATapIsStillTheHeavy_AndWithoutItHoldingIsToo()
+        {
+            input.PressHeavy();
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Attacking, apprentice.CurrentState);
+            input.HeavyHeld = true; // (held, without the Stroke)
+            yield return new WaitForSeconds(1.3f);
+            input.HeavyHeld = false;
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState, "just the heavy");
+            Assert.IsNull(apprentice.LastWave);
+            apprentice.GiveStroke();
+            yield return new WaitForSeconds(0.6f);
+            input.PressHeavy(); // a tap
+            for (float t = 0f; t < 1.2f; t += Time.deltaTime)
+            {
+                Assert.AreNotEqual(Apprentice.State.Stroke, apprentice.CurrentState);
+                yield return null;
+            }
+            Assert.IsNull(apprentice.LastWave, "a tap: no wave");
+        }
+
+        // Held: the heavy's windup turns into the Stroke drawn back, rooted, the blade's sheen brightening; let go, it
+        // sweeps and the wave rolls out ahead, about 4 m, then it's spent. Its stamina is the heavy's and more.
+        [UnityTest]
+        public IEnumerator TheStroke_Held_DrawsBack_LetGo_TheWaveRollsOut()
+        {
+            apprentice.GiveStroke();
+            yield return new WaitForSeconds(1f);
+            Vector3 start = apprentice.transform.position;
+            float stamina = apprentice.Stamina;
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            for (float t = 0f; t < 0.6f && !apprentice.DrawingStroke; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(apprentice.DrawingStroke, "drawn back");
+            yield return new WaitForSeconds(0.8f);
+            Assert.IsTrue(apprentice.DrawingStroke, "held as long as it's held");
+            Assert.Greater(apprentice.StrokeDrawn, 0.9f);
+            Assert.Greater(apprentice.GetComponent<OarLook>().Sheen, 1.4f, "the blade brightening");
+            Assert.Less(Vector3.Distance(start, apprentice.transform.position), 0.3f, "rooted");
+            input.HeavyHeld = false;
+            for (float t = 0f; t < 0.5f && apprentice.LastWave == null; t += Time.deltaTime)
+                yield return null;
+            var wave = apprentice.LastWave;
+            Assert.IsNotNull(wave, "the wave");
+            Assert.AreEqual(apprentice.strokeStaminaCost, stamina - apprentice.Stamina, 1f, "its stamina, all of it");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(apprentice.strokeReach, wave != null ? wave.Radius : apprentice.strokeReach, 0.6f, "about four metres out");
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(wave == null, "spent, and gone");
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+        }
+
+        // A dash lets the draw go, unspent.
+        [UnityTest]
+        public IEnumerator TheStroke_ADashLetsTheDrawGo()
+        {
+            apprentice.GiveStroke();
+            yield return new WaitForSeconds(1f);
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(apprentice.DrawingStroke);
+            float stamina = apprentice.Stamina;
+            input.PressDash();
+            yield return null;
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
+            input.HeavyHeld = false;
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsNull(apprentice.LastWave, "no wave");
+            Assert.Less(stamina - apprentice.Stamina, apprentice.DashCost + 0.5f, "only the dash spent");
+        }
+
+        // The wave goes through a Laden's guard (water, not an edge): it's shoved back and staggered, with little harm.
+        [UnityTest]
+        public IEnumerator TheStroke_ThroughALadensGuard_ShovesAndStaggersIt_LittleHarm()
+        {
+            apprentice.GiveStroke();
+            var laden = SetDown("Laden", apprentice.transform.position + apprentice.transform.forward * 2.6f);
+            laden.passive = true;
+            laden.transform.rotation = Quaternion.LookRotation(apprentice.transform.position - laden.transform.position); // (its heap to you)
+            yield return new WaitForSeconds(0.5f);
+            Face(laden.transform.position);
+            Vector3 was = laden.transform.position;
+            float health = laden.Health;
+            yield return Stroke();
+            for (float t = 0f; t < 0.6f && laden.CurrentState != Soured.State.Staggered; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(Soured.State.Staggered, laden.CurrentState, "staggered, its guard no help");
+            yield return new WaitForSeconds(0.4f);
+            Assert.Greater(Vector3.Distance(was, laden.transform.position), 1.2f, "shoved back");
+            Assert.That(health - laden.Health, Is.InRange(0.1f, 12f), "little harm");
+        }
+
+        // Shoved off the quay's edge, a Soured goes into the water (and under).
+        [UnityTest]
+        public IEnumerator TheStroke_ShovesASouredOffTheEdge_IntoTheWater()
+        {
+            apprentice.GiveStroke();
+            // The lab's quays end a little past z 5.5 (a raised lip), water beyond.
+            apprentice.Teleport(new Vector3(5f, 0.6f, 2.2f));
+            var laden = SetDown("Laden", new Vector3(5f, 0.6f, 4.7f));
+            laden.passive = true;
+            yield return new WaitForSeconds(0.5f);
+            Face(laden.transform.position);
+            yield return Stroke();
+            for (float t = 0f; t < 3f && !laden.Drowned; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(laden.Drowned, "into the water");
+        }
+
+        // A Clinger on your back is thrown off as the oar sweeps round (and one leaping at you is knocked out of the air).
+        [UnityTest]
+        public IEnumerator TheStroke_ThrowsOffAClinger()
+        {
+            apprentice.GiveStroke();
+            var pair = SpawnClingers();
+            pair[1].gameObject.SetActive(false);
+            var clinger = pair[0];
+            for (float t = 0f; t < 10f && apprentice.ClungBy == 0; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(1, apprentice.ClungBy, "it caught hold");
+            yield return new WaitForSeconds(0.5f); // (the grab's own jolt passes)
+            yield return Stroke(0.4f);
+            for (float t = 0f; t < 0.5f && apprentice.ClungBy > 0; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(0, apprentice.ClungBy, "thrown off");
+            Assert.IsTrue(clinger.BeingThrown || clinger.CurrentState == Soured.State.Staggered);
+        }
+
         [UnityTest]
         public IEnumerator Pathfinding_NoSouredWalksOffALedge()
         {
