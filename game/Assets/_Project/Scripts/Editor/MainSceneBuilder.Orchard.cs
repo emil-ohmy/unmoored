@@ -620,6 +620,14 @@ public static partial class MainSceneBuilder
         m.ironMaterial = iron;
         m.glassMaterial = glass;
         m.chargeSound = Clips("father_moth_charge");
+        m.music = new[] // (Last Autumn grown huge: his leaves; more of them; afoot, the waltz broken; the dark)
+        {
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_father_moth_1.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_father_moth_2.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_father_moth_3.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_father_moth_4.wav"),
+        };
+        m.endTune = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_father_moth_end.wav");
         var orb = GeneratedMaterial("M_ChargeOrb", "MyGame/Toon");
         orb.SetColor("_BaseColor", new Color(1f, 0.85f, 0.6f));
         orb.SetColor("_EmissionColor", new Color(4f, 2.6f, 1.2f)); // (blazing)

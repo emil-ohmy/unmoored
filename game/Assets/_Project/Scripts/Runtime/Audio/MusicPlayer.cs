@@ -26,6 +26,7 @@ namespace MyGame
 
         AudioSource source;
         readonly AudioSource[] fight = new AudioSource[2];
+        int fightSlot;                                    // the player the phase now is on (they take turns)
         float ambientLevel;                               // the fades' own levels; the sources play them at the
         readonly float[] fightLevel = new float[2];       // player's music volume (Settings.Music)
         Apprentice apprentice;
@@ -72,7 +73,7 @@ namespace MyGame
             }
             if (boss != null && boss.Phase != FightPhase && FightPhase > 0)
                 NextPhase(boss);
-            int slot = boss != null ? FightPhase - 1 : -1;
+            int slot = boss != null ? fightSlot : -1;
             bool victory = UiKit.Now < quietUntil;
             for (int i = 0; i < fight.Length; i++)
             {
@@ -102,9 +103,9 @@ namespace MyGame
         // The fight begins: its music for the phase it's in, from the top.
         void Begin(IBoss b)
         {
-            FightPhase = Mathf.Clamp(b.Phase, 1, fight.Length);
+            FightPhase = Mathf.Clamp(b.Phase, 1, Mathf.Max(1, b.Music != null ? b.Music.Length : 1));
             var clip = Clip(b, FightPhase);
-            var s = fight[FightPhase - 1];
+            var s = fight[fightSlot];
             if (clip == null)
                 return;
             if (s.clip != clip || !s.isPlaying)
@@ -115,15 +116,21 @@ namespace MyGame
             }
         }
 
-        // A new phase: its track starts where the last one is in the loop, and they crossfade.
+        // A new phase: its track starts where the last one is in the loop, and they crossfade (the two players by turns,
+        // however many phases a Boss has).
         void NextPhase(IBoss b)
         {
-            int from = FightPhase - 1;
-            FightPhase = Mathf.Clamp(b.Phase, 1, fight.Length);
-            var clip = Clip(b, FightPhase);
-            var s = fight[FightPhase - 1];
-            if (clip == null)
+            int from = fightSlot;
+            int phase = Mathf.Clamp(b.Phase, 1, Mathf.Max(1, b.Music != null ? b.Music.Length : 1));
+            var clip = Clip(b, phase);
+            if (phase == FightPhase || clip == null)
+            {
+                FightPhase = b.Phase;
                 return;
+            }
+            FightPhase = phase;
+            fightSlot = 1 - fightSlot;
+            var s = fight[fightSlot];
             s.clip = clip;
             int samples = fight[from].isPlaying && fight[from].clip != null ? fight[from].timeSamples : 0;
             s.Play();

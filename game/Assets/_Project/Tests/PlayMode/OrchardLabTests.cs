@@ -638,6 +638,25 @@ namespace MyGame.Tests
             finally { FatherMoth.Blasted -= onBlast; }
         }
 
+        // His music: a track for each of his four phases (Last Autumn grown huge), crossfading in step as they turn.
+        [UnityTest]
+        public IEnumerator TheGardener_HisMusic_ATrackForEachPhase()
+        {
+            var m = Gardener();
+            var music = UnityEngine.Object.FindAnyObjectByType<MusicPlayer>();
+            Assert.AreEqual(4, m.Music.Length, "four tracks");
+            Assert.IsTrue(m.Music.All(c => c != null), "every one there");
+            Assert.IsNotNull(m.endTune, "and the music box's last phrase, for when he's beaten");
+            yield return WakeHim(m);
+            yield return WaitUp(() => music.FightPhase == 1, 3f, "his first track");
+            yield return WaitUp(() => m.Spent, 30f, "him spent");
+            m.TakeBurn(m.maxHealth, m.transform.position);
+            yield return WaitUp(() => m.Phase == 2 && music.FightPhase == 2, 6f, "his second track");
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(4);
+            yield return WaitUp(() => music.FightPhase == 4, 4f, "his last track");
+        }
+
         // The Hook glances off him.
         [UnityTest]
         public IEnumerator TheGardener_TheHook_GlancesOff()

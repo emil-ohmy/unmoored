@@ -31,7 +31,8 @@ namespace MyGame
         public string epithet = "Who Gathered Autumn";
         public string farewell = "MOTHBALLED";
         public string farewellLine = "Winter is nigh.";
-        public AudioClip[] music;             // one track per phase
+        public AudioClip[] music;             // one track per phase (Last Autumn grown huge: four, sharing one loop)
+        public AudioClip endTune;             // beaten: the music box comes home to A
 
         [Header("His glasshouse")]
         public float floorY;                  // its floor
@@ -419,6 +420,7 @@ namespace MyGame
                         if (chargeVoice != null && chargeSound != null && chargeSound.Length > 0) // (twelve seconds, building: its own voice)
                         {
                             chargeVoice.clip = chargeSound[0];
+                            chargeVoice.spatialBlend = 0.3f;
                             chargeVoice.volume = Settings.Effects * 0.7f;
                             chargeVoice.Play();
                         }
@@ -1088,6 +1090,15 @@ namespace MyGame
             volleyLeft = 0;
             streamUntil = 0f;
             Sfx.Instance?.Attack(deathSound, transform.position + Vector3.up * 2f, 1f, "father_moth_death");
+            if (chargeVoice != null && endTune != null)
+            {
+                // (in the silence after his music: the music box, finishing Last Autumn's tune, coming home to A)
+                chargeVoice.Stop();
+                chargeVoice.clip = endTune;
+                chargeVoice.spatialBlend = 0f;
+                chargeVoice.volume = Settings.Music;
+                chargeVoice.PlayDelayed(1.2f);
+            }
             Effects.Instance?.Leaves(transform.position + Vector3.up * 2f, Vector3.zero, 80);
             Clear();
             StartCoroutine(NightReturns());
