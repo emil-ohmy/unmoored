@@ -657,6 +657,21 @@ namespace MyGame.Tests
             yield return WaitUp(() => music.FightPhase == 4, 4f, "his last track");
         }
 
+        // His fall made a moment of (as every Boss's): time held and slowed, the camera closing in on him as he goes; then
+        // back to you.
+        [UnityTest]
+        public IEnumerator TheGardener_HisFall_TimeSlows_TheCameraClosesIn()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            int before = BossFall.Fallen;
+            m.Slay(apprentice.transform.position);
+            Assert.AreEqual(before + 1, BossFall.Fallen, "his fall framed");
+            yield return WaitFor(() => CameraRig.Instance.Zoom < 0.95f, 1.5f, "the camera closing in");
+            Assert.IsTrue(BossFall.Framing);
+            yield return WaitFor(() => !BossFall.Framing && CameraRig.Instance.Zoom > 0.97f, 8f, "the camera back with you");
+        }
+
         // The Hook glances off him.
         [UnityTest]
         public IEnumerator TheGardener_TheHook_GlancesOff()
@@ -785,7 +800,9 @@ namespace MyGame.Tests
             apprentice.Teleport(new Vector3(way.x, 3.35f, way.z + 1.5f));
             yield return Walk(Vector2.down, 1.6f);
             Assert.Greater(apprentice.transform.position.z, way.z, $"held in ({apprentice.transform.position})");
+            int fallen = BossFall.Fallen;
             w.Slay(apprentice.transform.position);
+            Assert.AreEqual(fallen + 1, BossFall.Fallen, "his fall made a moment of");
             yield return new WaitForSeconds(2f);
             Assert.IsFalse(gate.Shut || far.Shut, "beaten: open again");
             Assert.AreEqual(0f, gate.Closed, 0.01f);

@@ -611,8 +611,11 @@ namespace MyGame.Tests
                 u.hold.OnHooked(apprentice);
                 yield return new WaitForSeconds(0.8f);
                 int obols = apprentice.Obols;
+                int fallen = BossFall.Fallen;
                 u.fast.TakeHit(new Hit { Damage = 1000f, From = apprentice.transform.position });
+                Assert.AreEqual(fallen, BossFall.Fallen, "the first of them: no moment yet");
                 u.hold.TakeHit(new Hit { Damage = 10000f, From = apprentice.transform.position });
+                Assert.AreEqual(fallen + 1, BossFall.Fallen, "the last of them: its fall made a moment of");
                 yield return new WaitForSeconds(0.5f);
                 Assert.AreSame(u, farewell, "its farewell, once both are scattered");
                 Assert.AreEqual("boss_farewell", sound, "a great bell as its farewell comes up");
