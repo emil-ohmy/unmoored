@@ -108,7 +108,15 @@ business and pay their fare to row them across.
 
 - **Abilities:**
   - **Hook**, from Boss 1: pull to posts over water, yank Soured close, rip off shields.
-  - **Stroke**, from Boss 2: row against currents, and send a wave that knocks Soured back.
+  - **Stroke**, from Boss 2 (the **Drowned Moon**: the harvest moon's reflection, set into the oar blade, which pulls
+    water as the moon pulls the tide). On the water, the heavy attack while rowing: a surge that carries the boat through
+    a current (without it, fast water pushes you back) and a wave rolling ahead (the Drowned knocked under, floating
+    debris pushed aside). On land, the heavy attack held and let go: a wave of force in an arc ahead, about 4 m, edged in
+    silver foam, costing stamina; it knocks Soured back and staggers them (little harm), throws a Clinger off (mid-leap
+    or off your back), can push them into water; in shallows it carries water (bigger, and it douses fire). It shoves
+    what floats or is loose and turns wheels (a wave down a mill-race turns its wheel, the wheel opens a sluice). In the
+    Stopped Clocktower it sets stopped things moving: a Stroke against a gear or a pendulum runs that part of the clock a
+    while.
   - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
     in Area 3, which hints where it is.
 - **Bow lantern:** never required. Carried at the Apprentice's hip on land and hung on the bow when rowing; its cold
@@ -232,7 +240,14 @@ left open, his floor.
 - **No skipping a phase:** brought down to a phase's mark, his health holds there and nothing harms him (fire neither)
   until he rises; then the next phase begins. The Hook glances off him.
 - **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
-- His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Stroke**.
+- His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Drowned Moon** (the **Stroke**). The light caged
+  in his ribs all his fight was never a lantern: it's the harvest moon's reflection, which he lifted out of the river and
+  kept (the reason the Orchard's moon never sets). Beaten, his cage cracks and it pours out of him, pooling on the floor
+  beside him: a circle of liquid moonlight, rippling, its cold light on the leaves; the sky's moon dims as it does. You
+  lift it out like a coin from a puddle (a disc of water as thin as glass, a pale crescent shifting in it): **THE
+  STROKE**. It sets into the oar blade as a restless silver sheen, seen on the Apprentice from then on; the Stroke's
+  waves are edged with moonlight, and on the water the river bends towards the blade in a silver wake. And the Orchard's
+  harvest moon begins at last to set: its night cooler and darker for good.
 
 **Boss arenas:** nothing that follows the Apprentice crosses into a Boss's (or miniboss's) arena. It stops at the
 edge and gives them up, and nothing outside notices them while they're in it.
