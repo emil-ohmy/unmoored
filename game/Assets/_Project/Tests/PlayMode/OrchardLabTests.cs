@@ -1851,7 +1851,11 @@ namespace MyGame.Tests
                 yield return new WaitForSeconds(2.5f);
                 input.HeavyHeld = true;
                 input.PressHeavy();
-                yield return new WaitForSeconds(0.9f);
+                yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+                yield return null;
+                yield return null;
+                Shot("stroke-0-charged");
+                yield return new WaitForSeconds(0.4f);
                 Shot("stroke-1-drawn");
                 input.HeavyHeld = false;
                 yield return WaitUp(() => apprentice.LastWave != null && apprentice.LastWave.Radius > 1.4f, 2f, "the wave out");

@@ -715,8 +715,8 @@ namespace MyGame.Tests
 
         // ---- the Stroke (hold the heavy attack, let go: a wave)
 
-        // Holds the heavy attack (with the Stroke: drawn back) for `seconds`, then lets go.
-        IEnumerator Stroke(float seconds = 0.6f)
+        // Holds the heavy attack (with the Stroke: drawn back, and charged) for `seconds`, then lets go.
+        IEnumerator Stroke(float seconds = 1.1f)
         {
             input.HeavyHeld = true;
             input.PressHeavy();
@@ -785,6 +785,63 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.6f);
             Assert.IsTrue(wave == null, "spent, and gone");
             Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+        }
+
+        // Drawn long enough, it's charged: a ring and a flash on the blade (its sheen flaring, then shimmering while held).
+        [UnityTest]
+        public IEnumerator TheStroke_Charged_TheBladeFlashes()
+        {
+            apprentice.GiveStroke();
+            yield return new WaitForSeconds(1f);
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            for (float t = 0f; t < 0.6f && !apprentice.DrawingStroke; t += Time.deltaTime)
+                yield return null;
+            yield return new WaitForSeconds(apprentice.strokeCharge * 0.6f);
+            Assert.IsFalse(apprentice.StrokeCharged, "not yet");
+            for (float t = 0f; t < 1f && !apprentice.StrokeCharged; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(apprentice.StrokeCharged, "charged");
+            yield return null;
+            Assert.Greater(apprentice.GetComponent<OarLook>().Sheen, 3.5f, "the blade flashing");
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(apprentice.DrawingStroke && apprentice.StrokeCharged, "held, charged");
+            input.HeavyHeld = false;
+            yield return new WaitForSeconds(0.4f);
+            Assert.IsNotNull(apprentice.LastWave);
+        }
+
+        // Let go before it's charged: just the heavy, coming down at once (no wave, no more stamina).
+        [UnityTest]
+        public IEnumerator TheStroke_LetGoTooSoon_IsJustTheHeavy()
+        {
+            apprentice.GiveStroke();
+            yield return new WaitForSeconds(1f);
+            float stamina = apprentice.Stamina;
+            yield return Stroke(apprentice.strokeHold + 0.2f);
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Attacking, apprentice.CurrentState, "the heavy");
+            Assert.AreEqual(apprentice.heavyStaminaCost, stamina - apprentice.Stamina, 1f, "a heavy's stamina");
+            yield return new WaitForSeconds(1f);
+            Assert.IsNull(apprentice.LastWave, "no wave");
+        }
+
+        // The blade itself, sweeping through a Soured in reach, strikes harder than a heavy (and the wave behind it too).
+        [UnityTest]
+        public IEnumerator TheStroke_TheBladeConnects_HarderThanAHeavy()
+        {
+            apprentice.GiveStroke();
+            var laden = SetDown("Laden", apprentice.transform.position + apprentice.transform.forward * 1.6f);
+            laden.passive = true;
+            yield return new WaitForSeconds(0.5f);
+            laden.transform.rotation = Quaternion.LookRotation(laden.transform.position - apprentice.transform.position); // (its back to you: no guard)
+            Face(laden.transform.position);
+            float health = laden.Health;
+            yield return Stroke();
+            yield return new WaitForSeconds(0.4f);
+            float dealt = health - laden.Health;
+            Assert.Greater(dealt, apprentice.heavyDamage * apprentice.DamageFactor + 1f, "more than a heavy");
+            Assert.AreEqual((apprentice.strokeBladeDamage + apprentice.strokeDamage) * apprentice.DamageFactor, dealt, 1f, "the blade, and the wave");
         }
 
         // A dash lets the draw go, unspent.
@@ -858,7 +915,7 @@ namespace MyGame.Tests
                 yield return null;
             Assert.AreEqual(1, apprentice.ClungBy, "it caught hold");
             yield return new WaitForSeconds(0.5f); // (the grab's own jolt passes)
-            yield return Stroke(0.4f);
+            yield return Stroke();
             for (float t = 0f; t < 0.5f && apprentice.ClungBy > 0; t += Time.deltaTime)
                 yield return null;
             Assert.AreEqual(0, apprentice.ClungBy, "thrown off");

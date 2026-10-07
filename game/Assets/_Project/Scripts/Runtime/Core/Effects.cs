@@ -143,6 +143,18 @@ namespace MyGame
                 sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(0.8f, 0.9f, 1f, 1f), startLifetime = Random.Range(0.4f, 0.8f) }, 1);
         }
 
+        // The Stroke fully drawn: a small cold ring bursting from the blade, a spray of sparks, motes.
+        public void StrokeCharged(Vector3 position)
+        {
+            flash.transform.position = position;
+            flash.Emit(new ParticleSystem.EmitParams { startSize = 1.5f, startLifetime = 0.35f, startColor = new Color(0.74f, 0.86f, 1f, 1f), applyShapeToPosition = false }, 1);
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 16; i++)
+                sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(0.85f, 0.93f, 1f, 1f), startLifetime = Random.Range(0.25f, 0.5f) }, 1);
+            for (int i = 0; i < 6; i++)
+                Wisp(position, new Color(0.74f, 0.86f, 1f, 1f));
+        }
+
         // A mote of the bow lantern's light drifting away as it goes out: pale, cold, rising slowly and fading.
         public void Wisp(Vector3 at) => Wisp(at, new Color(0.72f, 0.86f, 1f, 1f));
 
