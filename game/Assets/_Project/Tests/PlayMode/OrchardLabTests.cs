@@ -1815,6 +1815,60 @@ namespace MyGame.Tests
             finally { FatherMoth.Beat -= onBeat; }
         }
 
+        // (SHOTS=dir) The Stroke on each of the five oars: the Drowned Moon's sheen on the blade, close up in the world
+        // and turning on the Oar page.
+        [UnityTest]
+        public IEnumerator Capture_StrokeOars()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var m = Gardener();
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -3f), true, true);
+                apprentice.GiveStroke();
+                CameraRig.Instance.SetZoom(0.45f);
+                yield return new WaitForSeconds(3f);
+                var screen = UnityEngine.Object.FindAnyObjectByType<CharacterScreen>();
+                for (int step = 0; step <= Oar.Last; step++)
+                {
+                    apprentice.Equipment.Restore(step, 0, 0, 0);
+                    yield return new WaitForSeconds(0.5f);
+                    Shot($"stroke-oar-{step}");
+                    screen.Toggle(true);
+                    while (screen.Current != CharacterScreen.Tab.Oar)
+                        screen.Turn(1);
+                    for (int f = 0; f < 20; f++)
+                        yield return null;
+                    Shot($"stroke-oar-page-{step}");
+                    screen.Toggle(false);
+                    yield return null;
+                }
+            }
+            finally { cam.targetTexture = null; }
+        }
+
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.
         [UnityTest]
         public IEnumerator Capture_Moths()

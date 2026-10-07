@@ -46,7 +46,7 @@ namespace MyGame
             for (int i = 0; i < materials.Length; i++)
             {
                 slotSteps[i] = StepOf(materials[i]);
-                blades[i] = slotSteps[i] >= 0 && materials[i].name.Contains("Blade");
+                blades[i] = IsBlade(materials[i]);
             }
         }
 
@@ -79,9 +79,8 @@ namespace MyGame
             glowing = tarred || stroke;
             float t = Time.time;
             Color heat = tarred ? new Color(1f, 0.42f, 0.12f) * (0.55f + 0.3f * Mathf.PerlinNoise(t * 6f, 0.2f)) : Color.black;
-            Sheen = stroke ? 0.3f + 0.22f * Mathf.PerlinNoise(t * 1.4f, 3.7f) + 0.1f * Mathf.Sin(t * 3.3f)
-                             + 2.5f * Mathf.Exp(-(t - strokeSince) / 0.7f) : 0f;
-            Color sheen = new Color(0.62f, 0.76f, 1f) * Sheen;
+            Sheen = stroke ? SheenLevel(t) + 2.5f * Mathf.Exp(-(t - strokeSince) / 0.7f) : 0f;
+            Color sheen = SheenColour(ShownStep) * Sheen;
             for (int i = 0; i < slotSteps.Length; i++)
             {
                 if (slotSteps[i] < 0 || slotSteps[i] != ShownStep)
@@ -106,6 +105,43 @@ namespace MyGame
                     if (s == step)
                         n++;
             return n;
+        }
+
+        // The Drowned Moon's sheen on a blade (the Stroke): its level at time `t`, never settling (two slow waves through
+        // it, like light on moving water), and its colour on each step's blade: cold blue-white on wood, iron and ebony
+        // (stronger on the Boatman's darker blade); on the Ferryman's gold, a pale warm white (blue on gold turns muddy).
+        // The same on the Oar page's oar.
+        public static float SheenLevel(float t) => 0.4f + 0.2f * Mathf.PerlinNoise(t * 1.4f, 3.7f) + 0.08f * Mathf.Sin(t * 3.3f);
+        static readonly Color[] SheenColours =
+        {
+            new Color(0.62f, 0.76f, 1f), new Color(0.62f, 0.76f, 1f), new Color(0.62f, 0.76f, 1f) * 1.5f,
+            new Color(0.62f, 0.76f, 1f), new Color(1f, 0.93f, 0.76f) * 0.9f,
+        };
+        public static Color SheenColour(int step) => SheenColours[Mathf.Clamp(step, 0, SheenColours.Length - 1)];
+        public static bool IsBlade(Material material) => StepOf(material) >= 0 && material.name.Contains("Blade");
+
+        // Puts the sheen (at `level`; 0: none) on every blade slot of a model on its own (the Oar page's).
+        public static void SheenOn(GameObject model, float level, MaterialPropertyBlock block)
+        {
+            if (model == null)
+                return;
+            foreach (var r in model.GetComponentsInChildren<Renderer>())
+            {
+                var materials = r.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (!IsBlade(materials[i]))
+                        continue;
+                    int step = StepOf(materials[i]);
+                    if (level <= 0f)
+                        r.SetPropertyBlock(null, i);
+                    else
+                    {
+                        block.SetColor("_EmissionColor", SheenColour(step) * level);
+                        r.SetPropertyBlock(block, i);
+                    }
+                }
+            }
         }
 
         // Whether a slot shows now.
