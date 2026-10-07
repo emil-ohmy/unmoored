@@ -708,6 +708,86 @@ namespace MyGame.Tests
             finally { BossFight.Defeated -= onDefeat; }
         }
 
+        // Beaten, his cage cracks and the Drowned Moon pours out of him, pooling on the floor beside him (not in a channel);
+        // the sky's moon dims as it does. Full, it can be taken.
+        [UnityTest]
+        public IEnumerator TheGardener_Beaten_TheDrownedMoon_PoursOut_AndPoolsBesideHim()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            var moon = SettingMoon.Instance;
+            Assert.IsNotNull(moon, "the Orchard's moon is one that can set");
+            Assert.IsFalse(moon.Dimmed);
+            float glowBefore = m.chest.intensity;
+            m.Slay(apprentice.transform.position);
+            yield return WaitUp(() => m.Pouring, 3f, "his cage cracking");
+            yield return WaitUp(() => m.Moon != null, 2f, "the pool beginning");
+            Assert.IsTrue(moon.Dimmed, "the sky's moon dimming");
+            Assert.IsFalse(m.Moon.Available, "not to be taken while it's still filling");
+            yield return WaitUp(() => m.Moon.Full && !m.Pouring, 6f, "the pool full, the stream run dry");
+            Assert.IsTrue(m.Moon.Available);
+            Assert.IsFalse(m.chest.enabled, "no moon left in his ribs");
+            Vector3 pool = m.Moon.transform.position;
+            Assert.AreEqual(m.floorY, pool.y, 0.01f, "on the floor");
+            Assert.Less(Mathf.Abs(pool.x - m.middle.x), 7.5f, "not in a channel");
+            float apart = new Vector2(pool.x - m.transform.position.x, pool.z - m.transform.position.z).magnitude;
+            Assert.That(apart, Is.InRange(0.5f, 3.5f), "beside him");
+            Assert.Greater(glowBefore, 0f);
+        }
+
+        // Taken: lifted out like a coin (the key-item ceremony), THE STROKE, set into the oar blade as a restless silver
+        // sheen at the flash; on the Abilities page; and the Orchard's harvest moon begins at last to set.
+        [UnityTest]
+        public IEnumerator TheDrownedMoon_Taken_TheStroke_InTheBlade_AndTheMoonSets()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            var sun = SettingMoon.Instance.GetComponent<Light>();
+            float pitch = sun.transform.eulerAngles.x;
+            m.Slay(apprentice.transform.position);
+            yield return WaitUp(() => m.Moon != null && m.Moon.Full, 8f, "the pool full");
+            yield return WaitUp(() => !BossFall.Framing, 8f, "the moment of his fall over");
+            float intensity = sun.intensity;
+            string found = null, hint = null;
+            apprentice.Found += (t, h) => { found = t; hint = h; };
+            apprentice.Teleport(m.Moon.transform.position + new Vector3(0f, 0.05f, -1f));
+            yield return null;
+            Assert.IsTrue(m.Moon.Available);
+            m.Moon.Interact(apprentice);
+            Assert.AreEqual(Apprentice.State.Ceremony, apprentice.CurrentState, "lifted, held up");
+            Assert.IsFalse(apprentice.HasStroke, "not yet: it goes in at the flash");
+            Assert.IsFalse(m.Moon.Available);
+            yield return WaitUp(() => apprentice.HasStroke, 2f, "it set into the blade");
+            yield return null; // (the oar's look catches up)
+            Assert.Greater(apprentice.GetComponent<OarLook>().Sheen, 1.2f, "flaring as it sets in");
+            yield return WaitUp(() => found != null, 2f, "its banner");
+            Assert.AreEqual("The Stroke", found);
+            StringAssert.Contains("{heavy}", hint);
+            yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Free, 4f, "the ceremony over");
+            Assert.IsFalse(m.Moon.gameObject.activeSelf, "the pool gone with it");
+            Assert.That(apprentice.GetComponent<OarLook>().Sheen, Is.InRange(0.1f, 1f), "a restless sheen, settled");
+            Assert.IsTrue(Ability.Stroke.FoundBy(apprentice), "on the Abilities page");
+            Assert.Contains(Ability.Stroke, Ability.All);
+            Assert.Greater(SettingMoon.Instance.Setting, 0f, "the harvest moon setting");
+            yield return WaitUp(() => SettingMoon.Instance.Setting >= 1f, 20f, "the moon set");
+            Assert.Less(sun.intensity, intensity, "darker");
+            Assert.Less(sun.transform.eulerAngles.x, pitch, "lower in the sky");
+            Assert.Greater(sun.color.b - sun.color.r, 0.15f, "cooler");
+        }
+
+        // Fought again with the Stroke already had (the lab): nothing pours out of him.
+        [UnityTest]
+        public IEnumerator TheGardener_WithTheStrokeHad_NothingPours()
+        {
+            apprentice.GiveStroke();
+            var m = Gardener();
+            yield return WakeHim(m);
+            m.Slay(apprentice.transform.position);
+            yield return new WaitForSeconds(3f);
+            Assert.IsNull(m.Moon);
+            Assert.IsFalse(m.chest.enabled);
+        }
+
         // ---- The Watchman (Abner Wick, Who Merits Flame)
 
         Watchman Watchman() => UnityEngine.Object.FindAnyObjectByType<Watchman>();
@@ -1710,6 +1790,27 @@ namespace MyGame.Tests
                 yield return WaitUp(() => m.Spent, 6f, "him fallen");
                 yield return new WaitForSeconds(1f);
                 Shot("father-moth-17-down-for-good");
+                // Beaten: the Drowned Moon pours out of him and pools; taken, it sets into the oar; the moon sets.
+                apprentice.Teleport(m.transform.position + new Vector3(0f, 0.05f, -4f), true, true);
+                m.Slay(apprentice.transform.position);
+                yield return WaitUp(() => m.Pouring && m.Moon != null, 4f, "it pouring");
+                yield return new WaitForSeconds(0.2f);
+                Shot("father-moth-18-the-moon-pouring");
+                yield return WaitUp(() => m.Moon.Full && !BossFall.Framing, 10f, "the pool full");
+                yield return new WaitForSeconds(0.5f);
+                apprentice.Teleport(m.Moon.transform.position + new Vector3(0.4f, 0.05f, -1.6f), true, true);
+                yield return new WaitForSeconds(0.6f);
+                Shot("father-moth-19-the-drowned-moon");
+                m.Moon.Interact(apprentice);
+                yield return new WaitForSeconds(apprentice.ceremonyDuration * 0.22f);
+                Shot("father-moth-20-lifted-out");
+                yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Free, 4f, "the ceremony over");
+                yield return new WaitForSeconds(0.3f);
+                Shot("father-moth-21-the-stroke-in-the-blade");
+                yield return WaitUp(() => SettingMoon.Instance.Setting >= 1f, 20f, "the moon set");
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f), true, true);
+                yield return new WaitForSeconds(0.5f);
+                Shot("father-moth-22-the-moon-set");
             }
             finally { FatherMoth.Beat -= onBeat; }
         }

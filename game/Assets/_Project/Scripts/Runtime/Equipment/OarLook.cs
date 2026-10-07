@@ -5,14 +5,20 @@ namespace MyGame
     // The oar's look follows its step (Oar.cs): the model carries all five oars (tools/blender/oars.py), each step's
     // materials named for it ("Oar2Iron_Metal"), and this shows only the step the oar is at (the others dissolved away
     // completely). Anything else baked from the body (dash ghosts, the Shade) drops the other steps too: HideOthers.
+    // Over it: Ember Tar's smoulder, and with the Stroke, the Drowned Moon's restless silver sheen on the blade.
     [RequireComponent(typeof(Apprentice))]
     public sealed class OarLook : MonoBehaviour
     {
         Apprentice apprentice;
         SkinnedMeshRenderer body;
         MaterialPropertyBlock hidden, burning;
-        bool glowing;
-        int[] slotSteps; // each material slot's step (-1: not the oar's)
+        bool glowing, hadStroke;
+        float strokeSince = -10f;
+        int[] slotSteps;  // each material slot's step (-1: not the oar's)
+        bool[] blades;    // ...and whether it's the blade's
+
+        // The sheen's brightness now (0 without the Stroke): tests, and its flare as it sets in.
+        public float Sheen { get; private set; }
 
         public int ShownStep { get; private set; } = -1;
 
@@ -36,8 +42,12 @@ namespace MyGame
                 return;
             var materials = body.sharedMaterials;
             slotSteps = new int[materials.Length];
+            blades = new bool[materials.Length];
             for (int i = 0; i < materials.Length; i++)
+            {
                 slotSteps[i] = StepOf(materials[i]);
+                blades[i] = slotSteps[i] >= 0 && materials[i].name.Contains("Blade");
+            }
         }
 
         void Start()
@@ -53,20 +63,38 @@ namespace MyGame
                 apprentice.Equipment.Changed -= Show;
         }
 
-        // Ember Tar: the oar it's on smoulders, a warm flicker in the wood and the metal.
+        // Ember Tar: the oar it's on smoulders, a warm flicker in the wood and the metal. The Stroke: the blade carries
+        // the Drowned Moon, a cold silver sheen that never settles (two slow waves through it, like light on moving
+        // water), flaring as it first sets in.
         void Update()
         {
             if (body == null || slotSteps == null)
                 return;
-            bool tarred = apprentice.Tarred;
-            if (!tarred && !glowing)
+            bool tarred = apprentice.Tarred, stroke = apprentice.HasStroke;
+            if (stroke && !hadStroke)
+                strokeSince = Time.timeSinceLevelLoad < 1f ? -10f : Time.time; // (not a save loading: no flare)
+            hadStroke = stroke;
+            if (!tarred && !stroke && !glowing)
                 return;
-            glowing = tarred;
-            float heat = tarred ? 0.55f + 0.3f * Mathf.PerlinNoise(Time.time * 6f, 0.2f) : 0f;
-            burning.SetColor("_EmissionColor", new Color(1f, 0.42f, 0.12f) * heat);
+            glowing = tarred || stroke;
+            float t = Time.time;
+            Color heat = tarred ? new Color(1f, 0.42f, 0.12f) * (0.55f + 0.3f * Mathf.PerlinNoise(t * 6f, 0.2f)) : Color.black;
+            Sheen = stroke ? 0.3f + 0.22f * Mathf.PerlinNoise(t * 1.4f, 3.7f) + 0.1f * Mathf.Sin(t * 3.3f)
+                             + 2.5f * Mathf.Exp(-(t - strokeSince) / 0.7f) : 0f;
+            Color sheen = new Color(0.62f, 0.76f, 1f) * Sheen;
             for (int i = 0; i < slotSteps.Length; i++)
-                if (slotSteps[i] >= 0 && slotSteps[i] == ShownStep)
-                    body.SetPropertyBlock(tarred ? burning : null, i);
+            {
+                if (slotSteps[i] < 0 || slotSteps[i] != ShownStep)
+                    continue;
+                Color glow = heat + (blades[i] ? sheen : Color.black);
+                if (glow.maxColorComponent <= 0f)
+                    body.SetPropertyBlock(null, i);
+                else
+                {
+                    burning.SetColor("_EmissionColor", glow);
+                    body.SetPropertyBlock(burning, i);
+                }
+            }
         }
 
         // How many of the body's material slots are this step's (tests: every step is in the model).

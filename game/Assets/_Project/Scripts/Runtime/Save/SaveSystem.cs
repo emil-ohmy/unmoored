@@ -111,6 +111,7 @@ namespace MyGame
             d.charmsFitted = apprentice.Equipment.Fitted.Select(c => c.Id).ToArray();
             d.healingCharges = apprentice.maxHealingCharges;
             d.hasHook = apprentice.HasHook;
+            d.hasStroke = apprentice.HasStroke;
             d.oarStep = apprentice.Equipment.OarStep;
             d.ferryNails = apprentice.Equipment.FerryNails;
             d.warmStones = apprentice.Equipment.WarmStones;
@@ -174,7 +175,7 @@ namespace MyGame
             foreach (var id in d.charmsFitted)
                 if (Charm.ById(id) is Charm charm && !apprentice.Equipment.IsFitted(charm))
                     apprentice.Equipment.Toggle(charm);
-            apprentice.Restore(d.obols, d.healingCharges, d.hasHook);
+            apprentice.Restore(d.obols, d.healingCharges, d.hasHook, d.hasStroke);
             if (d.shade)
             {
                 var ghosts = apprentice.GetComponent<DashGhosts>();

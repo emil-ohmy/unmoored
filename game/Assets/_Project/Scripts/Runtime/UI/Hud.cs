@@ -235,7 +235,7 @@ namespace MyGame
             LanternBanner.Dismiss();
             FoundBanner.Show(title);
             if (!string.IsNullOrEmpty(hint))
-                foundHint.Show(hint.Replace("{hook}", usingGamepad ? "RB" : "F"));
+                foundHint.Show(hint.Replace("{hook}", usingGamepad ? "RB" : "F").Replace("{heavy}", usingGamepad ? "Y" : "K"));
         }
 
         // A kind of Soured met (scattered) for the first time: a quiet line (a Boss's is its farewell).

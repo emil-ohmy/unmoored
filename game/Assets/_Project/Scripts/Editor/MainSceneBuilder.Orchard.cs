@@ -29,6 +29,8 @@ public static partial class MainSceneBuilder
     static void BuildOrchardLab()
     {
         var scene = BeginScene(new Vector3(0f, 0f, 4f), OrchardNight);
+        // The harvest moon that can't set while Father Moth keeps its reflection (it sets once the Stroke is taken).
+        GameObject.Find("Moon").AddComponent<SettingMoon>();
         Terraces();
         OrchardRows();
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
@@ -649,7 +651,7 @@ public static partial class MainSceneBuilder
         m.fruitMaterial = fruit;
         m.podSound = Clips("seed_pod_burst");
         m.fruitSound = Clips("fruit_fall");
-        m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, LanternLight);
+        m.chest = PointLight(Bone(go, "Torso"), GlowCentre(go, "FatherMothLantern_Glow"), 6f, m.chestIntensity, DrownedMoon.Moonlight); // (the Drowned Moon: cold)
         m.hollow = Bone(go, "Hollow");
         m.hollowLight = PointLight(m.hollow, GlowCentre(go, "FatherMothHollow_Glow"), 5f, m.hollowIntensity, new Color(1f, 0.55f, 0.2f));
         m.wingSound = Clips("father_moth_wing");
@@ -658,6 +660,7 @@ public static partial class MainSceneBuilder
         m.downedSound = Clips("father_moth_downed");
         m.glanceSound = Clips("block_clang");
         m.deathSound = Clips("father_moth_death");
+        m.pourSound = Clips("drowned_moon_pour");
         return m;
     }
 

@@ -2,7 +2,8 @@
 (veined, blotched, ragged at the edges: six metres across), and rising from its thorax where its head should be, the
 stooped old gardener in his apron and flat cap, a moth's feathered antennae growing from his brow. His forearms have
 grown into its forelegs, long and jointed, each ending in a pair of pruning shears; four thin moth legs beneath. In his
-ribs, caged, a small lantern: the last light he tended (it glows; it flares with his tell). In his belly,
+ribs, caged, what looks like a small lantern and isn't: the Drowned Moon, the harvest moon's reflection he lifted out of the
+river, a cold blue-white light (it glows, rippling in the game; it flares with his tell). In his belly,
 below the apron, the autumn hollow: a ragged glowing opening ringed with dead leaves, that his leaves pour out of. The same sickly green eyes
 as every Soured. Origin at the ground, where he stands when he lands (in flight the game holds him up).
 
@@ -209,7 +210,7 @@ def build():
     shirt, apron, cap = kit.mat("GardenerShirt", "#7c7466"), kit.mat("GardenerApron", "#5a5040"), kit.mat("GardenerCap", "#3e3830")
     eye = kit.mat("SouredEye_Glow", "#b6f06a")
     rib, cage = kit.mat("GardenerRib", "#cfc3a6"), kit.mat("CageIron_Metal", "#2f2d33")
-    light = kit.mat("FatherMothLantern_Glow", "#ffb860")
+    light = kit.mat("FatherMothLantern_Glow", "#cfe3ff")  # (the Drowned Moon: cold)
     shear = kit.mat("ShearIron_Metal", "#6a6870")
 
     parts = [
@@ -263,17 +264,17 @@ def build():
             for side in (-1, 1):
                 parts.append(part("Barb", kit.cone(3, 0.008, 0.0, 0.12 * (1 - t * 0.5)), chitin,
                                   kit.along(tuple(p), (p[0] + side * 0.06, p[1] - 0.05, p[2] + 0.06)), group="Head"))
-    # The caged lantern in his ribs: ribs curving round it, a little cage, its light.
-    lantern_at = (0, -0.86, 2.5)
-    parts.append(part("Lantern", kit.sphere(8, 6, 0.085), light, M(lantern_at), smooth=True, group="Torso"))
+    # The caged "lantern" in his ribs (the Drowned Moon): ribs curving round it, a little cage, its light.
+    lantern_at = (0, -1.1, 2.5)  # (out in front of his shirt: his chest is open, the ribs round it)
+    parts.append(part("Lantern", kit.sphere(10, 8, 0.13), light, M(lantern_at), smooth=True, group="Torso"))
     for k in range(6):
         a = math.tau * k / 6
-        parts.append(part("CageBar", kit.cylinder(4, 0.009, 0.26), cage, M((lantern_at[0] + math.cos(a) * 0.12, lantern_at[1] + math.sin(a) * 0.12, lantern_at[2])), group="Torso"))
-    for z in (-0.13, 0.13):
-        parts.append(part("CageRing", kit.cylinder(10, 0.13, 0.02), cage, M((lantern_at[0], lantern_at[1], lantern_at[2] + z)), group="Torso"))
+        parts.append(part("CageBar", kit.cylinder(4, 0.01, 0.32), cage, M((lantern_at[0] + math.cos(a) * 0.17, lantern_at[1] + math.sin(a) * 0.17, lantern_at[2])), group="Torso"))
+    for z in (-0.16, 0.16):
+        parts.append(part("CageRing", kit.cylinder(10, 0.18, 0.02), cage, M((lantern_at[0], lantern_at[1], lantern_at[2] + z)), group="Torso"))
     for k, z in enumerate((2.36, 2.5, 2.64)):
         for s in (-1, 1):
-            arc = [(s * 0.05, -0.98, z), (s * 0.2, -0.95, z + 0.01), (s * 0.3, -0.82, z - 0.02), (s * 0.29, -0.66, z - 0.04)]
+            arc = [(s * 0.06, -1.3, z), (s * 0.22, -1.24, z + 0.01), (s * 0.31, -1.06, z - 0.02), (s * 0.29, -0.86, z - 0.04)]
             parts.append(part("Rib", kit.tube(arc, [0.02, 0.022, 0.02, 0.015], seg=4), rib, group="Torso"))
     # The arms: shirtsleeves rolled to the elbow; from there the forelegs, long and jointed, each ending in shears.
     for s, arm, snip in ((-1, "ArmL", "SnipL"), (1, "ArmR", "SnipR")):

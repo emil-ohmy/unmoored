@@ -95,13 +95,21 @@ namespace MyGame
         public float tiredSag = 0.9f;         // how far he's sunk by his last beat
 
         [Header("Look and sound")]
-        public Light chest;                   // the lantern in his ribs
+        public Light chest;                   // the "lantern" in his ribs: the Drowned Moon (it ripples, cold)
         public Transform hollow;              // the autumn hollow on his back: his leaves come out of it (it throbs)
         public Light hollowLight;
         public float hollowIntensity = 2f;
         public float chestIntensity = 1.4f;
         public float cameraLean = 0.5f, cameraZoom = 1.55f, sleepingLean = 0.45f, sleepingZoom = 1.15f; // his fight: the camera leans to him, and takes in more of the floor
         public AudioClip[] wingSound, wakeSound, beatSound, downedSound, glanceSound, deathSound;
+
+        [Header("The Drowned Moon (his reward: the Stroke)")]
+        public AudioClip[] pourSound;         // his cage cracking, the moon running out of him
+        public float pourAt = 0.3f;           // into his fall, it cracks
+        public float pourTime = 1.5f;         // the stream running
+        public float pourSide = 2f;           // how far beside him it pools
+        public DrownedMoon Moon { get; private set; } // poured out, waiting to be taken (or taken)
+        public bool Pouring => pourStart >= 0f && !poured;
 
         public enum Pattern { Fan, Volley, Ring, WideFan, WideRing, Spiral, SpiralBack, Pods, Fruit }
         enum Mode { Hovering, Sinking, Spent, Rising, Afoot, Gathering }
@@ -217,8 +225,23 @@ namespace MyGame
         protected override void Start()
         {
             base.Start();
+            body = GetComponentInChildren<SkinnedMeshRenderer>();
+            if (body != null)
+            {
+                lanternSlot = System.Array.FindIndex(body.sharedMaterials, m => m != null && m.name.StartsWith("FatherMothLantern"));
+                if (lanternSlot >= 0)
+                    lanternEmission = body.sharedMaterials[lanternSlot].GetColor("_EmissionColor");
+            }
+            lanternGlow = new MaterialPropertyBlock();
             Reform();
         }
+
+        SkinnedMeshRenderer body;
+        int lanternSlot = -1;
+        Color lanternEmission;
+        MaterialPropertyBlock lanternGlow;
+        float pourStart = -1f;
+        bool poured;
 
         // Inside his glasshouse (its walls, not just where he flies).
         bool InHouse(Vector3 p) => Mathf.Abs(p.x - middle.x) < walls.x + 0.5f && Mathf.Abs(p.z - middle.z) < walls.y + 0.5f && p.y > floorY - 1f && p.y < floorY + 8f;
@@ -303,6 +326,57 @@ namespace MyGame
             if (state == State.Dying)
                 Died();
         }
+
+        // Where the Drowned Moon pools: beside him, towards the middle of the floor (never in a channel).
+        Vector3 PourSpot()
+        {
+            Vector3 p = transform.position, side = middle - p;
+            side.y = 0f;
+            if (side.sqrMagnitude < 0.01f)
+                side = transform.right;
+            p += side.normalized * pourSide;
+            p.x = Mathf.Clamp(p.x, middle.x - (walls.x - 5f), middle.x + (walls.x - 5f));
+            p.z = Mathf.Clamp(p.z, middle.z - (walls.y - 1.5f), middle.z + (walls.y - 1.5f));
+            p.y = floorY;
+            return p;
+        }
+
+        // The cage cracks and the Drowned Moon pours out of him: a silver stream from his ribs to the floor beside him,
+        // pooling there; the sky's moon dims as it goes. (Not if the Apprentice already has it: the lab, again.)
+        void Pour()
+        {
+            if (poured || target == null || target.HasStroke)
+                return;
+            float u = StateTime - pourAt;
+            if (u < 0f)
+                return;
+            if (pourStart < 0f)
+            {
+                pourStart = Time.time;
+                Sfx.Instance?.Attack(pourSound, ChestPoint, 1f, "drowned_moon_pour");
+                Effects.Instance?.BlockSpark(ChestPoint, -transform.forward); // (the cage cracking)
+                SettingMoon.Instance?.Dim();
+                pourTo = PourSpot();
+            }
+            if (Moon == null && u > 0.25f)
+                Moon = DrownedMoon.Pour(pourTo);
+            if (u >= pourTime)
+            {
+                poured = true;
+                return;
+            }
+            // The stream: motes of moonlight falling from his ribs in an arc to the pool.
+            if (Effects.Instance != null)
+                for (int i = 0; i < 3; i++)
+                {
+                    Vector3 from = ChestPoint + Random.insideUnitSphere * 0.08f;
+                    const float flight = 0.4f;
+                    Vector3 v = (pourTo + Random.insideUnitSphere * 0.25f - from) / flight;
+                    Effects.Instance.Streak(from, v, new Color(0.8f, 0.9f, 1f, 1f), flight, Random.Range(0.06f, 0.12f));
+                }
+        }
+
+        Vector3 pourTo;
 
         Vector3 ChestPoint => chest != null ? chest.transform.position : transform.position + Vector3.up * 2.5f;
 
@@ -678,6 +752,7 @@ namespace MyGame
             if (!IsAlive)
             {
                 Fall(dt);
+                Pour();
                 Chest();
                 return;
             }
@@ -927,6 +1002,11 @@ namespace MyGame
         // The night's light, at `k` of itself (the moon, the ambient); never his lamps (they go one by one), nor your lantern.
         void Dim(float k)
         {
+            if (SettingMoon.Instance != null)
+            {
+                SettingMoon.Instance.Darkness = k; // (the Orchard's moon is its own)
+                return;
+            }
             if (moon != null)
                 moon.intensity = moonIntensity * k;
             RenderSettings.ambientSkyColor = sky * k;
@@ -1046,17 +1126,30 @@ namespace MyGame
             PlaceAt(p);
         }
 
-        // The lantern in his ribs: flaring as he raises his wings to beat, dim when he's spent.
+        // The "lantern" in his ribs, the Drowned Moon: cold, rippling like light on moving water; flaring as he raises
+        // his wings to beat, dim when he's spent. Beaten, it flares as the cage cracks and drains away as it pours.
         void Chest()
         {
             if (chest == null)
                 return;
-            float k = Untouchable && mode == Mode.Spent ? 2.2f + 0.6f * Mathf.Sin(Time.time * 14f) // (stirring: the light coming back)
+            float t = Time.time;
+            float ripple = 0.8f + 0.13f * Mathf.Sin(t * 2.3f) + 0.07f * Mathf.Sin(t * 5.3f + 1.1f);
+            float k = !IsAlive ? (poured || (Moon == null && pourStart < 0f && StateTime > pourAt) ? 0f // (no moon left in him)
+                                 : pourStart < 0f ? 1.2f + 0.8f * Mathf.Clamp01(StateTime / pourAt)
+                                 : 2f * (1f - Mathf.Clamp01((t - pourStart) / pourTime)))
+                    : Untouchable && mode == Mode.Spent ? 2.2f + 0.6f * Mathf.Sin(Time.time * 14f) // (stirring: the light coming back)
                     : CurrentState == State.Telegraph && CurrentAttack == beat ? 1f + 2.5f * Mathf.Clamp01(StateTime / Mathf.Max(0.01f, beat.telegraph))
                     : mode == Mode.Spent || mode == Mode.Sinking ? 0.35f + 0.15f * Mathf.Sin(Time.time * 3f)
                     : (0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 5f, 0.4f)) * (1f - 0.5f * Tiredness); // (dimming as he tires)
-            chest.enabled = IsAlive || StateTime < deathDuration * 0.5f;
-            chest.intensity = chestIntensity * k * (IsAlive ? 1f : 1f - Mathf.Clamp01(StateTime / (deathDuration * 0.5f)));
+            chest.enabled = k > 0.001f;
+            chest.intensity = chestIntensity * k * ripple;
+            if (body != null && lanternSlot >= 0)
+            {
+                // (its own block: the renderer's, for the hit flash and the dissolve, doesn't reach a slot with one)
+                lanternGlow.SetColor("_EmissionColor", lanternEmission * Mathf.Clamp(k * ripple, 0.15f, 2.5f));
+                lanternGlow.SetFloat("_Dissolve", Dissolved);
+                body.SetPropertyBlock(lanternGlow, lanternSlot);
+            }
         }
 
         // ---- the fight, and its end
@@ -1126,6 +1219,11 @@ namespace MyGame
             strikes = snipsLeft = 0;
             Gathers = Gathering.None;
             Final = quaking = false;
+            if (Moon != null && !Moon.Taken)
+                Destroy(Moon.gameObject); // (the lab: fought again before it was taken)
+            Moon = null;
+            pourStart = -1f;
+            poured = false;
             blastGlow = 0f;
             if (blastLight != null)
                 blastLight.enabled = false;

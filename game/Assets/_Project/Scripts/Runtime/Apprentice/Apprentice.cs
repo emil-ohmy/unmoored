@@ -160,6 +160,7 @@ namespace MyGame
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
+        public bool HasStroke { get; private set; } // the Drowned Moon, set into the oar blade (Father Moth's)
         public HookPost HookTarget { get; private set; } // with the Hook: the post it would pull to (ringed; brighter while aiming)
         public Soured HookFoe { get; private set; }      // ...or the Soured it would catch (a Soured in reach wins over a post)
         // Where the Hook's marker goes (the HUD): the post's ring, or the Soured's chest; null with nothing to aim at.
@@ -1295,6 +1296,12 @@ namespace MyGame
 
         public void GiveHook() => HasHook = true; // (no fanfare: see ReceiveKeyItem)
 
+        // ------------------------------------------------------------ the Stroke
+
+        public const string StrokeHint = "Hold {heavy} and let go: the oar pulls like the tide, and what it meets is moved";
+
+        public void GiveStroke() => HasStroke = true; // (no fanfare: see ReceiveKeyItem)
+
         // ------------------------------------------------------------ taking things
 
         System.Action pendingTake;
@@ -1318,7 +1325,12 @@ namespace MyGame
 
         // A key item (an Ability): held up high for a moment, the world dimming and the camera easing in, a cold burst
         // of light and its motif; then its banner. Untouchable meanwhile.
-        public void ReceiveKeyItem(string title, string hint, System.Action grant) => Ceremony(title, hint, grant, false);
+        // grantAtFlash: it's given at the flash at the top (the Drowned Moon going into the blade), not as it's lifted.
+        public void ReceiveKeyItem(string title, string hint, System.Action grant, bool grantAtFlash = false) =>
+            Ceremony(title, hint, grant, false, grantAtFlash);
+
+        // Where an item held up in the ceremony is: the hand.
+        public Vector3 HeldPoint => hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
 
         // At a Mooring post, with the Ferry Nails for it: the oar's next step, as a key item is received. It's hoisted
         // high, and in the flash at the top it becomes the next oar; then its name.
@@ -1332,11 +1344,11 @@ namespace MyGame
             return true;
         }
 
-        void Ceremony(string title, string hint, System.Action grant, bool oar)
+        void Ceremony(string title, string hint, System.Action grant, bool oar, bool grantAtFlash = false)
         {
             ceremonyOar = oar;
             ceremonyGrant = null;
-            if (oar)
+            if (oar || grantAtFlash)
                 ceremonyGrant = grant;
             else
                 grant();
@@ -1366,7 +1378,7 @@ namespace MyGame
         {
             float t = stateTime / ceremonyDuration;
             Vector3 held = ceremonyOar ? transform.position + Vector3.up * 2.6f // (the blade, held high)
-                : hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
+                : HeldPoint;
             ceremonyLight.transform.position = held + Vector3.up * 0.2f;
             // The light swells as it's lifted, flares at the top, and eases away as it's lowered.
             ceremonyLight.intensity = t < 0.3f ? 6f * (t / 0.3f) * (t / 0.3f) : 6f * Mathf.Clamp01((0.95f - t) / 0.65f);
@@ -1393,9 +1405,10 @@ namespace MyGame
         // Something found for good, announced (the HUD's banner): a title and a hint.
         public void AnnounceFind(string title, string hint) => Found?.Invoke(title, hint);
 
-        // Loading a save: the Obols carried, the most Healing charges they can carry, the Hook; health and charges full.
-        public void Restore(int obols, int healingChargeMax, bool hook)
+        // Loading a save: the Obols carried, the most Healing charges they can carry, the Abilities; health and charges full.
+        public void Restore(int obols, int healingChargeMax, bool hook, bool stroke = false)
         {
+            HasStroke = stroke;
             ApplyUpgrades(); // (the Warm Stones and Held Breaths its Equipment was given back)
             Obols = Mathf.Max(0, obols);
             maxHealingCharges = Mathf.Max(1, healingChargeMax);

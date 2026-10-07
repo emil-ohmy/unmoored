@@ -121,6 +121,7 @@ namespace MyGame
         AudioSource tell;  // the wind-up sound playing now, cut if the attack is interrupted
         AudioClip tellClip;
         float dissolve;
+        protected float Dissolved => dissolve; // (0..1: how far a beaten Soured has gone)
         int faresReleased;
         float busyFor, staggerFor;
         Vector3 yankFrom, yankTo;
