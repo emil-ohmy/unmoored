@@ -839,6 +839,30 @@ namespace MyGame.Tests
             Assert.Greater(wheel.Turned, 360f, "it went round");
         }
 
+        // As a player does it: walk in through the gap in the race's wall, turn down the race, hold, let go.
+        [UnityTest]
+        public IEnumerator TheMill_WalkedIn_AndLetGoDownTheRace_TheWheelTurns()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            Vector3 gap = race.head.position + new Vector3(0.85f, 0f, 0f); // (the gap's middle, in the race)
+            yield return StandAt(new Vector3(gap.x, 0.55f, gap.z + 2.2f), Vector3.back);
+            input.Move = new Vector2(0f, -1f); // (south, through the gap)
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsTrue(Shallows.In(apprentice.transform.position + Vector3.up * 0.1f), "in the race (through the gap)");
+            input.Move = new Vector2(1f, 0f); // (east, down the race)
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return WaitUp(() => apprentice.StrokeCharged, 2.5f, "charged");
+            input.Move = Vector2.zero;
+            input.HeavyHeld = false;
+            yield return WaitUp(() => apprentice.LastWave != null, 1f, "the wave");
+            Assert.IsTrue(apprentice.LastWave.Wet, "let go in the water");
+            Assert.AreEqual(1, race.Surges, "down the race");
+            yield return WaitUp(() => wheel.Turns == 1, 3f, "the wheel turning");
+        }
+
         // Up the race, or from the yard at the wheel: no surge, the wheel stays still.
         [UnityTest]
         public IEnumerator TheMill_UpTheRace_OrFromTheYard_TheWheelStaysStill()
