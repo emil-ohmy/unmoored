@@ -7,8 +7,20 @@ namespace MyGame
     // gets through); a perfect block turns it back, pale, straight at him (through anything between: it's his):
     // and he's straw (Watchman.Scorch). A small one (`glances`) a perfect block only knocks aside, glancing off to
     // one side to gutter out harmlessly. `parryable` false: no guard stops it. It gutters out where it strikes the world.
-    public sealed class Fireball : MonoBehaviour
+    public sealed class Fireball : MonoBehaviour, IWaveable
     {
+        // The Stroke's wave carrying water puts it out where it meets it.
+        public Vector3 WavePoint => transform.position;
+        public float WaveRadius => radius;
+        public void TakeWave(StrokeWave wave, Vector3 push)
+        {
+            if (!wave.Wet)
+                return;
+            wave.Steam(transform.position);
+            Finish(Defence.Dodged);
+            Destroy(gameObject);
+        }
+
         public static int Live { get; private set; }
         public static event System.Action<Fireball, Defence> Resolved; // what the Apprentice did about it (tests)
 
@@ -69,8 +81,8 @@ namespace MyGame
             body.SetPropertyBlock(block);
         }
 
-        void OnEnable() => Live++;
-        void OnDisable() => Live--;
+        void OnEnable() { Live++; Waveables.Register(this); }
+        void OnDisable() { Live--; Waveables.Unregister(this); }
 
         void Update()
         {

@@ -120,5 +120,11 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | The Stroke drawn back (`stroke_draw`) | in game | Synth | water pulled away like a tide, a low swell rising and held, a cold glass tone climbing a fifth under it; cut off when let go |
 | The Stroke's wave (`stroke_wave`, 3) | in game | Synth | a deep thump of water, a rush rolling away and breaking into spray, a cold glass chime (A, C or E) |
 | The Stroke fully drawn (`stroke_charged`) | in game | Synth | one clear cold glass ring (A over E) and a single drop into still water: let go now |
+| A surge down the mill-race (`mill_race_surge`) | in game | Synth | water shoved along a stone channel: a hollow rushing slap, gurgling against the walls |
+| The water wheel turning (`mill_wheel_turn`) | in game | Synth | water crashing over the paddles, then the old wheel groaning round, creaks slowing, water pouring off |
+| The sluice gate winding up (`sluice_gate_rise`) | in game | Synth | an iron chain ratcheting over a pulley, the board scraping up its stone grooves |
+| The sluice gate held (`sluice_gate_clunk`) | in game | Synth | a heavy iron pawl dropping into its tooth, a deep wooden knock |
+| Fire put out (`steam_hiss`, 2) | in game | Synth | a sharp hiss of steam thinning away, a crackle dying in it |
+| A crate shoved (`crate_scrape`, 2) | in game | Synth | a rough wooden scrape across stone, a knock as it stops |
 | Music: Father Moth (`Music/music_father_moth_1`..`_4`) | in game | Synth | Last Autumn grown huge: a 72 s loop, A minor, 3/4 at 80 bpm, the Orchard's chords and tune, four variants sharing one loop (crossfading in step), one a phase. 1: the waltz as a full dance (reed organ, harp with leaf-fall runs, the music box strong, a deep drum on each first beat: his wingbeats). 2: busier (strings trembling, a reed voice chasing the tune a beat behind and a third below, leaves shaken on the off-beats). 3: afoot, the waltz broken (a stamping drum every beat, shears snipping between, a bass sawing quavers, a fiddle hacking out the tune). 4: the dark, at half the level (a drone, a heartbeat, the music box slowed and flat, wind) |
 | Music: Father Moth's end (`Music/music_father_moth_end`) | in game | Synth | beaten: the music box plays Last Autumn's last phrase, winding down, and this once comes home to A, a soft reed A minor swelling under it |

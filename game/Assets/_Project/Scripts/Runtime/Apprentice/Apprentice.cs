@@ -126,14 +126,15 @@ namespace MyGame
 
         [Header("The Stroke (an Ability: hold the heavy attack, let go: a wave)")]
         public float strokeHold = 0.3f;       // the heavy held this far into its windup: drawn back as the Stroke instead
-        public float strokeCharge = 0.6f;     // drawn this long, it's charged (a ring, a flash on the blade); let go sooner: just the heavy
+        public float strokeCharge = 1f;       // drawn this long, it's charged (a ring, a flash on the blade); let go sooner: just the heavy
         public float strokeLaunch = 0.17f;    // from letting go to the wave leaving the blade (the clip's sweep)
         public float strokeRecovery = 0.45f;
         public float strokeStaminaCost = 40f; // in all (the heavy's share is spent as it starts)
         public float strokeReach = 4.2f, strokeArc = 110f, strokeSpeed = 12f;
         public float strokeDamage = 6f, strokePush = 26f, strokeStagger = 0.9f; // the wave's
         public float strokeBladeDamage = 55f, strokeBladeArc = 75f; // the blade's own, as it sweeps through (more than a heavy)
-        public AudioClip[] strokeDrawSound, strokeChargedSound, strokeSound;
+        public float strokeWetReach = 1.45f, strokeWetArc = 130f, strokeWetPush = 1.25f; // from shallows: it carries water
+        public AudioClip[] strokeDrawSound, strokeChargedSound, strokeSound, douseSound;
 
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
@@ -640,7 +641,8 @@ namespace MyGame
         AudioSource strokeVoice;
 
         public bool DrawingStroke => CurrentState == State.Stroke && !strokeLoosed;
-        public bool StrokeCharged { get; private set; }  // drawn long enough: let go for the wave
+        public bool StrokeCharged => DrawingStroke && strokeCharged; // drawn long enough: let go for the wave
+        bool strokeCharged;
         public float StrokeChargedAt { get; private set; } = -10f;
         public StrokeWave LastWave { get; private set; } // (tests)
 
@@ -655,7 +657,7 @@ namespace MyGame
         void DrawStroke()
         {
             Enter(State.Stroke);
-            strokeLoosed = waveSent = StrokeCharged = false;
+            strokeLoosed = waveSent = strokeCharged = false;
             clips.Loop("StrokeDraw", 0.12f);
             if (strokeVoice == null)
             {
@@ -687,10 +689,10 @@ namespace MyGame
                     TryConsumeBuffer();
                     return;
                 }
-                if (!StrokeCharged && stateTime >= strokeCharge)
+                if (!strokeCharged && stateTime >= strokeCharge)
                 {
                     // Charged: the Drowned Moon in the blade answers (a ring, a flash): let go now.
-                    StrokeCharged = true;
+                    strokeCharged = true;
                     StrokeChargedAt = Time.time;
                     Effects.Instance?.StrokeCharged(BladePoint);
                     Sfx.Instance?.Attack(strokeChargedSound, BladePoint, 0.9f, "stroke_charged");
@@ -741,8 +743,17 @@ namespace MyGame
             waveSent = true;
             SweepBlade();
             ThrowOffClingers(transform.forward); // (shrugged off the back as the oar sweeps round)
-            LastWave = StrokeWave.Send(transform.position + transform.forward * 0.5f, transform.forward, strokeReach, strokeArc,
-                                       strokeSpeed, strokeDamage * DamageFactor, strokePush, strokeStagger);
+            bool wet = Shallows.In(transform.position + Vector3.up * 0.1f); // (in the water: the wave carries it)
+            LastWave = StrokeWave.Send(transform.position + transform.forward * 0.5f, transform.forward,
+                                       strokeReach * (wet ? strokeWetReach : 1f), wet ? strokeWetArc : strokeArc, strokeSpeed,
+                                       strokeDamage * DamageFactor, strokePush * (wet ? strokeWetPush : 1f), strokeStagger, wet);
+            LastWave.douseSound = douseSound;
+            MillRace.Carry(LastWave); // (let go down a mill-race: carried the length of it)
+            if (wet)
+            {
+                Effects.Instance?.Splash(transform.position + transform.forward * 0.8f);
+                Sfx.Instance?.Splash(transform.position + transform.forward * 0.8f);
+            }
             Sfx.Instance?.Attack(strokeSound, transform.position + transform.forward * 1.5f + Vector3.up * 0.5f, 1f, "stroke_wave");
             CameraRig.Instance?.Shake(0.3f);
             HitStop.Trigger(0.05f);

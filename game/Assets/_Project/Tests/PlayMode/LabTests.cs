@@ -716,7 +716,7 @@ namespace MyGame.Tests
         // ---- the Stroke (hold the heavy attack, let go: a wave)
 
         // Holds the heavy attack (with the Stroke: drawn back, and charged) for `seconds`, then lets go.
-        IEnumerator Stroke(float seconds = 1.1f)
+        IEnumerator Stroke(float seconds = 1.5f)
         {
             input.HeavyHeld = true;
             input.PressHeavy();
@@ -769,7 +769,7 @@ namespace MyGame.Tests
             for (float t = 0f; t < 0.6f && !apprentice.DrawingStroke; t += Time.deltaTime)
                 yield return null;
             Assert.IsTrue(apprentice.DrawingStroke, "drawn back");
-            yield return new WaitForSeconds(0.8f);
+            yield return new WaitForSeconds(apprentice.strokeCharge + 0.2f);
             Assert.IsTrue(apprentice.DrawingStroke, "held as long as it's held");
             Assert.Greater(apprentice.StrokeDrawn, 0.9f);
             Assert.Greater(apprentice.GetComponent<OarLook>().Sheen, 1.4f, "the blade brightening");

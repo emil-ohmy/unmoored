@@ -6,7 +6,9 @@ namespace MyGame
     // The Stroke's wave: the oar pulls like the tide, and a wave of force rolls out ahead of the Apprentice in an arc,
     // low along the ground, edged in silver foam (the Drowned Moon's), spray thrown up along its crest. Every Soured its
     // front passes is struck once (Soured.TakeWave: a shove and a stagger, little harm, through any guard); it's spent
-    // at its reach. Drawn with the effects' additive soft dot, as bands of vertex colour lying flat.
+    // at its reach. From shallows it carries water (Wet): further, wider, harder, and it puts out what burns (a Soured
+    // alight, burning pitch, a fireball), with a hiss of steam. Whatever else it meets (IWaveable) it moves or puts out
+    // too. Drawn with the effects' additive soft dot, as bands of vertex colour lying flat.
     public sealed class StrokeWave : MonoBehaviour
     {
         public static int Live { get; private set; } // (tests)
@@ -14,10 +16,16 @@ namespace MyGame
         public float Radius { get; private set; }
         public float Reach { get; private set; }
         public IReadOnlyCollection<Soured> Struck => struck;
+        public bool Wet { get; private set; }
+        public Vector3 Origin => origin;
+        public Vector3 Forward => forward;
+        public int Doused { get; private set; } // (tests)
+        public AudioClip[] douseSound;
 
         Vector3 origin, forward;
         float arc, speed, damage, push, stagger, fade = 1f;
         readonly HashSet<Soured> struck = new HashSet<Soured>();
+        readonly HashSet<IWaveable> met = new HashSet<IWaveable>();
         Mesh crest, body;
         Light glow;
         bool spent;
@@ -25,7 +33,7 @@ namespace MyGame
         const int Segments = 28;
 
         public static StrokeWave Send(Vector3 origin, Vector3 forward, float reach, float arcDegrees, float speed,
-                                      float damage, float push, float stagger)
+                                      float damage, float push, float stagger, bool wet = false)
         {
             var go = new GameObject("Stroke Wave");
             go.transform.position = origin;
@@ -40,6 +48,7 @@ namespace MyGame
             wave.push = push;
             wave.stagger = stagger;
             wave.Radius = 0.5f;
+            wave.Wet = wet;
             Material dot = Effects.Instance != null ? Effects.Instance.sparkMaterial : null;
             wave.crest = wave.Band("Foam", dot, 0.06f);
             wave.body = wave.Band("Water", dot, 0.04f);
@@ -109,7 +118,8 @@ namespace MyGame
             float u = Mathf.Clamp01(Radius / Reach);
             // The crest (foam: silver-white, bright) and the water behind it (a cold, fainter band, widening).
             Fill(crest, Radius - 0.45f, Radius + 0.1f, new Color(0.88f, 0.95f, 1f, 0.95f * fade));
-            Fill(body, Radius - 0.6f - 1.4f * u, Radius - 0.25f, new Color(0.4f, 0.58f, 0.9f, 0.4f * fade * (1f - 0.5f * u)));
+            Fill(body, Radius - 0.6f - (Wet ? 2.4f : 1.4f) * u, Radius - 0.25f,
+                 new Color(0.4f, 0.58f, 0.9f, (Wet ? 0.65f : 0.4f) * fade * (1f - 0.5f * u))); // (carrying water: a deeper body behind)
             glow.transform.position = origin + forward * Radius + Vector3.up * 0.5f;
             glow.intensity = 2.2f * fade;
         }
@@ -158,7 +168,37 @@ namespace MyGame
                 Vector3 away = to.sqrMagnitude > 0.01f ? to.normalized : forward;
                 if (s.TakeWave(away * push, damage, origin, stagger) == HitResult.Landed)
                     Effects.Instance?.Splash(s.transform.position + Vector3.up * 0.3f);
+                if (Wet && s.TryGetComponent(out Burning burning) && burning.Alight)
+                {
+                    burning.Douse();
+                    Steam(s.transform.position + Vector3.up * 1f);
+                }
             }
+            foreach (var w in new List<IWaveable>(Waveables.All))
+            {
+                if (w == null || met.Contains(w))
+                    continue;
+                Vector3 to = w.WavePoint - origin;
+                if (Mathf.Abs(to.y) > 2f)
+                    continue;
+                to.y = 0f;
+                if (to.magnitude > Radius + w.WaveRadius || Vector3.Angle(forward, to) > arc * 0.5f + 8f)
+                    continue;
+                met.Add(w);
+                w.TakeWave(this, (to.sqrMagnitude > 0.01f ? to.normalized : forward) * push);
+            }
+        }
+
+        // Something put out by the water it carries: a hiss and a puff of steam.
+        public void Steam(Vector3 at)
+        {
+            Doused++;
+            var fx = Effects.Instance;
+            if (fx != null)
+                for (int i = 0; i < 14; i++)
+                    fx.Wisp(at + Random.insideUnitSphere * 0.4f, new Color(0.8f, 0.82f, 0.85f, 0.8f),
+                            new Vector3(Random.Range(-0.4f, 0.4f), Random.Range(1.2f, 2.4f), Random.Range(-0.4f, 0.4f)), Random.Range(0.8f, 1.6f));
+            Sfx.Instance?.Attack(douseSound, at, 0.9f, "douse");
         }
 
         // Spray thrown up along the crest: silver droplets, a mote of moonlight now and then.
@@ -167,7 +207,7 @@ namespace MyGame
             var fx = Effects.Instance;
             if (fx == null)
                 return;
-            int n = Mathf.CeilToInt(40f * dt);
+            int n = Mathf.CeilToInt((Wet ? 70f : 40f) * dt);
             for (int i = 0; i < n; i++)
             {
                 float a = Random.Range(-arc * 0.5f, arc * 0.5f);

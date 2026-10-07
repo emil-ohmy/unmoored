@@ -788,6 +788,122 @@ namespace MyGame.Tests
             Assert.IsFalse(m.chest.enabled);
         }
 
+        // ---- The Stroke against the world (the mill, shallows, things afloat and loose)
+
+        // Holds the heavy attack (the Stroke drawn back and charged), then lets go.
+        IEnumerator Stroke()
+        {
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return WaitUp(() => apprentice.StrokeCharged, 2f, "the Stroke charged");
+            yield return null;
+            input.HeavyHeld = false;
+            yield return WaitUp(() => apprentice.LastWave != null, 1f, "the wave");
+        }
+
+        // Stands the Apprentice at `at`, facing `towards` (a direction).
+        IEnumerator StandAt(Vector3 at, Vector3 towards)
+        {
+            apprentice.Teleport(at);
+            apprentice.transform.rotation = Quaternion.LookRotation(towards);
+            yield return new WaitForSeconds(0.4f);
+        }
+
+        // Let go in the mill-race, down it: the wave carries water (wider, further), and a surge runs the length of the
+        // race and breaks on the wheel, which turns and winds the sluice gate up a stage; again, and it's open.
+        [UnityTest]
+        public IEnumerator TheMill_AStrokeDownTheRace_TurnsTheWheel_TwiceOpensTheGate()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            var gate = UnityEngine.Object.FindAnyObjectByType<SluiceGate>();
+            yield return StandAt(race.head.position + new Vector3(0.8f, -0.25f, 0f), Vector3.right);
+            Assert.IsTrue(Shallows.In(apprentice.transform.position + Vector3.up * 0.1f), "wading in the race");
+            yield return Stroke();
+            var wave = apprentice.LastWave;
+            Assert.IsTrue(wave.Wet, "the wave carries water");
+            Assert.Greater(wave.Reach, apprentice.strokeReach * 1.2f, "and goes further");
+            Assert.AreEqual(1, race.Surges, "a surge down the race");
+            yield return WaitUp(() => wheel.Turns == 1, 3f, "the wheel taking it");
+            Assert.Greater(wheel.Spin, 100f, "turning");
+            yield return WaitUp(() => gate.Height >= gate.travel * 0.5f - 0.01f, 4f, "the gate up a stage");
+            Assert.AreEqual(1, gate.Stage);
+            Assert.IsFalse(gate.Open, "not yet open");
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(gate.travel * 0.5f, gate.Height, 0.01f, "held there (the ratchet)");
+            yield return Stroke();
+            yield return WaitUp(() => gate.Open, 6f, "open");
+            yield return WaitUp(() => wheel.Spin == 0f, 15f, "the wheel still again");
+            Assert.IsTrue(gate.Open, "open for good");
+            Assert.Greater(wheel.Turned, 360f, "it went round");
+        }
+
+        // Up the race, or from the yard at the wheel: no surge, the wheel stays still.
+        [UnityTest]
+        public IEnumerator TheMill_UpTheRace_OrFromTheYard_TheWheelStaysStill()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            yield return StandAt(race.mouth.position + new Vector3(-1.5f, -0.25f, 0f), Vector3.left); // (up it)
+            yield return Stroke();
+            yield return new WaitForSeconds(1.5f);
+            Assert.AreEqual(0, race.Surges);
+            yield return StandAt(race.mouth.position + new Vector3(-1f, -0.3f, 2.2f), Vector3.right); // (on the yard, at the wheel)
+            Assert.IsFalse(Shallows.In(apprentice.transform.position + Vector3.up * 0.1f));
+            yield return Stroke();
+            Assert.IsFalse(apprentice.LastWave.Wet, "on dry stone, a dry wave");
+            yield return new WaitForSeconds(1.5f);
+            Assert.AreEqual(0, wheel.Turns, "the wheel still");
+        }
+
+        // From shallows the wave carries water and puts out what burns: a Soured alight, burning pitch.
+        [UnityTest]
+        public IEnumerator TheStroke_FromShallows_PutsOutFire()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            Vector3 at = race.head.position + new Vector3(2.5f, -0.25f, 0f);
+            var laden = (Laden)post.spawner.SpawnAt("Laden", at + new Vector3(-0.8f, -0.1f, 2.4f), Vector3.back);
+            laden.passive = true;
+            var pot = PitchPot.Throw(null, at + Vector3.up, at + new Vector3(1.6f, -0.1f, 2.6f));
+            yield return WaitUp(() => pot.Aflame, 2f, "the pitch alight");
+            Burning.Set(laden, 30f, 0.5f);
+            Assert.IsTrue(laden.GetComponent<Burning>().Alight);
+            yield return StandAt(at, Vector3.forward);
+            yield return Stroke();
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(apprentice.LastWave == null || apprentice.LastWave.Wet);
+            Assert.IsFalse(laden.GetComponent<Burning>().Alight, "the Laden put out");
+            Assert.IsTrue(pot == null || !pot.Aflame, "the pitch put out");
+        }
+
+        // A crate left loose on the yard is shoved along it; a barrel afloat is sent drifting away.
+        [UnityTest]
+        public IEnumerator TheStroke_ShovesACrate_AndSendsABarrelDrifting()
+        {
+            apprentice.GiveStroke();
+            var crates = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).Where(x => !x.Afloat).ToArray();
+            Assert.Greater(crates.Length, 0, "crates loose on the yard");
+            var crate = crates.OrderBy(c => c.transform.position.z).First();
+            Vector3 was = crate.transform.position;
+            yield return StandAt(was - Vector3.forward * 2f, Vector3.forward);
+            yield return Stroke();
+            yield return new WaitForSeconds(1.5f);
+            Assert.Greater(crate.transform.position.z - was.z, 0.8f, "shoved along");
+            Assert.AreEqual(was.y, crate.transform.position.y, 0.05f, "on the ground still");
+
+            var barrel = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).Where(x => x.Afloat)
+                .OrderBy(x => Vector3.Distance(x.transform.position, new Vector3(4f, 0f, -10.6f))).First();
+            Vector3 from = barrel.transform.position;
+            yield return StandAt(new Vector3(from.x, 0.55f, -7.5f), Vector3.back);
+            yield return Stroke();
+            yield return new WaitForSeconds(2f);
+            Assert.IsTrue(barrel.Afloat, "afloat still");
+            Assert.Greater(Vector3.Distance(new Vector3(from.x, 0f, from.z), new Vector3(barrel.transform.position.x, 0f, barrel.transform.position.z)), 1.5f, "drifting off");
+        }
+
         // ---- The Watchman (Abner Wick, Who Merits Flame)
 
         Watchman Watchman() => UnityEngine.Object.FindAnyObjectByType<Watchman>();
@@ -1866,6 +1982,80 @@ namespace MyGame.Tests
                 Shot("stroke-4-spent");
                 yield return new WaitForSeconds(0.4f);
                 Shot("stroke-5-after");
+            }
+            finally { cam.targetTexture = null; }
+        }
+
+        // (SHOTS=dir) The mill: the yard, a wave down the race, the wheel turning, the sluice gate rising; barrels afloat
+        // sent on their way from the terrace's edge.
+        [UnityTest]
+        public IEnumerator Capture_Mill()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            IEnumerator Stroke()
+            {
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return new WaitForSeconds(1.5f);
+                input.HeavyHeld = false;
+            }
+            try
+            {
+                apprentice.GiveStroke();
+                var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+                var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+                var gate = UnityEngine.Object.FindAnyObjectByType<SluiceGate>();
+                apprentice.Teleport(new Vector3(20f, 0.55f, -2f), true, true);
+                yield return new WaitForSeconds(2f);
+                Shot("mill-0-the-yard");
+                apprentice.Teleport(race.head.position + race.head.forward * 0f + new Vector3(0.8f, -0.25f, 0f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+                yield return new WaitForSeconds(1.5f);
+                Shot("mill-1-in-the-race");
+                yield return Stroke();
+                yield return WaitUp(() => race.Surging, 2f, "the surge");
+                yield return new WaitForSeconds(0.3f);
+                Shot("mill-2-the-surge");
+                yield return WaitUp(() => wheel.Turns > 0, 3f, "the wheel");
+                apprentice.Teleport(new Vector3(24.5f, 0.55f, -4.6f), true, true);
+                yield return new WaitForSeconds(0.6f);
+                Shot("mill-3-the-wheel-turning");
+                yield return WaitUp(() => gate.Height >= gate.travel * 0.5f - 0.01f, 5f, "the gate up a stage");
+                Shot("mill-4-the-gate-a-stage-up");
+                apprentice.Teleport(race.head.position + new Vector3(0.8f, -0.25f, 0f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+                yield return new WaitForSeconds(1f);
+                yield return Stroke();
+                yield return WaitUp(() => gate.Open, 8f, "the gate open");
+                apprentice.Teleport(new Vector3(24f, 0.55f, -5.3f), true, true);
+                yield return new WaitForSeconds(1f);
+                Shot("mill-5-the-gate-open");
+                // Barrels afloat, from the terrace's edge.
+                apprentice.Teleport(new Vector3(6f, 0.55f, -7.5f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+                yield return new WaitForSeconds(1.5f);
+                Shot("mill-6-barrels-afloat");
+                yield return Stroke();
+                yield return new WaitForSeconds(1.2f);
+                Shot("mill-7-barrels-sent");
             }
             finally { cam.targetTexture = null; }
         }

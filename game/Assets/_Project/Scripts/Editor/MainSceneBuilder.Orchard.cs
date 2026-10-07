@@ -34,6 +34,8 @@ public static partial class MainSceneBuilder
         Terraces();
         OrchardRows();
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
+        Mill(new Vector3(OrchardHalfWidth, 0f, GroundZ + 5f)); // (off the bottom terrace's east end)
+        Afloat();
         UpperTerrace();
         UnreapedRows(); // the field over the orchard wall: the Orchard's miniboss, among its scarecrows
         Glasshouse();   // beyond the field's far gate: the Gardener's (Father Moth's) arena
@@ -424,6 +426,147 @@ public static partial class MainSceneBuilder
     // beds of dead plants against the side walls, the dead orange tree in its tub against the north wall, four lamps
     // hung on chains; the middle left open (his floor). Its roof fades when you're inside (Storeys). Its doors swing shut behind you while his fight is on (ArenaGate); nothing follows
     // you in (ArenaZone).
+    // The mill (the Stroke's first use for getting about; art/models/environment/mill.py): a stone yard off the
+    // bottom terrace's east end, its mill-race (shallows, a race: a wave let go down it runs its length and breaks on
+    // the wheel), the wheel in the river, the store's sluice gate chained to it (two turns of the wheel: open). `o` is
+    // the yard's origin (the middle of its west edge, at the water); a point in the yard is (east, north, up) from it.
+    static void Mill(Vector3 o)
+    {
+        Vector3 W(float e, float n, float u) => o + new Vector3(e, u, n);
+        var root = new GameObject("The Mill").transform;
+        Place("Environment/mill_yard", o, 0f).transform.SetParent(root, true);
+
+        // The race's water: wade in (shallows); let the Stroke go down it (a mill-race).
+        var water = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        water.name = "Mill-race Water";
+        Object.DestroyImmediate(water.GetComponent<Collider>()); // (you wade: its bed holds you)
+        water.transform.SetParent(root, true);
+        water.transform.SetPositionAndRotation(W(5.6f, -3.3f, 0.85f), Quaternion.Euler(90f, 0f, 0f));
+        water.transform.localScale = new Vector3(8.75f, 1.02f, 1f);
+        var r = water.GetComponent<MeshRenderer>();
+        r.sharedMaterial = ChannelWater();
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        water.AddComponent<Shallows>().size = new Vector3(8.75f, 0.8f, 1.05f);
+        var race = water.AddComponent<MillRace>();
+        race.head = new GameObject("Race Head").transform;
+        race.head.SetParent(root, true);
+        race.head.position = W(1.25f, -3.3f, 0.85f);
+        race.mouth = new GameObject("Race Mouth").transform;
+        race.mouth.SetParent(root, true);
+        race.mouth.position = W(10.25f, -3.3f, 0.85f);
+        race.width = 1f;
+        race.surgeSound = Clips("mill_race_surge");
+
+        // The wheel, half in the river below the spout (nothing to stand on: no colliders).
+        var wheelModel = Place("Environment/mill_wheel", W(10.9f, -3.3f, 0.2f), 0f);
+        wheelModel.transform.SetParent(root, true);
+        foreach (var c in wheelModel.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c);
+        var wheel = new GameObject("Water Wheel").AddComponent<WaterWheel>();
+        wheel.transform.SetParent(root, true);
+        wheel.transform.position = W(10.9f, -3.3f, 0.2f);
+        wheel.wheel = wheelModel.transform;
+        wheel.axis = Vector3.forward;
+        wheel.turnSound = Clips("mill_wheel_turn");
+        race.wheel = wheel;
+
+        // The store's sluice gate, and its chain: from the axle, over the post's pulley and the gantry's, to the gate.
+        var board = Place("Environment/mill_gate", W(8.1f, -1.15f, 0.5f), 0f);
+        board.transform.SetParent(root, true);
+        var sluice = new GameObject("Sluice Gate").AddComponent<SluiceGate>();
+        sluice.transform.SetParent(root, true);
+        sluice.transform.position = W(8.1f, -1.15f, 0.5f);
+        sluice.board = board.transform;
+        sluice.travel = 1.85f;
+        sluice.stages = 2;
+        sluice.ringHeight = 2.05f;
+        sluice.riseSound = Clips("sluice_gate_rise");
+        sluice.clunkSound = Clips("sluice_gate_clunk");
+        wheel.gate = sluice;
+        var chain = new GameObject("Sluice Chain").AddComponent<LineRenderer>();
+        chain.transform.SetParent(root, true);
+        chain.useWorldSpace = true;
+        chain.positionCount = 4;
+        chain.SetPositions(new[] { W(10.9f, -2.68f, 0.2f), W(10.9f, -2.55f, 1.9f), W(8.1f, -0.8f, 4.1f), W(8.1f, -1.15f, 0.5f + 2.05f) });
+        chain.widthMultiplier = 0.05f;
+        chain.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        var iron = GeneratedMaterial("M_MillChain", "MyGame/Toon");
+        iron.SetColor("_BaseColor", Hex("#2c2a30"));
+        iron.SetFloat("_OutlineWidth", 0f);
+        EditorUtility.SetDirty(iron);
+        chain.sharedMaterial = iron;
+        sluice.chain = chain;
+
+        // In the store: what the miller left (an Obol cache).
+        var cache = Place("Environment/obol_cache", W(8.6f, 1.6f, 0.52f), 200f);
+        cache.name = "Obol Cache (the mill store)";
+        cache.transform.SetParent(root, true);
+        cache.AddComponent<ObolCache>();
+        var glow = cache.AddComponent<PickupGlow>();
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = LanternLight;
+        glow.height = 0.7f;
+
+        // Loose on the yard: crates to shove (off the edge, they float).
+        foreach (var (e, n, yaw) in new[] { (3.6f, 0.6f, 10f), (4.4f, 1.4f, -25f), (2.6f, 3.2f, 40f) })
+            Loose(OrchardProp("crate", W(e, n, 0.52f), yaw), 0.45f, 1.3f).transform.SetParent(root, true);
+    }
+
+    // Something the Stroke's wave can shove (it floats, off the edge).
+    static Shovable Loose(GameObject thing, float radius, float heaviness)
+    {
+        var s = thing.AddComponent<Shovable>();
+        s.radius = radius;
+        s.heaviness = heaviness;
+        s.scrapeSound = Clips("crate_scrape");
+        return s;
+    }
+
+    // Barrels and a crate adrift off the bottom terrace (the Stroke's wave from the edge sends them on their way).
+    static void Afloat()
+    {
+        var root = new GameObject("Afloat").transform;
+        foreach (var (x, z, yaw) in new[] { (4f, -10.6f, 0f), (7.2f, -11.4f, 50f), (9.6f, -10.4f, 120f), (20.5f, -9.8f, 200f) })
+        {
+            var barrel = Place("Environment/barrel", new Vector3(x, 0f, z), yaw);
+            barrel.name = "Barrel (afloat)";
+            barrel.transform.SetParent(root, true);
+            Loose(barrel, 0.36f, 1f).draft = 0.45f;
+        }
+        var crate = OrchardProp("crate", new Vector3(14.5f, 0f, -11f), 15f);
+        crate.name = "Crate (afloat)";
+        crate.transform.SetParent(root, true);
+        Loose(crate, 0.45f, 1.2f).draft = 0.3f;
+    }
+
+    // Still, shallow water in a stone channel (the Glasshouse's channels, the mill-race): the river's own shader.
+    static Material ChannelWater()
+    {
+        var channel = GeneratedMaterial("M_ChannelWater", "MyGame/Water");
+        // (bluer than the river, against the harvest moon's orange, which would turn it olive; a strong cold sheen and
+        // glints the ripples break up, the lamps caught in it, a pale edge along the kerbs: water, at a glance)
+        channel.SetColor("_DeepColor", Hex("#0f3446"));
+        channel.SetColor("_ShallowColor", Hex("#2f6f8c"));
+        channel.SetColor("_FoamColor", Hex("#b8ccd2"));
+        channel.SetColor("_ShadowTint", Hex("#9aa6d8"));
+        channel.SetColor("_SkyColor", Hex("#33507a"));
+        channel.SetColor("_GlintColor", Hex("#9fb6d6"));
+        channel.SetFloat("_GlintThreshold", 0.978f);
+        channel.SetVector("_SheenDir", new Vector4(0f, 0.8f, 0.6f, 0f));
+        channel.SetFloat("_FoamDistance", 0.07f);
+        channel.SetFloat("_DepthFade", 0.45f);
+        channel.SetFloat("_WaveHeight", 0.01f);
+        channel.SetFloat("_WaveLength", 1.2f);
+        channel.SetFloat("_WaveSpeed", 0.5f);
+        channel.SetFloat("_RippleScale", 2.6f);
+        channel.SetFloat("_RippleSpeed", 0.6f);
+        channel.SetFloat("_RippleStrength", 0.45f);
+        channel.SetFloat("_LampReflection", 0.7f);
+        channel.SetFloat("_LampSpecular", 3.5f);
+        EditorUtility.SetDirty(channel);
+        return channel;
+    }
+
     const float GlassX = 0f, GlassGroundZ = 34f, GlassHouseZ = 38.2f;
     const float GlassWidth = 24f, GlassDepth = 18f, GlassWall = 3.6f, GlassRidge = 4.0f;
     const float GlassChannel = 8.6f, GlassChannelFrom = 1.48f, GlassChannelTo = 16.52f; // (the channels' middles, ±, and their ends, in from the doors)
@@ -452,28 +595,7 @@ public static partial class MainSceneBuilder
             new Storeys.Storey { floor = UpperTop + 99f, parts = new[] { roof } }, // (never stood on: gone whenever you're inside)
         };
         // The channels' water: the river's own shader, shallow and still; wade in (it puts out flames).
-        var channel = GeneratedMaterial("M_ChannelWater", "MyGame/Water");
-        // (bluer than the river, against the harvest moon's orange, which would turn it olive; a strong cold sheen and
-        // glints the ripples break up, the lamps caught in it, a pale edge along the kerbs: water, at a glance)
-        channel.SetColor("_DeepColor", Hex("#0f3446"));
-        channel.SetColor("_ShallowColor", Hex("#2f6f8c"));
-        channel.SetColor("_FoamColor", Hex("#b8ccd2"));
-        channel.SetColor("_ShadowTint", Hex("#9aa6d8"));
-        channel.SetColor("_SkyColor", Hex("#33507a"));
-        channel.SetColor("_GlintColor", Hex("#9fb6d6"));
-        channel.SetFloat("_GlintThreshold", 0.978f);
-        channel.SetVector("_SheenDir", new Vector4(0f, 0.8f, 0.6f, 0f));
-        channel.SetFloat("_FoamDistance", 0.07f);
-        channel.SetFloat("_DepthFade", 0.45f);
-        channel.SetFloat("_WaveHeight", 0.01f);
-        channel.SetFloat("_WaveLength", 1.2f);
-        channel.SetFloat("_WaveSpeed", 0.5f);
-        channel.SetFloat("_RippleScale", 2.6f);
-        channel.SetFloat("_RippleSpeed", 0.6f);
-        channel.SetFloat("_RippleStrength", 0.45f);
-        channel.SetFloat("_LampReflection", 0.7f);
-        channel.SetFloat("_LampSpecular", 3.5f);
-        EditorUtility.SetDirty(channel);
+        var channel = ChannelWater();
         float length = GlassChannelTo - GlassChannelFrom;
         foreach (float e in new[] { -GlassChannel, GlassChannel })
         {
