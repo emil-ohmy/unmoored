@@ -47,6 +47,7 @@ public static partial class MainSceneBuilder
     {
         BuildLab();
         BuildOrchardLab();
+        BuildClocktowerLab();
         BuildBossArena();
         BuildTitle();
         Build();

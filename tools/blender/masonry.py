@@ -255,6 +255,21 @@ def orchard():
     TIMBER = ("OrchardTimber", "#5e4634")
 
 
+# ---------------------------------------------------------------- the Stopped Clocktower
+
+def clocktower():
+    """Switch to the Clocktower's palette (call before building): cold blue-grey ashlar, dark mortar, pale grey
+    capstones, old dark timber and floorboards worn grey."""
+    global STONE, MORTAR, CAP, PLINTH, TIMBER, PLANKS, PAVING
+    STONE = ("Ashlar1", "#5c6068"), ("Ashlar2", "#676b72"), ("Ashlar3", "#53575e")
+    MORTAR = ("AshlarJoint", "#25262b")
+    CAP = ("AshlarCap", "#80838b")
+    PLINTH = ("AshlarPlinth", "#45484e")
+    TIMBER = ("TowerTimber", "#3b322c")
+    PLANKS = ("Board1", "#4d433b"), ("Board2", "#433a33"), ("Board3", "#574c42")
+    PAVING = ("TowerFlag1", "#6b6e74"), ("TowerFlag2", "#62656b"), ("TowerFlag3", "#73767b")
+
+
 LEAVES = ("LeafRust", "#9a4a2c"), ("LeafOchre", "#b8873a"), ("LeafRed", "#7c2a25"), ("LeafBrown", "#7a5432"), ("LeafTan", "#9a7a4a")
 TURF = ("Turf1", "#68684d"), ("Turf2", "#727050"), ("Turf3", "#5c5c45")
 
