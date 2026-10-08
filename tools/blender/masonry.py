@@ -255,19 +255,19 @@ def orchard():
     TIMBER = ("OrchardTimber", "#5e4634")
 
 
-# ---------------------------------------------------------------- the Stopped Clocktower
+# ---------------------------------------------------------------- the Hall of the Last Hour
 
-def clocktower():
-    """Switch to the Clocktower's palette (call before building): cold blue-grey ashlar, dark mortar, pale grey
-    capstones, old dark timber and floorboards worn grey."""
+def last_hour():
+    """Switch to the Hall of the Last Hour's palette (call before building): pale limestone, almost cream under the moon,
+    fine pale joints, cream capstones; warm honey floorboards; dark old timber."""
     global STONE, MORTAR, CAP, PLINTH, TIMBER, PLANKS, PAVING
-    STONE = ("Ashlar1", "#5c6068"), ("Ashlar2", "#676b72"), ("Ashlar3", "#53575e")
-    MORTAR = ("AshlarJoint", "#25262b")
-    CAP = ("AshlarCap", "#80838b")
-    PLINTH = ("AshlarPlinth", "#45484e")
-    TIMBER = ("TowerTimber", "#3b322c")
-    PLANKS = ("Board1", "#4d433b"), ("Board2", "#433a33"), ("Board3", "#574c42")
-    PAVING = ("TowerFlag1", "#6b6e74"), ("TowerFlag2", "#62656b"), ("TowerFlag3", "#73767b")
+    STONE = ("Limestone1", "#c3c1b8"), ("Limestone2", "#cdcbc2"), ("Limestone3", "#b6b4ab")
+    MORTAR = ("LimeJoint", "#8a877e")
+    CAP = ("LimeCap", "#e2ddcc")
+    PLINTH = ("LimePlinth", "#9c998f")
+    TIMBER = ("HallTimber", "#5b4532")
+    PLANKS = ("HallBoard1", "#9a7a55"), ("HallBoard2", "#8c6d4b"), ("HallBoard3", "#a6855c")
+    PAVING = ("HallFlag1", "#c9c5b8"), ("HallFlag2", "#bdb9ac"), ("HallFlag3", "#d3cfc2")
 
 
 LEAVES = ("LeafRust", "#9a4a2c"), ("LeafOchre", "#b8873a"), ("LeafRed", "#7c2a25"), ("LeafBrown", "#7a5432"), ("LeafTan", "#9a7a4a")

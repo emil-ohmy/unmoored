@@ -26,10 +26,10 @@ public class ModelImportRules : AssetPostprocessor
                                          "drowned_chapel", "islet", "rock", "quay", "jetty", "shortcut_gate", "crate", "barrel",
                                          "terrace", "orchard_steps", "orchard_wall", "press_house",
                                          "glasshouse_house", "glasshouse_roof", "glasshouse_ground", "glasshouse_leaf", "unreaped_field_ground",
-                                         "clocktower", "mill_yard", "tailrace" }; // (buildings and walls: not trees)
+                                         "last_hour", "mill_yard", "tailrace" }; // (buildings and walls: not trees)
     bool IsArchitecture => !IsCharacter && System.Array.Exists(Cutaway, c => System.IO.Path.GetFileName(assetPath).StartsWith(c));
 
-    public override uint GetVersion() => 9; // (2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts; 6: the Orchard; 7: not its trees; 8: the Glasshouse; 9: the Clocktower, the mill, the tailrace. Bumping re-imports every model)
+    public override uint GetVersion() => 10; // (2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts; 6: the Orchard; 7: not its trees; 8: the Glasshouse; 9: the mill, the tailrace; 10: the Hall of the Last Hour. Bumping re-imports every model)
 
     void OnPreprocessModel()
     {

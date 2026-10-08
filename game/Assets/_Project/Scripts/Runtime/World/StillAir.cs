@@ -9,7 +9,7 @@ namespace MyGame
     {
         public Vector3 size = new Vector3(10f, 3f, 10f); // the box the dust hangs in, centred here
         public int motes = 120;
-        public Color dust = new Color(0.72f, 0.76f, 0.84f, 0.32f);
+        public Color dust = new Color(0.95f, 0.9f, 0.78f, 0.34f); // (motes catching the lamplight)
         public Vector3[] drops = new Vector3[0];         // (world points)
         public Material material;
 
