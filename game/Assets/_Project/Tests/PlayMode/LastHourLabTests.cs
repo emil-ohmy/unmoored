@@ -144,8 +144,9 @@ namespace MyGame.Tests
         {
             var still = UnityEngine.Object.FindObjectsByType<StillAir>(FindObjectsSortMode.None);
             Assert.GreaterOrEqual(still.Length, 5, "in every storey");
-            Assert.IsTrue(still.All(s => s.Count > 50), "dust in each");
-            var ps = still[0].GetComponent<ParticleSystem>();
+            Assert.IsTrue(still.Where(s => s.motes > 0).All(s => s.Count > 50), "dust in each");
+            Assert.IsTrue(still.Any(s => s.motes == 0 && s.drops.Length > 20 && s.Count == s.drops.Length), "the fountain's water, held in the air");
+            var ps = still.First(s => s.motes > 0).GetComponent<ParticleSystem>();
             var before = new ParticleSystem.Particle[ps.particleCount];
             ps.GetParticles(before);
             yield return new WaitForSeconds(2f);

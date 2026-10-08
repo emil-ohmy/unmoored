@@ -13,8 +13,14 @@ escape-wheel stood facing south and its anchor rocking over it, stopped (origin 
 an iron weight on its chain (the chain 4 m up from the weight; origin at the chain's top); "turret" a shorter
 round tower for the castle's corners (12 m, domed); "longcase" a tall case clock, its face to the south, stopped at a
 quarter past nine (origin at its foot); "orrery" a great brass orrery, a gilt sun in its rings, the planets on their
-arms (origin at its foot); "pendulum_hall" a pendulum 6.5 m long for the great hall (origin at its pivot); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
-and its brackets (origin at its west end); "shrub" and "tree" greenery overgrowing the stone (origin at the ground)."""
+arms (origin at its foot); "pendulum_hall" a pendulum 6.5 m long for the great hall (origin at its pivot);
+the clutter of a working clock castle (origin at the foot, the front to the south, the back to a wall): "workbench"
+(a vise, clock parts, a lamp), "shelf" (clock movements), "crate_gears", "gear_stack" (spare cogs leaning), "lathe"
+(its flywheel and belt), "hoist" (a pulley under the ceiling, its chain and hook hanging 3 m: origin at the top),
+"mainspring" (a great coiled spring on its side), "hourglass" (tall, its sand caught mid-fall), "chandelier" (a gear
+ring of lamps on a chain 2 m: origin at the top), "cart" (laden with gears), "fountain" (an octagonal basin, a brass
+column, a bowl of cogs; the water's the game's: held still in the air); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
+and its brackets (origin at its west end); (No greenery: nothing grows in it.)"""
 import math
 
 from mathutils import Vector
@@ -22,8 +28,10 @@ from mathutils import Vector
 import masonry as m
 
 VARIANTS = ["great_wheel", "gear_large", "gear_small", "shaft", "bell_large", "bell_small", "pendulum", "dial",
-            "hand_hour", "hand_minute", "gear_wall_large", "gear_wall_small", "spire", "drive", "shrub", "tree",
-            "escapement", "counterweight", "turret", "longcase", "orrery", "pendulum_hall"]
+            "hand_hour", "hand_minute", "gear_wall_large", "gear_wall_small", "spire", "drive",
+            "escapement", "counterweight", "turret", "longcase", "orrery", "pendulum_hall",
+            "workbench", "shelf", "crate_gears", "gear_stack", "lathe", "hoist", "mainspring", "hourglass", "chandelier",
+            "cart", "fountain"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -81,6 +89,44 @@ def build(variant):
         parts += gear(2.0, 28, 0.32, brass_web, iron)
     elif variant == "gear_small":
         parts += gear(1.1, 16, 0.28, brass_web, iron)
+    elif variant == "shaft":
+        parts += [part("Shaft", kit.cylinder(10, 0.2, 11.8), iron, M((0, 0, 5.9)))]
+        for u in (0.4, 4.4, 8.4, 11.4):
+            parts.append(part("Collar", kit.cylinder(10, 0.3, 0.2), iron, M((0, 0, u))))
+    elif variant in ("bell_large", "bell_small"):
+        r, h = (1.2, 1.8) if variant == "bell_large" else (0.8, 1.2)
+        parts += [part("Headstock", kit.cube(), timber, M((0, 0, -0.2), scale=(r * 2.2, 0.35, 0.4))),
+                  part("Crown", kit.cylinder(10, r * 0.35, 0.3), bronze, M((0, 0, -0.55))),
+                  part("Waist", kit.cone(16, r * 0.62, r * 0.42, h * 0.55), bronze, M((0, 0, -0.7 - h * 0.275))),
+                  part("Sound", kit.cone(16, r, r * 0.62, h * 0.45), bronze, M((0, 0, -0.7 - h * 0.55 - h * 0.225))),
+                  part("Lip", kit.cylinder(16, r + 0.04, 0.08), bronze, M((0, 0, -0.7 - h))),
+                  part("Clapper", kit.sphere(8, 6, r * 0.18), iron, M((0, 0, -0.7 - h + 0.05)))]
+    elif variant == "pendulum":
+        length = 13.0
+        parts += [part("Pivot", kit.cylinder(10, 0.14, 0.9), iron, M((0, 0, 0), rot=(90, 0, 0))),
+                  part("Rod", kit.cube(), iron, M((0, 0, -length / 2), scale=(0.12, 0.08, length))),
+                  part("Bob", kit.cylinder(24, 0.85, 0.22), bronze, M((0, 0, -length), rot=(90, 0, 0))),
+                  part("BobRim", kit.cylinder(24, 0.9, 0.12), iron, M((0, 0, -length), rot=(90, 0, 0)))]
+    elif variant == "dial":
+        stone = m.mat(m.CAP)
+        glass = kit.mat("DialEnamel_Glow", "#3a3426")   # (cream enamel, lit faintly from within)
+        numeral = kit.mat("Numeral", "#2a2620")
+        parts += [m.box("Frame", stone, -3.4, 3.4, -0.2, 0.0, -3.4, 3.4),
+                  part("Face", kit.cylinder(48, 3.15, 0.06), glass, M(G(0, -0.23, 0), rot=(90, 0, 0))),
+                  part("Bezel", kit.cylinder(48, 3.3, 0.04), iron, M(G(0, -0.21, 0), rot=(90, 0, 0)))]
+        for k in range(12):
+            a = 2 * math.pi * k / 12
+            long_ = 0.55 if k % 3 == 0 else 0.35
+            c = (math.sin(a) * 2.75, math.cos(a) * 2.75)
+            parts.append(part("Hour", kit.cube(), numeral, M(G(c[0], -0.27, c[1]), rot=(0, math.degrees(a), 0), scale=(0.12, 0.03, long_))))
+    elif variant in ("hand_hour", "hand_minute"):
+        # A beam standing out from the dial (n -0.05 .. -0.75), its top at the centre's height; the hub a round plate.
+        length, west = (2.45, True) if variant == "hand_hour" else (3.3, False)
+        e0, e1 = (-length, 0.2) if west else (-0.2, length)
+        parts += [m.box("Hand", iron, e0, e1, -0.78, -0.05, -0.35, 0.0)]
+        tip = e0 if west else e1
+        parts.append(m.box("Tip", iron, tip - 0.2 if west else tip, tip if west else tip + 0.2, -0.78, -0.05, -0.5, 0.0))
+        parts.append(part("Hub", kit.cylinder(16, 0.85, 0.35), iron, M(G(0, -0.45, -0.175))))
     elif variant == "gear_wall_large":
         parts += gear(2.6, 36, 0.22, brass_web, iron)
         parts.append(part("Boss", kit.cylinder(12, 0.55, 0.5), gilt))
@@ -201,60 +247,139 @@ def build(variant):
                   part("Rod", kit.cube(), iron, M((0, 0, -length / 2), scale=(0.1, 0.06, length))),
                   part("Bob", kit.cylinder(24, 0.6, 0.18), bronze, M((0, 0, -length), rot=(90, 0, 0))),
                   part("BobRim", kit.cylinder(24, 0.64, 0.1), gilt, M((0, 0, -length), rot=(90, 0, 0)))]
-    elif variant == "shrub":
-        leaves = [kit.mat("HallLeaf1", "#4d6b3e"), kit.mat("HallLeaf2", "#5d7d47"), kit.mat("HallLeaf3", "#41593a")]
+    elif variant == "workbench":
+        top = kit.mat("BenchTop", "#6a4c34")
+        lamp = kit.mat("BenchLamp_Glow", "#ffcf8a")
+        parts += [m.box("Top", top, -1.0, 1.0, -0.4, 0.4, 0.82, 0.9)]
+        for e in (-0.9, 0.9):
+            for n in (-0.32, 0.32):
+                parts.append(m.box("Leg", timber, e - 0.05, e + 0.05, n - 0.05, n + 0.05, 0.0, 0.82))
+        parts.append(m.box("Shelf", timber, -0.95, 0.95, -0.35, 0.35, 0.22, 0.27))
+        parts.append(m.box("Vise", iron, -0.85, -0.6, -0.42, -0.2, 0.9, 1.05))
+        parts.append(m.box("ViseJaw", iron, -0.85, -0.6, -0.5, -0.42, 0.9, 1.08))
+        for k, (e, n, r) in enumerate(((-0.2, -0.05, 0.22), (0.25, 0.12, 0.14), (0.45, -0.15, 0.1), (0.05, 0.2, 0.09))):
+            parts += gear(r, 8 + k * 2, 0.03, brass_web, iron, at=M(G(e, n, 0.92)))
+        parts.append(part("LampPost", kit.cylinder(6, 0.02, 0.5), iron, M(G(0.75, 0.22, 1.15))))
+        parts.append(part("Lamp", kit.sphere(8, 6, 0.08), lamp, M(G(0.75, 0.12, 1.38))))
+        parts.append(part("Shade", kit.cone(8, 0.14, 0.04, 0.12), iron, M(G(0.75, 0.12, 1.47))))
+        for k in range(3):
+            parts.append(m.box("Box", kit.mat("PartsBox", "#5a4030"), -0.6 + k * 0.45, -0.25 + k * 0.45, -0.3, 0.3, 0.27, 0.5))
+    elif variant == "shelf":
+        case = kit.mat("CaseWood", "#5e3f2a")
+        enamel = kit.mat("SmallDial", "#d8d0bc")
+        parts += [m.box("Back", case, -1.0, 1.0, 0.18, 0.25, 0.0, 2.2)]
+        for e in (-1.0, 0.95):
+            parts.append(m.box("Side", case, e, e + 0.05, -0.25, 0.25, 0.0, 2.2))
+        for k, u in enumerate((0.05, 0.75, 1.45, 2.15)):
+            parts.append(m.box("Board", case, -1.0, 1.0, -0.25, 0.25, u, u + 0.05))
+            if u > 2.0:
+                continue
+            for j, e in enumerate((-0.65, 0.0, 0.62)):
+                if (k + j) % 3 == 0:  # a movement: a brass box of gears
+                    parts.append(m.box("Movement", iron, e - 0.2, e + 0.2, -0.15, 0.15, u + 0.05, u + 0.45))
+                    parts += gear(0.13, 10, 0.02, brass_web, iron, at=M(G(e, -0.16, u + 0.27), rot=(90, 0, 0)))
+                elif (k + j) % 3 == 1:  # a small bracket clock
+                    parts.append(m.box("Bracket", case, e - 0.17, e + 0.17, -0.13, 0.13, u + 0.05, u + 0.5))
+                    parts.append(part("Dial", kit.cylinder(14, 0.12, 0.02), enamel, M(G(e, -0.14, u + 0.32), rot=(90, 0, 0))))
+                else:  # loose wheels in a heap
+                    for q in range(3):
+                        parts += gear(0.09 + 0.03 * q, 8, 0.02, brass_web, iron, at=M(G(e + 0.08 * q - 0.08, 0.0, u + 0.06 + q * 0.025)))
+    elif variant == "crate_gears":
+        wood = kit.mat("CrateWood", "#7a5a3c")
+        parts += [m.box("Floor", wood, -0.6, 0.6, -0.45, 0.45, 0.0, 0.06)]
+        for n in (-0.45, 0.4):
+            parts.append(m.box("SideN", wood, -0.6, 0.6, n, n + 0.05, 0.0, 0.62))
+        for e in (-0.6, 0.55):
+            parts.append(m.box("SideE", wood, e, e + 0.05, -0.45, 0.45, 0.0, 0.62))
         rng = kit.rng
         for k in range(7):
-            a = rng.uniform(0, 2 * math.pi)
-            d = rng.uniform(0, 0.6)
-            rr = rng.uniform(0.35, 0.6)
-            parts.append(part("Leaves", kit.ico(1, rr), leaves[k % 3], M((math.cos(a) * d, math.sin(a) * d, rr * 0.7 + rng.uniform(0, 0.25))), jitter=0.06))
-    elif variant == "tree":
-        leaves = [kit.mat("HallLeaf1", "#4d6b3e"), kit.mat("HallLeaf2", "#5d7d47"), kit.mat("HallLeaf3", "#41593a")]
-        bark = kit.mat("HallBark", "#4e3e30")
+            r = rng.uniform(0.14, 0.3)
+            parts += gear(r, int(8 + r * 30), 0.04, brass_web, iron,
+                          at=M(G(rng.uniform(-0.35, 0.35), rng.uniform(-0.25, 0.25), 0.5 + k * 0.03), rot=(rng.uniform(-25, 25), rng.uniform(-25, 25), 0)))
+    elif variant == "gear_stack":
         rng = kit.rng
-        parts.append(part("Trunk", kit.tube([(0, 0, 0), (0.1, 0.05, 1.2), (0.05, -0.1, 2.2)], [0.18, 0.13, 0.09], seg=6), bark))
-        for k in range(8):
-            a = rng.uniform(0, 2 * math.pi)
-            d = rng.uniform(0.2, 0.9)
-            rr = rng.uniform(0.5, 0.8)
-            parts.append(part("Crown", kit.ico(1, rr), leaves[k % 3], M((math.cos(a) * d, math.sin(a) * d, 2.2 + rng.uniform(-0.3, 0.5))), jitter=0.08))
-    elif variant == "shaft":
-        parts += [part("Shaft", kit.cylinder(10, 0.2, 11.8), iron, M((0, 0, 5.9)))]
-        for u in (0.4, 4.4, 8.4, 11.4):
-            parts.append(part("Collar", kit.cylinder(10, 0.3, 0.2), iron, M((0, 0, u))))
-    elif variant in ("bell_large", "bell_small"):
-        r, h = (1.2, 1.8) if variant == "bell_large" else (0.8, 1.2)
-        parts += [part("Headstock", kit.cube(), timber, M((0, 0, -0.2), scale=(r * 2.2, 0.35, 0.4))),
-                  part("Crown", kit.cylinder(10, r * 0.35, 0.3), bronze, M((0, 0, -0.55))),
-                  part("Waist", kit.cone(16, r * 0.62, r * 0.42, h * 0.55), bronze, M((0, 0, -0.7 - h * 0.275))),
-                  part("Sound", kit.cone(16, r, r * 0.62, h * 0.45), bronze, M((0, 0, -0.7 - h * 0.55 - h * 0.225))),
-                  part("Lip", kit.cylinder(16, r + 0.04, 0.08), bronze, M((0, 0, -0.7 - h))),
-                  part("Clapper", kit.sphere(8, 6, r * 0.18), iron, M((0, 0, -0.7 - h + 0.05)))]
-    elif variant == "pendulum":
-        length = 13.0
-        parts += [part("Pivot", kit.cylinder(10, 0.14, 0.9), iron, M((0, 0, 0), rot=(90, 0, 0))),
-                  part("Rod", kit.cube(), iron, M((0, 0, -length / 2), scale=(0.12, 0.08, length))),
-                  part("Bob", kit.cylinder(24, 0.85, 0.22), bronze, M((0, 0, -length), rot=(90, 0, 0))),
-                  part("BobRim", kit.cylinder(24, 0.9, 0.12), iron, M((0, 0, -length), rot=(90, 0, 0)))]
-    elif variant == "dial":
+        for k, r in enumerate((0.9, 0.7, 0.55)):  # leaning against the wall behind
+            parts += gear(r, int(r * 22), 0.08, brass_web, iron, at=M(G(-0.6 + k * 0.6, 0.15 + k * 0.06, r + 0.02), rot=(78, 0, rng.uniform(-8, 8))))
+        for k in range(4):  # a pile lying in front
+            parts += gear(0.35 - k * 0.05, 10, 0.06, brass_web, iron, at=M(G(0.5, -0.45, 0.04 + k * 0.07), rot=(0, 0, k * 17)))
+    elif variant == "lathe":
+        dark = kit.mat("MachineIron_Metal", "#3e3e44")
+        belt = kit.mat("Belt", "#3a2a1e")
+        parts += [m.box("Bed", dark, -1.1, 1.1, -0.2, 0.2, 0.75, 0.95)]
+        for e in (-0.9, 0.9):
+            parts.append(m.box("Foot", dark, e - 0.12, e + 0.12, -0.3, 0.3, 0.0, 0.75))
+        parts.append(m.box("Headstock", iron, -1.0, -0.6, -0.22, 0.22, 0.95, 1.35))
+        parts.append(m.box("Tailstock", iron, 0.6, 0.85, -0.18, 0.18, 0.95, 1.25))
+        parts.append(part("Spindle", kit.cylinder(8, 0.05, 1.3), iron, M(G(-0.0, 0, 1.15), rot=(0, 90, 0))))
+        parts += gear(0.55, 14, 0.08, brass_web, iron, at=M(G(-1.25, 0.0, 1.0), rot=(0, 90, 0)))   # the flywheel
+        p0, p1 = G(-1.25, 0.0, 1.5), G(-0.8, 0.0, 1.35)
+        parts.append(part("Belt", kit.cube(), belt, kit.along(p0, p1) @ kit.M(scale=(0.04, 0.08, math.dist(p0, p1)))))
+    elif variant == "hoist":
+        parts += [m.box("Beam", timber, -0.6, 0.6, -0.12, 0.12, -0.25, 0.0),
+                  part("Pulley", kit.cylinder(14, 0.25, 0.1), iron, M(G(0, 0, -0.45), rot=(90, 0, 0))),
+                  m.box("Chain", iron, -0.03, 0.03, -0.03, 0.03, -3.0, -0.45),
+                  m.box("Chain2", iron, 0.2, 0.26, -0.03, 0.03, -1.6, -0.45),
+                  part("Hook", kit.tube([(0, 0, -3.0), (0, -0.15, -3.25), (0, 0, -3.4), (0, 0.12, -3.3)], [0.04] * 4, seg=5), iron),
+                  part("Weight", kit.cylinder(10, 0.16, 0.3), kit.mat("WeightIron_Metal", "#3b3a40"), M(G(0.23, 0, -1.75)))]
+    elif variant == "mainspring":
+        # A great coiled spring of blued steel on its side, wound tight round its arbor, on a cradle.
+        steel = kit.mat("BluedSteel_Metal", "#4a5a78")
+        parts.append(m.box("Cradle", timber, -0.9, 0.9, -0.35, 0.35, 0.0, 0.3))
+        pts = []
+        for k in range(140):
+            a = k * 0.18
+            r = 0.15 + 0.0055 * k
+            pts.append((math.cos(a) * r, 0, 1.15 + math.sin(a) * r))
+        parts.append(part("Spring", kit.tube(pts, [0.035] * len(pts), seg=4), steel))
+        parts.append(part("Arbor", kit.cylinder(10, 0.1, 0.5), iron, M((0, 0, 1.15), rot=(90, 0, 0))))
+        parts.append(part("Barrel", kit.cylinder(24, 0.98, 0.06), iron, M((0, -0.22, 1.15), rot=(90, 0, 0))))
+    elif variant == "hourglass":
+        glass = kit.mat("HourGlass", "#a8bccb")
+        sand = kit.mat("Sand", "#d9b878")
+        parts += [part("Foot", kit.cylinder(10, 0.5, 0.12), iron, M((0, 0, 0.06))),
+                  part("Head", kit.cylinder(10, 0.5, 0.12), iron, M((0, 0, 2.2))),
+                  part("Lower", kit.cone(12, 0.42, 0.05, 1.0), glass, M((0, 0, 0.62))),
+                  part("Upper", kit.cone(12, 0.05, 0.42, 1.0), glass, M((0, 0, 1.64))),
+                  part("SandLow", kit.cone(12, 0.36, 0.08, 0.35), sand, M((0, 0, 0.3))),
+                  part("SandHigh", kit.cone(12, 0.06, 0.24, 0.3), sand, M((0, 0, 1.3))),
+                  part("Stream", kit.cylinder(5, 0.012, 0.75), sand, M((0, 0, 0.84)))]  # (caught falling)
+        for k in range(3):
+            a = 2 * math.pi * k / 3
+            parts.append(part("Post", kit.cylinder(6, 0.04, 2.1), iron, M((math.cos(a) * 0.46, math.sin(a) * 0.46, 1.13))))
+        parts.append(part("Finial", kit.sphere(8, 6, 0.1), gilt, M((0, 0, 2.35))))
+    elif variant == "chandelier":
+        lamp = kit.mat("Candle_Glow", "#ffcf8a")
+        parts.append(m.box("Chain", iron, -0.03, 0.03, -0.03, 0.03, -2.0, 0.0))
+        parts += gear(0.9, 18, 0.08, brass_web, iron, at=M((0, 0, -2.1)))
+        for k in range(6):
+            a = 2 * math.pi * k / 6
+            parts.append(part("Cup", kit.cylinder(8, 0.07, 0.08), gilt, M((math.cos(a) * 0.75, math.sin(a) * 0.75, -2.0))))
+            parts.append(part("Flame", kit.sphere(6, 4, 0.05), lamp, M((math.cos(a) * 0.75, math.sin(a) * 0.75, -1.9))))
+    elif variant == "cart":
+        wood = kit.mat("CartWood", "#6e5038")
+        parts += [m.box("Bed", wood, -0.9, 0.9, -0.55, 0.55, 0.55, 0.65)]
+        for n in (-0.55, 0.5):
+            parts.append(m.box("Side", wood, -0.9, 0.9, n, n + 0.05, 0.65, 0.95))
+        for e in (-0.9, 0.85):
+            parts.append(m.box("End", wood, e, e + 0.05, -0.55, 0.55, 0.65, 0.95))
+        for e in (-0.5, 0.5):  # its wheels are gears
+            for n in (-0.62, 0.62):
+                parts += gear(0.42, 12, 0.08, brass_web, iron, at=M(G(e, n, 0.42), rot=(90, 0, 0)))
+        parts.append(m.box("Shaft", wood, 0.9, 1.9, -0.04, 0.04, 0.55, 0.62))
+        rng = kit.rng
+        for k in range(6):
+            r = rng.uniform(0.18, 0.35)
+            parts += gear(r, int(8 + r * 25), 0.05, brass_web, iron,
+                          at=M(G(rng.uniform(-0.55, 0.55), rng.uniform(-0.3, 0.3), 0.75 + k * 0.05), rot=(rng.uniform(-20, 20), rng.uniform(-20, 20), 0)))
+    elif variant == "fountain":
         stone = m.mat(m.CAP)
-        glass = kit.mat("DialEnamel_Glow", "#3a3426")   # (cream enamel, lit faintly from within)
-        numeral = kit.mat("Numeral", "#2a2620")
-        parts += [m.box("Frame", stone, -3.4, 3.4, -0.2, 0.0, -3.4, 3.4),
-                  part("Face", kit.cylinder(48, 3.15, 0.06), glass, M(G(0, -0.23, 0), rot=(90, 0, 0))),
-                  part("Bezel", kit.cylinder(48, 3.3, 0.04), iron, M(G(0, -0.21, 0), rot=(90, 0, 0)))]
-        for k in range(12):
-            a = 2 * math.pi * k / 12
-            long_ = 0.55 if k % 3 == 0 else 0.35
-            c = (math.sin(a) * 2.75, math.cos(a) * 2.75)
-            parts.append(part("Hour", kit.cube(), numeral, M(G(c[0], -0.27, c[1]), rot=(0, math.degrees(a), 0), scale=(0.12, 0.03, long_))))
-    elif variant in ("hand_hour", "hand_minute"):
-        # A beam standing out from the dial (n -0.05 .. -0.75), its top at the centre's height; the hub a round plate.
-        length, west = (2.45, True) if variant == "hand_hour" else (3.3, False)
-        e0, e1 = (-length, 0.2) if west else (-0.2, length)
-        parts += [m.box("Hand", iron, e0, e1, -0.78, -0.05, -0.35, 0.0)]
-        tip = e0 if west else e1
-        parts.append(m.box("Tip", iron, tip - 0.2 if west else tip, tip if west else tip + 0.2, -0.78, -0.05, -0.5, 0.0))
-        parts.append(part("Hub", kit.cylinder(16, 0.85, 0.35), iron, M(G(0, -0.45, -0.175))))
+        parts.append(part("Basin", kit.cylinder(8, 2.0, 0.6), stone, M((0, 0, 0.3), rot=(0, 0, 22.5))))
+        parts.append(part("BasinRim", kit.cylinder(8, 2.1, 0.12), m.mat(m.STONE[1]), M((0, 0, 0.62), rot=(0, 0, 22.5))))
+        parts.append(part("Column", kit.cylinder(10, 0.22, 1.6), iron, M((0, 0, 1.4))))
+        parts += gear(0.85, 14, 0.12, brass_web, iron, at=M((0, 0, 2.2)))   # the bowl, a gear
+        parts.append(part("Bowl", kit.cone(12, 0.2, 0.75, 0.35), iron, M((0, 0, 2.05))))
+        parts.append(part("Finial", kit.cone(8, 0.12, 0.02, 0.5), gilt, M((0, 0, 2.55))))
+        for k in range(4):  # spouts
+            a = 2 * math.pi * k / 4 + math.pi / 4
+            parts.append(part("Spout", kit.cylinder(6, 0.04, 0.3), gilt, M((math.cos(a) * 0.85, math.sin(a) * 0.85, 2.25), rot=(0, 90, math.degrees(a)))))
     return [kit.join(parts, f"ClocktowerProps_{variant}")]

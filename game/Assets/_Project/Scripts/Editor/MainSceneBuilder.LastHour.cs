@@ -65,21 +65,6 @@ public static partial class MainSceneBuilder
         FinishScene(scene, LastHourLabPath, start, apprentice, "music_last_hour"); // (none yet: silence, and the river)
     }
 
-    // Green over the stone: a tree (its trunk solid) or a shrub (nothing).
-    static void Greenery(string model, Vector3 at, float yaw)
-    {
-        var green = Place("Environment/last_hour_props_" + model, at, yaw);
-        foreach (var c in green.GetComponentsInChildren<Collider>())
-            Object.DestroyImmediate(c); // (leaves stop nothing)
-        if (model == "tree")
-        {
-            var trunk = green.AddComponent<CapsuleCollider>();
-            trunk.center = new Vector3(0f, 1f, 0f);
-            trunk.radius = 0.18f;
-            trunk.height = 2f;
-        }
-    }
-
     // The castle round the keep (last_hour.py: courtyard, gatehouse, hall, hall_roof): the walled court before the keep's
     // door, the gate in its west wall (its tower with a stopped clock over the passage, the quay outside), the great hall
     // along its east side (its roof hidden while you're in it) with its clocks, its pendulums and its orrery; domed
@@ -133,25 +118,42 @@ public static partial class MainSceneBuilder
             p.transform.rotation = Quaternion.AngleAxis(tilt, Vector3.forward) * p.transform.rotation;
         }
         Put("last_hour_props_orrery", T(22f, f, -0.4f), 30f, hall.transform);
+        foreach (var n in new[] { -20f, -12f, -4f })
+            foreach (var e in new[] { 19.4f, 24.6f })
+            {
+                var c = Put("last_hour_props_chandelier", T(e, 9.5f - 1.0f, n), 0f, hall.transform);
+                foreach (var col in c.GetComponentsInChildren<Collider>())
+                    Object.DestroyImmediate(col); // (hung overhead)
+                Flicker(PointLight(c.transform, T(e, 9.5f - 3.0f, n), 7f, 1.6f, TowerBrass), 0.06f, 4f, 0.005f);
+            }
+        Put("last_hour_props_hourglass", T(19.6f, f, -24.6f), 0f, hall.transform);
+        Put("last_hour_props_hourglass", T(24.4f, f, -24.6f), 0f, hall.transform);
+        Put("last_hour_props_workbench", T(19.4f, f, -7.6f), -90f, hall.transform);
+        Put("last_hour_props_workbench", T(24.6f, f, -17.4f), 90f, hall.transform);
+        Put("last_hour_props_cart", T(24.4f, f, -8.4f), 90f, hall.transform);
 
         // Domed turrets at the north corners (nothing tall south of where you walk: the camera looks down from there).
         foreach (var (e, n) in new[] { (-14.6f, -7.6f), (28.2f, 3.8f) })
             Put("last_hour_props_turret", T(e, 0f, n));
 
-        // Green in the court: trees in its corners and along its walls, shrubs at their feet.
-        foreach (var (model, e, n, yaw) in new[] { ("tree", -12.4f, -24.6f, 20f), ("tree", -12.4f, -9.8f, 140f), ("tree", 14.4f, -24.4f, 260f),
-                                                  ("shrub", -12.9f, -22.8f, 0f), ("shrub", -12.9f, -11.6f, 70f), ("shrub", 14.6f, -19.5f, 30f),
-                                                  ("shrub", -7.2f, -25.2f, 80f), ("shrub", 7.4f, -25.2f, 150f), ("shrub", 10.5f, -9.0f, 10f),
-                                                  ("shrub", -10.5f, -9.0f, 200f) })
-            Greenery(model, T(e, f, n), yaw);
+        // The court's clutter (nothing grows here): the fountain, its water held in the air; a cart of gears; crates;
+        // spare wheels against the hall's wall; a mainspring on its cradle; an hourglass, its sand caught falling.
+        Put("last_hour_props_fountain", T(6f, f, -21f));
+        FountainWater(root, T(6f, f, -21f));
+        Put("last_hour_props_cart", T(-6.4f, f, -23.6f), 30f);
+        Put("last_hour_props_crate_gears", T(12.6f, f, -24.2f), 10f);
+        Put("last_hour_props_crate_gears", T(13.6f, f, -23.0f), 35f);
+        Put("last_hour_props_crate_gears", T(-12.2f, f, -9.6f), 80f);
+        Put("last_hour_props_gear_stack", T(15.4f, f, -20.4f), 90f);
+        Put("last_hour_props_mainspring", T(-9.4f, f, -9.4f), 0f);
+        Put("last_hour_props_hourglass", T(10.6f, f, -9.6f));
 
         // Light: lanterns at the gate and down the court, brass lamps in the hall, the moon's light at its windows.
         foreach (var at in new[] { T(-13.6f, f + 3.2f, -19.4f), T(-13.6f, f + 3.2f, -14.6f), T(-19.8f, f + 3.2f, -19.4f), T(-19.8f, f + 3.2f, -14.6f) })
             Flicker(PointLight(root, at, 8f, 2.6f, LanternLight), 0.12f, 5f, 0.01f);
         foreach (var at in new[] { T(-9f, f + 3.4f, -17f), T(9f, f + 3.4f, -17f), T(0f, f + 3.4f, -12f) })
             PointLight(root, at, 11f, 2.0f, TowerBrass);
-        foreach (var n in new[] { -21f, -13f, -5f, 1f })
-            PointLight(hall.transform, T(22f, f + 4.5f, n), 11f, 2.8f, TowerBrass);
+        PointLight(hall.transform, T(22f, f + 4.5f, 1f), 11f, 2.8f, TowerBrass);              // (over the orrery)
         foreach (var n in new[] { -20f, -12f, -4f })
             PointLight(hall.transform, T(26.2f, f + 3.6f, n), 6f, 1.6f, TowerCold);
 
@@ -170,6 +172,80 @@ public static partial class MainSceneBuilder
         Still(root, T(1f, f + 2.4f, -17f), new Vector3(28f, 4f, 17f), 220, new Color(0.95f, 0.9f, 0.78f, 0.3f));
         Still(root, T(1f, f + 1.8f, -17f), new Vector3(26f, 3.2f, 16f), 60, new Color(0.62f, 0.8f, 0.44f, 0.8f)); // (leaves)
         Still(hall.transform, T(22f, f + 3.2f, -11.4f), new Vector3(10f, 5.6f, 28f), 260, new Color(0.95f, 0.9f, 0.78f, 0.34f));
+    }
+
+    // The fountain's water: its basin full and still, and the arcs it was throwing from its four spouts held in the air,
+    // drop by drop.
+    static void FountainWater(Transform parent, Vector3 at)
+    {
+        var water = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        water.name = "Fountain Water";
+        Object.DestroyImmediate(water.GetComponent<Collider>());
+        water.transform.SetParent(parent, true);
+        water.transform.SetPositionAndRotation(at + Vector3.up * 0.63f, Quaternion.Euler(90f, 22.5f, 0f));
+        water.transform.localScale = new Vector3(3.6f, 3.6f, 1f);
+        water.GetComponent<MeshRenderer>().sharedMaterial = ChannelWater();
+        var drops = new System.Collections.Generic.List<Vector3>();
+        for (int k = 0; k < 4; k++)
+        {
+            float a = Mathf.PI / 4f + k * Mathf.PI / 2f;
+            var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+            for (int i = 0; i <= 9; i++)
+            {
+                float t = i / 9f;
+                drops.Add(at + dir * (0.9f + 0.95f * t) + Vector3.up * (2.25f + 0.7f * t - 1.55f * t * t));
+            }
+        }
+        var go = new GameObject("Still Air (the fountain)");
+        go.transform.SetParent(parent, true);
+        go.transform.position = at + Vector3.up * 1.5f;
+        var still = go.AddComponent<StillAir>();
+        still.size = Vector3.one * 0.1f;
+        still.motes = 0;
+        still.drops = drops.ToArray();
+        still.material = sparkMaterial;
+    }
+
+    // The keep's clutter, storey by storey: a working clock-house's (benches, shelves of movements, crates of spare
+    // wheels, the lathe, hoists, mainsprings, hourglasses), clear of every way through. (`works` etc. its storeys.)
+    static void KeepClutter(System.Func<GameObject, string, Vector3, float, GameObject> clutter, GameObject undercroft, GameObject works,
+                            GameObject gallery, GameObject face, System.Func<float, float, float, Vector3> T)
+    {
+        float F(int i) => TowerFloors[i];
+        // The undercroft: crates and a stack of wheels by the west wall, a shelf by the door, a mainspring, a bench by
+        // the channel's rail; hoists over the river.
+        clutter(undercroft, "crate_gears", T(-6.3f, F(0), -6.3f), 0f);
+        clutter(undercroft, "crate_gears", T(-5.0f, F(0), -6.5f), 15f);
+        clutter(undercroft, "gear_stack", T(-6.6f, F(0), -2.6f), -90f);
+        clutter(undercroft, "shelf", T(-4.6f, F(0), -6.95f), 180f);
+        clutter(undercroft, "mainspring", T(-3.0f, F(0), -6.0f), 0f);
+        clutter(undercroft, "workbench", T(-1.8f, F(0), 1.55f), 0f);
+        foreach (var e in new[] { 3.4f, -5.0f })
+            foreach (var c in clutter(undercroft, "hoist", T(e, F(1) - 0.2f, 4f), 0f).GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c);
+        // The works: a bench and the lathe along the south wall, a shelf on the west, crates in the north-west corner, a
+        // mainspring; an hourglass by the stair; a hoist over the great floor-gear.
+        clutter(works, "workbench", T(2.6f, F(1), -6.6f), 180f);
+        clutter(works, "lathe", T(-0.6f, F(1), -6.5f), 180f);
+        clutter(works, "shelf", T(-6.95f, F(1), -0.5f), -90f);
+        clutter(works, "crate_gears", T(-6.3f, F(1), 5.0f), 0f);
+        clutter(works, "crate_gears", T(-4.9f, F(1), 6.4f), 25f);
+        clutter(works, "mainspring", T(-3.2f, F(1), 6.3f), 0f);
+        clutter(works, "hourglass", T(4.3f, F(1), -4.6f), 0f);
+        foreach (var c in clutter(works, "hoist", T(-4.2f, F(2) - 0.2f, -4.4f), 0f).GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c);
+        // The gallery: shelves along the south, a bench on the east, crates.
+        clutter(gallery, "shelf", T(-5.6f, F(2), -6.95f), 180f);
+        clutter(gallery, "shelf", T(5.6f, F(2), -6.95f), 180f);
+        clutter(gallery, "workbench", T(6.6f, F(2), -2.0f), 90f);
+        clutter(gallery, "crate_gears", T(6.3f, F(2), 3.8f), 0f);
+        // The face room: a bench and a shelf along the north wall, an hourglass, a mainspring, crates by the dial.
+        clutter(face, "workbench", T(-3.4f, F(3), 6.55f), 0f);
+        clutter(face, "shelf", T(3.0f, F(3), 6.95f), 0f);
+        clutter(face, "hourglass", T(-4.6f, F(3), 4.0f), 0f);
+        clutter(face, "mainspring", T(3.4f, F(3), 2.8f), 0f);
+        clutter(face, "crate_gears", T(-2.8f, F(3), -6.5f), 0f);
+        clutter(face, "crate_gears", T(2.8f, F(3), -6.6f), 40f);
     }
 
     // The keep, its storeys hidden above the Apprentice inside (Storeys), its works placed, still, its light; the spire
@@ -260,6 +336,13 @@ public static partial class MainSceneBuilder
         var spire = Place("Environment/last_hour_props_spire", T(-15.6f, 0f, 2f), 0f);
         spire.name = "The Spire";
         Place("Environment/last_hour_props_drive", T(-13.2f, F(2) + 2.0f, 2f), 0f).name = "The Drive-Rod";
+
+        KeepClutter((storey, model, at, yaw) =>
+        {
+            var go = Place("Environment/last_hour_props_" + model, at, yaw);
+            go.transform.SetParent(storey.transform, true);
+            return go;
+        }, undercroft, works, gallery, face, T);
 
         // The stairs' ramps (the Soured's ways; everyone climbs them smoothly): as last_hour.py lays the stairs out.
         const float rise = 0.25f, length = 5.12f;
