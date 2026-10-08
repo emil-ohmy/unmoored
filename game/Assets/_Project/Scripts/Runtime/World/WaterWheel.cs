@@ -6,8 +6,9 @@ namespace MyGame
     // couple of turns, slowing, and as it turns it winds its chain: the sluice gate it's chained to rises a stage
     // (SluiceGate). Its axle is the world's `axis`; turned by water poured over its top. Any other wave that reaches it
     // (from the yard, or across the race) only rocks it: a lurch and a creak, a little way round and back to still, no
-    // more: it wants the race's water behind it.
-    public sealed class WaterWheel : MonoBehaviour, IWaveable
+    // more: it wants the race's water behind it. Struck with the oar (Stroke or no Stroke) it answers too: a thump, a
+    // creak, a short rock round: something can be done here.
+    public sealed class WaterWheel : MonoBehaviour, IWaveable, IStrikable
     {
         public Transform wheel;
         public Vector3 axis = Vector3.forward;
@@ -21,11 +22,28 @@ namespace MyGame
         public float Turned { get; private set; }   // degrees, in all
         public int Turns { get; private set; }      // surges taken (tests)
         public int Lurches { get; private set; }    // other waves that rocked it (tests)
+        public int Knocks { get; private set; }     // oar blows (tests)
+        public float Rocking => lurch;
 
         float lurch; // degrees a second, of a rocking (dies away fast)
 
-        void OnEnable() => Waveables.Register(this);
-        void OnDisable() => Waveables.Unregister(this);
+        void OnEnable() { Waveables.Register(this); Strikables.Register(this); }
+        void OnDisable() { Waveables.Unregister(this); Strikables.Unregister(this); }
+
+        public Vector3 StrikePoint => transform.position;
+        public float StrikeRadius => radius;
+
+        // An oar blow on its paddles: it rocks a little way round (more for a heavy), creaking.
+        public void Struck(Apprentice by, bool heavy)
+        {
+            Knocks++;
+            lurch = Mathf.Max(lurch, heavy ? 110f : 65f);
+            Vector3 at = transform.position + Vector3.ClampMagnitude(by.transform.position - transform.position, radius) + Vector3.up * 0.4f;
+            Sfx.Instance?.OarHit(at, heavy);
+            Sfx.Instance?.Attack(creakSound, transform.position, heavy ? 0.7f : 0.5f, "mill_wheel_creak");
+            Effects.Instance?.OarDip(new Vector3(at.x, transform.position.y + 0.1f, at.z)); // (drops shaken off it)
+            CameraRig.Instance?.Shake(heavy ? 0.12f : 0.06f);
+        }
 
         public Vector3 WavePoint => transform.position;
         public float WaveRadius => radius;

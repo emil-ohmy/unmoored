@@ -602,6 +602,22 @@ namespace MyGame
                     continue; // (a heavy swing goes on through Moths: as many as it reaches)
                 return; // one target per swing
             }
+            if (hitLanded)
+                return;
+            // No Soured: something else in reach that answers a blow (a water wheel).
+            foreach (var s in Strikables.All)
+            {
+                Vector3 to = s.StrikePoint - transform.position;
+                if (Mathf.Abs(to.y) > 2f)
+                    continue;
+                to.y = 0f;
+                if (to.magnitude > reach + s.StrikeRadius || Vector3.Angle(transform.forward, to) > arc)
+                    continue;
+                hitLanded = true;
+                s.Struck(this, isHeavy);
+                HitStop.Trigger(0.05f);
+                return;
+            }
         }
 
         void Recoil(Vector3 towardsBlocker)

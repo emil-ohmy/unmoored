@@ -863,6 +863,29 @@ namespace MyGame.Tests
             yield return WaitUp(() => wheel.Turns == 1, 3f, "the wheel turning");
         }
 
+        // Without the Stroke: struck with the oar, the wheel answers (a thump, a creak, a short rock round): something can
+        // be done here. It doesn't turn, or wind the gate.
+        [UnityTest]
+        public IEnumerator TheMill_StruckWithTheOar_TheWheelAnswers()
+        {
+            Assert.IsFalse(apprentice.HasStroke);
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            Vector3 yard = race.mouth.position + new Vector3(-0.9f, -0.3f, 1.2f); // (on the yard, at its east edge, by the wheel)
+            Vector3 toWheel = wheel.transform.position - yard;
+            toWheel.y = 0f;
+            yield return StandAt(yard, toWheel);
+            input.PressLight();
+            yield return WaitUp(() => wheel.Knocks == 1, 1f, "a light blow answered");
+            Assert.Greater(wheel.Rocking, 20f, "it rocks");
+            yield return new WaitForSeconds(1.2f);
+            input.PressHeavy();
+            yield return WaitUp(() => wheel.Knocks == 2, 1.5f, "a heavy blow answered");
+            yield return new WaitForSeconds(1.5f);
+            Assert.AreEqual(0, wheel.Turns, "not turned");
+            Assert.AreEqual(0, UnityEngine.Object.FindAnyObjectByType<SluiceGate>().Stage, "the gate not wound");
+        }
+
         // Up the race: no surge. From the yard at the wheel: it rocks (a creak), but doesn't turn or wind the gate.
         [UnityTest]
         public IEnumerator TheMill_UpTheRace_OrFromTheYard_TheWheelOnlyRocks()
@@ -916,12 +939,12 @@ namespace MyGame.Tests
             apprentice.GiveStroke();
             var crates = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).Where(x => !x.Afloat).ToArray();
             Assert.Greater(crates.Length, 0, "crates loose on the yard");
-            var crate = crates.OrderBy(c => c.transform.position.z).First();
+            var crate = crates.OrderBy(c => -c.transform.position.z).First(); // (the northern one: open yard east of it)
             Vector3 was = crate.transform.position;
-            yield return StandAt(was - Vector3.forward * 2f, Vector3.forward);
+            yield return StandAt(was - Vector3.right * 2f, Vector3.right);
             yield return Stroke();
             yield return new WaitForSeconds(1.5f);
-            Assert.Greater(crate.transform.position.z - was.z, 0.8f, "shoved along");
+            Assert.Greater(crate.transform.position.x - was.x, 0.8f, "shoved along");
             Assert.AreEqual(was.y, crate.transform.position.y, 0.05f, "on the ground still");
 
             var barrel = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).Where(x => x.Afloat)
