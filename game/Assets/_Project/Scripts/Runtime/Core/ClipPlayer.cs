@@ -42,14 +42,15 @@ namespace MyGame
                 animation[full].speed = speed;
         }
 
-        public void PlayOnce(string clip, float duration, float fade = 0.05f)
+        // (from: where in the clip to start, 0..1: a swing picked up partway)
+        public void PlayOnce(string clip, float duration, float fade = 0.05f, float from = 0f)
         {
             if (!fullNames.TryGetValue(clip, out var full))
                 return;
             var state = animation[full];
             state.wrapMode = WrapMode.ClampForever;
             state.speed = duration > 0f ? state.length / duration : 1f;
-            state.time = 0f;
+            state.time = from * state.length;
             if (Current == clip)
                 animation.Play(full);
             else

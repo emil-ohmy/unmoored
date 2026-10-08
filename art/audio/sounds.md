@@ -103,3 +103,32 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Thresher's chain wrenched off (`thresher_chain`) | in game | Synth | the Hook: a hard iron snap, the chain whipping and rattling loose, steam escaping |
 | Thresher stoked (`thresher_stoke`) | in game | Synth | fire on it: the firebox catching with a whoomph, the boiler's whistle shrieking up, a roar from the stack |
 | Thresher venting (`thresher_hiss`, `thresher_vent`, 2) | in game | Synth | close at its back: a rising hiss in the pipes (the tell), then a roaring burst of steam |
+| Father Moth's wingbeat (`father_moth_wing`, 3) | in game | Synth | on the wing, one per beat: a great soft whump of air, and the papery rustle of dry leaves after it |
+| Father Moth's beat (`father_moth_beat`, 2) | in game | Synth | a wingbeat throwing his leaves: one great beat driven forward, a heavy whoomph, a wind full of dead leaves |
+| Father Moth waking (`father_moth_wake`) | in game | Synth | on the dead orange tree: dead leaves crackling open (his wings unfolding), the branches creaking under him, two slow wingbeats as he lifts |
+| Father Moth spent (`father_moth_downed`) | in game | Synth | his wings giving out, down on the floor: a great heavy crash onto the stone, the shears clattering, leaves crumpling, a long hollow breath out |
+| Father Moth beaten (`father_moth_death`) | in game | Synth | his wings folding with a long dry crackle, a great soft fall, a last breath; faintly, music-box notes going down (A, E, D), unresolved |
+| A seed pod bursting (`seed_pod_burst`, 2) | in game | Synth | Father Moth's, phase 2: a sharp papery pop, leaves flung out |
+| A withered orange landing (`fruit_fall`, 3) | in game | Synth | shaken down from the glasshouse's vault: a soft wet thud on the stone, the rind splitting, seeds skittering |
+| Father Moth's shears drawn (`father_moth_snip`, 2) | in game | Synth | phase 3, afoot, before a snip or a sweep: the blades opened with an iron scrape, snip-snip |
+| Father Moth's lunge drawn (`father_moth_stall`, 2) | in game | Synth | phase 3, before his lunge: a hard crack of air as he rears, a trembling rattle of leaves, the lantern in his ribs flaring |
+| Father Moth's scream (`father_moth_scream`) | in game | Synth | phase 4 begins: an old man's hoarse cry torn ragged, rising into a dry rasping shriek of wings and leaves, the glasshouse's iron ringing under it |
+| A lamp shattering (`glass_lamp_shatter`, 2) | in game | Synth | an iron clank, the glass bursting, shards skittering, the flame gone with a puff |
+| Father Moth charging (`father_moth_charge`) | in game | Synth | phase 4, his blast charging for 12 s, never stopping building: a deep drone climbing in pitch, throbbing faster and faster, crackling denser, a whine screaming up at the last |
+| Father Moth letting it go (`father_moth_release`) | in game | Synth | a huge deep whoomph, a blast of wind and leaves tearing outward, the glasshouse's panes rattling in their iron |
+| The Drowned Moon pouring out (`drowned_moon_pour`) | in game | Synth | his rib-cage cracking, moonlight running out like a thin stream and pooling, cold glass tones (A, E, C, A) coming in as it fills |
+| The Stroke drawn back (`stroke_draw`) | in game | Synth | water pulled away like a tide, a low swell rising and held, a cold glass tone climbing a fifth under it; cut off when let go |
+| The Stroke's wave (`stroke_wave`, 3) | in game | Synth | a deep thump of water, a rush rolling away and breaking into spray, a cold glass chime (A, C or E) |
+| The Stroke fully drawn (`stroke_charged`) | in game | Synth | one clear cold glass ring (A over E) and a single drop into still water: let go now |
+| A surge down the mill-race (`mill_race_surge`) | in game | Synth | water shoved along a stone channel: a hollow rushing slap, gurgling against the walls |
+| The water wheel turning (`mill_wheel_turn`) | in game | Synth | water crashing over the paddles, then the old wheel groaning round, creaks slowing, water pouring off |
+| The water wheel rocked (`mill_wheel_creak`, 2) | in game | Synth | a slap of water on its paddles, one groaning creak, a knock as it settles back |
+| Fast water (`current_rush`, loop) | in game | Synth | a river running hard through a stone channel: a deep steady rush, a churning surface, tearing at the walls |
+| The Stroke from the boat (`boat_surge`, 2) | in game | Synth | the oar dug in and hauled through: a heavy plunge, a long rush past the hull, a cold glass note on it |
+| A dock's bell rung (`dock_bell`) | in game | Synth | a small bronze bell struck twice, bright over the water, its hum dying slowly |
+| The sluice gate winding up (`sluice_gate_rise`) | in game | Synth | an iron chain ratcheting over a pulley, the board scraping up its stone grooves |
+| The sluice gate held (`sluice_gate_clunk`) | in game | Synth | a heavy iron pawl dropping into its tooth, a deep wooden knock |
+| Fire put out (`steam_hiss`, 2) | in game | Synth | a sharp hiss of steam thinning away, a crackle dying in it |
+| A crate shoved (`crate_scrape`, 2) | in game | Synth | a rough wooden scrape across stone, a knock as it stops |
+| Music: Father Moth (`Music/music_father_moth_1`..`_4`) | in game | Synth | Last Autumn grown huge: a 72 s loop, A minor, 3/4 at 80 bpm, the Orchard's chords and tune, four variants sharing one loop (crossfading in step), one a phase. 1: the waltz as a full dance (reed organ, harp with leaf-fall runs, the music box strong, a deep drum on each first beat: his wingbeats). 2: busier (strings trembling, a reed voice chasing the tune a beat behind and a third below, leaves shaken on the off-beats). 3: afoot, the waltz broken (a stamping drum every beat, shears snipping between, a bass sawing quavers, a fiddle hacking out the tune). 4: the dark, at half the level (a drone, a heartbeat, the music box slowed and flat, wind) |
+| Music: Father Moth's end (`Music/music_father_moth_end`) | in game | Synth | beaten: the music box plays Last Autumn's last phrase, winding down, and this once comes home to A, a soft reed A minor swelling under it |

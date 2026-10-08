@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke }
         enum Act { None, Dash, Light, Heavy }
 
         [Header("Movement")]
@@ -124,6 +124,19 @@ namespace MyGame
         public float tarDuration = 30f, tarDamage = 1.3f, tarBurnSeconds = 2.5f, tarBurnPerSecond = 5f;
         public float brothAmount = 30f, brothDuration = 10f;
 
+        [Header("The Stroke (an Ability: hold the heavy attack, let go: a wave)")]
+        public float strokeHold = 0.3f;       // the heavy held this far into its windup: drawn back as the Stroke instead
+        public float strokeCharge = 1f;       // drawn this long, it's charged (a ring, a flash on the blade); let go sooner: just the heavy
+        public float strokeLaunch = 0.17f;    // from letting go to the wave leaving the blade (the clip's sweep)
+        public float strokeRecovery = 0.45f;
+        public float strokeStaminaCost = 40f; // in all (the heavy's share is spent as it starts)
+        public float strokeReach = 4.2f, strokeArc = 110f, strokeSpeed = 12f;
+        public float strokeDamage = 6f, strokePush = 26f, strokeStagger = 0.9f; // the wave's
+        public float strokeBladeDamage = 55f, strokeBladeArc = 75f; // the blade's own, as it sweeps through (more than a heavy)
+        public float strokeWetReach = 1.45f, strokeWetArc = 130f, strokeWetPush = 1.25f; // from shallows: it carries water
+        public float strokeSurge = 12f;       // in the boat: the surge's speed (more than any rowing), dying away
+        public AudioClip[] strokeDrawSound, strokeChargedSound, strokeSound, douseSound, boatSurgeSound;
+
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
         public float ceremonyDuration = 2.4f; // a key item held up
@@ -160,6 +173,7 @@ namespace MyGame
         public float LastEventTime { get; private set; } = -10f;
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
+        public bool HasStroke { get; private set; } // the Drowned Moon, set into the oar blade (Father Moth's)
         public HookPost HookTarget { get; private set; } // with the Hook: the post it would pull to (ringed; brighter while aiming)
         public Soured HookFoe { get; private set; }      // ...or the Soured it would catch (a Soured in reach wins over a post)
         // Where the Hook's marker goes (the HUD): the post's ring, or the Soured's chest; null with nothing to aim at.
@@ -366,6 +380,10 @@ namespace MyGame
                     planar = UpdateAttack();
                     break;
 
+                case State.Stroke:
+                    UpdateStroke(dt);
+                    break;
+
                 case State.Healing:
                     if (stateTime >= healDuration)
                     {
@@ -424,6 +442,8 @@ namespace MyGame
                     UpdateRowing(dt, inMenu);
                     break;
             }
+            if (!DrawingStroke && strokeVoice != null && strokeVoice.isPlaying)
+                StopStrokeVoice(); // (the draw broken off: a blow, a fall)
             if (CurrentState != State.Free && CurrentState != State.Rowing || inMenu)
             {
                 Nearby = null;
@@ -448,7 +468,8 @@ namespace MyGame
             {
                 // The smear shows through the swing's active part (a touch either side, so it reads as one arc).
                 float windup = isHeavy ? heavyWindup : lightWindup, active = isHeavy ? heavyActive : lightActive;
-                swingTrail.Emitting = CurrentState == State.Attacking && stateTime >= windup * 0.8f && stateTime <= windup + active + 0.05f;
+                swingTrail.Emitting = CurrentState == State.Attacking && stateTime >= windup * 0.8f && stateTime <= windup + active + 0.05f
+                                      || CurrentState == State.Stroke && strokeLoosed && stateTime >= 0.03f && stateTime <= strokeLaunch + 0.08f; // (the Stroke's sweep)
                 swingTrail.lifetime = isHeavy ? 0.18f : 0.16f;
             }
             FrameHookTarget();
@@ -511,6 +532,12 @@ namespace MyGame
             float windup = isHeavy ? heavyWindup : lightWindup;
             float active = isHeavy ? heavyActive : lightActive;
             float recovery = isHeavy ? heavyRecovery : lightRecovery;
+            // With the Stroke, a heavy still held partway up its windup is drawn back instead (a tap is just the heavy).
+            if (isHeavy && HasStroke && Input.HeavyHeld && stateTime >= strokeHold && stateTime < windup)
+            {
+                DrawStroke();
+                return Vector3.zero;
+            }
 
             if (stateTime >= windup && stateTime < windup + active)
             {
@@ -545,7 +572,7 @@ namespace MyGame
             float arc = isHeavy ? heavyArc : lightArc;
             foreach (var collider in Physics.OverlapSphere(transform.position, reach + 1f))
             {
-                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable)
+                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable || soured.OutOfReach)
                     continue;
                 Vector3 to = soured.transform.position - transform.position;
                 to.y = 0f;
@@ -575,6 +602,22 @@ namespace MyGame
                 if (isHeavy && soured is Moth)
                     continue; // (a heavy swing goes on through Moths: as many as it reaches)
                 return; // one target per swing
+            }
+            if (hitLanded)
+                return;
+            // No Soured: something else in reach that answers a blow (a water wheel).
+            foreach (var s in Strikables.All)
+            {
+                Vector3 to = s.StrikePoint - transform.position;
+                if (Mathf.Abs(to.y) > 2f)
+                    continue;
+                to.y = 0f;
+                if (to.magnitude > reach + s.StrikeRadius || Vector3.Angle(transform.forward, to) > arc)
+                    continue;
+                hitLanded = true;
+                s.Struck(this, isHeavy);
+                HitStop.Trigger(0.05f);
+                return;
             }
         }
 
@@ -607,6 +650,208 @@ namespace MyGame
             Enter(State.Attacking);
             float total = heavy ? heavyWindup + heavyActive + heavyRecovery : lightWindup + lightActive + lightRecovery;
             clips.PlayOnce(heavy ? "Heavy" : (step % 2 == 0 ? "Light1" : "Light2"), total);
+        }
+
+        // ------------------------------------------------------------ the Stroke
+
+        bool strokeLoosed, waveSent;
+        AudioSource strokeVoice;
+
+        public bool DrawingStroke => CurrentState == State.Stroke && !strokeLoosed || rowDrawing; // (on foot, or in the boat)
+        public bool StrokeCharged => DrawingStroke && strokeCharged; // drawn long enough: let go for the wave
+        bool strokeCharged, rowDrawing;
+        float strokeDrawTime;
+        public float StrokeChargedAt { get; private set; } = -10f;
+        public StrokeWave LastWave { get; private set; } // (tests)
+
+        // How far it's drawn (0..1 until it's charged; the blade's sheen brightens with it).
+        public float StrokeDrawn => DrawingStroke ? Mathf.Clamp01(strokeDrawTime / strokeCharge) : 0f;
+
+        // About the middle of the oar's blade, wherever the swing has it.
+        public Vector3 BladePoint => swingTrail != null && swingTrail.tip != null && swingTrail.inner != null
+            ? Vector3.Lerp(swingTrail.inner.position, swingTrail.tip.position, 0.6f) : transform.position + transform.forward + Vector3.up;
+
+        // Drawn back low on the oar's side, the blade turned to the water that isn't there; held, it gathers.
+        void DrawStroke()
+        {
+            Enter(State.Stroke);
+            strokeLoosed = waveSent = false;
+            clips.Loop("StrokeDraw", 0.12f);
+            BeginDraw();
+        }
+
+        // The draw, on foot or in the boat: from nothing, the tide-pull sound rising.
+        void BeginDraw()
+        {
+            strokeCharged = false;
+            strokeDrawTime = 0f;
+            if (strokeVoice == null)
+            {
+                strokeVoice = gameObject.AddComponent<AudioSource>();
+                strokeVoice.playOnAwake = false;
+                strokeVoice.spatialBlend = 0.6f;
+                strokeVoice.minDistance = 4f;
+            }
+            if (strokeDrawSound != null && strokeDrawSound.Length > 0)
+            {
+                strokeVoice.clip = strokeDrawSound[Random.Range(0, strokeDrawSound.Length)];
+                strokeVoice.volume = Settings.Effects;
+                strokeVoice.Play();
+            }
+        }
+
+        void UpdateStroke(float dt)
+        {
+            if (!strokeLoosed)
+            {
+                // Rooted, turning (slowly) to aim it.
+                Vector3 aim = LockTarget != null ? ToLockTarget() : MoveDirection();
+                if (aim.sqrMagnitude > 0.001f)
+                    transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(aim), turnSpeed * 0.5f * dt);
+                if (HasBuffered(Act.Dash))
+                {
+                    StopStrokeVoice();
+                    Enter(State.Free); // (a dash lets it go unspent)
+                    TryConsumeBuffer();
+                    return;
+                }
+                TickDraw(dt);
+                if (!Input.HeavyHeld)
+                {
+                    if (StrokeCharged)
+                        LooseStroke();
+                    else
+                        ChopAfterAll();
+                }
+                return;
+            }
+            if (!waveSent && stateTime >= strokeLaunch)
+                SendWave();
+            if (waveSent && HasBuffered(Act.Dash))
+                TryConsumeBuffer(); // a dash may cancel its recovery
+            else if (stateTime >= strokeLaunch + strokeRecovery)
+                ToFreeAndConsume();
+        }
+
+        // Drawn a little longer; charged at strokeCharge: the Drowned Moon in the blade answers (a ring, a flash): let go now.
+        void TickDraw(float dt)
+        {
+            strokeDrawTime += dt;
+            if (strokeCharged || strokeDrawTime < strokeCharge)
+                return;
+            strokeCharged = true;
+            StrokeChargedAt = Time.time;
+            Effects.Instance?.StrokeCharged(BladePoint);
+            Sfx.Instance?.Attack(strokeChargedSound, BladePoint, 0.9f, "stroke_charged");
+        }
+
+        float rowSurgeUntil;
+
+        // The Stroke from the boat: the blade dug in and hauled through, the boat driven on, the water driven back in a
+        // wave astern (it carries water: it puts out what burns, and knocks the Drowned under).
+        void RowSurge()
+        {
+            Spend(strokeStaminaCost);
+            Boat.Surge(strokeSurge);
+            clips.PlayOnce("RowSurge", 0.7f, 0.06f);
+            rowSurgeUntil = Time.time + 0.7f;
+            // (the water driven back, the boat on: the wave rolls out astern)
+            Vector3 bow = Boat.Bow, at = Boat.transform.position;
+            LastWave = StrokeWave.Send(at - bow * 1.3f, -bow, strokeReach * strokeWetReach, strokeWetArc, strokeSpeed,
+                                       strokeDamage * DamageFactor, strokePush * strokeWetPush, strokeStagger, wet: true);
+            LastWave.douseSound = douseSound;
+            Vector3 blade = at + Boat.transform.right * 0.95f + Vector3.up * 0.05f;
+            Effects.Instance?.Splash(blade);
+            Sfx.Instance?.Splash(blade);
+            Sfx.Instance?.Attack(boatSurgeSound, at, 1f, "boat_surge");
+            Sfx.Instance?.Attack(strokeSound, at + bow * 1.5f, 0.8f, "stroke_wave");
+            CameraRig.Instance?.Shake(0.25f);
+        }
+
+        // Let go before it was charged: just the heavy, picked up a moment before it comes down (no more stamina).
+        void ChopAfterAll()
+        {
+            StopStrokeVoice();
+            isHeavy = true;
+            comboStep = 0;
+            hitLanded = swingSounded = false;
+            Enter(State.Attacking);
+            stateTime = heavyWindup - 0.15f;
+            float total = heavyWindup + heavyActive + heavyRecovery;
+            clips.PlayOnce("Heavy", total, 0.08f, stateTime / total);
+        }
+
+        // Let go: the sweep, low across the front.
+        void LooseStroke()
+        {
+            Enter(State.Stroke);
+            strokeLoosed = true;
+            Spend(Mathf.Max(0f, strokeStaminaCost - heavyStaminaCost));
+            StopStrokeVoice();
+            clips.PlayOnce("Stroke", strokeLaunch + strokeRecovery);
+            Sfx.Instance?.OarSwing(transform.position + Vector3.up, true);
+        }
+
+        void SendWave()
+        {
+            waveSent = true;
+            SweepBlade();
+            ThrowOffClingers(transform.forward); // (shrugged off the back as the oar sweeps round)
+            bool wet = Shallows.In(transform.position + Vector3.up * 0.1f); // (in the water: the wave carries it)
+            LastWave = StrokeWave.Send(transform.position + transform.forward * 0.5f, transform.forward,
+                                       strokeReach * (wet ? strokeWetReach : 1f), wet ? strokeWetArc : strokeArc, strokeSpeed,
+                                       strokeDamage * DamageFactor, strokePush * (wet ? strokeWetPush : 1f), strokeStagger, wet);
+            LastWave.douseSound = douseSound;
+            MillRace.Carry(LastWave); // (let go down a mill-race: carried the length of it)
+            if (wet)
+            {
+                Effects.Instance?.Splash(transform.position + transform.forward * 0.8f);
+                Sfx.Instance?.Splash(transform.position + transform.forward * 0.8f);
+            }
+            Sfx.Instance?.Attack(strokeSound, transform.position + transform.forward * 1.5f + Vector3.up * 0.5f, 1f, "stroke_wave");
+            CameraRig.Instance?.Shake(0.3f);
+            HitStop.Trigger(0.05f);
+        }
+
+        // The blade itself, sweeping through whatever's in reach across the front: harder than a heavy (a guard stops
+        // it, though not the wave behind it).
+        void SweepBlade()
+        {
+            bool landed = false;
+            foreach (var collider in Physics.OverlapSphere(transform.position, heavyReach + 1.5f))
+            {
+                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable || soured.OutOfReach)
+                    continue;
+                Vector3 to = soured.transform.position - transform.position;
+                to.y = 0f;
+                if (to.magnitude > heavyReach + soured.radius || Vector3.Angle(transform.forward, to) > strokeBladeArc)
+                    continue;
+                var result = soured.TakeHit(new Hit
+                {
+                    Damage = strokeBladeDamage * DamageFactor,
+                    Stagger = heavyStagger * 1.2f * Equipment.Oar.Strength,
+                    Knockback = to.normalized * heavyKnockback,
+                    From = transform.position,
+                    Heavy = true,
+                });
+                if (result == HitResult.Landed)
+                {
+                    landed = true;
+                    if (Tarred)
+                        Burning.Set(soured, tarBurnSeconds, tarBurnPerSecond);
+                }
+            }
+            if (landed)
+            {
+                HitStop.Trigger(heavyHitStop + 0.04f);
+                Announce("STROKE");
+            }
+        }
+
+        void StopStrokeVoice()
+        {
+            if (strokeVoice != null)
+                strokeVoice.Stop();
         }
 
         // ------------------------------------------------------------ lock-on
@@ -775,7 +1020,7 @@ namespace MyGame
 
         void RegenerateStamina(float dt)
         {
-            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking;
+            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking || CurrentState == State.Stroke;
             float rate = CurrentState == State.Blocking ? 0.4f : 1f; // holding a block slows recovery
             if (!busy && Time.time - lastStaminaUse >= staminaRegenDelay)
                 Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * rate * dt);
@@ -993,6 +1238,11 @@ namespace MyGame
                 alightGlow.enabled = on;
             if (!on)
                 return;
+            if (Shallows.In(transform.position + Vector3.up * 0.1f))
+            {
+                Douse(); // (into the water: out)
+                return;
+            }
             Health = Mathf.Max(0f, Health - alightHealthPerSecond * dt);
             Stamina = Mathf.Max(0f, Stamina - alightStaminaPerSecond * dt);
             lastStaminaUse = Time.time; // (no breath back while you burn)
@@ -1145,9 +1395,11 @@ namespace MyGame
         }
 
         // `blockable` false: no guard stops it (a gout of fire; only a dodge or a sidestep escapes it).
-        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null, bool blockable = true)
+        public Defence TakeHit(float damage, Vector3 knock, Soured attacker = null, bool blockable = true, bool unavoidable = false)
         {
-            if (Invulnerable)
+            if (unavoidable && CurrentState != State.Dead && CurrentState != State.Rowing && CurrentState != State.Sinking)
+                blockable = false; // (no dodging it either: only cover saves you)
+            else if (Invulnerable)
             {
                 if (CurrentState == State.Dashing)
                     Announce("dodged");
@@ -1288,6 +1540,12 @@ namespace MyGame
 
         public void GiveHook() => HasHook = true; // (no fanfare: see ReceiveKeyItem)
 
+        // ------------------------------------------------------------ the Stroke
+
+        public const string StrokeHint = "Hold {heavy} and let go: the oar pulls like the tide, and what it meets is moved";
+
+        public void GiveStroke() => HasStroke = true; // (no fanfare: see ReceiveKeyItem)
+
         // ------------------------------------------------------------ taking things
 
         System.Action pendingTake;
@@ -1311,7 +1569,12 @@ namespace MyGame
 
         // A key item (an Ability): held up high for a moment, the world dimming and the camera easing in, a cold burst
         // of light and its motif; then its banner. Untouchable meanwhile.
-        public void ReceiveKeyItem(string title, string hint, System.Action grant) => Ceremony(title, hint, grant, false);
+        // grantAtFlash: it's given at the flash at the top (the Drowned Moon going into the blade), not as it's lifted.
+        public void ReceiveKeyItem(string title, string hint, System.Action grant, bool grantAtFlash = false) =>
+            Ceremony(title, hint, grant, false, grantAtFlash);
+
+        // Where an item held up in the ceremony is: the hand.
+        public Vector3 HeldPoint => hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
 
         // At a Mooring post, with the Ferry Nails for it: the oar's next step, as a key item is received. It's hoisted
         // high, and in the flash at the top it becomes the next oar; then its name.
@@ -1325,11 +1588,11 @@ namespace MyGame
             return true;
         }
 
-        void Ceremony(string title, string hint, System.Action grant, bool oar)
+        void Ceremony(string title, string hint, System.Action grant, bool oar, bool grantAtFlash = false)
         {
             ceremonyOar = oar;
             ceremonyGrant = null;
-            if (oar)
+            if (oar || grantAtFlash)
                 ceremonyGrant = grant;
             else
                 grant();
@@ -1359,7 +1622,7 @@ namespace MyGame
         {
             float t = stateTime / ceremonyDuration;
             Vector3 held = ceremonyOar ? transform.position + Vector3.up * 2.6f // (the blade, held high)
-                : hookBone != null ? hookBone.position : transform.position + Vector3.up * 1.4f;
+                : HeldPoint;
             ceremonyLight.transform.position = held + Vector3.up * 0.2f;
             // The light swells as it's lifted, flares at the top, and eases away as it's lowered.
             ceremonyLight.intensity = t < 0.3f ? 6f * (t / 0.3f) * (t / 0.3f) : 6f * Mathf.Clamp01((0.95f - t) / 0.65f);
@@ -1386,9 +1649,10 @@ namespace MyGame
         // Something found for good, announced (the HUD's banner): a title and a hint.
         public void AnnounceFind(string title, string hint) => Found?.Invoke(title, hint);
 
-        // Loading a save: the Obols carried, the most Healing charges they can carry, the Hook; health and charges full.
-        public void Restore(int obols, int healingChargeMax, bool hook)
+        // Loading a save: the Obols carried, the most Healing charges they can carry, the Abilities; health and charges full.
+        public void Restore(int obols, int healingChargeMax, bool hook, bool stroke = false)
         {
+            HasStroke = stroke;
             ApplyUpgrades(); // (the Warm Stones and Held Breaths its Equipment was given back)
             Obols = Mathf.Max(0, obols);
             maxHealingCharges = Mathf.Max(1, healingChargeMax);
@@ -1792,7 +2056,7 @@ namespace MyGame
         // Into the boat (its "Row"): a hop down onto the seat, and the stick rows.
         public void Board(Boat boat)
         {
-            if (CurrentState != State.Free || boat.Rowing)
+            if (CurrentState != State.Free && CurrentState != State.Dashing || boat.Rowing)
                 return;
             SetLockTarget(null);
             CloseMenu();
@@ -1814,6 +2078,7 @@ namespace MyGame
             if (CurrentState != State.Rowing || rowPhase != RowPhase.Rowing || Boat == null)
                 return;
             landingAt = dock;
+            rowDrawing = false; // (the draw let go unspent)
             hopFrom = transform.position;
             hopFromRotation = transform.rotation;
             rowPhase = RowPhase.Landing;
@@ -1843,9 +2108,35 @@ namespace MyGame
                         if (!OpenMenu.IsOpen)
                             OpenMenu = null;
                     }
-                    Boat.Tick(inMenu ? Vector3.zero : MoveDirection(), dt);
+                    // With the Stroke: the heavy held draws the oar back (no rowing meanwhile: fast water takes you back),
+                    // let go charged it's the surge and the wave ahead of the bow; let go sooner, nothing.
+                    if (HasStroke && !inMenu && !rowDrawing && !Boat.Coasting && Input.HeavyPressed && Stamina > 0f)
+                    {
+                        rowDrawing = true;
+                        BeginDraw();
+                        clips.Loop("RowDraw", 0.15f);
+                    }
+                    if (rowDrawing)
+                    {
+                        Boat.Tick(inMenu ? Vector3.zero : MoveDirection(), dt, drawing: true);
+                        TickDraw(dt);
+                        if (!Input.HeavyHeld || inMenu)
+                        {
+                            bool charged = strokeCharged;
+                            rowDrawing = false;
+                            StopStrokeVoice();
+                            if (charged && !inMenu)
+                                RowSurge();
+                        }
+                    }
+                    else
+                        Boat.Tick(inMenu ? Vector3.zero : MoveDirection(), dt);
                     transform.SetPositionAndRotation(Boat.seat.position, Boat.seat.rotation);
-                    if (Boat.Effort > 0.05f)
+                    if (rowDrawing || Time.time < rowSurgeUntil)
+                    {
+                        // (drawn, or the surge's pull: their own clips)
+                    }
+                    else if (Boat.Effort > 0.05f)
                     {
                         clips.Loop("Row", 0.2f);
                         clips.SetLoopSpeed(Boat.StrokeSpeed);

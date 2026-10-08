@@ -40,11 +40,7 @@ namespace MyGame
 
         void DeathEntered()
         {
-            HitStop.Trigger(0.35f);
-            HitStop.Slow(0.3f, 2.4f);
-            CameraRig.Instance?.Shake(0.6f);
-            CameraRig.Instance?.SetFightFocus(transform, 0.55f); // on her, as she goes
-            CameraRig.Instance?.SetZoom(0.85f);
+            // (the moment itself, time held and slowed, the camera closing in on her: BossFall, as for every Boss)
             chainSnapped = hookFreed = released = false;
             lanternLights = anchorBone != null ? anchorBone.GetComponentsInChildren<Light>() : new Light[0];
             lanternIntensity = System.Array.ConvertAll(lanternLights, l => l.intensity);
@@ -87,11 +83,7 @@ namespace MyGame
                 BossFight.Defeat(this); // her farewell on screen
             }
             if (!released && fading >= 0.97f)
-            {
-                released = true; // gone: the camera comes back to the Apprentice
-                CameraRig.Instance?.SetFightFocus(null, cameraLean);
-                CameraRig.Instance?.SetZoom(1f);
-            }
+                released = true; // gone (BossFall brings the camera back to the Apprentice)
         }
     }
 }

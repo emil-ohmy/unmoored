@@ -121,6 +121,7 @@ namespace MyGame
         AudioSource tell;  // the wind-up sound playing now, cut if the attack is interrupted
         AudioClip tellClip;
         float dissolve;
+        protected float Dissolved => dissolve; // (0..1: how far a beaten Soured has gone)
         int faresReleased;
         float busyFor, staggerFor;
         Vector3 yankFrom, yankTo;
@@ -147,6 +148,9 @@ namespace MyGame
 
         // Whether it can be locked on to, hooked, struck (a Drowned under the water can't).
         public virtual bool Targetable => IsAlive;
+
+        // Above the oar's reach (Father Moth on the wing): a swing passes under it.
+        public virtual bool OutOfReach => false;
 
         // Whether lock-on can choose it (a scarecrow never; the Watchman only while he's fighting you).
         public virtual bool Lockable => Targetable;
@@ -367,6 +371,9 @@ namespace MyGame
             if (!Sheltered(transform.position) && Sheltered(transform.position + (planar + knockback) * Mathf.Max(dt, 0.02f) + Flat(planar + knockback).normalized * radius))
                 planar = knockback = Vector3.zero; // (an arena it doesn't belong to: it never crosses in; hooked in, it walks out)
             knockback *= Mathf.Exp(-8f * dt);
+            // Shoved to the brink, its middle over the water and only its edge on the lip: it goes over, not balancing there.
+            if (!Floats && !Drowned && knockback.sqrMagnitude > 0.01f && !FootingAt(transform.position, 1.2f))
+                knockback = Flat(knockback).normalized * Mathf.Max(knockback.magnitude, 3f);
             if (Drowned)
             {
                 planar = knockback = Vector3.zero;
@@ -509,8 +516,9 @@ namespace MyGame
                 return HitResult.Blocked;
             }
 
-            Health -= hit.Damage;
-            dealt = hit.Damage;
+            float was = Health;
+            Health = Mathf.Max(Floor, Health - hit.Damage);
+            dealt = Floor > 0f ? was - Health : hit.Damage; // (held at a floor: only what it took)
             if (immortal && Health <= 0f)
                 Health = maxHealth; // (a dummy: a full bar again)
             Sfx.Instance?.OarHit(transform.position + Vector3.up * 1.1f, hit.Heavy || stunned);
@@ -530,6 +538,40 @@ namespace MyGame
             return HitResult.Landed;
         }
 
+        // The Stroke's wave (the Drowned Moon in the oar blade): water, not an edge, so no guard stops it. A little harm,
+        // a shove (off an edge into the water: fair play) and a stagger; the great take the harm only (a Boss, a Boss's
+        // part), the heavy less of the shove (half their knockbackResistance: the tide moves what a blow can't). Under
+        // the water (a Drowned), it passes over.
+        public virtual HitResult TakeWave(Vector3 push, float damage, Vector3 from, float stagger)
+        {
+            if (!IsAlive || OutOfReach || Unhittable)
+                return HitResult.Missed;
+            if (Absorbs(new Hit { Damage = damage, From = from }, false))
+            {
+                dealt = 0f;
+                Struck?.Invoke(this, HitResult.Landed, 0f);
+                return HitResult.Landed;
+            }
+            float was = Health;
+            Health = Mathf.Max(Floor, Health - damage);
+            dealt = Floor > 0f ? was - Health : damage;
+            if (immortal && Health <= 0f)
+                Health = maxHealth;
+            lastHitTime = Time.time;
+            flashUntil = Time.time + 0.08f;
+            Struck?.Invoke(this, HitResult.Landed, dealt);
+            bool great = this is IBoss || (BossFight.Current is IBossParts parts && parts.Owns(this));
+            if (!great)
+                knockback = push * (1f - 0.5f * knockbackResistance);
+            if (Health <= 0f)
+                Die(new Hit { Damage = damage, From = from, Knockback = push });
+            else if (!great && CurrentState != State.Staggered)
+                StaggerNow(stagger);
+            else if (CurrentState == State.Idle)
+                Notice();
+            return HitResult.Landed;
+        }
+
         // Burning (burning pitch underfoot, the flames of an Ember-tarred oar): harm no guard stops, a little at a time;
         // no stagger, no knockback. False if there's nothing to burn.
         public bool TakeBurn(float damage, Vector3 from)
@@ -539,8 +581,9 @@ namespace MyGame
             if (Absorbs(new Hit { Damage = damage, From = from }, true))
                 return true;
             damage *= fireWeakness * AreaTraits.FireHarm; // (a Moth: paper; the Orchard: dry as old leaves)
-            Health -= damage;
-            dealt = damage;
+            float before = Health;
+            Health = Mathf.Max(Floor, Health - damage);
+            dealt = Floor > 0f ? before - Health : damage;
             if (immortal && Health <= 0f)
                 Health = maxHealth;
             flashUntil = Time.time + 0.05f;
@@ -553,6 +596,9 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // As low as its health goes for now (a Boss between phases: no blow carries it through the next).
+        protected virtual float Floor => 0f;
 
         // A blow (or `fire`) it takes without harm, answering in its own way (the Watchman: found out, he tears free;
         // found, the oar goes through straw).
@@ -629,6 +675,8 @@ namespace MyGame
         protected void RetargetYank(Vector3 to) => yankTo = to;
 
         protected void LoseHealth(float amount) => Health = Mathf.Max(1f, Health - amount); // (never a kill)
+
+        protected void SetHealth(float health) => Health = Mathf.Clamp(health, 1f, maxHealth); // (the lab: a Boss begun at a later phase)
 
         protected Vector3 SpawnPosition => spawnPosition;
 

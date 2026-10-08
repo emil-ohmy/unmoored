@@ -90,8 +90,16 @@ def wall(parts, e0, e1, n0, n1, u0, u1, openings=(), course=0.4, cap=True, plint
         a = a0
         while a < a1 - 0.02:
             hi = min(a + rng.uniform(0.7, 1.2), a1)
-            if not open_at((a + hi) / 2, u1 - 0.05):
-                piece("Cap", capstone, a + 0.006, hi - 0.006, u1 - 0.1, u1 + rng.uniform(0.0, 0.015), t0 - 0.03, t1 + 0.03)
+            lo, top_hi = a, hi
+            if not open_at((lo + top_hi) / 2, u1 - 0.05):
+                # Clipped to the openings' edges too (a capstone never juts out over a gap left open to the top).
+                for o in openings:
+                    if o[2] - 1e-3 < u1 - 0.05 < o[3] + 1e-3:
+                        if lo < o[0] < top_hi and (lo + top_hi) / 2 < o[0]:
+                            top_hi = o[0]
+                        if lo < o[1] < top_hi and (lo + top_hi) / 2 > o[1]:
+                            lo = o[1]
+                piece("Cap", capstone, lo + 0.006, top_hi - 0.006, u1 - 0.1, u1 + rng.uniform(0.0, 0.015), t0 - 0.03, t1 + 0.03)
             a = hi
 
 

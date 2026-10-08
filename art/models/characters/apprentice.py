@@ -73,6 +73,18 @@ LIGHT1_HIT = swing(5, 88, 0.08)  # the contact pose (the recoil off a Laden's he
 # a stub hidden against the hood. The follow-through carries on down.
 HEAVY_RAISED = {"Oar": ((-78, 0, 30), (-0.22, 0.08, 0.3)), "Body": (-12, 0, 22), "Head": (12, 0, -12), "Root": ((0, 0, 0), (0, 0.04, -0.03))}
 HEAVY_CHOP = {"Oar": ((70, 0, -14), (-0.28, -0.22, 0.02)), "Body": (10, 0, -12), "Head": (-10, 0, 8), "Root": ((0, 0, 0), (0, -0.06, -0.06))}
+# The Stroke (with the Drowned Moon in the blade): drawn back low round the oar's side, crouched, the blade turned
+# down to water that isn't there (StrokeDraw, held: a strain in it); let go, it sweeps low across the front like a
+# paddle pulled through the water, and the wave leaves the blade as it passes the front (frame 6 of 18).
+def low(phi, pitch, step=0.0, lift=-0.12, lean=14.0, crouch=0.08):
+    pose = swing(phi, pitch, step, lift)
+    pose["Body"] = (lean, 0, pose["Body"][2])
+    pose["Root"] = ((0, 0, 0), (0, -step, -crouch))
+    return pose
+
+
+STROKE_DRAWN = low(150, 104)
+STROKE_STRAIN = low(156, 108, lean=17.0, crouch=0.1)
 # The Hook's whirl while aiming: round a small circle above the shoulder, turning with it, one turn per 16 frames.
 HOOK_WHIRL_CENTRE = (-0.06, -0.2, 0.78)  # offset from its rest at the hip: up above the shoulder, a little ahead
 HOOK_AIM_BODY = {"Body": (-5, 0, 0), "Head": (2, 0, 0), "Oar": (-28, 0, 4)}
@@ -100,6 +112,14 @@ ROW_L_CATCH = {"Body": (12, 0, 14), "Head": (-8, 0, -10), "Oar": ((25, -145, 0),
 ROW_L_PULL = {"Body": (-4, 0, -12), "Head": (2, 0, 8), "Oar": ((-30, -145, 0), (-0.78, 0.2, 0.05)), "Root": ((0, 0, 0), SIT)}
 ROW_L_LIFT = {"Body": (0, 0, -8), "Head": (0, 0, 4), "Oar": ((20, -110, 0), (-0.7, 0.1, 0.2)), "Root": ((0, 0, 0), SIT)}
 ROW_OVER_R = {"Body": (4, 0, 0), "Head": (-2, 0, 0), "Oar": ((10, 0, 0), (-0.36, -0.1, 0.28)), "Root": ((0, 0, 0), SIT)}
+# The Stroke from the boat: the oar raised straight up overhead in both hands, blade high (its glow seen, gathering:
+# RowDraw, held, a strain in it); let go, it's thrashed back over the shoulder and down into the water behind the
+# boat (RowSurge: the water driven back, the boat on), then brought round to rest across the boat.
+ROW_DRAW = {"Pivot": (-4, 0, 0), "Body": (-10, 0, 0), "Head": (-22, 0, 0), "Oar": ((-6, -8, 0), (-0.19, 0.02, 0.86)), "Root": ((0, 0, 0), SIT)}
+ROW_DRAW_STRAIN = {"Pivot": (-5, 0, 0), "Body": (-13, 0, 3), "Head": (-24, 0, -2), "Oar": ((-10, -6, 4), (-0.19, 0.04, 0.9)), "Root": ((0, 0, 0), SIT)}
+ROW_THRASH_BACK = {"Body": (-20, 0, 8), "Head": (-14, 0, -4), "Oar": ((-70, -4, 6), (-0.2, 0.18, 0.7)), "Root": ((0, 0, 0), SIT)}
+ROW_THRASH_IN = {"Body": (-8, 0, 14), "Head": (4, 0, -8), "Oar": ((-125, 0, 10), (-0.24, 0.32, 0.38)), "Root": ((0, 0, 0), SIT)}
+ROW_THRASH_THROUGH = {"Body": (10, 0, 10), "Head": (-4, 0, -6), "Oar": ((-140, 0, 14), (-0.26, 0.36, 0.25)), "Root": ((0, 0, 0), SIT)}
 # Resting on the oars: laid across the boat, blade out to the right, the hands in the lap.
 ROW_REST = {"Body": (6, 0, 0), "Head": (4, 0, 0), "Oar": ((0, 90, 0), (-0.36, -0.12, -0.08)), "Root": ((0, 0, 0), SIT)}
 
@@ -132,6 +152,15 @@ ACTIONS = {
         (19, HEAVY_CHOP),
         (23, {"Oar": ((100, 0, -28), (-0.32, -0.24, -0.1)), "Body": (15, 0, -18), "Head": (-12, 0, 12), "Root": ((0, 0, 0), (0, -0.08, -0.1))}),
         (35, REST),
+    ]),
+    "StrokeDraw": ("BEZIER", [(1, STROKE_DRAWN), (12, STROKE_STRAIN), (24, STROKE_DRAWN)]),
+    "Stroke": ("BEZIER", [
+        (1, STROKE_STRAIN),
+        (4, low(80, 102, 0.05)),
+        (6, low(0, 100, 0.1, lean=10.0)),
+        (8, low(-70, 98, 0.12, lift=-0.06, lean=8.0)),
+        (10, low(-110, 92, 0.12, lift=0.0, lean=6.0, crouch=0.05)),
+        (18, REST),
     ]),
     # Blocked by a Laden's heap: the oar strikes it and springs back, jarring the Apprentice (the recoil). Each starts
     # from its attack's contact pose, so the blow is seen to land before it bounces.
@@ -233,6 +262,8 @@ ACTIONS = {
         (1, ROW_R_CATCH), (9, ROW_R_PULL), (14, ROW_R_LIFT), (19, ROW_OVER_L),
         (25, ROW_L_CATCH), (33, ROW_L_PULL), (38, ROW_L_LIFT), (43, ROW_OVER_R), (49, ROW_R_CATCH),
     ]),
+    "RowDraw": ("BEZIER", [(1, ROW_DRAW), (12, ROW_DRAW_STRAIN), (24, ROW_DRAW)]),
+    "RowSurge": ("BEZIER", [(1, ROW_DRAW_STRAIN), (3, ROW_THRASH_BACK), (5, ROW_THRASH_IN), (9, ROW_THRASH_THROUGH), (13, ROW_THRASH_THROUGH), (21, ROW_REST)]),
     "RowIdle": ("BEZIER", [
         (1, ROW_REST),
         (30, dict(ROW_REST, Body=(8, 0, 0), Root=((0, 0, 0), (0, 0, -0.17)))),

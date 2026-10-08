@@ -42,13 +42,38 @@ namespace MyGame
                     continue;
                 to.y = 0f;
                 float d = to.magnitude;
-                if (d <= i.InteractRadius && d < bestDistance)
+                if (d <= i.InteractRadius && d < bestDistance && InSight(position, i))
                 {
                     best = i;
                     bestDistance = d;
                 }
             }
             return best;
+        }
+
+        static readonly RaycastHit[] hits = new RaycastHit[16];
+
+        // Nothing solid between the Apprentice and it (a wall, a shut gate): never reached through one. Its own
+        // colliders, and anyone's body, don't count.
+        static bool InSight(Vector3 from, IInteractable i)
+        {
+            Vector3 a = from + Vector3.up * 1.0f, b = i.InteractPosition + Vector3.up * 0.5f;
+            Vector3 d = b - a;
+            float length = d.magnitude;
+            if (length < 0.05f)
+                return true;
+            int n = Physics.RaycastNonAlloc(a, d / length, hits, length, ~0, QueryTriggerInteraction.Ignore);
+            var own = i as Component;
+            for (int k = 0; k < n; k++)
+            {
+                var c = hits[k].collider;
+                if (c is CharacterController)
+                    continue;
+                if (own != null && c.transform.IsChildOf(own.transform)) // (itself, and its parts)
+                    continue;
+                return false;
+            }
+            return true;
         }
     }
 }

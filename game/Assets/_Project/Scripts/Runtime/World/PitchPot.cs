@@ -5,8 +5,22 @@ namespace MyGame
     // A Pitch Pot, thrown (a Provision): it arcs to where it was aimed and bursts, or breaks on the first Soured in its
     // way. The burst scorches whatever's close and leaves a pool of burning pitch; any Soured standing in it burns
     // (Burning: no guard stops fire). Over water there's nothing to burn on: it just sinks.
-    public sealed class PitchPot : MonoBehaviour
+    public sealed class PitchPot : MonoBehaviour, IWaveable
     {
+        // The Stroke's wave carrying water puts its fire out.
+        public Vector3 WavePoint => transform.position;
+        public float WaveRadius => Radius;
+        public void TakeWave(StrokeWave wave, Vector3 push)
+        {
+            if (!wave.Wet || !Aflame)
+                return;
+            burstAt = Time.time - PoolTime; // (out: what's left fades)
+            wave.Steam(transform.position + Vector3.up * 0.3f);
+        }
+
+        void OnEnable() => Waveables.Register(this);
+        void OnDisable() => Waveables.Unregister(this);
+
         public const float Radius = 1.7f, PoolTime = 5f, FlightTime = 0.55f, ArcHeight = 1.4f;
         public const float BurstDamage = 12f, BurnPerSecond = 10f;
 

@@ -97,7 +97,7 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator ThePressHouse_UpTheStairToTheLoft_TheRoofFades()
         {
-            var house = UnityEngine.Object.FindAnyObjectByType<Storeys>();
+            var house = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name == "Press House");
             apprentice.Teleport(new Vector3(12.4f, 1.95f, 3.5f)); // (on the floor, beside the stair's foot)
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(0, house.Level, "inside, on the floor");
@@ -219,6 +219,911 @@ namespace MyGame.Tests
             finally { Moth.Dived -= onDive; }
         }
 
+        // ---- The Glasshouse (the Gardener's arena)
+
+        // Through the field's far gateway, along the path, in at the Glasshouse's doors: inside, its roof fades.
+        [UnityTest]
+        public IEnumerator TheGlasshouse_BeyondTheFieldsFarGate_ItsRoofFadesInside()
+        {
+            var far = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate (far)");
+            var doors = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Glasshouse Doors");
+            var house = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name == "The Glasshouse");
+            Assert.IsFalse(far.Shut || doors.Shut, "open: no fight on");
+            Vector3 way = far.transform.position;
+            apprentice.Teleport(new Vector3(way.x, way.y + 0.05f, way.z - 2f));
+            yield return Walk(Vector2.up, 3.6f);
+            Assert.Greater(apprentice.transform.position.z, doors.transform.position.z + 1.5f, $"through the gateway, along the path and in at the doors ({apprentice.transform.position})");
+            Assert.AreEqual(3.3f, apprentice.transform.position.y, 0.3f, "on its floor");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, house.Level, "inside");
+            Assert.IsFalse(house.Shown(1), "the roof gone");
+            // Its channels (down its sides): shallow water to wade, which puts out flames.
+            apprentice.SetAlight();
+            apprentice.Teleport(doors.transform.position + new Vector3(7.4f, 0.05f, 8f));
+            yield return Walk(Vector2.right, 0.8f);
+            Assert.IsFalse(apprentice.Alight, $"waded in: out ({apprentice.transform.position})");
+            Assert.IsTrue(apprentice.IsAlive && apprentice.CurrentState == Apprentice.State.Free, "no drowning in it");
+            // And out again, up its far kerb onto the floor.
+            float across = doors.transform.position.x + 8.6f + 0.8f;
+            yield return Walk(Vector2.right, 1.2f);
+            Assert.Greater(apprentice.transform.position.x, across, $"out of it, over the far kerb ({apprentice.transform.position})");
+            Assert.AreEqual(3.36f, apprentice.transform.position.y, 0.15f, "back up on the floor");
+        }
+
+        // ---- Father Moth, Who Gathered Autumn (the Gardener)
+
+        FatherMoth Gardener() => UnityEngine.Object.FindAnyObjectByType<FatherMoth>();
+        ArenaGate GlasshouseDoors() => UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Glasshouse Doors");
+
+        // In at the Glasshouse's doors and on a few steps: he wakes (and he's up off the tree, on the wing).
+        IEnumerator WakeHim(FatherMoth m)
+        {
+            var doors = GlasshouseDoors();
+            apprentice.Teleport(doors.transform.position + new Vector3(0f, 0.1f, 11.5f));
+            yield return WaitFor(() => m.Woken, 1f, "him woken");
+            yield return WaitFor(() => m.CurrentState == Soured.State.Chase && m.Height > 2.5f, 4f, "him up on the wing");
+        }
+
+        // Waits as WaitFor does, keeping the Apprentice on their feet (he'd wear an idle one down before long).
+        IEnumerator WaitUp(Func<bool> done, float seconds, string what)
+        {
+            for (float t = 0f; t < seconds && !done(); t += Time.deltaTime)
+            {
+                if (apprentice.Health < apprentice.maxHealth * 0.6f)
+                    apprentice.RestoreFully();
+                yield return null;
+            }
+            Assert.IsTrue(done(), $"waited {seconds} s for {what}");
+        }
+
+        void Face(Component c)
+        {
+            Vector3 to = c.transform.position - apprentice.transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.01f)
+                apprentice.transform.rotation = Quaternion.LookRotation(to);
+        }
+
+        // Folded on the dead orange tree like a leaf; come in and he wakes, the doors swing shut behind you, and his
+        // fight is on.
+        [UnityTest]
+        public IEnumerator TheGardener_FoldedOnTheTree_WakesWhenYouComeIn_TheDoorsShut()
+        {
+            var m = Gardener();
+            var doors = GlasshouseDoors();
+            Assert.IsNotNull(m, "he's in the Glasshouse");
+            Assert.IsFalse(m.Woken, "folded on his tree");
+            Assert.IsFalse(doors.Shut);
+            Assert.AreEqual("Father Moth", m.Title);
+            Assert.AreEqual("Who Gathered Autumn", m.Epithet);
+            yield return WakeHim(m);
+            Assert.IsTrue(doors.Shut, "the doors shut behind you");
+            Assert.AreSame(m, BossFight.Current, "his fight is on");
+            Assert.IsTrue(m.OutOfReach, "on the wing, out of the oar's reach");
+        }
+
+        // On the wing he's above the oar: a swing passes under him.
+        [UnityTest]
+        public IEnumerator TheGardener_OnTheWing_TheOarPassesUnder()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            Vector3 under = m.transform.position;
+            apprentice.Teleport(new Vector3(under.x, m.floorY + 0.05f, under.z - 1.2f));
+            Face(m);
+            input.PressLight();
+            yield return new WaitForSeconds(0.6f);
+            Assert.AreEqual(m.maxHealth, m.Health, 0.01f, "nothing landed");
+        }
+
+        // He keeps to one place, over the north of the floor, wherever you go.
+        [UnityTest]
+        public IEnumerator TheGardener_KeepsToOnePlace_OverTheNorthOfTheFloor()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            yield return WaitUp(() => (m.transform.position - m.hover).Flat().magnitude < 1.5f, 4f, "him at his place");
+            apprentice.Teleport(m.middle + new Vector3(-6f, 0.05f, -4f));
+            float furthest = 0f;
+            for (float t = 0f; t < 6f; t += Time.deltaTime)
+            {
+                if (apprentice.Health < apprentice.maxHealth * 0.6f)
+                    apprentice.RestoreFully();
+                furthest = Mathf.Max(furthest, (m.transform.position - m.hover).Flat().magnitude);
+                yield return null;
+            }
+            Assert.Less(furthest, 1.5f, "he stays put");
+        }
+
+        // His beats throw leaves in phase 1's run: a fan, three aimed, a fan, a ring, three aimed, a fan; then he's spent.
+        [UnityTest]
+        public IEnumerator TheGardener_HisBeats_ThrowLeavesInPatterns_ThenHesSpent()
+        {
+            var m = Gardener();
+            var thrown = new System.Collections.Generic.List<FatherMoth.Pattern>();
+            int fanLeaves = -1;
+            Action<FatherMoth, FatherMoth.Pattern> onBeat = (_, p) => thrown.Add(p);
+            FatherMoth.Beat += onBeat;
+            try
+            {
+                yield return WakeHim(m);
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+                yield return WaitUp(() => thrown.Count >= 1, 6f, "his first beat");
+                yield return null;
+                fanLeaves = DriftLeaf.Live;
+                yield return WaitUp(() => m.Spent, 30f, "him spent");
+                CollectionAssert.AreEqual(new[] { FatherMoth.Pattern.Fan, FatherMoth.Pattern.Volley, FatherMoth.Pattern.Fan,
+                                                  FatherMoth.Pattern.Ring, FatherMoth.Pattern.Volley, FatherMoth.Pattern.Fan }, thrown);
+                Assert.GreaterOrEqual(fanLeaves, m.fanCount, "a fan of five");
+            }
+            finally { FatherMoth.Beat -= onBeat; }
+        }
+
+        // A leaf strikes you if you stand in its way.
+        [UnityTest]
+        public IEnumerator TheGardener_HisLeaves_StrikeYouInTheirWay()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            apprentice.Teleport(m.hover + new Vector3(0f, 0.05f, -5f));
+            float health = apprentice.Health;
+            yield return WaitFor(() => apprentice.Health < health, 8f, "a leaf striking you");
+        }
+
+        // Spent, he's on the floor a while and the oar reaches him; then he rises and begins again.
+        [UnityTest]
+        public IEnumerator TheGardener_Spent_OnTheFloor_TheOarReachesHim_ThenHeRises()
+        {
+            var m = Gardener();
+            bool exhausted = false;
+            Action<FatherMoth> onSpent = _ => exhausted = true;
+            FatherMoth.Exhausted += onSpent;
+            try
+            {
+                yield return WakeHim(m);
+                yield return WaitUp(() => m.Spent, 30f, "him spent");
+                Assert.IsTrue(exhausted);
+                Assert.Less(m.Height, 0.3f, "on the floor");
+                Assert.IsFalse(m.OutOfReach);
+                apprentice.Teleport(m.transform.position + new Vector3(0f, 0.05f, -2.6f));
+                Face(m);
+                float before = m.Health;
+                input.PressHeavy();
+                yield return new WaitForSeconds(1.2f);
+                Assert.Less(m.Health, before, "struck");
+                yield return WaitUp(() => !m.Spent && m.Height > 2.5f, m.spentTime + 4f, "him up again");
+                Assert.GreaterOrEqual(m.BeatsLeft, 5, "his beats begun again");
+            }
+            finally { FatherMoth.Exhausted -= onSpent; }
+        }
+
+        // Brought to his phase's mark, he's untouchable (no blow carries him further) until he's up; then his next
+        // phase begins.
+        [UnityTest]
+        public IEnumerator TheGardener_AtHisPhasesMark_Untouchable_TillHeRises_ThenPhaseTwo()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            yield return WaitUp(() => m.Spent, 30f, "him spent");
+            m.TakeBurn(m.maxHealth, m.transform.position); // (far more than the phase holds)
+            Assert.AreEqual(m.maxHealth * 0.75f, m.Health, 0.5f, "held at the mark");
+            Assert.IsTrue(m.Untouchable);
+            apprentice.Teleport(m.transform.position + new Vector3(0f, 0.05f, -2.6f));
+            Face(m);
+            input.PressLight();
+            yield return new WaitForSeconds(0.6f);
+            Assert.AreEqual(m.maxHealth * 0.75f, m.Health, 0.5f, "the oar takes nothing off him either");
+            Assert.AreEqual(1, m.Phase);
+            yield return WaitUp(() => m.Phase == 2, 4f, "his next phase");
+            yield return WaitUp(() => m.Height > 2.5f, 4f, "him up");
+            Assert.IsFalse(m.Untouchable, "up again: open to harm (when he's next spent)");
+        }
+
+        // Phase 2: more at once, and more kinds: a spiral stream, seed pods that burst into rings, oranges from the vault.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseTwo_Spirals_SeedPods_FallingFruit()
+        {
+            var m = Gardener();
+            var thrown = new System.Collections.Generic.List<FatherMoth.Pattern>();
+            bool pods = false, fruit = false;
+            Action<FatherMoth, FatherMoth.Pattern> onBeat = (_, p) => thrown.Add(p);
+            FatherMoth.Beat += onBeat;
+            try
+            {
+                yield return WakeHim(m);
+                yield return WaitUp(() => m.Spent, 30f, "him spent");
+                m.TakeBurn(m.maxHealth, m.transform.position);
+                yield return WaitUp(() => m.Phase == 2, 4f, "phase 2");
+                thrown.Clear();
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f));
+                yield return WaitUp(() =>
+                {
+                    pods |= SeedPod.Live > 0;
+                    fruit |= FallingFruit.Live > 0;
+                    return m.Spent;
+                }, 40f, "him spent again");
+                Assert.AreEqual(FatherMoth.Pattern.Spiral, thrown[0], "a spiral first");
+                Assert.IsTrue(pods, "seed pods");
+                Assert.IsTrue(fruit, "oranges from the vault");
+                Assert.Greater(thrown.Count, 6, "more than phase 1 threw");
+            }
+            finally { FatherMoth.Beat -= onBeat; }
+        }
+
+        // Phase 2 brought to its mark: he doesn't fly up again, but heaves himself onto his forelegs (phase 3, afoot).
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseTwosMark_HeComesAfterYouAfoot()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(2);
+            Assert.AreEqual(2, m.Phase);
+            yield return WaitUp(() => m.Spent, 45f, "him spent");
+            m.TakeBurn(m.maxHealth, m.transform.position);
+            Assert.AreEqual(m.maxHealth * 0.5f, m.Health, 0.5f, "held at half");
+            yield return WaitUp(() => m.Phase == 3 && m.Afoot, 4f, "phase 3, afoot");
+            Assert.Less(m.Height, 0.3f, "on the floor");
+        }
+
+        // Afoot, his shears turn your blows; a perfect block on a strike stuns him, and then the oar gets through.
+        [UnityTest]
+        public IEnumerator TheGardener_Afoot_HisShearsTurnBlows_APerfectBlockStunsHim()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(3);
+            yield return WaitUp(() => m.Afoot && m.CurrentState == Soured.State.Chase, 3f, "him afoot");
+            apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.6f + Vector3.up * 0.05f);
+            Face(m);
+            float before = m.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.4f);
+            Assert.AreEqual(before, m.Health, 0.01f, "turned on his shears");
+            // (a strike can miss, or land while the Apprentice is untouchable from the last: try the next)
+            for (int tries = 0; tries < 5 && m.CurrentState != Soured.State.Stunned; tries++)
+            {
+                yield return WaitUp(() => m.CurrentState == Soured.State.Strike, 6f, "a strike coming");
+                Face(m);
+                input.BlockHeld = true;
+                yield return WaitFor(() => m.CurrentState != Soured.State.Strike, 1f, "the strike over");
+                input.BlockHeld = false;
+                if (m.CurrentState != Soured.State.Stunned)
+                {
+                    yield return new WaitForSeconds(0.4f);
+                    apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.4f + Vector3.up * 0.05f);
+                }
+            }
+            Assert.AreEqual(Soured.State.Stunned, m.CurrentState, "him stunned on the block");
+            yield return new WaitForSeconds(0.25f);
+            Face(m);
+            before = m.Health;
+            input.PressLight();
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(m.Health, before, "a riposte gets through");
+        }
+
+        // Dodged (or not) through a dozen strikes, he's spent: down, open; then up onto his forelegs again.
+        [UnityTest]
+        public IEnumerator TheGardener_Afoot_ADozenStrikes_ThenHesSpent_ThenAfootAgain()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(3);
+            yield return WaitUp(() => m.Spent, 60f, "him spent");
+            Assert.GreaterOrEqual(m.Strikes, m.strikesBeforeSpent);
+            Assert.IsFalse(m.OutOfReach);
+            yield return WaitUp(() => m.Afoot && !m.Spent, m.spentTime + 4f, "him afoot again");
+            Assert.AreEqual(3, m.Phase);
+        }
+
+        // Brought to the quarter mark afoot, he takes to the air again: phase 4.
+        [UnityTest]
+        public IEnumerator TheGardener_Afoot_AtTheQuarterMark_HeTakesWing()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(3);
+            yield return WaitUp(() => m.Afoot && m.CurrentState == Soured.State.Chase, 3f, "him afoot");
+            m.TakeBurn(m.maxHealth, m.transform.position);
+            Assert.AreEqual(m.maxHealth * 0.25f, m.Health, 0.5f, "held at the quarter");
+            yield return WaitUp(() => m.Phase == 4 && m.Height > 2.5f, 5f, "phase 4, on the wing");
+        }
+
+        // Phase 4: he screams, and every lamp falls at once; it goes dark, far darker than the night outside.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_HisScreamBringsTheLampsDown_ItGoesVeryDark()
+        {
+            var m = Gardener();
+            var moon = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
+            float moonBefore = moon.intensity, ambientBefore = RenderSettings.ambientSkyColor.grayscale;
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(4);
+            Assert.AreEqual(4, m.Phase);
+            bool screamed = false;
+            Action<FatherMoth> onScream = _ => screamed = true;
+            FatherMoth.Screamed += onScream;
+            yield return WaitUp(() => m.LampsLeft == 0, 12f, "every lamp down");
+            FatherMoth.Screamed -= onScream;
+            Assert.IsTrue(screamed, "brought down by his scream");
+            yield return new WaitForSeconds(2.5f);
+            Assert.Less(moon.intensity, moonBefore * 0.12f, "the moon all but gone");
+            Assert.Less(RenderSettings.ambientSkyColor.grayscale, ambientBefore * 0.12f, "and the night's own light");
+            Assert.IsTrue(m.lamps.All(l => !l.enabled || l.intensity < 0.05f), "the lamps out");
+        }
+
+        // Phase 4: the vault coming down (debris to dodge) while he gathers; one great section crashes in and stays; behind
+        // it, his blast can't reach you; then he's down for good.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_BehindTheFallenVault_HisBlastCantReachYou_ThenHesDownForGood()
+        {
+            var m = Gardener();
+            bool? sheltered = null;
+            Action<FatherMoth, bool> onBlast = (_, safe) => sheltered = safe;
+            FatherMoth.Blasted += onBlast;
+            try
+            {
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -6f));
+                m.BeginAt(4);
+                yield return WaitUp(() => FallingDebris.Live > 0, 15f, "debris falling");
+                yield return WaitUp(() => m.Shelter != null && m.Shelter.Down, 30f, "a section of the vault down, standing");
+                Assert.IsTrue(m.Gathers == FatherMoth.Gathering.Drawing, "still gathering");
+                Assert.IsFalse(m.Shelter.Shields(m.HollowPoint, apprentice.transform.position + Vector3.up), "it doesn't land shielding you: a run to it");
+                Assert.GreaterOrEqual((m.Shelter.transform.position - apprentice.transform.position).Flat().magnitude, 3.5f, "a way off from you");
+                // Behind it: it between him and you.
+                Vector3 away = (m.Shelter.transform.position - m.transform.position).Flat().normalized;
+                yield return WaitUp(() =>
+                {
+                    apprentice.Teleport(m.Shelter.transform.position + away * 1.3f + Vector3.up * 0.05f);
+                    apprentice.RestoreFully();
+                    return sheltered.HasValue;
+                }, 10f, "his blast");
+                Assert.IsTrue(sheltered.Value, "sheltered by the fallen vault");
+                Assert.AreEqual(apprentice.maxHealth, apprentice.Health, 0.01f, "untouched by it");
+                yield return WaitUp(() => m.Spent, 6f, "him fallen");
+                yield return new WaitForSeconds(8f);
+                Assert.IsTrue(m.Spent && m.Final, "down for good");
+                float before = m.Health;
+                apprentice.Teleport(m.transform.position + (apprentice.transform.position - m.transform.position).Flat().normalized * 2.6f + Vector3.up * 0.05f);
+                Face(m);
+                input.PressHeavy();
+                yield return new WaitForSeconds(1.2f);
+                Assert.Less(m.Health, before, "and open to the oar");
+            }
+            finally { FatherMoth.Blasted -= onBlast; }
+        }
+
+        // Stand still while the vault comes down, and it finds you.
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_StandStill_TheDebrisFindsYou()
+        {
+            var m = Gardener();
+            apprentice.Teleport(m.middle + new Vector3(3f, 0.05f, -5f));
+            m.BeginAt(4);
+            yield return WaitUp(() => FallingDebris.Live > 0, 15f, "the vault coming down");
+            apprentice.RestoreFully();
+            float before = apprentice.Health;
+            yield return WaitFor(() => apprentice.Health < before, 5f, "a piece coming down on you");
+        }
+
+        // In the open when he lets go, his blast all but ends you (no dodging it).
+        [UnityTest]
+        public IEnumerator TheGardener_PhaseFour_InTheOpen_HisBlastAllButEndsYou()
+        {
+            var m = Gardener();
+            bool? sheltered = null;
+            float before = 0f;
+            Action<FatherMoth, bool> onBlast = (_, safe) => sheltered = safe;
+            FatherMoth.Blasted += onBlast;
+            try
+            {
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -6f));
+                m.BeginAt(4);
+                yield return WaitUp(() => m.Shelter != null && m.Shelter.Down, 40f, "the section down");
+                yield return WaitUp(() =>
+                {
+                    if (sheltered.HasValue)
+                        return true;
+                    // In the open: the side of him away from the section; ready to dodge as it goes.
+                    Vector3 off = (m.transform.position - m.Shelter.transform.position).Flat().normalized;
+                    apprentice.Teleport(m.transform.position.Flat() + Vector3.up * (m.floorY + 0.05f) + off * 4f);
+                    apprentice.RestoreFully();
+                    before = apprentice.Health;
+                    if (m.StateTime > m.gatherTime - 0.15f)
+                        input.PressDash();
+                    return false;
+                }, 10f, "his blast");
+                Assert.IsFalse(sheltered.Value);
+                Assert.IsTrue(!apprentice.IsAlive || apprentice.Health <= before - m.blastDamage + 0.5f, $"struck: {apprentice.Health}");
+            }
+            finally { FatherMoth.Blasted -= onBlast; }
+        }
+
+        // His music: a track for each of his four phases (Last Autumn grown huge), crossfading in step as they turn.
+        [UnityTest]
+        public IEnumerator TheGardener_HisMusic_ATrackForEachPhase()
+        {
+            var m = Gardener();
+            var music = UnityEngine.Object.FindAnyObjectByType<MusicPlayer>();
+            Assert.AreEqual(4, m.Music.Length, "four tracks");
+            Assert.IsTrue(m.Music.All(c => c != null), "every one there");
+            Assert.IsNotNull(m.endTune, "and the music box's last phrase, for when he's beaten");
+            yield return WakeHim(m);
+            yield return WaitUp(() => music.FightPhase == 1, 3f, "his first track");
+            yield return WaitUp(() => m.Spent, 30f, "him spent");
+            m.TakeBurn(m.maxHealth, m.transform.position);
+            yield return WaitUp(() => m.Phase == 2 && music.FightPhase == 2, 6f, "his second track");
+            apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f));
+            m.BeginAt(4);
+            yield return WaitUp(() => music.FightPhase == 4, 4f, "his last track");
+        }
+
+        // His fall made a moment of (as every Boss's): time held and slowed, the camera closing in on him as he goes; then
+        // back to you.
+        [UnityTest]
+        public IEnumerator TheGardener_HisFall_TimeSlows_TheCameraClosesIn()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            int before = BossFall.Fallen;
+            m.Slay(apprentice.transform.position);
+            Assert.AreEqual(before + 1, BossFall.Fallen, "his fall framed");
+            yield return WaitFor(() => CameraRig.Instance.Zoom < 0.95f, 1.5f, "the camera closing in");
+            Assert.IsTrue(BossFall.Framing);
+            yield return WaitFor(() => !BossFall.Framing && CameraRig.Instance.Zoom > 0.97f, 8f, "the camera back with you");
+        }
+
+        // The Hook glances off him.
+        [UnityTest]
+        public IEnumerator TheGardener_TheHook_GlancesOff()
+        {
+            if (!apprentice.HasHook)
+                apprentice.Restore(apprentice.Obols, 3, true);
+            var m = Gardener();
+            yield return WakeHim(m);
+            Assert.AreEqual(HookResult.Shrugged, m.OnHooked(apprentice));
+            Assert.Greater(m.Height, 2f, "still up there");
+        }
+
+        // Beaten: "MOTHBALLED", written in the Ledger, the doors open.
+        [UnityTest]
+        public IEnumerator TheGardener_Beaten_HisFarewell_TheLedger_TheDoorsOpen()
+        {
+            var m = Gardener();
+            IBoss beaten = null;
+            Action<IBoss> onDefeat = b => beaten = b;
+            BossFight.Defeated += onDefeat;
+            try
+            {
+                yield return WakeHim(m);
+                m.Slay(apprentice.transform.position);
+                Assert.AreSame(m, beaten);
+                Assert.AreEqual("MOTHBALLED", m.Farewell);
+                Assert.AreEqual("Winter is nigh.", m.FarewellLine);
+                yield return new WaitForSeconds(4f);
+                Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.FatherMoth), "written in the Ledger");
+                Assert.IsFalse(GlasshouseDoors().Shut, "the doors open again");
+                Assert.IsNull(BossFight.Current);
+                Assert.AreEqual(0, DriftLeaf.Live, "his leaves gone");
+            }
+            finally { BossFight.Defeated -= onDefeat; }
+        }
+
+        // Beaten, his cage cracks and the Drowned Moon pours out of him, pooling on the floor beside him (not in a channel);
+        // the sky's moon dims as it does. Full, it can be taken.
+        [UnityTest]
+        public IEnumerator TheGardener_Beaten_TheDrownedMoon_PoursOut_AndPoolsBesideHim()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            var moon = SettingMoon.Instance;
+            Assert.IsNotNull(moon, "the Orchard's moon is one that can set");
+            Assert.IsFalse(moon.Dimmed);
+            float glowBefore = m.chest.intensity;
+            m.Slay(apprentice.transform.position);
+            yield return WaitUp(() => m.Pouring, 3f, "his cage cracking");
+            yield return WaitUp(() => m.Moon != null, 2f, "the pool beginning");
+            Assert.IsTrue(moon.Dimmed, "the sky's moon dimming");
+            Assert.IsFalse(m.Moon.Available, "not to be taken while it's still filling");
+            yield return WaitUp(() => m.Moon.Full && !m.Pouring, 6f, "the pool full, the stream run dry");
+            Assert.IsTrue(m.Moon.Available);
+            Assert.IsFalse(m.chest.enabled, "no moon left in his ribs");
+            Vector3 pool = m.Moon.transform.position;
+            Assert.AreEqual(m.floorY, pool.y, 0.01f, "on the floor");
+            Assert.Less(Mathf.Abs(pool.x - m.middle.x), 7.5f, "not in a channel");
+            float apart = new Vector2(pool.x - m.transform.position.x, pool.z - m.transform.position.z).magnitude;
+            Assert.That(apart, Is.InRange(0.5f, 3.5f), "beside him");
+            Assert.Greater(glowBefore, 0f);
+        }
+
+        // Taken: lifted out like a coin (the key-item ceremony), THE STROKE, set into the oar blade as a restless silver
+        // sheen at the flash; on the Abilities page; and the Orchard's harvest moon begins at last to set.
+        [UnityTest]
+        public IEnumerator TheDrownedMoon_Taken_TheStroke_InTheBlade_AndTheMoonSets()
+        {
+            var m = Gardener();
+            yield return WakeHim(m);
+            var sun = SettingMoon.Instance.GetComponent<Light>();
+            float pitch = sun.transform.eulerAngles.x;
+            m.Slay(apprentice.transform.position);
+            yield return WaitUp(() => m.Moon != null && m.Moon.Full, 8f, "the pool full");
+            yield return WaitUp(() => !BossFall.Framing, 8f, "the moment of his fall over");
+            float intensity = sun.intensity;
+            string found = null, hint = null;
+            apprentice.Found += (t, h) => { found = t; hint = h; };
+            apprentice.Teleport(m.Moon.transform.position + new Vector3(0f, 0.05f, -1f));
+            yield return null;
+            Assert.IsTrue(m.Moon.Available);
+            m.Moon.Interact(apprentice);
+            Assert.AreEqual(Apprentice.State.Ceremony, apprentice.CurrentState, "lifted, held up");
+            Assert.IsFalse(apprentice.HasStroke, "not yet: it goes in at the flash");
+            Assert.IsFalse(m.Moon.Available);
+            yield return WaitUp(() => apprentice.HasStroke, 2f, "it set into the blade");
+            yield return null; // (the oar's look catches up)
+            Assert.Greater(apprentice.GetComponent<OarLook>().Sheen, 1.2f, "flaring as it sets in");
+            yield return WaitUp(() => found != null, 2f, "its banner");
+            Assert.AreEqual("The Stroke", found);
+            StringAssert.Contains("{heavy}", hint);
+            yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Free, 4f, "the ceremony over");
+            Assert.IsFalse(m.Moon.gameObject.activeSelf, "the pool gone with it");
+            Assert.That(apprentice.GetComponent<OarLook>().Sheen, Is.InRange(0.1f, 1f), "a restless sheen, settled");
+            Assert.IsTrue(Ability.Stroke.FoundBy(apprentice), "on the Abilities page");
+            Assert.Contains(Ability.Stroke, Ability.All);
+            Assert.Greater(SettingMoon.Instance.Setting, 0f, "the harvest moon setting");
+            yield return WaitUp(() => SettingMoon.Instance.Setting >= 1f, 20f, "the moon set");
+            Assert.Less(sun.intensity, intensity, "darker");
+            Assert.Less(sun.transform.eulerAngles.x, pitch, "lower in the sky");
+            Assert.Greater(sun.color.b - sun.color.r, 0.15f, "cooler");
+        }
+
+        // Fought again with the Stroke already had (the lab): nothing pours out of him.
+        [UnityTest]
+        public IEnumerator TheGardener_WithTheStrokeHad_NothingPours()
+        {
+            apprentice.GiveStroke();
+            var m = Gardener();
+            yield return WakeHim(m);
+            m.Slay(apprentice.transform.position);
+            yield return new WaitForSeconds(3f);
+            Assert.IsNull(m.Moon);
+            Assert.IsFalse(m.chest.enabled);
+        }
+
+        // ---- The Stroke against the world (the mill, shallows, things afloat and loose)
+
+        // Holds the heavy attack (the Stroke drawn back and charged), then lets go.
+        IEnumerator Stroke()
+        {
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return WaitUp(() => apprentice.StrokeCharged, 2f, "the Stroke charged");
+            yield return null;
+            input.HeavyHeld = false;
+            yield return WaitUp(() => apprentice.LastWave != null, 1f, "the wave");
+        }
+
+        // Stands the Apprentice at `at`, facing `towards` (a direction).
+        IEnumerator StandAt(Vector3 at, Vector3 towards)
+        {
+            apprentice.Teleport(at);
+            apprentice.transform.rotation = Quaternion.LookRotation(towards);
+            yield return new WaitForSeconds(0.4f);
+        }
+
+        // Let go in the mill-race, down it: the wave carries water (wider, further), and a surge runs the length of the
+        // race and breaks on the wheel, which turns and winds the sluice gate up a stage; again, and it's open.
+        [UnityTest]
+        public IEnumerator TheMill_AStrokeDownTheRace_TurnsTheWheel_TwiceOpensTheGate()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            var gate = UnityEngine.Object.FindAnyObjectByType<SluiceGate>();
+            yield return StandAt(race.head.position + new Vector3(0.8f, -0.25f, 0f), Vector3.right);
+            Assert.IsTrue(Shallows.In(apprentice.transform.position + Vector3.up * 0.1f), "wading in the race");
+            yield return Stroke();
+            var wave = apprentice.LastWave;
+            Assert.IsTrue(wave.Wet, "the wave carries water");
+            Assert.Greater(wave.Reach, apprentice.strokeReach * 1.2f, "and goes further");
+            Assert.AreEqual(1, race.Surges, "a surge down the race");
+            yield return WaitUp(() => wheel.Turns == 1, 3f, "the wheel taking it");
+            Assert.Greater(wheel.Spin, 100f, "turning");
+            yield return WaitUp(() => gate.Height >= gate.travel * 0.5f - 0.01f, 4f, "the gate up a stage");
+            Assert.AreEqual(1, gate.Stage);
+            Assert.IsFalse(gate.Open, "not yet open");
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(gate.travel * 0.5f, gate.Height, 0.01f, "held there (the ratchet)");
+            yield return Stroke();
+            yield return WaitUp(() => gate.Open, 6f, "open");
+            yield return WaitUp(() => wheel.Spin == 0f, 15f, "the wheel still again");
+            Assert.IsTrue(gate.Open, "open for good");
+            Assert.Greater(wheel.Turned, 360f, "it went round");
+        }
+
+        // As a player does it: walk in through the gap in the race's wall, turn down the race, hold, let go.
+        [UnityTest]
+        public IEnumerator TheMill_WalkedIn_AndLetGoDownTheRace_TheWheelTurns()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            Vector3 gap = race.head.position + new Vector3(0.85f, 0f, 0f); // (the gap's middle, in the race)
+            yield return StandAt(new Vector3(gap.x, 0.55f, gap.z + 2.2f), Vector3.back);
+            input.Move = new Vector2(0f, -1f); // (south, through the gap)
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsTrue(Shallows.In(apprentice.transform.position + Vector3.up * 0.1f), "in the race (through the gap)");
+            input.Move = new Vector2(1f, 0f); // (east, down the race)
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return WaitUp(() => apprentice.StrokeCharged, 2.5f, "charged");
+            input.Move = Vector2.zero;
+            input.HeavyHeld = false;
+            yield return WaitUp(() => apprentice.LastWave != null, 1f, "the wave");
+            Assert.IsTrue(apprentice.LastWave.Wet, "let go in the water");
+            Assert.AreEqual(1, race.Surges, "down the race");
+            yield return WaitUp(() => wheel.Turns == 1, 3f, "the wheel turning");
+        }
+
+        // Without the Stroke: struck with the oar, the wheel answers (a thump, a creak, a short rock round): something can
+        // be done here. It doesn't turn, or wind the gate.
+        [UnityTest]
+        public IEnumerator TheMill_StruckWithTheOar_TheWheelAnswers()
+        {
+            Assert.IsFalse(apprentice.HasStroke);
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            Vector3 yard = race.mouth.position + new Vector3(-0.9f, -0.3f, 1.2f); // (on the yard, at its east edge, by the wheel)
+            Vector3 toWheel = wheel.transform.position - yard;
+            toWheel.y = 0f;
+            yield return StandAt(yard, toWheel);
+            input.PressLight();
+            yield return WaitUp(() => wheel.Knocks == 1, 1f, "a light blow answered");
+            Assert.Greater(wheel.Rocking, 20f, "it rocks");
+            yield return new WaitForSeconds(1.2f);
+            input.PressHeavy();
+            yield return WaitUp(() => wheel.Knocks == 2, 1.5f, "a heavy blow answered");
+            yield return new WaitForSeconds(1.5f);
+            Assert.AreEqual(0, wheel.Turns, "not turned");
+            Assert.AreEqual(0, UnityEngine.Object.FindAnyObjectByType<SluiceGate>().Stage, "the gate not wound");
+        }
+
+        // Up the race: no surge. From the yard at the wheel: it rocks (a creak), but doesn't turn or wind the gate.
+        [UnityTest]
+        public IEnumerator TheMill_UpTheRace_OrFromTheYard_TheWheelOnlyRocks()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+            yield return StandAt(race.mouth.position + new Vector3(-1.5f, -0.25f, 0f), Vector3.left); // (up it)
+            yield return Stroke();
+            yield return new WaitForSeconds(1.5f);
+            Assert.AreEqual(0, race.Surges);
+            Assert.AreEqual(0, wheel.Lurches, "(the wave went up the race, away from it)");
+            Vector3 yard = race.mouth.position + new Vector3(-1.2f, -0.3f, 1.4f); // (on the yard, beside the race's end)
+            Vector3 toWheel = wheel.transform.position - yard;
+            toWheel.y = 0f;
+            yield return StandAt(yard, toWheel);
+            Assert.IsFalse(Shallows.In(apprentice.transform.position + Vector3.up * 0.1f));
+            yield return Stroke();
+            Assert.IsFalse(apprentice.LastWave.Wet, "on dry stone, a dry wave");
+            yield return WaitUp(() => wheel.Lurches == 1, 1f, "the wheel rocked");
+            yield return new WaitForSeconds(1.5f);
+            Assert.AreEqual(0, wheel.Turns, "but not turned");
+            Assert.AreEqual(0, UnityEngine.Object.FindAnyObjectByType<SluiceGate>().Stage, "the gate not wound");
+        }
+
+        // From shallows the wave carries water and puts out what burns: a Soured alight, burning pitch.
+        [UnityTest]
+        public IEnumerator TheStroke_FromShallows_PutsOutFire()
+        {
+            apprentice.GiveStroke();
+            var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+            Vector3 at = race.head.position + new Vector3(2.5f, -0.25f, 0f);
+            var laden = (Laden)post.spawner.SpawnAt("Laden", at + new Vector3(-0.8f, -0.1f, 2.4f), Vector3.back);
+            laden.passive = true;
+            var pot = PitchPot.Throw(null, at + Vector3.up, at + new Vector3(1.6f, -0.1f, 2.6f));
+            yield return WaitUp(() => pot.Aflame, 2f, "the pitch alight");
+            Burning.Set(laden, 30f, 0.5f);
+            Assert.IsTrue(laden.GetComponent<Burning>().Alight);
+            yield return StandAt(at, Vector3.forward);
+            yield return Stroke();
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(apprentice.LastWave == null || apprentice.LastWave.Wet);
+            Assert.IsFalse(laden.GetComponent<Burning>().Alight, "the Laden put out");
+            Assert.IsTrue(pot == null || !pot.Aflame, "the pitch put out");
+        }
+
+        // A crate left loose on the yard is shoved along it; a barrel afloat is sent drifting away.
+        [UnityTest]
+        public IEnumerator TheStroke_ShovesACrate_AndSendsABarrelDrifting()
+        {
+            apprentice.GiveStroke();
+            var crates = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).Where(x => !x.Afloat).ToArray();
+            Assert.Greater(crates.Length, 0, "crates loose on the yard");
+            var crate = crates.OrderBy(c => -c.transform.position.z).First(); // (the northern one: open yard east of it)
+            Vector3 was = crate.transform.position;
+            yield return StandAt(was - Vector3.right * 2f, Vector3.right);
+            yield return Stroke();
+            yield return new WaitForSeconds(1.5f);
+            Assert.Greater(crate.transform.position.x - was.x, 0.8f, "shoved along");
+            Assert.AreEqual(was.y, crate.transform.position.y, 0.05f, "on the ground still");
+
+            var barrel = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).Where(x => x.Afloat)
+                .OrderBy(x => Vector3.Distance(x.transform.position, new Vector3(7.4f, 0f, -10.8f))).First();
+            Vector3 from = barrel.transform.position;
+            yield return StandAt(new Vector3(from.x, 0.55f, -7.5f), Vector3.back);
+            yield return Stroke();
+            yield return new WaitForSeconds(2f);
+            Assert.IsTrue(barrel.Afloat, "afloat still");
+            Assert.Greater(Vector3.Distance(new Vector3(from.x, 0f, from.z), new Vector3(barrel.transform.position.x, 0f, barrel.transform.position.z)), 1.5f, "drifting off");
+        }
+
+        // ---- The Stroke on the water (the tailrace)
+
+        Boat TheBoat() => UnityEngine.Object.FindAnyObjectByType<Boat>();
+        Current TheCurrent() => UnityEngine.Object.FindAnyObjectByType<Current>();
+
+        // Into the boat at its dock, then put on the water at `at`, its bow along `bow`.
+        IEnumerator AfloatAt(Vector3 at, Vector3 bow)
+        {
+            var boat = TheBoat();
+            apprentice.Teleport(boat.InteractPosition);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 0.1f);
+            Assert.AreEqual(Apprentice.State.Rowing, apprentice.CurrentState, "in the boat");
+            boat.PlaceAt(at, bow);
+            yield return null;
+        }
+
+        // The Stroke from the boat: hold the heavy attack till it's charged, let go.
+        IEnumerator RowStroke()
+        {
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+            input.HeavyHeld = false;
+            yield return null;
+        }
+
+        // Walking off the jetty into the moored boat is getting in (nobody steps into the river by it).
+        [UnityTest]
+        public IEnumerator TheBoat_WalkedInto_YouTakeTheOars()
+        {
+            var boat = TheBoat();
+            Vector3 jetty = boat.InteractPosition; // (on the jetty, beside it)
+            Vector3 toBoat = boat.transform.position - jetty;
+            toBoat.y = 0f;
+            yield return StandAt(jetty, toBoat);
+            input.Move = new Vector2(toBoat.x, toBoat.z).normalized;
+            yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Rowing, 2f, "in the boat");
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(Apprentice.State.Rowing, apprentice.CurrentState, "rowing, not sinking");
+            Assert.IsTrue(boat.Rowing);
+        }
+
+        // A dock's bell: the boat tied up elsewhere, ring it, and the boat comes in to this dock.
+        [UnityTest]
+        public IEnumerator TheBoat_RingTheBell_ItComes()
+        {
+            var boat = TheBoat();
+            var far = boat.docks.First(d => d != boat.home);
+            yield return AfloatAt(far.mooring.position, far.mooring.forward);
+            yield return WaitUp(() => boat.DockInReach == far, 2f, "the landing in reach");
+            input.PressInteract();
+            yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Free, 2f, "ashore at the landing");
+            Assert.AreEqual(far, boat.MooredAt);
+            var bell = UnityEngine.Object.FindObjectsByType<DockBell>(FindObjectsSortMode.None).First(b => b.dock == boat.home);
+            yield return StandAt(bell.transform.position + Vector3.forward * 0.8f, Vector3.back);
+            yield return null;
+            Assert.AreEqual(bell, apprentice.Nearby, "the bell: Ring for the boat");
+            input.PressInteract();
+            yield return WaitUp(() => boat.MooredAt == boat.home, 1f, "it comes");
+            yield return new WaitForSeconds(2.5f);
+            Assert.Less(Vector3.Distance(boat.transform.position, boat.home.mooring.position), 0.1f, "tied up at the jetty");
+            Assert.IsFalse(bell.Available, "here already: nothing to ring for");
+        }
+
+        // The mill store's Obol cache can't be taken through its wall (only through the doorway, once it's open).
+        [UnityTest]
+        public IEnumerator TheMill_TheStoresCache_NotThroughTheWall()
+        {
+            var cache = UnityEngine.Object.FindObjectsByType<ObolCache>(FindObjectsSortMode.None).First(c => c.name.Contains("mill store"));
+            yield return StandAt(cache.transform.position + Vector3.forward * 1.35f, Vector3.back); // (outside the store's north wall, in reach)
+            Assert.Less((apprentice.transform.position - cache.transform.position).Flat().magnitude, cache.interactRadius, "(in reach)");
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreNotEqual(cache, apprentice.Nearby as ObolCache, "not through the wall");
+            yield return StandAt(cache.transform.position + Vector3.back * 1.2f, Vector3.forward); // (inside the store)
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(cache, apprentice.Nearby as ObolCache, "inside, it's there to take");
+        }
+
+        // Rowing alone, the current is too strong: it takes the boat back however hard it's rowed.
+        [UnityTest]
+        public IEnumerator TheTailrace_RowedAlone_TheCurrentTakesYouBack()
+        {
+            var current = TheCurrent();
+            Vector3 start = current.transform.position + current.transform.forward * 3f; // (in it, near the mouth)
+            yield return AfloatAt(start, -current.transform.forward);
+            input.Move = new Vector2(0f, -1f); // (rowing up it: south)
+            yield return new WaitForSeconds(6f);
+            input.Move = Vector2.zero;
+            float gained = Vector3.Dot(start - TheBoat().transform.position, current.transform.forward);
+            Assert.Less(gained, 0f, "lost ground, rowing as hard as it can");
+        }
+
+        // With the Stroke, a surge at a time: the boat climbs the current to the landing.
+        [UnityTest]
+        public IEnumerator TheTailrace_TheStroke_ClimbsItASurgeAtATime()
+        {
+            apprentice.GiveStroke();
+            var current = TheCurrent();
+            var boat = TheBoat();
+            Vector3 start = current.transform.position + current.transform.forward * 3f;
+            yield return AfloatAt(start, -current.transform.forward);
+            input.Move = new Vector2(0f, -1f);
+            float top = Vector3.Dot(current.transform.position - current.transform.forward * (current.size.y * 0.5f + 0.5f), current.transform.forward);
+            int strokes = 0;
+            for (; strokes < 10 && Vector3.Dot(boat.transform.position, current.transform.forward) > top; strokes++)
+            {
+                yield return RowStroke();
+                Assert.Greater(boat.SurgeSpeed, 5f, "the surge");
+                Assert.IsTrue(apprentice.LastWave.Wet, "and a wave, carrying water");
+                Assert.Less(Vector3.Dot(apprentice.LastWave.Forward, boat.Bow), -0.9f, "astern: the water driven back, the boat on");
+                yield return new WaitForSeconds(1.2f);
+            }
+            input.Move = Vector2.zero;
+            Assert.LessOrEqual(Vector3.Dot(boat.transform.position, current.transform.forward), top, "up it, into the pool by the landing");
+            Assert.Greater(strokes, 1, "a surge at a time");
+            yield return WaitUp(() => boat.DockInReach != null && boat.DockInReach != boat.home, 4f, "the landing in reach");
+        }
+
+        // From the boat, the wave knocks a risen Drowned under: its spit broken off, held down a while.
+        [UnityTest]
+        public IEnumerator TheStroke_FromTheBoat_KnocksADrownedUnder()
+        {
+            apprentice.GiveStroke();
+            apprentice.postHitInvulnerability = 1000f;
+            var drowned = UnityEngine.Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None)
+                .OrderBy(d => Vector3.Distance(d.transform.position, TheCurrent().transform.position)).First();
+            Vector3 at = drowned.transform.position + new Vector3(-3.4f, 0f, 0.2f);
+            yield return AfloatAt(at, Vector3.left); // (its stern to it: the wave goes out astern)
+            int spat = 0;
+            Action<Drowned, Spit> onSpat = (d, _) => { if (d == drowned) spat++; };
+            Drowned.Spat += onSpat;
+            try
+            {
+                // Drawn and charged, waiting for it to rise; let go as it does.
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+                yield return WaitUp(() => !drowned.Submerged && drowned.CurrentState == Soured.State.Telegraph, 8f, "the Drowned risen to spit");
+                int before = spat;
+                input.HeavyHeld = false;
+                yield return WaitUp(() => drowned.KnockedUnder, 1f, "knocked under");
+                yield return WaitUp(() => drowned.Submerged, 1.5f, "under");
+                yield return new WaitForSeconds(drowned.heldUnder - 0.6f);
+                Assert.IsTrue(drowned.Submerged, "held under");
+                Assert.AreEqual(before, spat, "its spit broken off");
+                Assert.IsTrue(drowned.IsAlive, "not drowned for good: it rises again");
+            }
+            finally { Drowned.Spat -= onSpat; }
+        }
+
+        // The current carries what floats: a barrel set in it is taken down to the mouth and out.
+        [UnityTest]
+        public IEnumerator TheTailrace_CarriesWhatFloats()
+        {
+            var current = TheCurrent();
+            var barrel = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).First(x => x.Afloat);
+            Vector3 from = current.transform.position - current.transform.forward * 2f;
+            barrel.transform.position = new Vector3(from.x, 0f, from.z);
+            yield return new WaitForSeconds(3f);
+            float carried = Vector3.Dot(barrel.transform.position - from, current.transform.forward);
+            Assert.Greater(carried, 5f, "down it");
+            Assert.IsTrue(barrel.Afloat);
+        }
+
         // ---- The Watchman (Abner Wick, Who Merits Flame)
 
         Watchman Watchman() => UnityEngine.Object.FindAnyObjectByType<Watchman>();
@@ -285,6 +1190,38 @@ namespace MyGame.Tests
             }
             else
                 yield return new WaitForSeconds(1.5f);
+        }
+
+        // The Unreaped Rows: in through the gateway from the orchard; found, he shuts it behind you (the gates swing to,
+        // and hold; and the far gateway's, on to the Glasshouse), and his own music plays; beaten, they open again.
+        [UnityTest]
+        public IEnumerator TheField_FoundHeShutsTheGate_BeatenItOpens()
+        {
+            var w = Watchman();
+            var gate = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate");
+            var far = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate (far)");
+            Assert.IsFalse(gate.Shut || far.Shut);
+            Assert.AreEqual(2, w.Music.Length, "his music, both halves");
+            Assert.IsTrue(w.Music.All(m => m != null));
+            // In from the orchard's top terrace, through the gateway, while it's open.
+            Vector3 way = gate.transform.position;
+            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z - 2f));
+            yield return Walk(Vector2.up, 1.6f);
+            Assert.Greater(apprentice.transform.position.z, way.z + 0.8f, $"through the gateway ({apprentice.transform.position})");
+            yield return Reveal(w);
+            Assert.IsTrue(gate.Shut, "shut behind you");
+            Assert.IsTrue(far.Shut, "and the far one");
+            Assert.AreEqual(1f, gate.Closed, 0.01f, "swung to");
+            // Try to leave: the way's held.
+            apprentice.Teleport(new Vector3(way.x, 3.35f, way.z + 1.5f));
+            yield return Walk(Vector2.down, 1.6f);
+            Assert.Greater(apprentice.transform.position.z, way.z, $"held in ({apprentice.transform.position})");
+            int fallen = BossFall.Fallen;
+            w.Slay(apprentice.transform.position);
+            Assert.AreEqual(fallen + 1, BossFall.Fallen, "his fall made a moment of");
+            yield return new WaitForSeconds(2f);
+            Assert.IsFalse(gate.Shut || far.Shut, "beaten: open again");
+            Assert.AreEqual(0f, gate.Closed, 0.01f);
         }
 
         // Six scarecrows in the field, all alike: one of them is him, still hidden, his lantern dark; no fight yet.
@@ -811,7 +1748,7 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator AnArena_WhatFollowsYouNeverCrossesIn()
         {
-            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
+            var gate = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate");
             Vector3 way = gate.transform.position;
             var post = UnityEngine.Object.FindAnyObjectByType<TesterPost>();
             var laden = (Laden)post.spawner.SpawnAt("Laden", new Vector3(way.x, 3.35f, way.z - 5f), Vector3.forward);
@@ -905,7 +1842,7 @@ namespace MyGame.Tests
             Shot("watchman-2-found");
             yield return Frames(30);
             Shot("watchman-3-torn-free");
-            var gate = UnityEngine.Object.FindAnyObjectByType<ArenaGate>();
+            var gate = UnityEngine.Object.FindObjectsByType<ArenaGate>(FindObjectsSortMode.None).First(g => g.name == "Field Gate");
             var gateCam = new GameObject("Gate Camera").AddComponent<Camera>();
             gateCam.CopyFrom(cam);
             gateCam.targetTexture = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
@@ -1050,6 +1987,411 @@ namespace MyGame.Tests
             for (int i = 0; i < 10; i++)
                 yield return null;
             Shot("thresher-3-stalled");
+        }
+
+        // (SHOTS=dir) The Glasshouse: from the field's far gateway; at its doors; inside (the roof gone); wide.
+        [UnityTest]
+        public IEnumerator Capture_Glasshouse()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            Time.captureFramerate = 30;
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name, Camera from = null)
+            {
+                from ??= cam;
+                if (from != cam)
+                    from.Render();
+                var previous = RenderTexture.active;
+                RenderTexture.active = from.targetTexture;
+                var tex = new Texture2D(from.targetTexture.width, from.targetTexture.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            IEnumerator At(Vector3 p, string name)
+            {
+                apprentice.Teleport(p, true, true);
+                for (int i = 0; i < 45; i++)
+                    yield return null;
+                Shot(name);
+            }
+            yield return At(new Vector3(0f, 3.35f, 31.5f), "glasshouse-0-the-far-gate");
+            yield return At(new Vector3(0f, 3.35f, 36.5f), "glasshouse-1-its-doors");
+            yield return At(new Vector3(0f, 3.35f, 41f), "glasshouse-2-inside");
+            yield return At(new Vector3(-5f, 3.35f, 50f), "glasshouse-3-inside-north");
+            yield return At(new Vector3(7.2f, 3.35f, 45f), "glasshouse-5-a-channel");
+            apprentice.Teleport(new Vector3(0f, 3.35f, 30f), true, true);
+            for (int i = 0; i < 20; i++)
+                yield return null;
+            var wide = new GameObject("Wide").AddComponent<Camera>();
+            wide.CopyFrom(cam);
+            wide.targetTexture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            wide.transform.SetPositionAndRotation(new Vector3(0f, 32f, 24f), Quaternion.Euler(55f, 0f, 0f));
+            Shot("glasshouse-4-wide", wide);
+        }
+
+        // (SHOTS=dir) Father Moth: folded on his tree; at his place on the wing; a fan of leaves; a ring; spent on the floor.
+        [UnityTest]
+        public IEnumerator Capture_FatherMoth()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var m = Gardener();
+            FatherMoth.Pattern? last = null;
+            float at = 0f;
+            Action<FatherMoth, FatherMoth.Pattern> onBeat = (_, p) => { last = p; at = Time.time; };
+            FatherMoth.Beat += onBeat;
+            try
+            {
+                var doors = GlasshouseDoors();
+                apprentice.Teleport(doors.transform.position + new Vector3(0f, 0.1f, 10.5f), true, true);
+                yield return new WaitForSeconds(1f);
+                Shot("father-moth-0-on-his-tree");
+                yield return WakeHim(m);
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f), true, true);
+                yield return new WaitForSeconds(1.5f);
+                Shot("father-moth-1-at-his-place");
+                yield return WaitUp(() => last == FatherMoth.Pattern.Fan && Time.time - at > 0.5f, 10f, "a fan");
+                Shot("father-moth-2-a-fan");
+                yield return WaitUp(() => last == FatherMoth.Pattern.Ring && Time.time - at > 0.7f, 20f, "a ring");
+                Shot("father-moth-3-a-ring");
+                yield return WaitUp(() => m.Tiredness > 0.8f, 20f, "him tired");
+                Shot("father-moth-3b-tired");
+                yield return WaitUp(() => m.CurrentState == Soured.State.Busy && !m.Spent && m.Height < 2.2f && m.Height > 1.0f, 20f, "him faltering");
+                Shot("father-moth-3c-faltering");
+                yield return WaitUp(() => m.Spent, 20f, "him spent");
+                yield return new WaitForSeconds(1f);
+                Shot("father-moth-4-spent");
+                m.TakeBurn(m.maxHealth, m.transform.position);
+                yield return WaitUp(() => m.Phase == 2 && m.Height > 2.5f, 6f, "phase 2");
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f), true, true);
+                yield return WaitUp(() => last == FatherMoth.Pattern.Spiral && Time.time - at > 1.2f, 10f, "a spiral");
+                Shot("father-moth-5-spiral");
+                yield return WaitUp(() => SeedPod.Live > 0 && last == FatherMoth.Pattern.Pods && Time.time - at > 0.9f, 15f, "seed pods down");
+                Shot("father-moth-6-seed-pods");
+                yield return WaitUp(() => FallingFruit.Live > 0 && Time.time - at > 0.7f, 15f, "oranges falling");
+                Shot("father-moth-7-oranges");
+                // Phase 3, afoot.
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f), true, true);
+                m.BeginAt(3);
+                yield return new WaitForSeconds(0.8f);
+                Shot("father-moth-8-roused");
+                yield return WaitUp(() => m.CurrentState == Soured.State.Telegraph && m.CurrentAttack == m.lunge && m.StateTime > 0.5f, 8f, "a lunge drawn");
+                Shot("father-moth-9-lunge-drawn");
+                yield return WaitUp(() => m.CurrentAttack == m.sweep && m.CurrentState == Soured.State.Strike, 20f, "a sweep");
+                Shot("father-moth-10-sweep");
+                // Phase 4, in the dark.
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -5f), true, true);
+                m.BeginAt(4);
+                yield return WaitUp(() => m.LampsLeft == 0 && m.CurrentState == Soured.State.Busy && m.StateTime > 0.75f, 20f, "his scream, the lamps falling");
+                Shot("father-moth-11-the-lamps-falling");
+                yield return WaitUp(() => m.LampsLeft == 0, 25f, "the lamps down");
+                yield return new WaitForSeconds(2.5f);
+                Shot("father-moth-12-in-the-dark");
+                yield return WaitUp(() => FallingDebris.Live > 1 && m.Gathers == FatherMoth.Gathering.Drawing, 30f, "debris, and his gathering");
+                yield return new WaitForSeconds(0.6f);
+                Shot("father-moth-13-gathering-debris");
+                yield return WaitUp(() => m.Shelter != null && m.Shelter.Down, 30f, "the section down");
+                Vector3 away = (m.Shelter.transform.position - m.transform.position).Flat().normalized;
+                apprentice.Teleport(m.Shelter.transform.position + away * 1.3f + Vector3.up * 0.05f, true, true);
+                yield return new WaitForSeconds(0.5f);
+                Shot("father-moth-14-behind-the-section");
+                yield return WaitUp(() => m.Final, 10f, "the blast");
+                yield return null;
+                yield return null;
+                Shot("father-moth-15-blast");
+                yield return new WaitForSeconds(0.8f);
+                Shot("father-moth-16-after");
+                yield return WaitUp(() => m.Spent, 6f, "him fallen");
+                yield return new WaitForSeconds(1f);
+                Shot("father-moth-17-down-for-good");
+                // Beaten: the Drowned Moon pours out of him and pools; taken, it sets into the oar; the moon sets.
+                apprentice.Teleport(m.transform.position + new Vector3(0f, 0.05f, -4f), true, true);
+                m.Slay(apprentice.transform.position);
+                yield return WaitUp(() => m.Pouring && m.Moon != null, 4f, "it pouring");
+                yield return new WaitForSeconds(0.2f);
+                Shot("father-moth-18-the-moon-pouring");
+                yield return WaitUp(() => m.Moon.Full && !BossFall.Framing, 10f, "the pool full");
+                yield return new WaitForSeconds(0.5f);
+                apprentice.Teleport(m.Moon.transform.position + new Vector3(0.4f, 0.05f, -1.6f), true, true);
+                yield return new WaitForSeconds(0.6f);
+                Shot("father-moth-19-the-drowned-moon");
+                m.Moon.Interact(apprentice);
+                yield return new WaitForSeconds(apprentice.ceremonyDuration * 0.22f);
+                Shot("father-moth-20-lifted-out");
+                yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Free, 4f, "the ceremony over");
+                yield return new WaitForSeconds(0.3f);
+                Shot("father-moth-21-the-stroke-in-the-blade");
+                yield return WaitUp(() => SettingMoon.Instance.Setting >= 1f, 20f, "the moon set");
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -4f), true, true);
+                yield return new WaitForSeconds(0.5f);
+                Shot("father-moth-22-the-moon-set");
+            }
+            finally { FatherMoth.Beat -= onBeat; }
+        }
+
+        // (SHOTS=dir) The Stroke: drawn back, let go, the wave rolling out through three Laden.
+        [UnityTest]
+        public IEnumerator Capture_StrokeWave()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            try
+            {
+                Vector3 at = apprentice.transform.position; // (where the lab begins: open ground)
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.forward);
+                apprentice.GiveStroke();
+                foreach (var x in new[] { -1.6f, 0f, 1.6f })
+                {
+                    var laden = post.spawner.SpawnAt("Laden", at + new Vector3(x, 0f, 2.6f + (x == 0f ? 0.4f : 0f)), Vector3.back);
+                    laden.passive = true;
+                }
+                yield return new WaitForSeconds(2.5f);
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+                yield return null;
+                yield return null;
+                Shot("stroke-0-charged");
+                yield return new WaitForSeconds(0.4f);
+                Shot("stroke-1-drawn");
+                input.HeavyHeld = false;
+                yield return WaitUp(() => apprentice.LastWave != null && apprentice.LastWave.Radius > 1.4f, 2f, "the wave out");
+                Shot("stroke-2-wave");
+                yield return WaitUp(() => apprentice.LastWave != null && apprentice.LastWave.Radius > 2.8f, 2f, "further");
+                Shot("stroke-3-wave-through-them");
+                yield return WaitUp(() => apprentice.LastWave != null && apprentice.LastWave.Radius >= apprentice.strokeReach, 2f, "spent");
+                Shot("stroke-4-spent");
+                yield return new WaitForSeconds(0.4f);
+                Shot("stroke-5-after");
+            }
+            finally { cam.targetTexture = null; }
+        }
+
+        // (SHOTS=dir) The mill: the yard, a wave down the race, the wheel turning, the sluice gate rising; barrels afloat
+        // sent on their way from the terrace's edge.
+        [UnityTest]
+        public IEnumerator Capture_Mill()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            var input = new ScriptedInput();
+            apprentice.Input = input;
+            IEnumerator Stroke()
+            {
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return new WaitForSeconds(1.5f);
+                input.HeavyHeld = false;
+            }
+            try
+            {
+                apprentice.GiveStroke();
+                var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
+                var wheel = UnityEngine.Object.FindAnyObjectByType<WaterWheel>();
+                var gate = UnityEngine.Object.FindAnyObjectByType<SluiceGate>();
+                apprentice.Teleport(new Vector3(20f, 0.55f, -2f), true, true);
+                yield return new WaitForSeconds(2f);
+                Shot("mill-0-the-yard");
+                apprentice.Teleport(race.head.position + race.head.forward * 0f + new Vector3(0.8f, -0.25f, 0f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+                yield return new WaitForSeconds(1.5f);
+                Shot("mill-1-in-the-race");
+                yield return Stroke();
+                yield return WaitUp(() => race.Surging, 2f, "the surge");
+                yield return new WaitForSeconds(0.3f);
+                Shot("mill-2-the-surge");
+                yield return WaitUp(() => wheel.Turns > 0, 3f, "the wheel");
+                apprentice.Teleport(new Vector3(24.5f, 0.55f, -4.6f), true, true);
+                yield return new WaitForSeconds(0.6f);
+                Shot("mill-3-the-wheel-turning");
+                yield return WaitUp(() => gate.Height >= gate.travel * 0.5f - 0.01f, 5f, "the gate up a stage");
+                Shot("mill-4-the-gate-a-stage-up");
+                apprentice.Teleport(race.head.position + new Vector3(0.8f, -0.25f, 0f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.right);
+                yield return new WaitForSeconds(1f);
+                yield return Stroke();
+                yield return WaitUp(() => gate.Open, 8f, "the gate open");
+                apprentice.Teleport(new Vector3(24f, 0.55f, -5.3f), true, true);
+                yield return new WaitForSeconds(1f);
+                Shot("mill-5-the-gate-open");
+                // Barrels afloat, from the terrace's edge.
+                apprentice.Teleport(new Vector3(6f, 0.55f, -7.5f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+                yield return new WaitForSeconds(1.5f);
+                Shot("mill-6-barrels-afloat");
+                yield return Stroke();
+                yield return new WaitForSeconds(1.2f);
+                Shot("mill-7-barrels-sent");
+            }
+            finally { cam.targetTexture = null; }
+        }
+
+        // (SHOTS=dir) The tailrace: the boat at its mouth, the Stroke drawn in the boat, the surge, up at the landing.
+        [UnityTest]
+        public IEnumerator Capture_Tailrace()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                apprentice.GiveStroke();
+                apprentice.postHitInvulnerability = 1000f;
+                var current = TheCurrent();
+                var boat = TheBoat();
+                apprentice.Teleport(boat.InteractPosition, true, true);
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-00-the-jetty");
+                yield return AfloatAt(current.transform.position + current.transform.forward * 6f, -current.transform.forward);
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-0-at-the-mouth");
+                input.Move = new Vector2(0f, -1f);
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-1-rowing-against-it");
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+                yield return null;
+                yield return null;
+                Shot("tailrace-2-drawn-and-charged");
+                input.HeavyHeld = false;
+                yield return new WaitForSeconds(0.25f);
+                Shot("tailrace-3-the-surge");
+                yield return new WaitForSeconds(0.4f);
+                Shot("tailrace-4-the-wave-ahead");
+                float top = Vector3.Dot(current.transform.position - current.transform.forward * (current.size.y * 0.5f + 0.5f), current.transform.forward);
+                for (int i = 0; i < 6 && Vector3.Dot(boat.transform.position, current.transform.forward) > top; i++)
+                {
+                    yield return new WaitForSeconds(1f);
+                    yield return RowStroke();
+                }
+                input.Move = Vector2.zero;
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-5-at-the-landing");
+            }
+            finally { cam.targetTexture = null; }
+        }
+
+        // (SHOTS=dir) The Stroke on each of the five oars: the Drowned Moon's sheen on the blade, close up in the world
+        // and turning on the Oar page.
+        [UnityTest]
+        public IEnumerator Capture_StrokeOars()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var m = Gardener();
+                apprentice.Teleport(m.middle + new Vector3(0f, 0.05f, -3f), true, true);
+                apprentice.GiveStroke();
+                CameraRig.Instance.SetZoom(0.45f);
+                yield return new WaitForSeconds(3f);
+                var screen = UnityEngine.Object.FindAnyObjectByType<CharacterScreen>();
+                for (int step = 0; step <= Oar.Last; step++)
+                {
+                    apprentice.Equipment.Restore(step, 0, 0, 0);
+                    yield return new WaitForSeconds(0.5f);
+                    Shot($"stroke-oar-{step}");
+                    screen.Toggle(true);
+                    while (screen.Current != CharacterScreen.Tab.Oar)
+                        screen.Turn(1);
+                    for (int f = 0; f < 20; f++)
+                        yield return null;
+                    Shot($"stroke-oar-page-{step}");
+                    screen.Toggle(false);
+                    yield return null;
+                }
+            }
+            finally { cam.targetTexture = null; }
         }
 
         // (SHOTS=dir) The Moths: round their lantern, come to you, a stall, a dive; and a flock going up.

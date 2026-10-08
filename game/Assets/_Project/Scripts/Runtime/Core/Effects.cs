@@ -12,7 +12,7 @@ namespace MyGame
         public Material flameMaterial; // MyGame/Particle with a tongue of flame (burning: pitch, a Soured alight, a tarred oar)
         public Material strawMaterial; // MyGame/ParticleLit (straw is lit, not light: a scarecrow bursting)
 
-        ParticleSystem sparks, flash, fare, glints, wisps;
+        ParticleSystem sparks, flash, fare, glints, wisps, streaks;
         ParticleSystem.Particle[] fareBuffer = new ParticleSystem.Particle[256];
         ParticleSystem flames, straw, smoke;
         Transform fareTarget;
@@ -25,6 +25,14 @@ namespace MyGame
         {
             Instance = this;
             sparks = Build("Block Sparks", sparkMaterial, stretch: true);
+            // Streaks of light (energy drawn in): stretched like the sparks, but weightless, longer, many.
+            streaks = Build("Energy Streaks", sparkMaterial, stretch: true);
+            var streakMain = streaks.main;
+            streakMain.gravityModifier = 0f;
+            streakMain.maxParticles = 500;
+            var streakRenderer = streaks.GetComponent<ParticleSystemRenderer>();
+            streakRenderer.velocityScale = 0.09f;
+            streakRenderer.lengthScale = 1f;
             flash = Build("Block Flash", flashMaterial, stretch: false);
             fare = BuildFare();
             glints = BuildGlints();
@@ -135,6 +143,18 @@ namespace MyGame
                 sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(0.8f, 0.9f, 1f, 1f), startLifetime = Random.Range(0.4f, 0.8f) }, 1);
         }
 
+        // The Stroke fully drawn: a small cold ring bursting from the blade, a spray of sparks, motes.
+        public void StrokeCharged(Vector3 position)
+        {
+            flash.transform.position = position;
+            flash.Emit(new ParticleSystem.EmitParams { startSize = 1.5f, startLifetime = 0.35f, startColor = new Color(0.74f, 0.86f, 1f, 1f), applyShapeToPosition = false }, 1);
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 16; i++)
+                sparks.Emit(new ParticleSystem.EmitParams { startColor = new Color(0.85f, 0.93f, 1f, 1f), startLifetime = Random.Range(0.25f, 0.5f) }, 1);
+            for (int i = 0; i < 6; i++)
+                Wisp(position, new Color(0.74f, 0.86f, 1f, 1f));
+        }
+
         // A mote of the bow lantern's light drifting away as it goes out: pale, cold, rising slowly and fading.
         public void Wisp(Vector3 at) => Wisp(at, new Color(0.72f, 0.86f, 1f, 1f));
 
@@ -206,6 +226,23 @@ namespace MyGame
                     startColor = Color.Lerp(new Color(0.62f, 0.5f, 0.28f), new Color(0.86f, 0.74f, 0.46f), Random.value),
                     startSize = Random.Range(0.05f, 0.09f),
                     startLifetime = Random.Range(0.9f, 1.6f),
+                    applyShapeToPosition = false,
+                }, 1);
+        }
+
+        // Dead leaves on a gust (Father Moth's wingbeat): blown along `velocity`, tumbling (the straw's system: lit, not light).
+        public void Leaves(Vector3 at, Vector3 velocity, int count)
+        {
+            if (straw == null)
+                return;
+            for (int i = 0; i < count; i++)
+                straw.Emit(new ParticleSystem.EmitParams
+                {
+                    position = at + Random.insideUnitSphere * 0.4f,
+                    velocity = velocity * Random.Range(0.7f, 1.2f) + Random.insideUnitSphere * 1.2f + Vector3.up * Random.Range(0.5f, 2f),
+                    startColor = Color.Lerp(new Color(0.42f, 0.22f, 0.1f), new Color(0.72f, 0.42f, 0.16f), Random.value),
+                    startSize = Random.Range(0.1f, 0.18f),
+                    startLifetime = Random.Range(0.8f, 1.4f),
                     applyShapeToPosition = false,
                 }, 1);
         }
@@ -453,6 +490,23 @@ namespace MyGame
         }
 
         // A blocked hit: a spray of sparks off the surface plus a quick expanding ring.
+        // A streak of light, stretched along its way (the sparks' stretched particles): energy drawn in (Father Moth's
+        // charge).
+        public void Streak(Vector3 at, Vector3 velocity, Color colour, float lifetime, float size = 0.12f)
+        {
+            if (streaks == null)
+                return;
+            streaks.Emit(new ParticleSystem.EmitParams
+            {
+                position = at,
+                velocity = velocity,
+                startColor = colour,
+                startSize = size,
+                startLifetime = lifetime,
+                applyShapeToPosition = false,
+            }, 1);
+        }
+
         public void BlockSpark(Vector3 position, Vector3 normal)
         {
             var rotation = Quaternion.LookRotation(normal.sqrMagnitude > 0.001f ? normal : Vector3.up);

@@ -16,6 +16,7 @@ namespace MyGame
         readonly List<Row> rows = new List<Row>();
         readonly List<(string description, System.Action action)> actions = new List<(string, System.Action)>();
         Page page;
+        static int gardenerPhase = 1;
 
         public TesterMenu(TesterPost post, Apprentice apprentice)
         {
@@ -81,6 +82,18 @@ namespace MyGame
                         post.SetResidents(!post.ResidentsAwake);
                         Say(post.ResidentsAwake ? "Up they get." : "Hush. They'll keep.");
                     });
+                var moth = Object.FindAnyObjectByType<FatherMoth>();
+                if (moth != null)
+                {
+                    Add("Father Moth: phase", $"{gardenerPhase}", "Which of his four phases to face him from: 1 and 2 his leaves, 3 afoot, 4 the last.", () =>
+                        gardenerPhase = gardenerPhase % 4 + 1);
+                    Add("Face Father Moth", $"phase {gardenerPhase}", "Into the Glasshouse, and his fight begun at the phase chosen (at its health).", () =>
+                    {
+                        apprentice.Teleport(moth.middle + new Vector3(0f, 0.05f, -5f));
+                        moth.BeginAt(gardenerPhase);
+                        Say(gardenerPhase == 1 ? "He's waking." : $"Phase {gardenerPhase}. Mind his shears.");
+                    });
+                }
                 Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone (and the readout's counts start again).", () =>
                 {
                     Spawner.ClearSpawned();
@@ -137,6 +150,7 @@ namespace MyGame
                     equipment.charmSlots = Mathf.Min(3, equipment.charmSlots + 1);
                 }, equipment.charmSlots >= 3);
                 Add("The Hook", apprentice.HasHook ? "Owned" : "Take", "Pull to hook posts, yank Soured.", apprentice.GiveHook, apprentice.HasHook);
+                Add("The Stroke", apprentice.HasStroke ? "Owned" : "Take", "The Drowned Moon in the oar blade: hold the heavy attack, let go, a wave.", apprentice.GiveStroke, apprentice.HasStroke);
                 Add("500 Obols", $"{apprentice.Obols}", "Obols (souls, basically).", () => apprentice.GainObols(500));
                 Add("A full Satchel", $"{Provision.All.Length} kinds", "Every Provision, as many as the Satchel takes of each (and on the belt).", () =>
                 {

@@ -577,12 +577,17 @@ namespace MyGame
             stats[row].note.text = note;
         }
 
+        MaterialPropertyBlock sheen;
+
         void DrawOar()
         {
             var e = apprentice.Equipment;
             int step = e.OarStep;
             // Leaning, blade up and to the right, turning slowly about its length.
-            stage.Show(oarModels != null && step < oarModels.Length ? oarModels[step] : null, Quaternion.Euler(0f, 0f, -38f));
+            var oarModel = oarModels != null && step < oarModels.Length ? oarModels[step] : null;
+            stage.Show(oarModel, Quaternion.Euler(0f, 0f, -38f));
+            // With the Stroke, the Drowned Moon in its blade, as on the Apprentice's.
+            OarLook.SheenOn(oarModel, apprentice.HasStroke ? OarLook.SheenLevel(UiKit.Now) : 0f, sheen ??= new MaterialPropertyBlock());
             float breathe = 0.5f + 0.5f * Mathf.Sin(UiKit.Now * 1.6f);
             oarGlow.color = (step == Oar.Last ? new Color(1f, 0.8f, 0.4f) : Cold).WithAlpha((step == Oar.Last ? 0.3f : 0.08f + 0.03f * step) + 0.06f * breathe);
             oarName.text = e.Oar.Name;

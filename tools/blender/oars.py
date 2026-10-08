@@ -117,7 +117,7 @@ def build(step, base, group=None):
         for k in range(8):
             cyl("Notch", 0.035, 0.14 + k * 0.045, 0.152 + k * 0.045, bone)
         leaf = [(-0.04, 0), (0.04, 0), (0.1, 0.1), (0.112, 0.34), (0.09, 0.5), (0.0, 0.59), (-0.09, 0.5), (-0.112, 0.34), (-0.1, 0.1)]
-        blade("Blade", leaf, 1.66, 0.04, ebony)
+        blade("Blade", leaf, 1.66, 0.04, mat("BladeEbony", "#2b2327"))  # (its own: the Stroke's sheen lies on the blade alone)
         rim("Frame", leaf, 1.66, 0.023, silver)
         for y in (-0.022, 0.022):
             pts = [(0.055 * math.cos(a), y, 1.95 + 0.055 * math.sin(a)) for a in (math.radians(50 + 26 * k) for k in range(11))]
@@ -140,7 +140,7 @@ def build(step, base, group=None):
         flare = [(-0.05, 0), (0.05, 0), (0.1, 0.04), (0.165, 0.015), (0.155, 0.1), (0.125, 0.145), (0.132, 0.36),
                  (0.1, 0.52), (0.036, 0.6), (0, 0.65), (-0.036, 0.6), (-0.1, 0.52), (-0.132, 0.36), (-0.125, 0.145),
                  (-0.155, 0.1), (-0.165, 0.015), (-0.1, 0.04)]
-        blade("Blade", flare, 1.62, 0.046, gold)
+        blade("Blade", flare, 1.62, 0.046, mat("BladeGold_Metal", "#e8b53a"))  # (its own, as above)
         rim("Edge", flare, 1.62, 0.016, deep)
         for y in (-0.026, 0.026):
             mark("Mark", 1.97, 0.058, his, y)

@@ -66,7 +66,11 @@ A permanent new oar technique that has both a combat use and a traversal use.
 _Avoid_: Skill, power, upgrade
 
 **Hook**, **Stroke**, **Vault**:
-The three Abilities: the Hook pulls you to a hook post, yanks a Soured over to you (a Boss too heavy for that: it jerks the Anchoress's anchor, her guard gone a while); a rowing stroke that sends a wave; plant the oar and leap.
+The three Abilities: the Hook pulls you to a hook post, yanks a Soured over to you (a Boss too heavy for that: it jerks the Anchoress's anchor, her guard gone a while); the Stroke, a pull of the oar that moves water (and, in the Stopped Clocktower, stopped things); plant the oar and leap.
+
+**The Drowned Moon**:
+The harvest moon's reflection, lifted out of the river by the Gardener and kept caged in his ribs (the light there, all his fight); while he held it the Orchard's moon could never set. Beaten, it pours out of him and pools on the floor; set into the oar blade, it gives the Stroke: the blade pulls water as the moon pulls the tide.
+_Avoid_: moonstone, moon shard
 
 **Ability gate**:
 An obstacle, on land or on water, that can only be passed once the Apprentice has a specific Ability.
@@ -185,6 +189,12 @@ The Drowned City's miniboss, in full "The Unparted, of the Last Embrace": two so
 
 **The Watchman**:
 The Orchard's miniboss: the man who worked the orchard, now a scarecrow among scarecrows in the Unreaped Rows, keeping watch over a harvest that never came. His name plate reads "Abner Wick, Who Merits Flame" (Abner Wick: his name in life). Straw: the oar goes through him, and only fire hurts him, his own (turned back) most of all. He moves only while he isn't watched.
+
+**The Gardener**:
+The Orchard's Boss, his name plate "Father Moth, Who Gathered Autumn": the man who tended the orchard, grown into a vast moth from the memories of the last autumn that gathered to him. He gives up the Drowned Moon (the Stroke).
+
+**The Glasshouse**:
+The Gardener's arena: his ruined palm house beyond the far gate of the Unreaped Rows.
 
 **The Unreaped Rows**:
 The field above the Orchard, through the gateway in its wall, never harvested: the Watchman's arena. Its gates shut behind you while his fight is on.

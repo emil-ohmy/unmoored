@@ -3,7 +3,7 @@
     <blender python> tools/audio/build_sound.py art/audio/oar_swing.py
 
 The script gets `synth` and `np` in scope and defines render(variant, rng) -> float array, plus optional
-VARIANTS (default 1), LOOP = True (no fades: the script makes its own seamless loop), PEAK (normalised peak),
+VARIANTS (default 1), LOOP = True (no fades: the script makes its own seamless loop), PEAK (normalised peak; a list: one per variant),
 and FOLDER (a subfolder, e.g. "Music"). render may return mono (N,) or stereo (2, N).
 Output: game/Assets/_Project/Audio/[FOLDER/]<name>.wav, or <name>_1.wav, <name>_2.wav ... for several variants.
 """
@@ -30,7 +30,7 @@ os.makedirs(out_dir, exist_ok=True)
 for v in range(variants):
     rng = np.random.default_rng(sum(map(ord, name)) * 100 + v)
     x = module["render"](v, rng)
-    x = synth.finish(x, peak=peak, fade_in=0.0 if loop else 0.002, fade_out=0.0 if loop else 0.01)
+    x = synth.finish(x, peak=peak[v] if isinstance(peak, (list, tuple)) else peak, fade_in=0.0 if loop else 0.002, fade_out=0.0 if loop else 0.01)
     filename = f"{name}.wav" if variants == 1 else f"{name}_{v + 1}.wav"
     synth.write(os.path.join(out_dir, filename), x)
     print(f"[audio] {os.path.relpath(os.path.join(out_dir, filename), OUT)}  {x.shape[-1] / synth.SR:.2f}s  {'stereo' if x.ndim == 2 else 'mono'}")

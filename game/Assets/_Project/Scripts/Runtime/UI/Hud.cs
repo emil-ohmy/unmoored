@@ -50,7 +50,9 @@ namespace MyGame
         public float HealthBarWidth => hpFrame.sizeDelta.x - 4f;
         public float StaminaBarWidth => staminaFrame.sizeDelta.x - 4f;
         CanvasGroup hudGroup, promptGroup, canvasGroup;
-        Image restFlash, keyCap, buttonRing, ceremonyDim, dip;
+        Image restFlash, keyCap, buttonRing, ceremonyDim, dip, blast;
+        Color blastColour = Color.white;
+        float blastAt = -100f, blastHold, blastFade = 1f;
         public float DipAlpha => dip != null ? dip.color.a : 0f;
         Text glyph, promptLabel, obolText, obolGain, obolNote;
         bool obolsExplained;
@@ -108,6 +110,10 @@ namespace MyGame
             UiKit.Stretch(ceremonyDim.rectTransform); // darkest at the edges: the Apprentice, in the middle, stays lit
             restFlash = UiKit.Image(canvasRect, "Rest Flash", UiKit.SoftDot, UiKit.Ember.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             UiKit.Stretch(restFlash.rectTransform, -600f);
+            // A blinding flash of the whole screen (ScreenFlash: Father Moth's release).
+            blast = UiKit.Image(canvasRect, "Blast", null, Color.white.WithAlpha(0f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            UiKit.Stretch(blast.rectTransform, -10f);
+            blast.enabled = false;
             AreaTitle = new Banner(canvasRect, "Area Title", new Banner.Style
             {
                 font = titleFont, size = 76, colour = UiKit.Bone, spacing = 7f, y = 190f, glow = Color.black.WithAlpha(0.6f),
@@ -166,6 +172,7 @@ namespace MyGame
             MooringPost.Rested += OnRested;
             AreaEntrance.Entered += OnAreaEntered;
             BossFight.Defeated += OnBossDefeated;
+            ScreenFlash.Flashed += OnScreenFlash;
         }
 
         // The joke first (up to its beat, then the rest), then the sincere line quietly beneath.
@@ -215,6 +222,7 @@ namespace MyGame
             MooringPost.Rested -= OnRested;
             AreaEntrance.Entered -= OnAreaEntered;
             BossFight.Defeated -= OnBossDefeated;
+            ScreenFlash.Flashed -= OnScreenFlash;
         }
 
         void OnHealed() => healedAt = UiKit.Now;
@@ -227,7 +235,7 @@ namespace MyGame
             LanternBanner.Dismiss();
             FoundBanner.Show(title);
             if (!string.IsNullOrEmpty(hint))
-                foundHint.Show(hint.Replace("{hook}", usingGamepad ? "RB" : "F"));
+                foundHint.Show(hint.Replace("{hook}", usingGamepad ? "RB" : "F").Replace("{heavy}", usingGamepad ? "Y" : "K"));
         }
 
         // A kind of Soured met (scattered) for the first time: a quiet line (a Boss's is its farewell).
@@ -351,6 +359,17 @@ namespace MyGame
             float flash = now - restFlashAt;
             restFlash.color = UiKit.Ember.WithAlpha(0.09f * UiKit.Smooth(0f, 0.12f, flash) * (1f - UiKit.Smooth(0.12f, 1.4f, flash)));
             restFlash.enabled = restFlash.color.a > 0.001f;
+            float blasted = now - blastAt;
+            blast.color = blastColour.WithAlpha(blasted < blastHold ? 1f : 1f - UiKit.Smooth(blastHold, blastHold + blastFade, blasted));
+            blast.enabled = blast.color.a > 0.001f;
+        }
+
+        void OnScreenFlash(Color colour, float hold, float fade)
+        {
+            blastColour = colour;
+            blastAt = UiKit.Now;
+            blastHold = hold;
+            blastFade = Mathf.Max(0.01f, fade);
         }
 
         // A pale trail behind a health fill: holds a moment after a hit, then drains down to the new value.

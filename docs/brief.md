@@ -108,7 +108,15 @@ business and pay their fare to row them across.
 
 - **Abilities:**
   - **Hook**, from Boss 1: pull to posts over water, yank Soured close, rip off shields.
-  - **Stroke**, from Boss 2: row against currents, and send a wave that knocks Soured back.
+  - **Stroke**, from Boss 2 (the **Drowned Moon**: the harvest moon's reflection, set into the oar blade, which pulls
+    water as the moon pulls the tide). On the water, the heavy attack while rowing: a surge that carries the boat through
+    a current (without it, fast water pushes you back) and a wave rolling ahead (the Drowned knocked under, floating
+    debris pushed aside). On land, the heavy attack held and let go: a wave of force in an arc ahead, about 4 m, edged in
+    silver foam, costing stamina; it knocks Soured back and staggers them (little harm), throws a Clinger off (mid-leap
+    or off your back), can push them into water; in shallows it carries water (bigger, and it douses fire). It shoves
+    what floats or is loose and turns wheels (a wave down a mill-race turns its wheel, the wheel opens a sluice). In the
+    Stopped Clocktower it sets stopped things moving: a Stroke against a gear or a pendulum runs that part of the clock a
+    while.
   - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
     in Area 3, which hints where it is.
 - **Bow lantern:** never required. Carried at the Apprentice's hip on land and hung on the bow when rowing; its cold
@@ -191,9 +199,55 @@ back toward the Hub.
 | # | Area | Reached by | Boss | Reward | Introduces |
 |---|---|---|---|---|---|
 | 1 | The Drowned City | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
-| 2 | The Orchard of Last Autumn | Hook | The Gardener | Stroke | Moths, Gleaners, Threshers |
+| 2 | The Orchard of Last Autumn | Hook | The Gardener (Father Moth, Who Gathered Autumn) | Stroke | Moths, Gleaners, Threshers |
 | 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
+
+**The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
+its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to
+him as the Moths gather to a light, until he grew into the greatest of them: a vast moth (wings like dead autumn
+leaves, six metres across) with the stooped gardener still rising from it, in his apron, his forearms grown into its
+forelegs, ending in pruning shears; in his ribs, caged, a small lantern: the last light he tended; in his belly, the
+autumn hollow, a ragged glowing opening ringed with dead leaves, that his leaves pour out of. His arena: **the
+Glasshouse**, beyond the Unreaped Rows' far gate (the Watchman guards the way), a ruined palm house of iron ribs and
+broken panes, raised beds of dead plants, shallow water channels (you wade them; they put out flames), lamps hung on
+chains, a dead orange tree against its north wall (he hangs folded on it, like a leaf, until you come in); its middle
+left open, his floor.
+- **A static fight, of dodging:** he keeps to one place, hovering over the north of the floor, out of the oar's reach,
+  and beats his wings. Each beat (his wings raised high, the light in his chest flaring, the hollow in his belly
+  swelling and brightening: the tell) throws dead leaves out of that hollow at
+  you in a pattern: a fan, a few aimed one after another, a ring all round him. Dodge through them, block them, or step
+  between them. After so many beats he's spent: he sinks to the floor and lies there a while, open to the oar, then
+  rises and begins again.
+- **Four phases** (at three quarters, half, a quarter): each changes the patterns, more and more of them, and more
+  complex. Phase 1: leaves alone, one pattern a beat. Phase 2: quicker beats and quicker leaves, several patterns at
+  once, and new kinds: a spiral stream of leaves, seed pods lobbed to where you stand that burst into rings, withered
+  oranges shaken down from the vault onto glowing marks (no guard stops them: step out).
+- **Phase 3 (half), afoot and relentless:** he doesn't fly up again but heaves himself onto his forelegs and comes after
+  you on foot: quick snips two or three at a time, a wide sweep of his shears, a lunge across the floor when you're off.
+  His shears turn your blows. Two ways through: dodge him till he's spent (a dozen strikes, and he collapses, open), or
+  turn a strike with a perfect block (stunned, a riposte's chance). At the quarter mark he takes to the air again.
+- **Phase 4 (a quarter), on the wing again, in the dark:** he screams, the glasshouse shakes, and all four lamps fall
+  at once, shattering; it goes far darker than the night outside: the hollow in his belly, your bow lantern, his
+  smouldering leaves. No more throws: the vault starts coming down (the glasshouse rumbling, debris falling onto glowing
+  marks, most of it right where you stand: keep moving) while he charges in the middle of the floor, sucking energy in:
+  streaks of light drawn into his hollow from all round, faster and denser, an orb in it swelling to a blinding sun, a
+  sound that never stops building. Then one great section of the vault crashes in a run away from you (never already
+  between you and him; its warning pale blue, not his orange) and stays standing, its panes glowing pale blue, a patch
+  of light on the floor behind it: get there. He lets it all go, a blast as bright as noon through
+  the whole glasshouse (the screen white): behind that section it can't reach you; in the open it all but ends you (no
+  dodging it). Then he falls, spent for good: finish him.
+- **No skipping a phase:** brought down to a phase's mark, his health holds there and nothing harms him (fire neither)
+  until he rises; then the next phase begins. The Hook glances off him.
+- **Fire** hurts him badly (he's a moth, and the Orchard burns), but doesn't lure him.
+- His farewell: **"MOTHBALLED"** / *Winter is nigh.* He gives up the **Drowned Moon** (the **Stroke**). The light caged
+  in his ribs all his fight was never a lantern: it's the harvest moon's reflection, which he lifted out of the river and
+  kept (the reason the Orchard's moon never sets). Beaten, his cage cracks and it pours out of him, pooling on the floor
+  beside him: a circle of liquid moonlight, rippling, its cold light on the leaves; the sky's moon dims as it does. You
+  lift it out like a coin from a puddle (a disc of water as thin as glass, a pale crescent shifting in it): **THE
+  STROKE**. It sets into the oar blade as a restless silver sheen, seen on the Apprentice from then on; the Stroke's
+  waves are edged with moonlight, and on the water the river bends towards the blade in a silver wake. And the Orchard's
+  harvest moon begins at last to set: its night cooler and darker for good.
 
 **Boss arenas:** nothing that follows the Apprentice crosses into a Boss's (or miniboss's) arena. It stops at the
 edge and gives them up, and nothing outside notices them while they're in it.

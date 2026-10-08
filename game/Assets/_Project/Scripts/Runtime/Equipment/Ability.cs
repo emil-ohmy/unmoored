@@ -36,6 +36,20 @@ namespace MyGame
             },
             a => a.HasHook);
 
-        public static readonly Ability[] All = { Hook };
+        public static readonly Ability Stroke = new Ability("stroke", "The Stroke",
+            "The Drowned Moon: the harvest moon's reflection, which Father Moth lifted out of the river and kept in his ribs. Set into the blade, it pulls water as the moon pulls the tide.",
+            "Hold K, let go", "Hold Y, let go",
+            new[]
+            {
+                "A wave of force ahead of you: Soured knocked back and staggered.",
+                "Throw off whatever clings to you, or leaps at you.",
+                "Push a Soured into the water, and what floats across it.",
+                "In shallows the wave carries water: bigger, and it puts fire out.",
+                "Turn a wheel: a wave down a mill-race, a stopped gear.",
+                "Rowing: a surge through a current, and a wave rolling ahead.",
+            },
+            a => a.HasStroke);
+
+        public static readonly Ability[] All = { Hook, Stroke };
     }
 }

@@ -101,7 +101,7 @@ namespace MyGame.Tests
             Assert.AreEqual(0, apprentice.Obols);
         }
 
-        // The oar's step, the Ferry Nails carried, and the Warm Stones and Held Breaths found are kept.
+        // The oar's step, the Ferry Nails carried, the Warm Stones and Held Breaths found, and the Stroke are kept.
         [UnityTest]
         public IEnumerator TheOar_WhatsFound_AndTheSatchel_AreKept()
         {
@@ -116,6 +116,7 @@ namespace MyGame.Tests
             apprentice.AddWarmStone();
             apprentice.AddHeldBreath();
             apprentice.AddHeldBreath();
+            apprentice.GiveStroke();
             apprentice.Equipment.AddProvision(Provision.PitchPot, 3);
             apprentice.Equipment.AddProvision(Provision.WarmBroth, 1);
             apprentice.Equipment.ChooseOnBelt(1);
@@ -136,6 +137,9 @@ namespace MyGame.Tests
             Assert.AreEqual(health, apprentice.maxHealth);
             Assert.AreEqual(stamina, apprentice.maxStamina);
             Assert.AreEqual(2, apprentice.GetComponent<OarLook>().ShownStep, "and it looks it");
+            Assert.IsTrue(apprentice.HasStroke, "the Stroke had");
+            Assert.Greater(apprentice.GetComponent<OarLook>().Sheen, 0.1f, "the Drowned Moon's sheen on the blade");
+            Assert.Less(apprentice.GetComponent<OarLook>().Sheen, 1f, "(settled: it had it long ago)");
             Assert.AreEqual(3, e.Carried(Provision.PitchPot), "the Satchel as it was");
             Assert.AreEqual(1, e.Carried(Provision.WarmBroth));
             CollectionAssert.AreEqual(new[] { Provision.PitchPot, Provision.WarmBroth, null, null }, e.Belt, "and the belt");
