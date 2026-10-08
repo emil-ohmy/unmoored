@@ -84,16 +84,140 @@ def walls(parts, storey, south=(), north=(), west=(), east=()):
     wall (e for south/north, n for west/east), b heights relative to the storey's floor."""
     u0, u1 = F[storey], F[storey + 1]
     lo = -0.9 if storey == 0 else u0
+    windows = WINDOWS.get(storey, {})
+    south, north, west, east = (list(south) + [(a - 0.5, a + 0.5, PORT_U - 0.5, PORT_U + 0.5) for a in windows.get("south", [])],
+                                list(north) + [(a - 0.5, a + 0.5, PORT_U - 0.5, PORT_U + 0.5) for a in windows.get("north", [])],
+                                list(west) + [(a - 0.5, a + 0.5, PORT_U - 0.5, PORT_U + 0.5) for a in windows.get("west", [])],
+                                list(east) + [(a - 0.5, a + 0.5, PORT_U - 0.5, PORT_U + 0.5) for a in windows.get("east", [])])
+
     def at(openings):
         return [(a0, a1, u0 + b0, u0 + b1) for a0, a1, b0, b1 in openings]
+    wainscot(parts, storey, kit.mat("HallBrass_Metal", "#b8913f"), {"south": south, "north": north, "west": west, "east": east})
     m.wall(parts, -OUT, OUT, -OUT, -IN, lo, u1, openings=at(south), plinth=storey == 0)
     m.wall(parts, -OUT, OUT, IN, OUT, lo, u1, openings=at(north), plinth=storey == 0)
     m.wall(parts, -OUT, -IN, -IN, IN, lo, u1, openings=at(west), plinth=storey == 0)
     m.wall(parts, IN, OUT, -IN, IN, lo, u1, openings=at(east), plinth=storey == 0)
 
 
-def window(e_or_n, width=0.5, sill=1.4, head=2.8):
-    return (e_or_n - width / 2, e_or_n + width / 2, sill, head)
+# The portholes: round brass-rimmed windows (each a square opening behind its ring), per storey and wall.
+WINDOWS = {1: {"south": [-2.6, 2.6], "west": [-3.0, 3.0], "east": [4.5], "north": [-5.5]},
+           2: {"west": [-5.0], "east": [-3.0, 0.0], "north": [-5.5, 5.5]},
+           3: {"west": [-3.0, 3.0], "north": [-5.0, 5.0]}}
+PORT_U, PORT_R = 2.0, 0.62  # a porthole's middle above its storey's floor; its ring's radius
+
+
+def G(e, n, u):
+    """A game point in Blender's frame."""
+    return (-e, -n, u)
+
+
+def on_wall(side, a, u, out=0.03):
+    """A point on the outside face of a wall: `a` along it (e on south/north, n on west/east), at height u."""
+    return {"south": (a, -OUT - out, u), "north": (a, OUT + out, u), "west": (-OUT - out, a, u), "east": (OUT + out, a, u)}[side]
+
+
+def ring(parts, material, centre, side, radius, thick=0.1, segments=16):
+    """A ring of brass in a wall's plane (a porthole's rim)."""
+    e, n, u = centre
+    for k in range(segments):
+        a0, a1 = 2 * math.pi * k / segments, 2 * math.pi * (k + 1) / segments
+        pts = []
+        for a in (a0, a1):
+            dx, du = math.cos(a) * radius, math.sin(a) * radius
+            pts.append(G(e + dx, n, u + du) if side in ("south", "north") else G(e, n + dx, u + du))
+        parts.append(part("Rim", kit.cube(), material, kit.along(pts[0], pts[1]) @ kit.M(scale=(thick, thick, math.dist(*pts) + 0.02))))
+
+
+def porthole(parts, storey, side, a, brass, dark):
+    """A round window: its brass rim, and its hands, stopped at a quarter past nine (the hour west, the minute east)."""
+    u = F[storey] + PORT_U
+    c = on_wall(side, a, u, 0.06)
+    ring(parts, brass, c, side, PORT_R)
+    ring(parts, brass, c, side, PORT_R - 0.14, thick=0.05)
+    e, n, _ = c
+    if side in ("south", "north"):
+        parts.append(m.box("PortHand", dark, e - 0.32, e, n - 0.03, n + 0.03, u - 0.03, u + 0.03))
+        parts.append(m.box("PortHand", dark, e, e + 0.46, n - 0.03, n + 0.03, u - 0.025, u + 0.025))
+    else:
+        parts.append(m.box("PortHand", dark, e - 0.03, e + 0.03, n - 0.32, n, u - 0.03, u + 0.03))
+        parts.append(m.box("PortHand", dark, e - 0.03, e + 0.03, n, n + 0.46, u - 0.025, u + 0.025))
+
+
+def gear(parts, rim, web, centre, radius, teeth, thick, rot=(0, 0, 0)):
+    """A brass gear (lying flat at rot (0, 0, 0)), at a game point."""
+    at = M(G(*centre), rot=rot)
+    parts.append(part("GearRim", kit.cylinder(24, radius, thick), rim, at))
+    parts.append(part("GearWeb", kit.cylinder(24, radius - 0.08, thick * 0.6), web, at))
+    parts.append(part("GearHub", kit.cylinder(10, radius * 0.22, thick * 1.8), rim, at))
+    for k in range(teeth):
+        a = 2 * math.pi * k / teeth
+        parts.append(part("Cog", kit.cube(), rim, at @ M((math.cos(a) * (radius + 0.07), math.sin(a) * (radius + 0.07), 0),
+                                                        rot=(0, 0, math.degrees(a)), scale=(0.16, 0.12, thick))))
+
+
+def cog_band(parts, u, brass):
+    """Round the wall tops at height u: a brass band with cog teeth all round, the storey a gear in a stack of gears."""
+    o, w = OUT + 0.16, OUT + 0.38
+    for side in ("south", "north", "west", "east"):
+        if side in ("south", "north"):
+            s_ = -1 if side == "south" else 1
+            parts.append(m.box("CogBand", brass, -o, o, min(s_ * OUT, s_ * o), max(s_ * OUT, s_ * o), u - 0.62, u - 0.2))
+            a = -OUT + 0.4
+            while a < OUT - 0.3:
+                parts.append(m.box("Cog", brass, a - 0.16, a + 0.16, min(s_ * o, s_ * w), max(s_ * o, s_ * w), u - 0.58, u - 0.24))
+                a += 0.72
+        else:
+            s_ = -1 if side == "west" else 1
+            parts.append(m.box("CogBand", brass, min(s_ * OUT, s_ * o), max(s_ * OUT, s_ * o), -OUT, OUT, u - 0.62, u - 0.2))
+            a = -OUT + 0.4
+            while a < OUT - 0.3:
+                parts.append(m.box("Cog", brass, min(s_ * o, s_ * w), max(s_ * o, s_ * w), a - 0.16, a + 0.16, u - 0.58, u - 0.24))
+                a += 0.72
+
+
+def spines(parts, storey, brass, web):
+    """A clockwork spine up each corner: a brass column, and gears along it facing out across the corner."""
+    u0, u1 = F[storey], F[storey + 1]
+    lo = -0.9 if storey == 0 else u0
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            parts.append(part("Spine", kit.cylinder(10, 0.2, u1 - lo), brass, M(G(sx * (OUT + 0.12), sy * (OUT + 0.12), (lo + u1) / 2))))
+            yaw = math.degrees(math.atan2(-sy, -sx)) + 90
+            for k, du in enumerate((1.2, 3.0)):
+                gear(parts, brass, web, (sx * (OUT + 0.34), sy * (OUT + 0.34), u0 + du), 0.6 if k == 0 else 0.42, 10 if k == 0 else 8, 0.12,
+                     rot=(90, 0, yaw))
+
+
+def pipes(parts, storey, brass):
+    """Brass pipes up the outside of the walls, with a collar every storey."""
+    u0, u1 = F[storey], F[storey + 1]
+    lo = -0.6 if storey == 0 else u0
+    for side, a in (("south", -7.35), ("south", 7.35), ("east", 6.6), ("west", -6.6), ("north", 0.0)):
+        e, n, _ = on_wall(side, a, 0, 0.22)
+        parts.append(part("Pipe", kit.cylinder(8, 0.13, u1 - lo), brass, M(G(e, n, (lo + u1) / 2))))
+        parts.append(part("PipeCollar", kit.cylinder(8, 0.19, 0.12), brass, M(G(e, n, u0 + 0.3))))
+
+
+def wainscot(parts, storey, brass, openings):
+    """A brass band round the room inside, at hand height, broken at every opening it would cross (`openings`: per
+    side, (a0, a1, b0, b1) as walls() has them, b relative to the floor)."""
+    u0, b = F[storey], 1.0
+    for side, ops in openings.items():
+        cuts = sorted((a0, a1) for a0, a1, b0, b1 in ops if b0 <= b + 0.16 and b1 >= b)
+        a = -IN
+        spans = []
+        for a0, a1 in cuts:
+            if a0 > a:
+                spans.append((a, a0))
+            a = max(a, a1)
+        if a < IN:
+            spans.append((a, IN))
+        for lo, hi in spans:
+            if hi - lo < 0.05:
+                continue
+            box = {"south": (lo, hi, -IN, -IN + 0.04), "north": (lo, hi, IN - 0.04, IN),
+                   "west": (-IN, -IN + 0.04, lo, hi), "east": (IN - 0.04, IN, lo, hi)}[side]
+            parts.append(m.box("Band", brass, *box, u0 + b, u0 + b + 0.16))
 
 
 def build(variant):
@@ -134,8 +258,7 @@ def build(variant):
         e0, e1, n0, n1, _ = STAIRS[0]
         m.balustrade(parts, e0 - 0.1, n0 - 0.05, e0 - 0.1, n1 - 1.6, f)               # beside the stair from below
         m.balustrade(parts, e0 - 0.1, n0 - 0.1, IN, n0 - 0.1, f)
-        walls(parts, 1, south=[window(-4.5), window(4.5)], west=[window(-3.0), window(3.0)], east=[window(4.5)],
-              north=[window(-5.5)])
+        walls(parts, 1)
         stair(parts, 1)
         # Beams under the gallery above, across the tower.
         for e in (-4.6, 4.6):
@@ -151,8 +274,7 @@ def build(variant):
         e0, e1, n0, n1, _ = STAIRS[1]  # (it rises west: its top at e0, open; railed along its side and across its foot)
         m.balustrade(parts, e0 + 1.6, n0 - 0.1, e1 + 0.1, n0 - 0.1, f)
         m.balustrade(parts, e1 + 0.1, n0 - 0.1, e1 + 0.1, IN, f)
-        walls(parts, 2, south=[(-DIAL, DIAL, 0.6, 4.0)],                               # the dial's lower half
-              west=[window(-5.0)], east=[window(-3.0), window(3.0)], north=[window(-5.5), window(5.5)])
+        walls(parts, 2, south=[(-DIAL, DIAL, 0.6, 4.0)])                               # the dial's lower half
         # The bells' frame: two great beams across the open middle, under the face room's floor.
         for n in (-2.6, 2.6):
             parts.append(m.box("BellBeam", timber, -IN, IN, n - 0.22, n + 0.22, F[3] - 0.7, F[3] - 0.3))
@@ -166,8 +288,7 @@ def build(variant):
         m.balustrade(parts, -1.4, -1.2, 0.7, -1.2, f)
         m.balustrade(parts, -1.4, 0.2, 0.7, 0.2, f)
         walls(parts, 3, south=[(-DIAL, DIAL, -0.4 - 0.0, DIAL), (-6.0 - DOOR / 1.5, -6.0 + DOOR / 1.5, 0, 2.4),
-                               (6.0 - DOOR / 1.5, 6.0 + DOOR / 1.5, 0, 2.4)],
-              west=[window(-3.0), window(3.0)], north=[window(-5.0), window(5.0)])
+                               (6.0 - DOOR / 1.5, 6.0 + DOOR / 1.5, 0, 2.4)])
         for e in (-6.0, 6.0):
             m.lintel(parts, e - DOOR / 1.5, e + DOOR / 1.5, -OUT, -IN, f, f + 2.4)
         # The ledges outside, west and east of the dial (the hands bridge between them), railed along their edge.
@@ -203,6 +324,11 @@ def build(variant):
         base = f + 0.6
         parts.append(part("Drum", kit.cylinder(8, 6.0, 2.2), m.mat(m.STONE[1]), M((0, 0, base + 1.1), rot=(0, 0, 22.5))))
         parts.append(part("DrumBand", kit.cylinder(8, 6.15, 0.25), gilt, M((0, 0, base + 2.2), rot=(0, 0, 22.5))))
+        # The dome sits on a toothed crown: a gear ring round the drum's top (the dome a cap that could turn).
+        for k in range(40):
+            ang = 2 * math.pi * k / 40
+            parts.append(part("CrownCog", kit.cube(), gilt, M((math.cos(ang) * 6.45, math.sin(ang) * 6.45, base + 2.05),
+                                                             rot=(0, 0, math.degrees(ang)), scale=(0.5, 0.26, 0.42))))
         # The onion: a lathe of rings, swelling out past the drum and drawing up to a point.
         profile = [(0.0, 5.6), (0.8, 6.3), (1.8, 6.5), (2.8, 6.0), (3.8, 4.6), (4.7, 2.8), (5.4, 1.3), (6.0, 0.45), (6.4, 0.12)]
         dome_base = base + 2.3
@@ -223,4 +349,21 @@ def build(variant):
         m.wall(parts, -4.8, -4.5, -14.0, -OUT, -0.9, f, course=0.45, plinth=True)
         m.wall(parts, 4.5, 4.8, -14.0, -OUT, -0.9, f, course=0.45, plinth=True)
         m.flagstones(parts, -4.5, 4.5, -14.0, -OUT, f)
-    return [kit.join(parts, f"Clocktower_{variant}")]
+    # The machine of it: each storey's cogged crown, its corner spines and pipes, its portholes, its brass band inside;
+    # a great gear inlaid in the floors (the belfry's floor is one).
+    brass = kit.mat("HallBrass_Metal", "#b8913f")
+    web = kit.mat("HallBrassWeb_Metal", "#9c7a38")
+    dark = kit.mat("HandDark", "#2a2620")
+    storey = VARIANTS.index(variant)
+    if storey <= 4:
+        cog_band(parts, F[storey + 1], brass)
+        spines(parts, storey, brass, web)
+        pipes(parts, storey, brass)
+        for side, positions in WINDOWS.get(storey, {}).items():
+            for a in positions:
+                porthole(parts, storey, side, a, brass, dark)
+    inlay = {0: ((0.0, -3.4), 2.2), 3: ((2.8, -3.6), 1.6), 4: ((-1.0, -1.0), 4.2)}.get(storey)
+    if inlay is not None:
+        (e, n), r = inlay
+        gear(parts, brass, web, (e, n, F[storey] + 0.01), r, int(r * 11), 0.03)
+    return [kit.join(parts, f"LastHour_{variant}")]

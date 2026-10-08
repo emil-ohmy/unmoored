@@ -144,6 +144,11 @@ public static partial class MainSceneBuilder
         Works(gallery, "gear_wall_small", T(-5.8f, F(2) + 2.8f, -face_), facingSouth);
         Works(gallery, "gear_wall_small", T(face_, F(2) + 2.6f, 3.6f), facingEast);
         Works(face, "gear_wall_small", T(face_, F(3) + 2.2f, -3.8f), facingEast);
+        // The clock's heart where it can be seen: the escapement hung in the belfry's south arch, stopped mid-tick; on the
+        // east face, counterweights hanging on their chains from the cogged crowns, held where they stopped.
+        Works(belfry, "escapement", T(0f, F(4) + 1.9f, -TowerOut - 0.35f), flat);
+        Works(works, "counterweight", T(TowerOut + 0.5f, F(3) - 0.4f, 1.4f), flat);
+        Works(gallery, "counterweight", T(TowerOut + 0.5f, F(4) - 0.4f, 5.6f), flat);
         var spire = Place("Environment/last_hour_props_spire", T(-15.6f, 0f, 2f), 0f);
         spire.name = "The Spire";
         Place("Environment/last_hour_props_drive", T(-13.2f, F(2) + 2.0f, 2f), 0f).name = "The Drive-Rod";

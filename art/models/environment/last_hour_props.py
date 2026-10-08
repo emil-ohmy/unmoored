@@ -8,14 +8,17 @@ south, origin at its centre); "hand_hour" and "hand_minute" (iron beams pointing
 standing out from it to the south, their tops at the origin's height: walkable; origin at the dial's centre).
 Outside: "gear_wall_large" and "gear_wall_small" thin brass gears hung on the walls (lying flat: stood up by the game);
 "spire" a slender round tower of pale stone in the river (20 m), banded, slit windows, a green-copper onion dome and a
-gilded spire (origin at its foot, at the water); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
+gilded spire, toothed rings round it (origin at its foot, at the water); "escapement" the clock's heart, a great
+escape-wheel stood facing south and its anchor rocking over it, stopped (origin at the wheel's middle); "counterweight"
+an iron weight on its chain (the chain 4 m up from the weight; origin at the chain's top); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
 and its brackets (origin at its west end); "shrub" and "tree" greenery overgrowing the stone (origin at the ground)."""
 import math
 
 import masonry as m
 
 VARIANTS = ["great_wheel", "gear_large", "gear_small", "shaft", "bell_large", "bell_small", "pendulum", "dial",
-            "hand_hour", "hand_minute", "gear_wall_large", "gear_wall_small", "spire", "drive", "shrub", "tree"]
+            "hand_hour", "hand_minute", "gear_wall_large", "gear_wall_small", "spire", "drive", "shrub", "tree",
+            "escapement", "counterweight"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -92,6 +95,12 @@ def build(variant):
                 ar = math.radians(a + z * 7)
                 parts.append(part("Slit", kit.cube(), dark, M((math.cos(ar) * (r + 0.01), math.sin(ar) * (r + 0.01), z),
                                                               rot=(0, 0, math.degrees(ar)), scale=(0.1, 0.35, 1.1))))
+        for z in (4.0, 8.0, 12.0, 16.0):  # toothed rings round it, a gear every few metres up
+            parts.append(part("GearRing", kit.cylinder(20, r + 0.18, 0.3), iron, M((0, 0, z))))
+            for k in range(26):
+                ang = 2 * math.pi * k / 26
+                parts.append(part("RingCog", kit.cube(), iron, M((math.cos(ang) * (r + 0.32), math.sin(ang) * (r + 0.32), z),
+                                                                 rot=(0, 0, math.degrees(ang)), scale=(0.3, 0.16, 0.26))))
         parts.append(part("Cornice", kit.cylinder(16, r + 0.45, 0.4), cap, M((0, 0, height + 0.2))))
         profile = [(0.0, 2.3), (0.5, 2.75), (1.2, 2.85), (1.9, 2.4), (2.6, 1.6), (3.2, 0.8), (3.6, 0.3), (3.9, 0.08)]
         base = height + 0.4
@@ -108,6 +117,37 @@ def build(variant):
             parts.append(m.box("Bracket", m.mat(m.CAP), e - 0.25, e + 0.25, -0.3, 0.3, -1.6, -0.3))
         for e in (1.8, 3.4):
             parts.append(part("Collar", kit.cylinder(12, 0.32, 0.18), gilt, M(G(e, 0, 0), rot=(0, 90, 0))))
+    elif variant == "escapement":
+        # The escape-wheel (stood facing south: its axle north), its teeth raked like a saw's; the anchor above it, its
+        # two pallets dipping into the teeth either side, its crutch running up to the pivot.
+        at = M((0, 0, 0), rot=(90, 0, 0))
+        parts.append(part("Wheel", kit.cylinder(30, 1.3, 0.14), iron, at))
+        parts.append(part("WheelWeb", kit.cylinder(30, 1.15, 0.08), brass_web, at))
+        parts.append(part("WheelHub", kit.cylinder(10, 0.25, 0.3), gilt, at))
+        for k in range(30):
+            ang = 2 * math.pi * k / 30
+            parts.append(part("Tooth", kit.cube(), iron, M((math.cos(ang) * 1.42, 0, math.sin(ang) * 1.42), rot=(0, -math.degrees(ang) - 20, 0),
+                                                           scale=(0.3, 0.14, 0.09))))
+        for k in range(5):
+            ang = 2 * math.pi * k / 5
+            parts.append(part("Spoke", kit.cube(), iron, M((math.cos(ang) * 0.6, 0, math.sin(ang) * 0.6), rot=(0, -math.degrees(ang), 0),
+                                                           scale=(1.1, 0.1, 0.12))))
+        pivot = (0, -0.15, 2.0)
+        parts.append(part("AnchorPivot", kit.cylinder(10, 0.18, 0.4), gilt, M(pivot, rot=(90, 0, 0))))
+        for side in (-1, 1):
+            arm_end = (side * 1.15, -0.15, 1.2)
+            parts.append(part("AnchorArm", kit.cube(), iron, kit.along(pivot, arm_end) @ kit.M(scale=(0.16, 0.12, math.dist(pivot, arm_end)))))
+            parts.append(part("Pallet", kit.cube(), gilt, M((side * 1.2, -0.15, 1.05), rot=(0, side * 30, 0), scale=(0.14, 0.14, 0.42))))
+        parts.append(part("Crutch", kit.cube(), iron, M((0, -0.15, 2.9), scale=(0.1, 0.1, 1.8))))
+    elif variant == "counterweight":
+        parts.append(part("Chain", kit.cube(), iron, M((0, 0, -2.0), scale=(0.06, 0.06, 4.0))))
+        for z in range(8):
+            parts.append(part("Link", kit.cube(), iron, M((0, 0, -0.25 - z * 0.5), scale=(0.12, 0.04, 0.18))))
+        dark_iron = kit.mat("WeightIron_Metal", "#3b3a40")
+        parts.append(part("Hook", kit.cylinder(8, 0.12, 0.2), iron, M((0, 0, -4.05))))
+        parts.append(part("Weight", kit.cylinder(12, 0.38, 1.1), dark_iron, M((0, 0, -4.7))))
+        parts.append(part("WeightBand", kit.cylinder(12, 0.41, 0.1), iron, M((0, 0, -4.3))))
+        parts.append(part("WeightBand", kit.cylinder(12, 0.41, 0.1), iron, M((0, 0, -5.1))))
     elif variant == "shrub":
         leaves = [kit.mat("HallLeaf1", "#4d6b3e"), kit.mat("HallLeaf2", "#5d7d47"), kit.mat("HallLeaf3", "#41593a")]
         rng = kit.rng
