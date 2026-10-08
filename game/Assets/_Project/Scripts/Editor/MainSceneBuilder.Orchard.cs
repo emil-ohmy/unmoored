@@ -468,6 +468,7 @@ public static partial class MainSceneBuilder
         wheel.wheel = wheelModel.transform;
         wheel.axis = Vector3.forward;
         wheel.turnSound = Clips("mill_wheel_turn");
+        wheel.creakSound = Clips("mill_wheel_creak");
         race.wheel = wheel;
 
         // The store's sluice gate, and its chain: from the axle, over the post's pulley and the gantry's, to the gate.

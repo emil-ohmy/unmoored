@@ -4,19 +4,41 @@ namespace MyGame
 {
     // A mill's water wheel. Still, until a surge comes down its race and breaks on it (MillRace): then it turns, a
     // couple of turns, slowing, and as it turns it winds its chain: the sluice gate it's chained to rises a stage
-    // (SluiceGate). Its axle is the world's `axis`; turned by water poured over its top.
-    public sealed class WaterWheel : MonoBehaviour
+    // (SluiceGate). Its axle is the world's `axis`; turned by water poured over its top. Any other wave that reaches it
+    // (from the yard, or across the race) only rocks it: a lurch and a creak, a little way round and back to still, no
+    // more: it wants the race's water behind it.
+    public sealed class WaterWheel : MonoBehaviour, IWaveable
     {
         public Transform wheel;
         public Vector3 axis = Vector3.forward;
         public float kick = 420f;          // degrees a second, as a surge breaks on it
         public float slowing = 0.55f;
         public SluiceGate gate;
-        public AudioClip[] turnSound;
+        public float radius = 1.3f;
+        public AudioClip[] turnSound, creakSound;
 
         public float Spin { get; private set; }     // degrees a second now
         public float Turned { get; private set; }   // degrees, in all
         public int Turns { get; private set; }      // surges taken (tests)
+        public int Lurches { get; private set; }    // other waves that rocked it (tests)
+
+        float lurch; // degrees a second, of a rocking (dies away fast)
+
+        void OnEnable() => Waveables.Register(this);
+        void OnDisable() => Waveables.Unregister(this);
+
+        public Vector3 WavePoint => transform.position;
+        public float WaveRadius => radius;
+
+        // A wave reaching it some other way than down its race: it rocks, and creaks, and that's all.
+        public void TakeWave(StrokeWave wave, Vector3 push)
+        {
+            Lurches++;
+            lurch = 160f;
+            Sfx.Instance?.Attack(creakSound, transform.position, 0.9f, "mill_wheel_creak");
+            if (Effects.Instance != null)
+                Effects.Instance.Splash(transform.position + Vector3.up * 0.1f);
+        }
 
         // A surge breaking over its paddles.
         public void Turn()
@@ -29,12 +51,21 @@ namespace MyGame
 
         void Update()
         {
+            float dt = Time.deltaTime;
+            if (lurch > 0.5f)
+            {
+                if (wheel != null)
+                    wheel.Rotate(axis, -lurch * dt, Space.World);
+                lurch *= Mathf.Exp(-4f * dt); // (about forty degrees, then it settles)
+            }
+            else
+                lurch = 0f;
             if (Spin < 0.5f)
             {
                 Spin = 0f;
                 return;
             }
-            float dt = Time.deltaTime, step = Spin * dt;
+            float step = Spin * dt;
             Turned += step;
             if (wheel != null)
                 wheel.Rotate(axis, -step, Space.World); // (its top towards the spout's far side: the water carries it over)

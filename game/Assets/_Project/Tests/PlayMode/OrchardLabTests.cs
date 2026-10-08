@@ -863,9 +863,9 @@ namespace MyGame.Tests
             yield return WaitUp(() => wheel.Turns == 1, 3f, "the wheel turning");
         }
 
-        // Up the race, or from the yard at the wheel: no surge, the wheel stays still.
+        // Up the race: no surge. From the yard at the wheel: it rocks (a creak), but doesn't turn or wind the gate.
         [UnityTest]
-        public IEnumerator TheMill_UpTheRace_OrFromTheYard_TheWheelStaysStill()
+        public IEnumerator TheMill_UpTheRace_OrFromTheYard_TheWheelOnlyRocks()
         {
             apprentice.GiveStroke();
             var race = UnityEngine.Object.FindAnyObjectByType<MillRace>();
@@ -874,12 +874,18 @@ namespace MyGame.Tests
             yield return Stroke();
             yield return new WaitForSeconds(1.5f);
             Assert.AreEqual(0, race.Surges);
-            yield return StandAt(race.mouth.position + new Vector3(-1f, -0.3f, 2.2f), Vector3.right); // (on the yard, at the wheel)
+            Assert.AreEqual(0, wheel.Lurches, "(the wave went up the race, away from it)");
+            Vector3 yard = race.mouth.position + new Vector3(-1.2f, -0.3f, 1.4f); // (on the yard, beside the race's end)
+            Vector3 toWheel = wheel.transform.position - yard;
+            toWheel.y = 0f;
+            yield return StandAt(yard, toWheel);
             Assert.IsFalse(Shallows.In(apprentice.transform.position + Vector3.up * 0.1f));
             yield return Stroke();
             Assert.IsFalse(apprentice.LastWave.Wet, "on dry stone, a dry wave");
+            yield return WaitUp(() => wheel.Lurches == 1, 1f, "the wheel rocked");
             yield return new WaitForSeconds(1.5f);
-            Assert.AreEqual(0, wheel.Turns, "the wheel still");
+            Assert.AreEqual(0, wheel.Turns, "but not turned");
+            Assert.AreEqual(0, UnityEngine.Object.FindAnyObjectByType<SluiceGate>().Stage, "the gate not wound");
         }
 
         // From shallows the wave carries water and puts out what burns: a Soured alight, burning pitch.

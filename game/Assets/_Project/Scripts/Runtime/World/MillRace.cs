@@ -6,7 +6,8 @@ namespace MyGame
     // A mill-race: a channel of shallow water running down to a wheel. The Stroke let go in it, down it (the wave
     // carrying water), sends a surge the length of the race, however long: a crest of foam running down it, which
     // breaks over the spout onto the wheel and turns it. Let go up it, across it, or from outside it: nothing more than
-    // any wave. (It's shallows too: a Shallows sits on the same water.)
+    // any wave. (It's shallows too: a Shallows sits on the same water.) Its water is always on the move towards the
+    // wheel, flecks of foam drifting down it and a trickle over the spout: which way it runs, at a glance.
     public sealed class MillRace : MonoBehaviour
     {
         public Transform head, mouth;     // its upper end and its spout (the wave runs head -> mouth)
@@ -79,8 +80,31 @@ namespace MyGame
             Sfx.Instance?.Attack(surgeSound, at, 0.9f, "race_surge");
         }
 
+        float flowDebt;
+
+        // Flecks of foam drifting down the race, and the trickle over its spout.
+        void Flow(float dt)
+        {
+            var fx = Effects.Instance;
+            if (fx == null)
+                return;
+            Vector3 down = Down, side = Vector3.Cross(Vector3.up, down);
+            float length = Length;
+            flowDebt += dt * length * 1.4f;
+            while (flowDebt >= 1f)
+            {
+                flowDebt -= 1f;
+                Vector3 at = head.position + down * Random.Range(0f, length - 0.6f) + side * Random.Range(-width * 0.4f, width * 0.4f) + Vector3.up * 0.03f;
+                fx.Streak(at, down * Random.Range(0.9f, 1.4f), new Color(0.85f, 0.93f, 1f, 0.8f), Random.Range(0.8f, 1.4f), Random.Range(0.05f, 0.08f));
+            }
+            if (Random.value < dt * 10f)
+                fx.Streak(mouth.position + side * Random.Range(-width * 0.3f, width * 0.3f), down * 1.2f + Vector3.down * 2.2f,
+                          new Color(0.8f, 0.9f, 1f, 0.6f), 0.35f, 0.05f);
+        }
+
         void Update()
         {
+            Flow(Time.deltaTime);
             if (surges.Count == 0)
                 return;
             Vector3 down = Down;
