@@ -15,7 +15,15 @@ tower. Every drop taller than 1.5 m is railed (for now: the Vault comes later).
                 the stair up the east wall, rising north
   "belfry"      (16.5) flagged, open on all four sides through tall arches (railed); nothing yet
   "roof"        an octagonal drum on its cornice, a great onion dome of green copper banded in gilt, a gilded spire
-  "landing"     the stone landing before the south door, out in the river
+  "courtyard"   the paved court before the keep's door, walled in the river: high on the west and either side of
+                the keep, a low parapet along the south (towards the camera: nothing tall stands south of where you
+                walk); the walls crowned in cogs like the keep
+  "gatehouse"   the gate in the court's west wall: a passage out to the stone quay in the river, a low arch at its
+                outer end, and the gate tower on its north side, a stopped clock in its south face over the passage
+  "hall"        the great hall along the court's east side (30 m), its door onto the court; tall windows east, round
+                ones high on the west; tie-beams across it (the pendulums hang from them); a toothed rack inlaid down
+                its aisle
+  "hall_roof"   its steep copper roof, a row of gears standing along the ridge
 
 Game directions (see masonry.py); origin at the tower's middle, at the water's surface. Where the game needs them
 (MainSceneBuilder.LastHour): the floors (F), the stairs (STAIRS), the dial's centre (0, -OUT, F[3]), the hands'
@@ -25,7 +33,7 @@ import math
 
 import masonry as m
 
-VARIANTS = ["undercroft", "works", "gallery", "face", "belfry", "roof", "landing"]
+VARIANTS = ["undercroft", "works", "gallery", "face", "belfry", "roof", "courtyard", "gatehouse", "hall", "hall_roof"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -98,6 +106,18 @@ def walls(parts, storey, south=(), north=(), west=(), east=()):
     m.wall(parts, -OUT, -IN, -IN, IN, lo, u1, openings=at(west), plinth=storey == 0)
     m.wall(parts, IN, OUT, -IN, IN, lo, u1, openings=at(east), plinth=storey == 0)
 
+
+# The castle round the keep (game directions, from the keep's middle).
+COURT = (-14.0, 16.0, -26.0, -8.0)          # the court's paving (e0, e1, n0, n1)
+CURTAIN = 5.0                               # the curtain walls' tops
+PARAPET = 2.4                               # the low south wall's top
+PASSAGE = (-19.0, -14.0, -19.0, -15.0)      # the gate's passage through the west wall (e0, e1, n0, n1)
+GATE_TOWER = (-19.0, -14.0, -15.0, -10.6)   # the gate tower, north of it
+GATE_TOP = 10.0
+HALL = (16.0, 28.0, -26.8, 4.0)             # the great hall's walls' outside (e0, e1, n0, n1)
+HALL_TOP = 9.5
+HALL_DOOR = (-14.0, -11.0)                  # its door in the west wall (n), onto the court
+BEAMS = (-20.0, -12.0, -4.0)                # its tie-beams (n): the pendulums hang from them
 
 # The portholes: round brass-rimmed windows (each a square opening behind its ring), per storey and wall.
 WINDOWS = {1: {"south": [-2.6, 2.6], "west": [-3.0, 3.0], "east": [4.5], "north": [-5.5]},
@@ -196,6 +216,28 @@ def pipes(parts, storey, brass):
         e, n, _ = on_wall(side, a, 0, 0.22)
         parts.append(part("Pipe", kit.cylinder(8, 0.13, u1 - lo), brass, M(G(e, n, (lo + u1) / 2))))
         parts.append(part("PipeCollar", kit.cylinder(8, 0.19, 0.12), brass, M(G(e, n, u0 + 0.3))))
+
+
+def cog_strip(parts, brass, e0, e1, n0, n1, u, face):
+    """A cogged brass band along a straight wall's top (just under it), on one face ("south", "north", "west", "east":
+    the face it stands out from): the band, and its teeth."""
+    along_e = face in ("south", "north")
+    out = {"south": -1, "north": 1, "west": -1, "east": 1}[face]
+    edge = (n0 if face == "south" else n1) if along_e else (e0 if face == "west" else e1)
+    band = sorted((edge, edge + out * 0.16))
+    teeth = sorted((edge + out * 0.16, edge + out * 0.38))
+    lo, hi = (e0, e1) if along_e else (n0, n1)
+    if along_e:
+        parts.append(m.box("CogBand", brass, lo, hi, *band, u - 0.62, u - 0.2))
+    else:
+        parts.append(m.box("CogBand", brass, *band, lo, hi, u - 0.62, u - 0.2))
+    a = lo + 0.4
+    while a < hi - 0.3:
+        if along_e:
+            parts.append(m.box("Cog", brass, a - 0.16, a + 0.16, *teeth, u - 0.58, u - 0.24))
+        else:
+            parts.append(m.box("Cog", brass, *teeth, a - 0.16, a + 0.16, u - 0.58, u - 0.24))
+        a += 0.72
 
 
 def wainscot(parts, storey, brass, openings):
@@ -342,13 +384,115 @@ def build(variant):
         top = dome_base + 6.4
         parts.append(part("Spire", kit.cone(8, 0.22, 0.02, 4.0), gilt, M((0, 0, top + 2.0))))
         parts.append(part("Orb", kit.sphere(10, 8, 0.38), gilt, M((0, 0, top + 0.6))))
-    else:  # landing
+    elif variant == "courtyard":
         f = F[0]
-        parts.append(m.box("Earth", m.mat(m.MORTAR), -4.5, 4.5, -14.0, -OUT, -0.9, f - 0.2))
-        m.wall(parts, -4.8, 4.8, -14.3, -14.0, -0.9, f, course=0.45, plinth=True)
-        m.wall(parts, -4.8, -4.5, -14.0, -OUT, -0.9, f, course=0.45, plinth=True)
-        m.wall(parts, 4.5, 4.8, -14.0, -OUT, -0.9, f, course=0.45, plinth=True)
-        m.flagstones(parts, -4.5, 4.5, -14.0, -OUT, f)
+        brass = kit.mat("HallBrass_Metal", "#b8913f")
+        e0, e1, n0, n1 = COURT
+        parts.append(m.box("Earth", m.mat(m.MORTAR), e0, e1, n0, n1, -0.9, f - 0.2))
+        m.flagstones(parts, e0, e1, n0, n1, f)
+        # A brass ring set in the paving before the keep's door, and a rack running to it from the gate.
+        parts.append(m.box("Rack", brass, -0.4, 0.4, n0 + 1.0, n1 - 3.6, f, f + 0.03))
+        n = n0 + 1.2
+        while n < n1 - 3.8:
+            parts.append(m.box("RackCog", brass, -0.62, -0.4, n - 0.12, n + 0.12, f, f + 0.03))
+            parts.append(m.box("RackCog", brass, 0.4, 0.62, n - 0.12, n + 0.12, f, f + 0.03))
+            n += 0.6
+        # The curtain walls, standing in the river: high on the west (broken by the gate) and either side of the keep;
+        # a low parapet along the south. Crowned in cogs on both faces.
+        p0, p1, pn0, pn1 = PASSAGE
+        _, _, tn0, tn1 = GATE_TOWER
+        walls_ = [(e0 - 0.8, e0, n0 - 0.8, pn0 - 0.8, CURTAIN, ("west", "east")),            # west, south of the gate
+                  (e0 - 0.8, e0, tn1, n1 + 0.8, CURTAIN, ("west", "east")),                  # west, north of its tower
+                  (e0 - 0.8, -OUT, n1, n1 + 0.8, CURTAIN, ("south", "north")),               # to the keep's south-west corner
+                  (OUT, e1, n1, n1 + 0.8, CURTAIN, ("south", "north")),                      # keep to hall
+                  (e0 - 0.8, e1, n0 - 0.8, n0, PARAPET, ("south", "north"))]                 # the south parapet
+        for we0, we1, wn0, wn1, top, faces in walls_:
+            m.wall(parts, we0, we1, wn0, wn1, -0.9, top, course=0.45, plinth=True)
+            for face in faces:
+                cog_strip(parts, brass, we0, we1, wn0, wn1, top, face)
+    elif variant == "gatehouse":
+        f = F[0]
+        brass = kit.mat("HallBrass_Metal", "#b8913f")
+        p0, p1, pn0, pn1 = PASSAGE
+        g0, g1, gn0, gn1 = GATE_TOWER
+        t = 0.7
+        # The passage's floor, its low south wall, the arch at its outer end.
+        parts.append(m.box("Earth", m.mat(m.MORTAR), p0, p1, pn0, pn1, -0.9, f - 0.2))
+        m.flagstones(parts, p0, p1, pn0, pn1, f)
+        m.wall(parts, p0, p1, pn0 - 0.8, pn0, -0.9, PARAPET, course=0.45, plinth=True)
+        cog_strip(parts, brass, p0, p1, pn0 - 0.8, pn0, PARAPET, "south")
+        cog_strip(parts, brass, p0, p1, pn0 - 0.8, pn0, PARAPET, "north")
+        for n_ in (pn0 - 0.8, pn1 - 0.1):
+            m.wall(parts, p0, p0 + 0.9, n_, n_ + 0.9, -0.9, 4.6, course=0.45, plinth=True)  # the arch's piers
+        parts.append(m.box("Arch", m.mat(m.CAP), p0 - 0.05, p0 + 0.95, pn0 - 0.85, pn1 + 0.85, 4.2, 4.6))
+        cog_strip(parts, brass, p0, p0 + 0.9, pn0 - 0.8, pn1 + 0.8, 4.6, "west")
+        # The gate tower (hollow: walls round an inside), its cogged crown; the clock's frame in its south face.
+        m.wall(parts, g0, g1, gn0, gn0 + t, -0.9, GATE_TOP, course=0.45, plinth=True)
+        m.wall(parts, g0, g1, gn1 - t, gn1, -0.9, GATE_TOP, course=0.45, plinth=True)
+        m.wall(parts, g0, g0 + t, gn0 + t, gn1 - t, -0.9, GATE_TOP, course=0.45, plinth=True)
+        m.wall(parts, g1 - t, g1, gn0 + t, gn1 - t, -0.9, GATE_TOP, course=0.45, plinth=True)
+        parts.append(m.box("TowerTop", m.mat(m.CAP), g0 + t, g1 - t, gn0 + t, gn1 - t, GATE_TOP - 0.3, GATE_TOP - 0.1))
+        for face in ("south", "north", "west", "east"):
+            cog_strip(parts, brass, g0, g1, gn0, gn1, GATE_TOP, face)
+        # The quay outside, in the river.
+        q0 = p0 - 4.5
+        parts.append(m.box("Earth", m.mat(m.MORTAR), q0, p0, pn0 - 1.0, pn1 + 1.0, -0.9, f - 0.2))
+        m.wall(parts, q0 - 0.3, q0, pn0 - 1.3, pn1 + 1.3, -0.9, f, course=0.45, plinth=True)
+        m.wall(parts, q0, p0, pn0 - 1.3, pn0 - 1.0, -0.9, f, course=0.45, plinth=True)
+        m.wall(parts, q0, p0, pn1 + 1.0, pn1 + 1.3, -0.9, f, course=0.45, plinth=True)
+        m.flagstones(parts, q0, p0, pn0 - 1.0, pn1 + 1.0, f)
+    elif variant == "hall":
+        f = F[0]
+        brass = kit.mat("HallBrass_Metal", "#b8913f")
+        h0, h1, hn0, hn1 = HALL
+        i0, i1, in0, in1 = h0 + 0.8, h1 - 0.8, hn0 + 0.8, hn1 - 0.8
+        parts.append(m.box("Earth", m.mat(m.MORTAR), i0, i1, in0, in1, -0.9, f - 0.2))
+        m.flagstones(parts, i0, i1, in0, in1, f)
+        # The rack down its aisle (to the orrery at its north end).
+        mid = (i0 + i1) / 2
+        parts.append(m.box("Rack", brass, mid - 0.35, mid + 0.35, in0 + 1.0, in1 - 4.0, f, f + 0.03))
+        n = in0 + 1.2
+        while n < in1 - 4.2:
+            parts.append(m.box("RackCog", brass, mid - 0.58, mid - 0.35, n - 0.12, n + 0.12, f, f + 0.03))
+            parts.append(m.box("RackCog", brass, mid + 0.35, mid + 0.58, n - 0.12, n + 0.12, f, f + 0.03))
+            n += 0.6
+        tall = [(n_ - 0.6, n_ + 0.6, f + 1.6, f + 5.6) for n_ in (-20.0, -12.0, -4.0, 1.5)]
+        high = [(n_ - 0.5, n_ + 0.5, f + 6.0, f + 7.0) for n_ in (-22.0, -6.0)]
+        door = [(HALL_DOOR[0], HALL_DOOR[1], f, f + 4.2)]
+        m.wall(parts, h0, i0, in0, in1, -0.9, HALL_TOP, openings=door + high, plinth=True)      # west (onto the court)
+        m.lintel(parts, h0, i0, HALL_DOOR[0], HALL_DOOR[1], f, f + 4.2)
+        m.wall(parts, i1, h1, in0, in1, -0.9, HALL_TOP, openings=tall, plinth=True)              # east
+        m.wall(parts, h0, h1, hn0, in0, -0.9, HALL_TOP, plinth=True)                              # south
+        m.wall(parts, h0, h1, in1, hn1, -0.9, HALL_TOP, plinth=True)                              # north
+        for face, box in (("west", (h0, i0, in0, in1)), ("east", (i1, h1, in0, in1)), ("south", (h0, h1, hn0, in0)), ("north", (h0, h1, in1, hn1))):
+            cog_strip(parts, brass, *box, HALL_TOP, face)
+        for n_ in BEAMS:                                                                         # the tie-beams
+            parts.append(m.box("TieBeam", m.mat(m.TIMBER), i0, i1, n_ - 0.2, n_ + 0.2, HALL_TOP - 1.0, HALL_TOP - 0.6))
+            parts.append(m.box("BeamBrass", brass, i0, i1, n_ - 0.22, n_ + 0.22, HALL_TOP - 1.04, HALL_TOP - 0.98))
+    elif variant == "hall_roof":
+        h0, h1, hn0, hn1 = HALL
+        brass = kit.mat("HallBrass_Metal", "#b8913f")
+        web = kit.mat("HallBrassWeb_Metal", "#9c7a38")
+        copper = kit.mat("Verdigris", "#5f9e93")
+        gilt = kit.mat("Gilt_Metal", "#e0bd62")
+        mid, half = (h0 + h1) / 2, (h1 - h0) / 2 + 0.5
+        rise = 5.0
+        slope = math.degrees(math.atan2(rise, half))
+        length = (hn1 - hn0) + 1.0
+        run = math.hypot(half, rise)
+        base = HALL_TOP
+        for side in (-1, 1):  # the two slopes
+            c = (mid + side * half / 2, (hn0 + hn1) / 2, base + rise / 2)
+            parts.append(part("RoofSlope", kit.cube(), copper, M(G(*c), rot=(0, side * slope, 0), scale=(run, length, 0.25))))
+        for n_ in (hn0 - 0.45, hn1 + 0.45):  # the gables, stepped
+            for k in range(6):
+                w = half * (1 - k / 6)
+                parts.append(m.box("Gable", m.mat(m.STONE[k % 3]), mid - w, mid + w, n_ - 0.3, n_ + 0.3, base + k * rise / 6, base + (k + 1) * rise / 6))
+        parts.append(m.box("Ridge", gilt, mid - 0.2, mid + 0.2, hn0 - 0.6, hn1 + 0.6, base + rise - 0.1, base + rise + 0.15))
+        n_ = hn0 + 2.0
+        while n_ < hn1 - 1.0:  # gears standing along the ridge, their axles along it
+            gear(parts, brass, web, (mid, n_, base + rise + 0.9), 0.9, 12, 0.14, rot=(90, 0, 0))
+            n_ += 3.8
     # The machine of it: each storey's cogged crown, its corner spines and pipes, its portholes, its brass band inside;
     # a great gear inlaid in the floors (the belfry's floor is one).
     brass = kit.mat("HallBrass_Metal", "#b8913f")

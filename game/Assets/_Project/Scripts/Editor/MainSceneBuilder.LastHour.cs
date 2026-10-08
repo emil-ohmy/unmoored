@@ -44,13 +44,15 @@ public static partial class MainSceneBuilder
         var scene = BeginScene(new Vector3(0f, 0f, -8f), LastHourNight);
         LastHour(Vector3.zero);
 
-        // On the landing before the south door: the posts (where you come in).
+        Castle(Vector3.zero);
+
+        // In the court, just inside the gate (the west wall's): the posts (where you come in).
         float f = TowerFloors[0];
-        MooringPostAt(new Vector3(-3.2f, f, -12.6f), 0f);
-        var tester = TesterPostAt(new Vector3(3.2f, f, -12.6f), 0f);
+        MooringPostAt(new Vector3(-11.8f, f, -20.4f), 90f);
+        var tester = TesterPostAt(new Vector3(-11.8f, f, -13.6f), 90f);
         tester.spawner = LabTemplates();
         var start = new GameObject("Start Point").transform;
-        start.position = new Vector3(0f, f, -12.8f);
+        start.position = new Vector3(-10.5f, f, -17f);
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
         entrance.transform.position = start.position + Vector3.up;
         entrance.areaName = "The Hall of the Last Hour (Lab)";
@@ -61,6 +63,113 @@ public static partial class MainSceneBuilder
         tester.readout = readout;
 
         FinishScene(scene, LastHourLabPath, start, apprentice, "music_last_hour"); // (none yet: silence, and the river)
+    }
+
+    // Green over the stone: a tree (its trunk solid) or a shrub (nothing).
+    static void Greenery(string model, Vector3 at, float yaw)
+    {
+        var green = Place("Environment/last_hour_props_" + model, at, yaw);
+        foreach (var c in green.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c); // (leaves stop nothing)
+        if (model == "tree")
+        {
+            var trunk = green.AddComponent<CapsuleCollider>();
+            trunk.center = new Vector3(0f, 1f, 0f);
+            trunk.radius = 0.18f;
+            trunk.height = 2f;
+        }
+    }
+
+    // The castle round the keep (last_hour.py: courtyard, gatehouse, hall, hall_roof): the walled court before the keep's
+    // door, the gate in its west wall (its tower with a stopped clock over the passage, the quay outside), the great hall
+    // along its east side (its roof hidden while you're in it) with its clocks, its pendulums and its orrery; domed
+    // turrets at the corners; green in the court; its light; the still air. `o` the keep's middle at the water.
+    static void Castle(Vector3 o)
+    {
+        Vector3 T(float e, float u, float n) => o + new Vector3(e, u, n);
+        float f = TowerFloors[0];
+        var root = new GameObject("The Hall of the Last Hour (castle)").transform;
+        GameObject Put(string model, Vector3 at, float yaw = 0f, Transform parent = null)
+        {
+            var go = Place("Environment/" + model, at, yaw);
+            go.transform.SetParent(parent != null ? parent : root, true);
+            return go;
+        }
+        Put("last_hour_courtyard", o);
+        Put("last_hour_gatehouse", o);
+        // The gate tower's clock, in its south face over the passage; its hands at a quarter past nine.
+        foreach (var model in new[] { "dial", "hand_hour", "hand_minute" })
+        {
+            var d = Put("last_hour_props_" + model, T(-16.5f, f + 6.4f, -15.02f));
+            d.transform.localScale = Vector3.one * 0.5f;
+        }
+
+        // The great hall: its ground (walls, floor, beams) and its roof (hidden while you're inside).
+        var hallRoot = new GameObject("The Great Hall").transform;
+        hallRoot.SetParent(root, true);
+        hallRoot.position = T(22f, 0f, -11.4f);
+        var hall = Put("last_hour_hall", o, 0f, hallRoot);
+        var roof = Put("last_hour_hall_roof", o, 0f, hallRoot);
+        var hallStoreys = hallRoot.gameObject.AddComponent<Storeys>();
+        hallStoreys.footprint = new Vector2(6f, 15.4f);
+        hallStoreys.storeys = new[]
+        {
+            new Storeys.Storey { floor = o.y + f, parts = new[] { hall } },
+            new Storeys.Storey { floor = o.y + 99f, parts = new[] { roof } },
+        };
+        // Its clocks down both long walls (their backs to the walls; the door's stretch left clear), the pendulums
+        // from the tie-beams stopped at their own angles, the orrery at its north end.
+        for (float n = -24.4f; n < 2.2f; n += 2.6f)
+        {
+            if (n > -15.2f && n < -9.8f)
+                continue;
+            Put("last_hour_props_longcase", T(17.15f, f, n), -90f, hall.transform);
+        }
+        for (float n = -24.4f; n < 2.2f; n += 2.6f)
+            Put("last_hour_props_longcase", T(26.85f, f, n), 90f, hall.transform);
+        foreach (var (n, tilt) in new[] { (-20f, -14f), (-12f, 9f), (-4f, -5f) })
+        {
+            var p = Put("last_hour_props_pendulum_hall", T(22f, 9.5f - 0.6f - 0.2f, n), 0f, hall.transform);
+            p.transform.rotation = Quaternion.AngleAxis(tilt, Vector3.forward) * p.transform.rotation;
+        }
+        Put("last_hour_props_orrery", T(22f, f, -0.4f), 30f, hall.transform);
+
+        // Domed turrets at the north corners (nothing tall south of where you walk: the camera looks down from there).
+        foreach (var (e, n) in new[] { (-14.6f, -7.6f), (28.2f, 3.8f) })
+            Put("last_hour_props_turret", T(e, 0f, n));
+
+        // Green in the court: trees in its corners and along its walls, shrubs at their feet.
+        foreach (var (model, e, n, yaw) in new[] { ("tree", -12.4f, -24.6f, 20f), ("tree", -12.4f, -9.8f, 140f), ("tree", 14.4f, -24.4f, 260f),
+                                                  ("shrub", -12.9f, -22.8f, 0f), ("shrub", -12.9f, -11.6f, 70f), ("shrub", 14.6f, -19.5f, 30f),
+                                                  ("shrub", -7.2f, -25.2f, 80f), ("shrub", 7.4f, -25.2f, 150f), ("shrub", 10.5f, -9.0f, 10f),
+                                                  ("shrub", -10.5f, -9.0f, 200f) })
+            Greenery(model, T(e, f, n), yaw);
+
+        // Light: lanterns at the gate and down the court, brass lamps in the hall, the moon's light at its windows.
+        foreach (var at in new[] { T(-13.6f, f + 3.2f, -19.4f), T(-13.6f, f + 3.2f, -14.6f), T(-19.8f, f + 3.2f, -19.4f), T(-19.8f, f + 3.2f, -14.6f) })
+            Flicker(PointLight(root, at, 8f, 2.6f, LanternLight), 0.12f, 5f, 0.01f);
+        foreach (var at in new[] { T(-9f, f + 3.4f, -17f), T(9f, f + 3.4f, -17f), T(0f, f + 3.4f, -12f) })
+            PointLight(root, at, 11f, 2.0f, TowerBrass);
+        foreach (var n in new[] { -21f, -13f, -5f, 1f })
+            PointLight(hall.transform, T(22f, f + 4.5f, n), 11f, 2.8f, TowerBrass);
+        foreach (var n in new[] { -20f, -12f, -4f })
+            PointLight(hall.transform, T(26.2f, f + 3.6f, n), 6f, 1.6f, TowerCold);
+
+        // The still air: dust over the court and in the hall; the leaves that were falling in the court, held.
+        void Still(Transform parent, Vector3 centre, Vector3 size, int motes, Color dust)
+        {
+            var go = new GameObject("Still Air");
+            go.transform.SetParent(parent, true);
+            go.transform.position = centre;
+            var still = go.AddComponent<StillAir>();
+            still.size = size;
+            still.motes = motes;
+            still.dust = dust;
+            still.material = sparkMaterial;
+        }
+        Still(root, T(1f, f + 2.4f, -17f), new Vector3(28f, 4f, 17f), 220, new Color(0.95f, 0.9f, 0.78f, 0.3f));
+        Still(root, T(1f, f + 1.8f, -17f), new Vector3(26f, 3.2f, 16f), 60, new Color(0.62f, 0.8f, 0.44f, 0.8f)); // (leaves)
+        Still(hall.transform, T(22f, f + 3.2f, -11.4f), new Vector3(10f, 5.6f, 28f), 260, new Color(0.95f, 0.9f, 0.78f, 0.34f));
     }
 
     // The keep, its storeys hidden above the Apprentice inside (Storeys), its works placed, still, its light; the spire
@@ -85,7 +194,6 @@ public static partial class MainSceneBuilder
         var face = Storey("face");
         var belfry = Storey("belfry");
         var roof = Storey("roof");
-        Place("Environment/last_hour_landing", o, 0f).transform.SetParent(root.transform, true);
         storeys.storeys = new[]
         {
             new Storeys.Storey { floor = o.y + TowerFloors[0], parts = new[] { undercroft } },
@@ -152,20 +260,6 @@ public static partial class MainSceneBuilder
         var spire = Place("Environment/last_hour_props_spire", T(-15.6f, 0f, 2f), 0f);
         spire.name = "The Spire";
         Place("Environment/last_hour_props_drive", T(-13.2f, F(2) + 2.0f, 2f), 0f).name = "The Drive-Rod";
-        foreach (var (model, e, n, yaw) in new[] { ("tree", -3.9f, -9.4f, 30f), ("tree", 3.9f, -9.2f, 200f), ("shrub", -4.0f, -13.4f, 0f),
-                                                  ("shrub", 4.0f, -13.5f, 90f), ("shrub", -2.4f, -8.5f, 45f), ("shrub", 2.5f, -8.6f, 120f) })
-        {
-            var green = Place("Environment/last_hour_props_" + model, T(e, F(0), n), yaw);
-            foreach (var c in green.GetComponentsInChildren<Collider>())
-                Object.DestroyImmediate(c); // (leaves stop nothing)
-            if (model == "tree")
-            {
-                var trunk = green.AddComponent<CapsuleCollider>();
-                trunk.center = new Vector3(0f, 1f, 0f);
-                trunk.radius = 0.18f;
-                trunk.height = 2f;
-            }
-        }
 
         // The stairs' ramps (the Soured's ways; everyone climbs them smoothly): as last_hour.py lays the stairs out.
         const float rise = 0.25f, length = 5.12f;

@@ -28,7 +28,7 @@ namespace MyGame.Tests
             yield return null;
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
-            tower = UnityEngine.Object.FindAnyObjectByType<Storeys>();
+            tower = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name.Contains("keep"));
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -61,7 +61,7 @@ namespace MyGame.Tests
             Assert.Fail($"couldn't walk to {to} (stuck at {apprentice.transform.position})");
         }
 
-        // From the landing, in at the water-gate door, up every stair to the belfry, on foot: each storey's floor reached,
+        // From the court, in at the keep's door, up every stair to the belfry, on foot: each storey's floor reached,
         // and while on it the storeys above hidden.
         [UnityTest]
         public IEnumerator TheTower_ClimbedOnFoot_FromTheLandingToTheBelfry()
@@ -94,6 +94,32 @@ namespace MyGame.Tests
             Assert.AreEqual(floor[4], apprentice.transform.position.y, 0.15f, "up in the belfry");
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(4, tower.Level);
+        }
+
+        // Across the court to the great hall's door, in, and down its aisle (under the pendulums) to the orrery; its roof
+        // hidden while you're in it.
+        [UnityTest]
+        public IEnumerator TheGreatHall_FromTheCourt_DownTheAisleToTheOrrery()
+        {
+            var hall = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st != tower);
+            yield return WalkTo(T(14.4f, 0f, -12.5f), 0.4f, 10f);
+            yield return WalkTo(T(19f, 0f, -12.5f));
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, hall.Level, "inside the hall");
+            Assert.IsFalse(hall.Shown(1), "its roof hidden");
+            yield return WalkTo(T(22f, 0f, -12.5f));
+            yield return WalkTo(T(22f, 0f, -3.0f), 0.4f, 8f);
+            Assert.AreEqual(0.5f, apprentice.transform.position.y, 0.15f, "on its floor, the length of it");
+        }
+
+        // Out through the gate's passage (the west wall's) onto the quay in the river.
+        [UnityTest]
+        public IEnumerator TheGatehouse_OutOntoTheQuay()
+        {
+            yield return WalkTo(T(-12.5f, 0f, -17f));
+            yield return WalkTo(T(-16.5f, 0f, -17f));
+            yield return WalkTo(T(-21.5f, 0f, -17f));
+            Assert.AreEqual(0.5f, apprentice.transform.position.y, 0.15f, "on the quay");
         }
 
         // Out of the face room's west door onto the ledge, along the hour hand, over the dial's middle, along the minute
@@ -160,8 +186,11 @@ namespace MyGame.Tests
             }
             try
             {
-                yield return At("last-hour-0-the-landing", T(0f, 0.55f, -12.5f), Vector3.forward);
-                yield return At("last-hour-1-from-afar", T(-6f, 0.55f, -12.5f), Vector3.forward, 2.2f);
+                yield return At("last-hour-0-the-court", T(0f, 0.55f, -20f), Vector3.forward);
+                yield return At("last-hour-1-from-afar", T(4f, 0.55f, -18f), Vector3.forward, 2.2f);
+                yield return At("last-hour-1b-the-gate-from-the-quay", T(-21.5f, 0.55f, -17f), Vector3.right);
+                yield return At("last-hour-1c-the-great-hall", T(22f, 0.55f, -18f), Vector3.forward);
+                yield return At("last-hour-1d-the-orrery", T(22f, 0.55f, -5f), Vector3.forward);
                 yield return At("last-hour-2-the-undercroft", T(0f, 0.55f, -4.5f), Vector3.forward);
                 yield return At("last-hour-3-the-wheel", T(-3f, 0.55f, 1.2f), Vector3.forward);
                 yield return At("last-hour-4-the-works", T(0f, 4.55f, -3.5f), Vector3.forward);

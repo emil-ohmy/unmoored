@@ -10,15 +10,20 @@ Outside: "gear_wall_large" and "gear_wall_small" thin brass gears hung on the wa
 "spire" a slender round tower of pale stone in the river (20 m), banded, slit windows, a green-copper onion dome and a
 gilded spire, toothed rings round it (origin at its foot, at the water); "escapement" the clock's heart, a great
 escape-wheel stood facing south and its anchor rocking over it, stopped (origin at the wheel's middle); "counterweight"
-an iron weight on its chain (the chain 4 m up from the weight; origin at the chain's top); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
+an iron weight on its chain (the chain 4 m up from the weight; origin at the chain's top); "turret" a shorter
+round tower for the castle's corners (12 m, domed); "longcase" a tall case clock, its face to the south, stopped at a
+quarter past nine (origin at its foot); "orrery" a great brass orrery, a gilt sun in its rings, the planets on their
+arms (origin at its foot); "pendulum_hall" a pendulum 6.5 m long for the great hall (origin at its pivot); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
 and its brackets (origin at its west end); "shrub" and "tree" greenery overgrowing the stone (origin at the ground)."""
 import math
+
+from mathutils import Vector
 
 import masonry as m
 
 VARIANTS = ["great_wheel", "gear_large", "gear_small", "shaft", "bell_large", "bell_small", "pendulum", "dial",
             "hand_hour", "hand_minute", "gear_wall_large", "gear_wall_small", "spire", "drive", "shrub", "tree",
-            "escapement", "counterweight"]
+            "escapement", "counterweight", "turret", "longcase", "orrery", "pendulum_hall"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -82,32 +87,34 @@ def build(variant):
     elif variant == "gear_wall_small":
         parts += gear(1.4, 20, 0.2, brass_web, iron)
         parts.append(part("Boss", kit.cylinder(12, 0.35, 0.45), gilt))
-    elif variant == "spire":
+    elif variant in ("spire", "turret"):
         stones = [m.mat(x) for x in m.STONE]
         cap, dark = m.mat(m.CAP), kit.mat("SlitDark", "#1a1c22")
-        r, height = 2.4, 20.0
+        r, height = (2.4, 20.0) if variant == "spire" else (2.0, 12.0)
         parts.append(part("Footing", kit.cylinder(16, r + 0.7, 1.6), m.mat(m.PLINTH), M((0, 0, -0.1))))
-        for k, z in enumerate(range(0, int(height), 2)):  # banded courses
-            parts.append(part("Course", kit.cylinder(16, r - 0.02 * (k % 2), 2.0), stones[k % 3], M((0, 0, z + 1.0))))
-            parts.append(part("Band", kit.cylinder(16, r + 0.06, 0.12), cap, M((0, 0, z + 2.0))))
-        for z in (5.0, 9.0, 13.0, 17.0):
+        # One body (no stacked solids inside it: the camera's cut through it stays clean), banded every two metres.
+        parts.append(part("Body", kit.cylinder(16, r, height), stones[1], M((0, 0, height / 2))))
+        for z in range(2, int(height), 2):
+            parts.append(part("Band", kit.cylinder(16, r + 0.06, 0.12), cap, M((0, 0, z))))
+        for z in [z_ for z_ in (5.0, 9.0, 13.0, 17.0) if z_ < height - 1]:
             for a in (0, 120, 240):
                 ar = math.radians(a + z * 7)
                 parts.append(part("Slit", kit.cube(), dark, M((math.cos(ar) * (r + 0.01), math.sin(ar) * (r + 0.01), z),
                                                               rot=(0, 0, math.degrees(ar)), scale=(0.1, 0.35, 1.1))))
-        for z in (4.0, 8.0, 12.0, 16.0):  # toothed rings round it, a gear every few metres up
+        for z in [z_ for z_ in (4.0, 8.0, 12.0, 16.0) if z_ < height - 1]:  # toothed rings round it, a gear every few metres up
             parts.append(part("GearRing", kit.cylinder(20, r + 0.18, 0.3), iron, M((0, 0, z))))
             for k in range(26):
                 ang = 2 * math.pi * k / 26
                 parts.append(part("RingCog", kit.cube(), iron, M((math.cos(ang) * (r + 0.32), math.sin(ang) * (r + 0.32), z),
                                                                  rot=(0, 0, math.degrees(ang)), scale=(0.3, 0.16, 0.26))))
         parts.append(part("Cornice", kit.cylinder(16, r + 0.45, 0.4), cap, M((0, 0, height + 0.2))))
-        profile = [(0.0, 2.3), (0.5, 2.75), (1.2, 2.85), (1.9, 2.4), (2.6, 1.6), (3.2, 0.8), (3.6, 0.3), (3.9, 0.08)]
+        k_ = r / 2.4
+        profile = [(z * k_, x * k_) for z, x in [(0.0, 2.3), (0.5, 2.75), (1.2, 2.85), (1.9, 2.4), (2.6, 1.6), (3.2, 0.8), (3.6, 0.3), (3.9, 0.08)]]
         base = height + 0.4
         parts.append(part("Dome", kit.tube([(0, 0, base + z) for z, _ in profile], [x for _, x in profile], seg=14), copper, smooth=True))
-        parts.append(part("DomeBand", kit.cylinder(14, 2.9, 0.16), gilt, M((0, 0, base + 1.1))))
-        parts.append(part("Spire", kit.cone(8, 0.14, 0.02, 2.6), gilt, M((0, 0, base + 3.9 + 1.3))))
-        parts.append(part("Orb", kit.sphere(8, 6, 0.24), gilt, M((0, 0, base + 4.0))))
+        parts.append(part("DomeBand", kit.cylinder(14, 2.9 * k_, 0.16), gilt, M((0, 0, base + 1.1 * k_))))
+        parts.append(part("Spire", kit.cone(8, 0.14, 0.02, 2.6), gilt, M((0, 0, base + 3.9 * k_ + 1.3))))
+        parts.append(part("Orb", kit.sphere(8, 6, 0.24), gilt, M((0, 0, base + 4.0 * k_))))
     elif variant == "drive":
         # The rod along east; a gear stood on edge across it at each end (its axle the rod), a bracket under each.
         length = 5.2
@@ -148,6 +155,52 @@ def build(variant):
         parts.append(part("Weight", kit.cylinder(12, 0.38, 1.1), dark_iron, M((0, 0, -4.7))))
         parts.append(part("WeightBand", kit.cylinder(12, 0.41, 0.1), iron, M((0, 0, -4.3))))
         parts.append(part("WeightBand", kit.cylinder(12, 0.41, 0.1), iron, M((0, 0, -5.1))))
+    elif variant == "longcase":
+        case = kit.mat("CaseWood", "#5e3f2a")
+        enamel = kit.mat("CaseDial_Glow", "#3a3426")
+        dark = kit.mat("HandDark", "#2a2620")
+        glass = kit.mat("CaseGlass", "#2a3038")
+        parts += [m.box("Plinth", case, -0.48, 0.48, -0.34, 0.34, 0.0, 0.35),
+                  m.box("Trunk", case, -0.36, 0.36, -0.28, 0.28, 0.35, 2.3),
+                  m.box("Window", glass, -0.2, 0.2, -0.3, -0.27, 0.8, 2.0),
+                  m.box("Hood", case, -0.45, 0.45, -0.33, 0.33, 2.3, 3.05),
+                  m.box("Crest", iron, -0.45, 0.45, -0.33, 0.33, 3.05, 3.12),
+                  part("Face", kit.cylinder(20, 0.3, 0.03), enamel, M(G(0, -0.34, 2.68), rot=(90, 0, 0))),
+                  part("Bezel", kit.cylinder(20, 0.34, 0.02), iron, M(G(0, -0.335, 2.68), rot=(90, 0, 0))),
+                  m.box("Hour", dark, -0.17, 0.0, -0.37, -0.35, 2.665, 2.695),
+                  m.box("Minute", dark, 0.0, 0.25, -0.37, -0.35, 2.67, 2.69),
+                  part("Bob", kit.cylinder(14, 0.13, 0.03), iron, M(G(-0.05, -0.31, 1.15), rot=(90, 0, 0))),
+                  m.box("Rod", iron, -0.075, -0.035, -0.31, -0.29, 1.15, 2.0)]
+        for e in (-0.38, 0.38):
+            parts.append(part("Finial", kit.sphere(6, 4, 0.07), gilt, M(G(e, 0, 3.2))))
+        parts.append(part("Finial", kit.cone(6, 0.07, 0.01, 0.3), gilt, M(G(0, 0, 3.27))))
+    elif variant == "orrery":
+        # A pedestal of brass; on it the gilt sun in three tilted rings; arms out from the pedestal's head carrying
+        # the planets, each at its own height (stopped where they stood).
+        parts += [part("Base", kit.cylinder(16, 1.3, 0.3), iron, M((0, 0, 0.15))),
+                  part("Step", kit.cylinder(16, 1.0, 0.25), brass_web, M((0, 0, 0.42))),
+                  part("Column", kit.cylinder(12, 0.22, 2.3), iron, M((0, 0, 1.7))),
+                  part("Sun", kit.sphere(16, 12, 0.6), gilt, M((0, 0, 3.4)), smooth=True)]
+        for k, (rx, ry) in enumerate(((20, 0), (-30, 40), (70, -20))):
+            for j in range(24):
+                a0, a1 = 2 * math.pi * j / 24, 2 * math.pi * (j + 1) / 24
+                rr = 1.1 + 0.18 * k
+                pts = [kit.M(rot=(rx, ry, 0)) @ Vector((math.cos(a) * rr, math.sin(a) * rr, 0)) for a in (a0, a1)]
+                p0 = (pts[0].x, pts[0].y, pts[0].z + 3.4)
+                p1 = (pts[1].x, pts[1].y, pts[1].z + 3.4)
+                parts.append(part("OrreryRing", kit.cube(), iron, kit.along(p0, p1) @ kit.M(scale=(0.06, 0.06, math.dist(p0, p1) + 0.02))))
+        for k, (ang, reach, z, size) in enumerate(((20, 2.0, 2.6, 0.22), (140, 2.7, 2.3, 0.3), (250, 3.4, 2.0, 0.26), (320, 4.0, 2.8, 0.36))):
+            a = math.radians(ang)
+            tip = (math.cos(a) * reach, math.sin(a) * reach, z)
+            parts.append(part("Arm", kit.cube(), iron, kit.along((0, 0, 2.6), tip) @ kit.M(scale=(0.07, 0.07, math.dist((0, 0, 2.6), tip)))))
+            body = [copper, bronze, kit.mat("PlanetBlue", "#6f8fb4"), kit.mat("PlanetRed", "#a8664a")][k]
+            parts.append(part("Planet", kit.sphere(10, 8, size), body, M(tip), smooth=True))
+    elif variant == "pendulum_hall":
+        length = 6.5
+        parts += [part("Pivot", kit.cylinder(10, 0.12, 0.6), iron, M((0, 0, 0), rot=(90, 0, 0))),
+                  part("Rod", kit.cube(), iron, M((0, 0, -length / 2), scale=(0.1, 0.06, length))),
+                  part("Bob", kit.cylinder(24, 0.6, 0.18), bronze, M((0, 0, -length), rot=(90, 0, 0))),
+                  part("BobRim", kit.cylinder(24, 0.64, 0.1), gilt, M((0, 0, -length), rot=(90, 0, 0)))]
     elif variant == "shrub":
         leaves = [kit.mat("HallLeaf1", "#4d6b3e"), kit.mat("HallLeaf2", "#5d7d47"), kit.mat("HallLeaf3", "#41593a")]
         rng = kit.rng
