@@ -747,16 +747,17 @@ namespace MyGame
 
         float rowSurgeUntil;
 
-        // The Stroke from the boat: the blade dug in and hauled through, the boat driven on, the wave ahead of the bow
-        // (it carries water: it puts out what burns, and knocks the Drowned under).
+        // The Stroke from the boat: the blade dug in and hauled through, the boat driven on, the water driven back in a
+        // wave astern (it carries water: it puts out what burns, and knocks the Drowned under).
         void RowSurge()
         {
             Spend(strokeStaminaCost);
             Boat.Surge(strokeSurge);
             clips.PlayOnce("RowSurge", 0.7f, 0.06f);
             rowSurgeUntil = Time.time + 0.7f;
+            // (the water driven back, the boat on: the wave rolls out astern)
             Vector3 bow = Boat.Bow, at = Boat.transform.position;
-            LastWave = StrokeWave.Send(at + bow * 1.3f, bow, strokeReach * strokeWetReach, strokeWetArc, strokeSpeed,
+            LastWave = StrokeWave.Send(at - bow * 1.3f, -bow, strokeReach * strokeWetReach, strokeWetArc, strokeSpeed,
                                        strokeDamage * DamageFactor, strokePush * strokeWetPush, strokeStagger, wet: true);
             LastWave.douseSound = douseSound;
             Vector3 blade = at + Boat.transform.right * 0.95f + Vector3.up * 0.05f;
@@ -2055,7 +2056,7 @@ namespace MyGame
         // Into the boat (its "Row"): a hop down onto the seat, and the stick rows.
         public void Board(Boat boat)
         {
-            if (CurrentState != State.Free || boat.Rowing)
+            if (CurrentState != State.Free && CurrentState != State.Dashing || boat.Rowing)
                 return;
             SetLockTarget(null);
             CloseMenu();

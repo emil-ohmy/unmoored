@@ -36,9 +36,17 @@ public static partial class MainSceneBuilder
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
         Mill(new Vector3(OrchardHalfWidth, 0f, GroundZ + 5f)); // (off the bottom terrace's east end)
         Afloat();
-        // The boat, moored off the bottom terrace; across the water, the tailrace and the landing at its head.
-        var boat = BoatAt(new Vector3(1f, 0f, GroundZ - 1.4f), 180f, new Vector3(1f, GroundTop, GroundZ + 0.6f));
-        boat.docks = new[] { boat.home, Tailrace(new Vector3(2f, 0f, GroundZ - 20f)) };
+        // The boat's jetty off the bottom terrace (near the way in), its bell; the boat moored along the jetty's end.
+        // Across the water, the tailrace and the landing at its head (a bell there too).
+        const float jettyX = -7.5f;
+        Place("Environment/jetty_walk", new Vector3(jettyX, GroundTop - 0.03f, GroundZ), 0f);
+        Place("Environment/jetty_landing", new Vector3(jettyX, GroundTop - 0.03f, GroundZ - Segment), 0f);
+        float mooredZ = GroundZ - Segment - 1.5f;
+        var boat = BoatAt(new Vector3(jettyX + 2.55f, 0f, mooredZ), 180f, new Vector3(jettyX + 1.15f, GroundTop, mooredZ));
+        var landing = Tailrace(new Vector3(2f, 0f, GroundZ - 20f));
+        boat.docks = new[] { boat.home, landing };
+        DockBellAt(boat.home, boat, new Vector3(jettyX - 1.15f, GroundTop - 0.03f, GroundZ - Segment - 0.45f), 90f);
+        DockBellAt(landing, boat, landing.ashore.position + new Vector3(-1.8f, -0.02f, 0.2f), 90f);
         boat.lagoon = new Rect(-OrchardHalfWidth, GroundZ - 26f, OrchardHalfWidth * 2f, 25.4f);
         UpperTerrace();
         UnreapedRows(); // the field over the orchard wall: the Orchard's miniboss, among its scarecrows
@@ -558,6 +566,18 @@ public static partial class MainSceneBuilder
         return dock;
     }
 
+    // A dock's bell (ring it: the boat comes in to this dock).
+    static DockBell DockBellAt(Dock dock, Boat boat, Vector3 at, float yaw)
+    {
+        var post = Place("Environment/dock_bell", at, yaw);
+        post.name = $"Dock Bell ({dock.displayName})";
+        var bell = post.AddComponent<DockBell>();
+        bell.dock = dock;
+        bell.boat = boat;
+        bell.ringSound = Clips("dock_bell");
+        return bell;
+    }
+
     // Something the Stroke's wave can shove (it floats, off the edge).
     static Shovable Loose(GameObject thing, float radius, float heaviness)
     {
@@ -572,7 +592,7 @@ public static partial class MainSceneBuilder
     static void Afloat()
     {
         var root = new GameObject("Afloat").transform;
-        foreach (var (x, z, yaw) in new[] { (4f, -10.6f, 0f), (7.2f, -11.4f, 50f), (9.6f, -10.4f, 120f), (20.5f, -9.8f, 200f) })
+        foreach (var (x, z, yaw) in new[] { (7.4f, -10.8f, 0f), (9.6f, -11.8f, 50f), (-1.2f, -11.2f, 120f), (20.5f, -9.8f, 200f) })
         {
             var barrel = Place("Environment/barrel", new Vector3(x, 0f, z), yaw);
             barrel.name = "Barrel (afloat)";

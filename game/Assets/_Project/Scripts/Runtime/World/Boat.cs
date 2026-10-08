@@ -61,7 +61,8 @@ namespace MyGame
         }
 
         Apprentice rower;
-        float speed, strokePhase, mooredAt = -10f, bumpedAt = -10f, surge;
+        float speed, strokePhase, mooredAt = -10f, bumpedAt = -10f, surge, moorTime = MoorTime;
+        Apprentice walker; // (the one who might step into it, moored)
         Vector3 mooringFrom;
         Quaternion mooringFromRotation;
         Dock coastTo;
@@ -170,15 +171,29 @@ namespace MyGame
             WentHome?.Invoke();
         }
 
-        void MoorAt(Dock dock, bool instantly)
+        void MoorAt(Dock dock, bool instantly, float time = MoorTime)
         {
             MooredAt = dock;
-            speed = 0f;
+            moorTime = time;
+            speed = surge = 0f;
             mooringFrom = transform.position;
             mooringFromRotation = transform.rotation;
             mooredAt = instantly ? -10f : Time.time;
             if (instantly)
                 transform.SetPositionAndRotation(dock.mooring.position, dock.mooring.rotation);
+        }
+
+        // Called to a dock (its bell): it comes gliding in from out on the water, bow first, and ties up there.
+        public void Summon(Dock dock)
+        {
+            if (Rowing || dock == null || MooredAt == dock)
+                return;
+            Vector3 offshore = dock.mooring.position - dock.mooring.forward * 6f;
+            transform.SetPositionAndRotation(new Vector3(offshore.x, transform.position.y, offshore.z), dock.mooring.rotation);
+            Effects.Instance?.Splash(transform.position);
+            for (int i = 0; i < 8; i++)
+                Effects.Instance?.Wisp(transform.position + UnityEngine.Random.insideUnitSphere * 0.8f, DrownedMoon.Moonlight);
+            MoorAt(dock, instantly: false, time: 2.2f);
         }
 
         // Resting the oar and drifting in to a dock on its own (a Lingerer's talk on the water); null: row again.
@@ -285,6 +300,20 @@ namespace MyGame
             }
         }
 
+        // Moored and still: walking (or dashing) off the jetty into it is getting in (nobody steps into the river by it).
+        void StepIn()
+        {
+            if (Rowing || MooredAt == null || mooredAt >= 0f)
+                return;
+            if (walker == null)
+                walker = FindAnyObjectByType<Apprentice>();
+            if (walker == null || !walker.IsAlive)
+                return;
+            Vector3 local = transform.InverseTransformPoint(walker.transform.position);
+            if (Mathf.Abs(local.x) < 0.6f && Mathf.Abs(local.z) < 1.2f && local.y > -0.5f && local.y < 1.2f)
+                walker.Board(this);
+        }
+
         // Three spheres along the hull, cast along the move: stop short of what they meet and slide along it.
         void Move(Vector3 delta)
         {
@@ -360,7 +389,7 @@ namespace MyGame
         {
             if (MooredAt != null && mooredAt >= 0f)
             {
-                float t = Mathf.Clamp01((Time.time - mooredAt) / MoorTime); // drawn in alongside and tied up
+                float t = Mathf.Clamp01((Time.time - mooredAt) / moorTime); // drawn in alongside and tied up
                 float e = UiKit.Smooth(0f, 1f, t);
                 transform.SetPositionAndRotation(Vector3.Lerp(mooringFrom, MooredAt.mooring.position, e),
                     Quaternion.Slerp(mooringFromRotation, MooredAt.mooring.rotation, e));
@@ -368,7 +397,8 @@ namespace MyGame
                     mooredAt = -10f;
             }
             if (wake != null)
-                wake.emitting = speed + surge > 0.4f;
+                wake.emitting = speed + surge > 0.4f || MooredAt != null && mooredAt >= 0f;
+            StepIn();
         }
 
         void LateUpdate()

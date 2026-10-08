@@ -948,7 +948,7 @@ namespace MyGame.Tests
             Assert.AreEqual(was.y, crate.transform.position.y, 0.05f, "on the ground still");
 
             var barrel = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).Where(x => x.Afloat)
-                .OrderBy(x => Vector3.Distance(x.transform.position, new Vector3(4f, 0f, -10.6f))).First();
+                .OrderBy(x => Vector3.Distance(x.transform.position, new Vector3(7.4f, 0f, -10.8f))).First();
             Vector3 from = barrel.transform.position;
             yield return StandAt(new Vector3(from.x, 0.55f, -7.5f), Vector3.back);
             yield return Stroke();
@@ -985,6 +985,59 @@ namespace MyGame.Tests
             yield return null;
         }
 
+        // Walking off the jetty into the moored boat is getting in (nobody steps into the river by it).
+        [UnityTest]
+        public IEnumerator TheBoat_WalkedInto_YouTakeTheOars()
+        {
+            var boat = TheBoat();
+            Vector3 jetty = boat.InteractPosition; // (on the jetty, beside it)
+            Vector3 toBoat = boat.transform.position - jetty;
+            toBoat.y = 0f;
+            yield return StandAt(jetty, toBoat);
+            input.Move = new Vector2(toBoat.x, toBoat.z).normalized;
+            yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Rowing, 2f, "in the boat");
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(Apprentice.State.Rowing, apprentice.CurrentState, "rowing, not sinking");
+            Assert.IsTrue(boat.Rowing);
+        }
+
+        // A dock's bell: the boat tied up elsewhere, ring it, and the boat comes in to this dock.
+        [UnityTest]
+        public IEnumerator TheBoat_RingTheBell_ItComes()
+        {
+            var boat = TheBoat();
+            var far = boat.docks.First(d => d != boat.home);
+            yield return AfloatAt(far.mooring.position, far.mooring.forward);
+            yield return WaitUp(() => boat.DockInReach == far, 2f, "the landing in reach");
+            input.PressInteract();
+            yield return WaitUp(() => apprentice.CurrentState == Apprentice.State.Free, 2f, "ashore at the landing");
+            Assert.AreEqual(far, boat.MooredAt);
+            var bell = UnityEngine.Object.FindObjectsByType<DockBell>(FindObjectsSortMode.None).First(b => b.dock == boat.home);
+            yield return StandAt(bell.transform.position + Vector3.forward * 0.8f, Vector3.back);
+            yield return null;
+            Assert.AreEqual(bell, apprentice.Nearby, "the bell: Ring for the boat");
+            input.PressInteract();
+            yield return WaitUp(() => boat.MooredAt == boat.home, 1f, "it comes");
+            yield return new WaitForSeconds(2.5f);
+            Assert.Less(Vector3.Distance(boat.transform.position, boat.home.mooring.position), 0.1f, "tied up at the jetty");
+            Assert.IsFalse(bell.Available, "here already: nothing to ring for");
+        }
+
+        // The mill store's Obol cache can't be taken through its wall (only through the doorway, once it's open).
+        [UnityTest]
+        public IEnumerator TheMill_TheStoresCache_NotThroughTheWall()
+        {
+            var cache = UnityEngine.Object.FindObjectsByType<ObolCache>(FindObjectsSortMode.None).First(c => c.name.Contains("mill store"));
+            yield return StandAt(cache.transform.position + Vector3.forward * 1.35f, Vector3.back); // (outside the store's north wall, in reach)
+            Assert.Less((apprentice.transform.position - cache.transform.position).Flat().magnitude, cache.interactRadius, "(in reach)");
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreNotEqual(cache, apprentice.Nearby as ObolCache, "not through the wall");
+            yield return StandAt(cache.transform.position + Vector3.back * 1.2f, Vector3.forward); // (inside the store)
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(cache, apprentice.Nearby as ObolCache, "inside, it's there to take");
+        }
+
         // Rowing alone, the current is too strong: it takes the boat back however hard it's rowed.
         [UnityTest]
         public IEnumerator TheTailrace_RowedAlone_TheCurrentTakesYouBack()
@@ -1015,7 +1068,8 @@ namespace MyGame.Tests
             {
                 yield return RowStroke();
                 Assert.Greater(boat.SurgeSpeed, 5f, "the surge");
-                Assert.IsTrue(apprentice.LastWave.Wet, "and a wave ahead, carrying water");
+                Assert.IsTrue(apprentice.LastWave.Wet, "and a wave, carrying water");
+                Assert.Less(Vector3.Dot(apprentice.LastWave.Forward, boat.Bow), -0.9f, "astern: the water driven back, the boat on");
                 yield return new WaitForSeconds(1.2f);
             }
             input.Move = Vector2.zero;
@@ -1033,7 +1087,7 @@ namespace MyGame.Tests
             var drowned = UnityEngine.Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None)
                 .OrderBy(d => Vector3.Distance(d.transform.position, TheCurrent().transform.position)).First();
             Vector3 at = drowned.transform.position + new Vector3(-3.4f, 0f, 0.2f);
-            yield return AfloatAt(at, Vector3.right);
+            yield return AfloatAt(at, Vector3.left); // (its stern to it: the wave goes out astern)
             int spat = 0;
             Action<Drowned, Spit> onSpat = (d, _) => { if (d == drowned) spat++; };
             Drowned.Spat += onSpat;
@@ -2253,6 +2307,9 @@ namespace MyGame.Tests
                 apprentice.postHitInvulnerability = 1000f;
                 var current = TheCurrent();
                 var boat = TheBoat();
+                apprentice.Teleport(boat.InteractPosition, true, true);
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-00-the-jetty");
                 yield return AfloatAt(current.transform.position + current.transform.forward * 6f, -current.transform.forward);
                 yield return new WaitForSeconds(1.5f);
                 Shot("tailrace-0-at-the-mouth");
