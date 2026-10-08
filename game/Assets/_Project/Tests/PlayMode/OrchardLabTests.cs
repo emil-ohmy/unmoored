@@ -957,6 +957,119 @@ namespace MyGame.Tests
             Assert.Greater(Vector3.Distance(new Vector3(from.x, 0f, from.z), new Vector3(barrel.transform.position.x, 0f, barrel.transform.position.z)), 1.5f, "drifting off");
         }
 
+        // ---- The Stroke on the water (the tailrace)
+
+        Boat TheBoat() => UnityEngine.Object.FindAnyObjectByType<Boat>();
+        Current TheCurrent() => UnityEngine.Object.FindAnyObjectByType<Current>();
+
+        // Into the boat at its dock, then put on the water at `at`, its bow along `bow`.
+        IEnumerator AfloatAt(Vector3 at, Vector3 bow)
+        {
+            var boat = TheBoat();
+            apprentice.Teleport(boat.InteractPosition);
+            yield return new WaitForSeconds(0.3f);
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.hopTime + 0.1f);
+            Assert.AreEqual(Apprentice.State.Rowing, apprentice.CurrentState, "in the boat");
+            boat.PlaceAt(at, bow);
+            yield return null;
+        }
+
+        // The Stroke from the boat: hold the heavy attack till it's charged, let go.
+        IEnumerator RowStroke()
+        {
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+            input.HeavyHeld = false;
+            yield return null;
+        }
+
+        // Rowing alone, the current is too strong: it takes the boat back however hard it's rowed.
+        [UnityTest]
+        public IEnumerator TheTailrace_RowedAlone_TheCurrentTakesYouBack()
+        {
+            var current = TheCurrent();
+            Vector3 start = current.transform.position + current.transform.forward * 3f; // (in it, near the mouth)
+            yield return AfloatAt(start, -current.transform.forward);
+            input.Move = new Vector2(0f, -1f); // (rowing up it: south)
+            yield return new WaitForSeconds(6f);
+            input.Move = Vector2.zero;
+            float gained = Vector3.Dot(start - TheBoat().transform.position, current.transform.forward);
+            Assert.Less(gained, 0f, "lost ground, rowing as hard as it can");
+        }
+
+        // With the Stroke, a surge at a time: the boat climbs the current to the landing.
+        [UnityTest]
+        public IEnumerator TheTailrace_TheStroke_ClimbsItASurgeAtATime()
+        {
+            apprentice.GiveStroke();
+            var current = TheCurrent();
+            var boat = TheBoat();
+            Vector3 start = current.transform.position + current.transform.forward * 3f;
+            yield return AfloatAt(start, -current.transform.forward);
+            input.Move = new Vector2(0f, -1f);
+            float top = Vector3.Dot(current.transform.position - current.transform.forward * (current.size.y * 0.5f + 0.5f), current.transform.forward);
+            int strokes = 0;
+            for (; strokes < 10 && Vector3.Dot(boat.transform.position, current.transform.forward) > top; strokes++)
+            {
+                yield return RowStroke();
+                Assert.Greater(boat.SurgeSpeed, 5f, "the surge");
+                Assert.IsTrue(apprentice.LastWave.Wet, "and a wave ahead, carrying water");
+                yield return new WaitForSeconds(1.2f);
+            }
+            input.Move = Vector2.zero;
+            Assert.LessOrEqual(Vector3.Dot(boat.transform.position, current.transform.forward), top, "up it, into the pool by the landing");
+            Assert.Greater(strokes, 1, "a surge at a time");
+            yield return WaitUp(() => boat.DockInReach != null && boat.DockInReach != boat.home, 4f, "the landing in reach");
+        }
+
+        // From the boat, the wave knocks a risen Drowned under: its spit broken off, held down a while.
+        [UnityTest]
+        public IEnumerator TheStroke_FromTheBoat_KnocksADrownedUnder()
+        {
+            apprentice.GiveStroke();
+            apprentice.postHitInvulnerability = 1000f;
+            var drowned = UnityEngine.Object.FindObjectsByType<Drowned>(FindObjectsSortMode.None)
+                .OrderBy(d => Vector3.Distance(d.transform.position, TheCurrent().transform.position)).First();
+            Vector3 at = drowned.transform.position + new Vector3(-3.4f, 0f, 0.2f);
+            yield return AfloatAt(at, Vector3.right);
+            int spat = 0;
+            Action<Drowned, Spit> onSpat = (d, _) => { if (d == drowned) spat++; };
+            Drowned.Spat += onSpat;
+            try
+            {
+                // Drawn and charged, waiting for it to rise; let go as it does.
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+                yield return WaitUp(() => !drowned.Submerged && drowned.CurrentState == Soured.State.Telegraph, 8f, "the Drowned risen to spit");
+                int before = spat;
+                input.HeavyHeld = false;
+                yield return WaitUp(() => drowned.KnockedUnder, 1f, "knocked under");
+                yield return WaitUp(() => drowned.Submerged, 1.5f, "under");
+                yield return new WaitForSeconds(drowned.heldUnder - 0.6f);
+                Assert.IsTrue(drowned.Submerged, "held under");
+                Assert.AreEqual(before, spat, "its spit broken off");
+                Assert.IsTrue(drowned.IsAlive, "not drowned for good: it rises again");
+            }
+            finally { Drowned.Spat -= onSpat; }
+        }
+
+        // The current carries what floats: a barrel set in it is taken down to the mouth and out.
+        [UnityTest]
+        public IEnumerator TheTailrace_CarriesWhatFloats()
+        {
+            var current = TheCurrent();
+            var barrel = UnityEngine.Object.FindObjectsByType<Shovable>(FindObjectsSortMode.None).First(x => x.Afloat);
+            Vector3 from = current.transform.position - current.transform.forward * 2f;
+            barrel.transform.position = new Vector3(from.x, 0f, from.z);
+            yield return new WaitForSeconds(3f);
+            float carried = Vector3.Dot(barrel.transform.position - from, current.transform.forward);
+            Assert.Greater(carried, 5f, "down it");
+            Assert.IsTrue(barrel.Afloat);
+        }
+
         // ---- The Watchman (Abner Wick, Who Merits Flame)
 
         Watchman Watchman() => UnityEngine.Object.FindAnyObjectByType<Watchman>();
@@ -2109,6 +2222,63 @@ namespace MyGame.Tests
                 yield return Stroke();
                 yield return new WaitForSeconds(1.2f);
                 Shot("mill-7-barrels-sent");
+            }
+            finally { cam.targetTexture = null; }
+        }
+
+        // (SHOTS=dir) The tailrace: the boat at its mouth, the Stroke drawn in the boat, the surge, up at the landing.
+        [UnityTest]
+        public IEnumerator Capture_Tailrace()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                apprentice.GiveStroke();
+                apprentice.postHitInvulnerability = 1000f;
+                var current = TheCurrent();
+                var boat = TheBoat();
+                yield return AfloatAt(current.transform.position + current.transform.forward * 6f, -current.transform.forward);
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-0-at-the-mouth");
+                input.Move = new Vector2(0f, -1f);
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-1-rowing-against-it");
+                input.HeavyHeld = true;
+                input.PressHeavy();
+                yield return WaitUp(() => apprentice.StrokeCharged, 2f, "charged");
+                yield return null;
+                yield return null;
+                Shot("tailrace-2-drawn-and-charged");
+                input.HeavyHeld = false;
+                yield return new WaitForSeconds(0.25f);
+                Shot("tailrace-3-the-surge");
+                yield return new WaitForSeconds(0.4f);
+                Shot("tailrace-4-the-wave-ahead");
+                float top = Vector3.Dot(current.transform.position - current.transform.forward * (current.size.y * 0.5f + 0.5f), current.transform.forward);
+                for (int i = 0; i < 6 && Vector3.Dot(boat.transform.position, current.transform.forward) > top; i++)
+                {
+                    yield return new WaitForSeconds(1f);
+                    yield return RowStroke();
+                }
+                input.Move = Vector2.zero;
+                yield return new WaitForSeconds(1.5f);
+                Shot("tailrace-5-at-the-landing");
             }
             finally { cam.targetTexture = null; }
         }

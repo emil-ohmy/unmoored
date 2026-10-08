@@ -7,7 +7,8 @@ namespace MyGame
     // pole, and the stick rows it where it points. It has weight: it gathers way slowly, glides on when you stop, and
     // turns better under way. It slides along whatever it meets (a quay, a post, an islet) and the lagoon's edge turns
     // it back. Near a dock, "Step ashore". Nothing on the water can hurt the Apprentice (the brief). Waking at a
-    // Mooring post, the boat is back at its home dock.
+    // Mooring post, the boat is back at its home dock. Fast water (Current) carries it; the Stroke's surge drives it on
+    // harder than any rowing (Surge), the river bending to the blade in a silver wake.
     public sealed class Boat : MonoBehaviour, IInteractable
     {
         public Dock home;
@@ -37,6 +38,8 @@ namespace MyGame
         public Apprentice Rower => rower;
         public Dock MooredAt { get; private set; }
         public float Speed => speed;
+        public float SurgeSpeed => surge;               // the Stroke's surge, on top of the rowing
+        public bool Surging => surge > 0.5f;
         public float Effort { get; private set; }       // how hard it's being rowed, 0..1 (the stroke's pace)
         public float StrokeSpeed => Mathf.Lerp(0.8f, 1.35f, Effort); // the Row clip's pace (one stroke a second at 1)
         public bool Coasting => coastTo != null;
@@ -58,7 +61,7 @@ namespace MyGame
         }
 
         Apprentice rower;
-        float speed, strokePhase, mooredAt = -10f, bumpedAt = -10f;
+        float speed, strokePhase, mooredAt = -10f, bumpedAt = -10f, surge;
         Vector3 mooringFrom;
         Quaternion mooringFromRotation;
         Dock coastTo;
@@ -190,10 +193,21 @@ namespace MyGame
 
         // ---- rowing (ticked by the Apprentice, while in the boat)
 
-        public void Tick(Vector3 steer, float dt)
+        // The Stroke let go from the boat: driven on along its bow, hard, the surge dying away over a second or two.
+        public void Surge(float by) => surge = Mathf.Max(surge, by);
+
+        // Rowing (the stick), or with the oar drawn back for the Stroke (`drawing`: no rowing, only the helm).
+        public void Tick(Vector3 steer, float dt, bool drawing = false)
         {
             Vector3 want;
-            if (coastTo != null)
+            if (drawing)
+            {
+                want = Flat(steer);
+                Effort = Mathf.MoveTowards(Effort, 0f, 3f * dt);
+                if (want.sqrMagnitude > 0.0025f)
+                    Turn(want.normalized, 0.6f, dt);
+            }
+            else if (coastTo != null)
             {
                 Vector3 to = Flat(coastTo.mooring.position - transform.position);
                 want = to.normalized;
@@ -219,8 +233,11 @@ namespace MyGame
             }
             speed *= Mathf.Exp(-drag * dt);
             speed = Mathf.Min(speed, maxSpeed);
-            Move(Bow * speed * dt);
+            surge *= Mathf.Exp(-1.2f * dt);
+            Move((Bow * (speed + surge) + Current.At(transform.position)) * dt); // (fast water carries it, whatever the oar does)
             KeepToTheLagoon(dt);
+            if (Surging)
+                Wake(dt);
             Strokes_(dt);
         }
 
@@ -230,6 +247,24 @@ namespace MyGame
                 return;
             float rate = turnRate * factor * Mathf.Lerp(0.55f, 1f, speed / maxSpeed); // it answers the helm better under way
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(towards), rate * dt);
+        }
+
+        // The surge's wake: silver spray thrown off both sides, motes of the Drowned Moon's light left on the water.
+        void Wake(float dt)
+        {
+            var fx = Effects.Instance;
+            if (fx == null)
+                return;
+            int n = Mathf.CeilToInt(surge * 4f * dt);
+            for (int i = 0; i < n; i++)
+            {
+                float side = UnityEngine.Random.value < 0.5f ? -1f : 1f;
+                Vector3 at = transform.position + transform.right * side * 0.6f + Bow * UnityEngine.Random.Range(-0.4f, 0.9f) + Vector3.up * 0.1f;
+                fx.Streak(at, transform.right * side * UnityEngine.Random.Range(1.5f, 3f) + Vector3.up * UnityEngine.Random.Range(1f, 2.2f) - Bow * surge * 0.2f,
+                          new Color(0.85f, 0.93f, 1f, 1f), UnityEngine.Random.Range(0.25f, 0.45f), UnityEngine.Random.Range(0.05f, 0.09f));
+                if (UnityEngine.Random.value < 0.3f)
+                    fx.Wisp(transform.position - Bow * 1.2f + Vector3.up * 0.05f, DrownedMoon.Moonlight, Vector3.up * 0.3f, UnityEngine.Random.Range(1f, 1.8f));
+            }
         }
 
         // Every stroke: the blade dipping in on alternate sides, its sound and a few drops.
@@ -333,7 +368,7 @@ namespace MyGame
                     mooredAt = -10f;
             }
             if (wake != null)
-                wake.emitting = speed > 0.4f;
+                wake.emitting = speed + surge > 0.4f;
         }
 
         void LateUpdate()

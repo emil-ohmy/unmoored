@@ -112,6 +112,12 @@ ROW_L_CATCH = {"Body": (12, 0, 14), "Head": (-8, 0, -10), "Oar": ((25, -145, 0),
 ROW_L_PULL = {"Body": (-4, 0, -12), "Head": (2, 0, 8), "Oar": ((-30, -145, 0), (-0.78, 0.2, 0.05)), "Root": ((0, 0, 0), SIT)}
 ROW_L_LIFT = {"Body": (0, 0, -8), "Head": (0, 0, 4), "Oar": ((20, -110, 0), (-0.7, 0.1, 0.2)), "Root": ((0, 0, 0), SIT)}
 ROW_OVER_R = {"Body": (4, 0, 0), "Head": (-2, 0, 0), "Oar": ((10, 0, 0), (-0.36, -0.1, 0.28)), "Root": ((0, 0, 0), SIT)}
+# The Stroke from the boat: the oar drawn far forward on the right and raised, the body coiled over it (RowDraw,
+# held: a strain in it); let go, it digs in and is hauled right back along the side (RowSurge), then lifted out.
+ROW_DRAW = {"Body": (24, 0, -22), "Head": (-14, 0, 14), "Oar": ((38, 150, 0), (-0.02, -0.4, 0.22)), "Root": ((0, 0, 0), SIT)}
+ROW_DRAW_STRAIN = {"Body": (27, 0, -24), "Head": (-15, 0, 15), "Oar": ((42, 152, 0), (-0.02, -0.43, 0.25)), "Root": ((0, 0, 0), SIT)}
+ROW_SURGE_DIG = {"Body": (16, 0, -10), "Head": (-8, 0, 8), "Oar": ((10, 145, 0), (-0.05, -0.2, 0.02)), "Root": ((0, 0, 0), SIT)}
+ROW_SURGE_PULL = {"Body": (-14, 0, 20), "Head": (6, 0, -12), "Oar": ((-42, 145, 0), (-0.05, 0.38, 0.0)), "Root": ((0, 0, 0), SIT)}
 # Resting on the oars: laid across the boat, blade out to the right, the hands in the lap.
 ROW_REST = {"Body": (6, 0, 0), "Head": (4, 0, 0), "Oar": ((0, 90, 0), (-0.36, -0.12, -0.08)), "Root": ((0, 0, 0), SIT)}
 
@@ -254,6 +260,8 @@ ACTIONS = {
         (1, ROW_R_CATCH), (9, ROW_R_PULL), (14, ROW_R_LIFT), (19, ROW_OVER_L),
         (25, ROW_L_CATCH), (33, ROW_L_PULL), (38, ROW_L_LIFT), (43, ROW_OVER_R), (49, ROW_R_CATCH),
     ]),
+    "RowDraw": ("BEZIER", [(1, ROW_DRAW), (12, ROW_DRAW_STRAIN), (24, ROW_DRAW)]),
+    "RowSurge": ("BEZIER", [(1, ROW_DRAW_STRAIN), (3, ROW_SURGE_DIG), (7, ROW_SURGE_PULL), (11, ROW_SURGE_PULL), (15, ROW_R_LIFT), (21, ROW_REST)]),
     "RowIdle": ("BEZIER", [
         (1, ROW_REST),
         (30, dict(ROW_REST, Body=(8, 0, 0), Root=((0, 0, 0), (0, 0, -0.17)))),

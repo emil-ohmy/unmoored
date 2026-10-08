@@ -123,6 +123,8 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | A surge down the mill-race (`mill_race_surge`) | in game | Synth | water shoved along a stone channel: a hollow rushing slap, gurgling against the walls |
 | The water wheel turning (`mill_wheel_turn`) | in game | Synth | water crashing over the paddles, then the old wheel groaning round, creaks slowing, water pouring off |
 | The water wheel rocked (`mill_wheel_creak`, 2) | in game | Synth | a slap of water on its paddles, one groaning creak, a knock as it settles back |
+| Fast water (`current_rush`, loop) | in game | Synth | a river running hard through a stone channel: a deep steady rush, a churning surface, tearing at the walls |
+| The Stroke from the boat (`boat_surge`, 2) | in game | Synth | the oar dug in and hauled through: a heavy plunge, a long rush past the hull, a cold glass note on it |
 | The sluice gate winding up (`sluice_gate_rise`) | in game | Synth | an iron chain ratcheting over a pulley, the board scraping up its stone grooves |
 | The sluice gate held (`sluice_gate_clunk`) | in game | Synth | a heavy iron pawl dropping into its tooth, a deep wooden knock |
 | Fire put out (`steam_hiss`, 2) | in game | Synth | a sharp hiss of steam thinning away, a crackle dying in it |

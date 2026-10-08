@@ -100,6 +100,31 @@ namespace MyGame
             Spat?.Invoke(this, spit);
         }
 
+        // The Stroke's wave, up (risen to spit, or at the shore): knocked under, its spit broken off, and held down a
+        // while (heldUnder) before it can rise again; a little harm. Under, it passes over. Stranded: as anyone.
+        public float heldUnder = 2f;
+        public bool KnockedUnder => Time.time < heldUntil;
+        float heldUntil = -10f;
+
+        public override HitResult TakeWave(Vector3 push, float damage, Vector3 from, float stagger)
+        {
+            if (stranded)
+                return base.TakeWave(push, damage, from, stagger);
+            if (!IsAlive || Submerged)
+                return HitResult.Missed;
+            var result = base.TakeWave(Vector3.zero, damage, from, 0.01f); // (the harm; it's the water's to move)
+            if (!IsAlive)
+                return result;
+            heldUntil = Time.time + heldUnder;
+            nextSpit = Mathf.Max(nextSpit, heldUntil + 0.5f);
+            ashore = false;
+            sinking = stayDown = true;
+            sinkAt = -1f;
+            BeBusy("Sink", heldUnder);
+            Effects.Instance?.Splash(new Vector3(transform.position.x, surfaceY, transform.position.z));
+            return result;
+        }
+
         // The Hook: under the water, nothing to catch; up, it's hauled out onto the ground, stranded.
         public override HookResult OnHooked(Apprentice by)
         {
@@ -176,7 +201,7 @@ namespace MyGame
                     lurkAt = Home;
                 }
             }
-            bool up = (attacking || ashore) && !stayDown;
+            bool up = (attacking || ashore) && !stayDown && !KnockedUnder;
             height = Mathf.MoveTowards(height, up && !sinking ? 1f : 0f, (up ? riseSpeed : sinkSpeed) * dt);
 
             if (!up && !sinking)

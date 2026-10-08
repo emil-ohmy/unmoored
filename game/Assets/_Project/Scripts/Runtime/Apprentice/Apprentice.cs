@@ -134,7 +134,8 @@ namespace MyGame
         public float strokeDamage = 6f, strokePush = 26f, strokeStagger = 0.9f; // the wave's
         public float strokeBladeDamage = 55f, strokeBladeArc = 75f; // the blade's own, as it sweeps through (more than a heavy)
         public float strokeWetReach = 1.45f, strokeWetArc = 130f, strokeWetPush = 1.25f; // from shallows: it carries water
-        public AudioClip[] strokeDrawSound, strokeChargedSound, strokeSound, douseSound;
+        public float strokeSurge = 12f;       // in the boat: the surge's speed (more than any rowing), dying away
+        public AudioClip[] strokeDrawSound, strokeChargedSound, strokeSound, douseSound, boatSurgeSound;
 
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
@@ -441,7 +442,7 @@ namespace MyGame
                     UpdateRowing(dt, inMenu);
                     break;
             }
-            if (CurrentState != State.Stroke && strokeVoice != null && strokeVoice.isPlaying)
+            if (!DrawingStroke && strokeVoice != null && strokeVoice.isPlaying)
                 StopStrokeVoice(); // (the draw broken off: a blow, a fall)
             if (CurrentState != State.Free && CurrentState != State.Rowing || inMenu)
             {
@@ -656,14 +657,15 @@ namespace MyGame
         bool strokeLoosed, waveSent;
         AudioSource strokeVoice;
 
-        public bool DrawingStroke => CurrentState == State.Stroke && !strokeLoosed;
+        public bool DrawingStroke => CurrentState == State.Stroke && !strokeLoosed || rowDrawing; // (on foot, or in the boat)
         public bool StrokeCharged => DrawingStroke && strokeCharged; // drawn long enough: let go for the wave
-        bool strokeCharged;
+        bool strokeCharged, rowDrawing;
+        float strokeDrawTime;
         public float StrokeChargedAt { get; private set; } = -10f;
         public StrokeWave LastWave { get; private set; } // (tests)
 
         // How far it's drawn (0..1 until it's charged; the blade's sheen brightens with it).
-        public float StrokeDrawn => DrawingStroke ? Mathf.Clamp01(stateTime / strokeCharge) : 0f;
+        public float StrokeDrawn => DrawingStroke ? Mathf.Clamp01(strokeDrawTime / strokeCharge) : 0f;
 
         // About the middle of the oar's blade, wherever the swing has it.
         public Vector3 BladePoint => swingTrail != null && swingTrail.tip != null && swingTrail.inner != null
@@ -673,8 +675,16 @@ namespace MyGame
         void DrawStroke()
         {
             Enter(State.Stroke);
-            strokeLoosed = waveSent = strokeCharged = false;
+            strokeLoosed = waveSent = false;
             clips.Loop("StrokeDraw", 0.12f);
+            BeginDraw();
+        }
+
+        // The draw, on foot or in the boat: from nothing, the tide-pull sound rising.
+        void BeginDraw()
+        {
+            strokeCharged = false;
+            strokeDrawTime = 0f;
             if (strokeVoice == null)
             {
                 strokeVoice = gameObject.AddComponent<AudioSource>();
@@ -705,14 +715,7 @@ namespace MyGame
                     TryConsumeBuffer();
                     return;
                 }
-                if (!strokeCharged && stateTime >= strokeCharge)
-                {
-                    // Charged: the Drowned Moon in the blade answers (a ring, a flash): let go now.
-                    strokeCharged = true;
-                    StrokeChargedAt = Time.time;
-                    Effects.Instance?.StrokeCharged(BladePoint);
-                    Sfx.Instance?.Attack(strokeChargedSound, BladePoint, 0.9f, "stroke_charged");
-                }
+                TickDraw(dt);
                 if (!Input.HeavyHeld)
                 {
                     if (StrokeCharged)
@@ -728,6 +731,40 @@ namespace MyGame
                 TryConsumeBuffer(); // a dash may cancel its recovery
             else if (stateTime >= strokeLaunch + strokeRecovery)
                 ToFreeAndConsume();
+        }
+
+        // Drawn a little longer; charged at strokeCharge: the Drowned Moon in the blade answers (a ring, a flash): let go now.
+        void TickDraw(float dt)
+        {
+            strokeDrawTime += dt;
+            if (strokeCharged || strokeDrawTime < strokeCharge)
+                return;
+            strokeCharged = true;
+            StrokeChargedAt = Time.time;
+            Effects.Instance?.StrokeCharged(BladePoint);
+            Sfx.Instance?.Attack(strokeChargedSound, BladePoint, 0.9f, "stroke_charged");
+        }
+
+        float rowSurgeUntil;
+
+        // The Stroke from the boat: the blade dug in and hauled through, the boat driven on, the wave ahead of the bow
+        // (it carries water: it puts out what burns, and knocks the Drowned under).
+        void RowSurge()
+        {
+            Spend(strokeStaminaCost);
+            Boat.Surge(strokeSurge);
+            clips.PlayOnce("RowSurge", 0.7f, 0.06f);
+            rowSurgeUntil = Time.time + 0.7f;
+            Vector3 bow = Boat.Bow, at = Boat.transform.position;
+            LastWave = StrokeWave.Send(at + bow * 1.3f, bow, strokeReach * strokeWetReach, strokeWetArc, strokeSpeed,
+                                       strokeDamage * DamageFactor, strokePush * strokeWetPush, strokeStagger, wet: true);
+            LastWave.douseSound = douseSound;
+            Vector3 blade = at + Boat.transform.right * 0.95f + Vector3.up * 0.05f;
+            Effects.Instance?.Splash(blade);
+            Sfx.Instance?.Splash(blade);
+            Sfx.Instance?.Attack(boatSurgeSound, at, 1f, "boat_surge");
+            Sfx.Instance?.Attack(strokeSound, at + bow * 1.5f, 0.8f, "stroke_wave");
+            CameraRig.Instance?.Shake(0.25f);
         }
 
         // Let go before it was charged: just the heavy, picked up a moment before it comes down (no more stamina).
@@ -2040,6 +2077,7 @@ namespace MyGame
             if (CurrentState != State.Rowing || rowPhase != RowPhase.Rowing || Boat == null)
                 return;
             landingAt = dock;
+            rowDrawing = false; // (the draw let go unspent)
             hopFrom = transform.position;
             hopFromRotation = transform.rotation;
             rowPhase = RowPhase.Landing;
@@ -2069,9 +2107,35 @@ namespace MyGame
                         if (!OpenMenu.IsOpen)
                             OpenMenu = null;
                     }
-                    Boat.Tick(inMenu ? Vector3.zero : MoveDirection(), dt);
+                    // With the Stroke: the heavy held draws the oar back (no rowing meanwhile: fast water takes you back),
+                    // let go charged it's the surge and the wave ahead of the bow; let go sooner, nothing.
+                    if (HasStroke && !inMenu && !rowDrawing && !Boat.Coasting && Input.HeavyPressed && Stamina > 0f)
+                    {
+                        rowDrawing = true;
+                        BeginDraw();
+                        clips.Loop("RowDraw", 0.15f);
+                    }
+                    if (rowDrawing)
+                    {
+                        Boat.Tick(inMenu ? Vector3.zero : MoveDirection(), dt, drawing: true);
+                        TickDraw(dt);
+                        if (!Input.HeavyHeld || inMenu)
+                        {
+                            bool charged = strokeCharged;
+                            rowDrawing = false;
+                            StopStrokeVoice();
+                            if (charged && !inMenu)
+                                RowSurge();
+                        }
+                    }
+                    else
+                        Boat.Tick(inMenu ? Vector3.zero : MoveDirection(), dt);
                     transform.SetPositionAndRotation(Boat.seat.position, Boat.seat.rotation);
-                    if (Boat.Effort > 0.05f)
+                    if (rowDrawing || Time.time < rowSurgeUntil)
+                    {
+                        // (drawn, or the surge's pull: their own clips)
+                    }
+                    else if (Boat.Effort > 0.05f)
                     {
                         clips.Loop("Row", 0.2f);
                         clips.SetLoopSpeed(Boat.StrokeSpeed);

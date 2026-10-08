@@ -36,6 +36,10 @@ public static partial class MainSceneBuilder
         PressHouse(new Vector3(10.5f, MiddleTop, 6.1f));
         Mill(new Vector3(OrchardHalfWidth, 0f, GroundZ + 5f)); // (off the bottom terrace's east end)
         Afloat();
+        // The boat, moored off the bottom terrace; across the water, the tailrace and the landing at its head.
+        var boat = BoatAt(new Vector3(1f, 0f, GroundZ - 1.4f), 180f, new Vector3(1f, GroundTop, GroundZ + 0.6f));
+        boat.docks = new[] { boat.home, Tailrace(new Vector3(2f, 0f, GroundZ - 20f)) };
+        boat.lagoon = new Rect(-OrchardHalfWidth, GroundZ - 26f, OrchardHalfWidth * 2f, 25.4f);
         UpperTerrace();
         UnreapedRows(); // the field over the orchard wall: the Orchard's miniboss, among its scarecrows
         Glasshouse();   // beyond the field's far gate: the Gardener's (Father Moth's) arena
@@ -511,6 +515,47 @@ public static partial class MainSceneBuilder
         // Loose on the yard: crates to shove (off the edge, they float).
         foreach (var (e, n, yaw) in new[] { (3.6f, 0.6f, 10f), (4.4f, 1.4f, -25f), (2.6f, 3.2f, 40f) })
             Loose(OrchardProp("crate", W(e, n, 0.52f), yaw), 0.45f, 1.3f).transform.SetParent(root, true);
+    }
+
+    // The tailrace (the Stroke on the water; art/models/environment/tailrace.py): out in the river south of the bottom
+    // terrace, a walled channel running north from a small landing, the water welling from under the landing and
+    // running hard down it: too fast to row against (Current), climbed a surge at a time. A Drowned waits in the pool by
+    // the landing; on the landing, an Obol cache. `o` is the middle of the landing's back wall, at the water; a point is
+    // (east, north, up) from it. Returns the landing's dock.
+    static Dock Tailrace(Vector3 o)
+    {
+        Vector3 W(float e, float n, float u) => o + new Vector3(e, u, n);
+        var root = new GameObject("The Tailrace").transform;
+        Place("Environment/tailrace", o, 0f).transform.SetParent(root, true);
+        var current = new GameObject("Current").AddComponent<Current>();
+        current.transform.SetParent(root, true);
+        current.transform.SetPositionAndRotation(W(0f, 10.25f, 0f), Quaternion.identity); // (running north, out of it)
+        current.size = new Vector2(6f, 8.5f);
+        current.speed = 4f; // (the boat's best is 3.6: rowing alone, it loses ground)
+        var rush = current.gameObject.AddComponent<AudioSource>();
+        rush.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "current_rush.wav");
+        rush.loop = true;
+        rush.playOnAwake = false; // (Current starts it, from somewhere in the loop)
+        rush.spatialBlend = 1f;
+        rush.rolloffMode = AudioRolloffMode.Linear;
+        rush.minDistance = 3f;
+        rush.maxDistance = 20f;
+        rush.volume = 0.6f;
+        rush.dopplerLevel = 0f;
+
+        var cache = Place("Environment/obol_cache", W(-1.6f, 1.4f, 0.52f), 160f);
+        cache.name = "Obol Cache (the tailrace landing)";
+        cache.transform.SetParent(root, true);
+        cache.AddComponent<ObolCache>();
+        var glow = cache.AddComponent<PickupGlow>();
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = LanternLight;
+        glow.height = 0.7f;
+
+        Drowned("Drowned (the tailrace)", W(1.7f, 5.2f, 0f), 0f).transform.SetParent(root, true);
+        var dock = DockAt("the tailrace landing", W(-0.6f, 5.0f, 0f), 0f, W(-0.6f, 3.0f, 0.52f), false);
+        dock.transform.SetParent(root, true);
+        return dock;
     }
 
     // Something the Stroke's wave can shove (it floats, off the edge).

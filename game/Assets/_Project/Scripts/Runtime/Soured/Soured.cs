@@ -542,7 +542,7 @@ namespace MyGame
         // a shove (off an edge into the water: fair play) and a stagger; the great take the harm only (a Boss, a Boss's
         // part), the heavy less of the shove (half their knockbackResistance: the tide moves what a blow can't). Under
         // the water (a Drowned), it passes over.
-        public HitResult TakeWave(Vector3 push, float damage, Vector3 from, float stagger)
+        public virtual HitResult TakeWave(Vector3 push, float damage, Vector3 from, float stagger)
         {
             if (!IsAlive || OutOfReach || Unhittable)
                 return HitResult.Missed;

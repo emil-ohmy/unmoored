@@ -46,6 +46,12 @@ namespace MyGame
         void Update()
         {
             float dt = Time.deltaTime;
+            if (Afloat)
+            {
+                Vector3 flow = Current.At(transform.position); // (fast water takes it along)
+                if (flow.sqrMagnitude > 0f)
+                    velocity = Vector3.MoveTowards(velocity, flow, 3f * dt);
+            }
             if (velocity.sqrMagnitude > 0.0004f)
                 Move(velocity * dt);
             velocity *= Mathf.Exp(-(Afloat ? 0.9f : 5f) * dt); // (the water carries it on; the ground stops it)
