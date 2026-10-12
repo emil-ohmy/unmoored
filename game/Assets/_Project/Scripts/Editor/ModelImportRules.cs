@@ -25,10 +25,26 @@ public class ModelImportRules : AssetPostprocessor
     static readonly string[] Cutaway = { "house", "ruined_wall", "tower", "stone_block", "stone_stairs", "railing",
                                          "drowned_chapel", "islet", "rock", "quay", "jetty", "shortcut_gate", "crate", "barrel",
                                          "terrace", "orchard_steps", "orchard_wall", "press_house",
-                                         "glasshouse_house", "glasshouse_roof", "glasshouse_ground", "glasshouse_leaf", "unreaped_field_ground" }; // (buildings and walls: not trees)
-    bool IsArchitecture => !IsCharacter && System.Array.Exists(Cutaway, c => System.IO.Path.GetFileName(assetPath).StartsWith(c));
+                                         "glasshouse_house", "glasshouse_roof", "glasshouse_ground", "glasshouse_leaf", "unreaped_field_ground",
+                                         "last_hour", "mill_yard", "tailrace" }; // (buildings and walls: not trees)
+    // (The Hall's props are things in the rooms, not the rooms: a pendulum overhead must not vanish in the cut; but its
+    // facade's are the building's outside, and open with it.)
+    static readonly string[] Facade = { "last_hour_props_spire", "last_hour_props_turret", "last_hour_props_gear_wall",
+                                        "last_hour_props_counterweight", "last_hour_props_drive.", "last_hour_props_escapement" }; // (drive.: not drive_gear)
+    bool IsArchitecture
+    {
+        get
+        {
+            if (IsCharacter)
+                return false;
+            string file = System.IO.Path.GetFileName(assetPath);
+            if (file.StartsWith("last_hour_props") && !System.Array.Exists(Facade, f => file.StartsWith(f)))
+                return false;
+            return System.Array.Exists(Cutaway, c => file.StartsWith(c));
+        }
+    }
 
-    public override uint GetVersion() => 8; // (2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts; 6: the Orchard; 7: not its trees; 8: the Glasshouse. Bumping re-imports every model)
+    public override uint GetVersion() => 11; // (2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts; 6: the Orchard; 7: not its trees; 8: the Glasshouse; 9: the mill, the tailrace; 10: the Hall of the Last Hour; 11: not the Hall's props (but its facade). Bumping re-imports every model)
 
     void OnPreprocessModel()
     {

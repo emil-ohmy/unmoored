@@ -12,6 +12,10 @@ namespace MyGame
         void TakeWave(StrokeWave wave, Vector3 push); // once per wave; `push`: away from the wave's origin
     }
 
+    // One the Stroke can be used from on top of (a machine's strike-plate in the Hall, its crescent): released anywhere
+    // within its radius, whichever way it's sent, the wave meets it.
+    public interface IStoodOnWaveable : IWaveable { }
+
     public static class Waveables
     {
         static readonly List<IWaveable> all = new List<IWaveable>();

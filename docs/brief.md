@@ -115,7 +115,7 @@ business and pay their fare to row them across.
     silver foam, costing stamina; it knocks Soured back and staggers them (little harm), throws a Clinger off (mid-leap
     or off your back), can push them into water; in shallows it carries water (bigger, and it douses fire). It shoves
     what floats or is loose and turns wheels (a wave down a mill-race turns its wheel, the wheel opens a sluice). In the
-    Stopped Clocktower it sets stopped things moving: a Stroke against a gear or a pendulum runs that part of the clock a
+    Hall of the Last Hour it sets stopped things moving: a Stroke against a gear or a pendulum runs that part of the clock a
     while.
   - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
     in Area 3, which hints where it is.
@@ -200,8 +200,13 @@ back toward the Hub.
 |---|---|---|---|---|---|
 | 1 | The Drowned City | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
 | 2 | The Orchard of Last Autumn | Hook | The Gardener (Father Moth, Who Gathered Autumn) | Stroke | Moths, Gleaners, Threshers |
-| 3 | The Stopped Clocktower | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
+| 3 | The Hall of the Last Hour | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
+
+**The Hall of the Last Hour's arc** (the user's direction, 2026-10-12; laid out in level design, not before): the whole
+Area is stopped in time, and you make your way through it frozen, setting its machines running a while with the Stroke.
+At its heart is a central engine; set going, time starts again throughout the Hall, and with it its traps (in the manner
+of Sen's Fortress): the same halls, now moving and dangerous.
 
 **The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
 its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to

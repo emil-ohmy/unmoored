@@ -255,6 +255,21 @@ def orchard():
     TIMBER = ("OrchardTimber", "#5e4634")
 
 
+# ---------------------------------------------------------------- the Hall of the Last Hour
+
+def last_hour():
+    """Switch to the Hall of the Last Hour's palette (call before building): pale limestone, almost cream under the moon,
+    fine pale joints, cream capstones; warm honey floorboards; dark old timber."""
+    global STONE, MORTAR, CAP, PLINTH, TIMBER, PLANKS, PAVING
+    STONE = ("Limestone1", "#c3c1b8"), ("Limestone2", "#cdcbc2"), ("Limestone3", "#b6b4ab")
+    MORTAR = ("LimeJoint", "#8a877e")
+    CAP = ("LimeCap", "#e2ddcc")
+    PLINTH = ("LimePlinth", "#9c998f")
+    TIMBER = ("HallTimber", "#5b4532")
+    PLANKS = ("HallBoard1", "#9a7a55"), ("HallBoard2", "#8c6d4b"), ("HallBoard3", "#a6855c")
+    PAVING = ("HallFlag1", "#c9c5b8"), ("HallFlag2", "#bdb9ac"), ("HallFlag3", "#d3cfc2")
+
+
 LEAVES = ("LeafRust", "#9a4a2c"), ("LeafOchre", "#b8873a"), ("LeafRed", "#7c2a25"), ("LeafBrown", "#7a5432"), ("LeafTan", "#9a7a4a")
 TURF = ("Turf1", "#68684d"), ("Turf2", "#727050"), ("Turf3", "#5c5c45")
 

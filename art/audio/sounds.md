@@ -126,6 +126,9 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | Fast water (`current_rush`, loop) | in game | Synth | a river running hard through a stone channel: a deep steady rush, a churning surface, tearing at the walls |
 | The Stroke from the boat (`boat_surge`, 2) | in game | Synth | the oar dug in and hauled through: a heavy plunge, a long rush past the hull, a cold glass note on it |
 | A dock's bell rung (`dock_bell`) | in game | Synth | a small bronze bell struck twice, bright over the water, its hum dying slowly |
+| Stopped clockwork set running (`clockwork_start`) | in game | Synth | a heavy brass catch letting go, a ratchet clattering as the train takes up, a rising whirr |
+| Clockwork running (`clockwork_tick`, loop) | in game | Synth | a slow deep tick-tock a beat a second, wheels whirring faintly under it |
+| Clockwork running down (`clockwork_stop`) | in game | Synth | the ticks slowing, the whirr sinking, a last weary tock and the catch dropping home |
 | The sluice gate winding up (`sluice_gate_rise`) | in game | Synth | an iron chain ratcheting over a pulley, the board scraping up its stone grooves |
 | The sluice gate held (`sluice_gate_clunk`) | in game | Synth | a heavy iron pawl dropping into its tooth, a deep wooden knock |
 | Fire put out (`steam_hiss`, 2) | in game | Synth | a sharp hiss of steam thinning away, a crackle dying in it |

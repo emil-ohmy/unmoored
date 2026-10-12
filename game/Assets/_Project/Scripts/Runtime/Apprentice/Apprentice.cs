@@ -2029,6 +2029,14 @@ namespace MyGame
         }
 
         // Moves the Apprentice instantly. `onSafeGround`: the spot is solid, so washing ashore may return here.
+        // Carried by something they stand on (a lift climbing): moved with it, through nothing.
+        public void Carry(Vector3 delta)
+        {
+            controller.enabled = false;
+            transform.position += delta;
+            controller.enabled = true;
+        }
+
         public void Teleport(Vector3 position, bool onSafeGround = true, bool snapCamera = true)
         {
             controller.enabled = false; // CharacterController overrides direct position changes

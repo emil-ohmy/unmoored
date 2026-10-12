@@ -66,7 +66,7 @@ A permanent new oar technique that has both a combat use and a traversal use.
 _Avoid_: Skill, power, upgrade
 
 **Hook**, **Stroke**, **Vault**:
-The three Abilities: the Hook pulls you to a hook post, yanks a Soured over to you (a Boss too heavy for that: it jerks the Anchoress's anchor, her guard gone a while); the Stroke, a pull of the oar that moves water (and, in the Stopped Clocktower, stopped things); plant the oar and leap.
+The three Abilities: the Hook pulls you to a hook post, yanks a Soured over to you (a Boss too heavy for that: it jerks the Anchoress's anchor, her guard gone a while); the Stroke, a pull of the oar that moves water (and, in the Hall of the Last Hour, stopped things); plant the oar and leap.
 
 **The Drowned Moon**:
 The harvest moon's reflection, lifted out of the river by the Gardener and kept caged in his ribs (the light there, all his fight); while he held it the Orchard's moon could never set. Beaten, it pours out of him and pools on the floor; set into the oar blade, it gives the Stroke: the blade pulls water as the moon pulls the tide.
@@ -212,8 +212,12 @@ _Avoid_: the Hoarder (her old working name), the Bell-Keeper, the anchor boss
 ### World
 
 **Area**:
-A themed region of the underworld with its own Boss: the Drowned City, the Orchard of Last Autumn, the Stopped Clocktower.
+A themed region of the underworld with its own Boss: the Drowned City, the Orchard of Last Autumn, the Hall of the Last Hour.
 _Avoid_: Level, zone, biome
+
+**The Hall of the Last Hour**:
+Area 3: a castle of clockwork standing in the river where it falls, its towers hung with brass gears and capped with green-copper domes, its works driven by the water. Every clock in it stopped at the same moment, a quarter past nine, and everything inside stopped with them: dust hangs in the air, the pendulum is held mid-swing. The Stroke sets stopped parts of it running a while. Its Boss is the One Who Waits.
+_Avoid_: the Stopped Clocktower (its old working name), the clocktower
 
 **Hub**:
 The Ferryman's jetty at the centre of the underworld, where Crossings leave from and the Ferryman's hoard lies beneath.

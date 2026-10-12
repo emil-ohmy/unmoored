@@ -34,6 +34,11 @@ game/Assets/_Project/
   Scenes/Lab_Orchard.unity        the Orchard of Last Autumn's lab (Build Lab (Orchard)): its terraces, trees, press house,
                                   air (leaves, mist, lantern moths), night (the harvest moon), the mill off the bottom terrace (the Stroke's first use: a mill-race, its wheel, a sluice gate; barrels afloat, crates loose), the boat at its jetty (a bell at each dock calls it) and the tailrace across the water (the Stroke on the water: a current too strong to row, a landing at its head), the Unreaped Rows (the field over its wall: the Watchman's arena) and beyond its far gate the Glasshouse (Father Moth's arena). Assets > MyGame > Build
                                   All Scenes builds every scene at once
+  Scenes/Lab_LastHour.unity      the Hall of the Last Hour's lab (Build Lab (Last Hour)): a castle of clockwork in the river:
+                                  the keep (five storeys: undercroft, works, bell gallery, the face room with its ledges and
+                                  the hands, the belfry), the court before it, the west gate and its quay, the great hall
+                                  (clocks, pendulums, the orrery), the spire and turrets; pale limestone, brass, green copper;
+                                  time stopped. Nothing tall south of where you walk (the camera looks down from there)
   Scenes/Lab_DrownedCity.unity    the Drowned City's lab (Build Lab (Drowned City)): the Tester's Post spawns any Soured and gives the Apprentice
                                   anything; a training Laden; a readout. Nothing saved. New enemies and upgrades go here first
   Scripts/Runtime/                game code, assembly MyGame.Runtime (namespace MyGame)
