@@ -206,7 +206,7 @@ public static partial class MainSceneBuilder
 
     // What every scene has after its layout: the game's systems (world state, effects, HUD, sounds), the music, the
     // camera and the look; then it's saved (and listed in the build).
-    static void FinishScene(UnityEngine.SceneManagement.Scene scene, string path, Transform start, Apprentice apprentice, string musicName)
+    static void FinishScene(UnityEngine.SceneManagement.Scene scene, string path, Transform start, Apprentice apprentice, string musicName, string wokenMusic = null)
     {
         var systems = new GameObject("Game");
         systems.AddComponent<WorldState>().startPoint = start;
@@ -305,7 +305,9 @@ public static partial class MainSceneBuilder
         sfx.spitSplat = Clips("spit_splat");
         var music = new GameObject("Music", typeof(AudioSource));
         music.GetComponent<AudioSource>().clip = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + musicName + ".wav");
-        music.AddComponent<MusicPlayer>();
+        var player = music.AddComponent<MusicPlayer>();
+        if (wokenMusic != null)
+            player.woken = AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/" + wokenMusic + ".wav");
 
         var cam = new GameObject("Main Camera", typeof(Camera)).GetComponent<Camera>(); // CameraRig adds the listener
         cam.tag = "MainCamera";

@@ -6,7 +6,7 @@ namespace MyGame
     // while its fight is on. The ambient gives way when a Boss fight begins; the Boss's track for its phase takes
     // over, and a new phase crossfades in step (its tracks share one loop, so the next starts where the last was).
     // Everything sinks while the Apprentice is dead (the death toll has the stage). A Boss beaten: its music stops,
-    // a silence, then the ambient comes back.
+    // a silence, then the ambient comes back. An Area that wakes (the Hall of the Last Hour) has its woken music too.
     [RequireComponent(typeof(AudioSource))]
     public sealed class MusicPlayer : MonoBehaviour
     {
@@ -18,13 +18,19 @@ namespace MyGame
         public float phaseCrossfade = 2.5f;
         public float silenceAfterVictory = 5f;
 
+        public AudioClip woken;               // the Area's music once it's woken (the Hall's, its engine set going): the
+        public float wakeCrossfade = 4f;      // same loop as the ambient's, crossfaded in step
+        public bool Woken { get; private set; }
+        public float WakeMix => wake;         // (tests) 0 the ambient .. 1 the woken music
+
         public static bool Hushed; // a quiet moment (a Crossing): the ambient sinks low
         [Range(0f, 1f)] public float whileHushed = 0.3f;
 
         public int FightPhase { get; private set; } // the Boss track playing now (0: none)
         public float AmbientTarget { get; private set; }
 
-        AudioSource source;
+        AudioSource source, wokenSource;
+        float wake;                                       // 0 the ambient as it was .. 1 woken
         readonly AudioSource[] fight = new AudioSource[2];
         int fightSlot;                                    // the player the phase now is on (they take turns)
         float ambientLevel;                               // the fades' own levels; the sources play them at the
@@ -40,6 +46,21 @@ namespace MyGame
             Setup(source);
             for (int i = 0; i < fight.Length; i++)
                 Setup(fight[i] = gameObject.AddComponent<AudioSource>());
+            Setup(wokenSource = gameObject.AddComponent<AudioSource>());
+        }
+
+        // The Area wakes (or, in a lab, sleeps again): its woken music takes over from where the ambient is in the loop.
+        public void Wake(bool on = true)
+        {
+            if (woken == null || on == Woken)
+                return;
+            Woken = on;
+            if (on && !wokenSource.isPlaying)
+            {
+                wokenSource.clip = woken;
+                wokenSource.Play();
+                wokenSource.timeSamples = Mathf.Clamp(source.isPlaying ? source.timeSamples : 0, 0, woken.samples - 1);
+            }
         }
 
         static void Setup(AudioSource s)
@@ -97,7 +118,11 @@ namespace MyGame
             AmbientTarget = fightMusic || UiKit.Now < quietUntil ? 0f : volume * duck;
             float ambientTime = ambientLevel > AmbientTarget ? (boss != null ? 1.5f : duckTime) : fadeIn;
             ambientLevel = Mathf.MoveTowards(ambientLevel, AmbientTarget, volume / Mathf.Max(ambientTime, 0.01f) * UiKit.DeltaTime);
-            source.volume = ambientLevel * Settings.Music;
+            wake = Mathf.MoveTowards(wake, Woken ? 1f : 0f, UiKit.DeltaTime / Mathf.Max(wakeCrossfade, 0.01f));
+            source.volume = ambientLevel * Mathf.Sqrt(1f - wake) * Settings.Music; // (equal power: no dip between them)
+            wokenSource.volume = ambientLevel * Mathf.Sqrt(wake) * Settings.Music;
+            if (wake <= 0f && wokenSource.isPlaying)
+                wokenSource.Stop();
         }
 
         // The fight begins: its music for the phase it's in, from the top.

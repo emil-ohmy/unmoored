@@ -82,6 +82,13 @@ namespace MyGame
                         post.SetResidents(!post.ResidentsAwake);
                         Say(post.ResidentsAwake ? "Up they get." : "Hush. They'll keep.");
                     });
+                var music = Object.FindAnyObjectByType<MusicPlayer>();
+                if (music != null && music.woken != null)
+                    Add("The Area's music", music.Woken ? "awake" : "as it is", "Its music as it is now, or as it will be woken (the Hall of the Last Hour: time set going again by its central engine, not built yet).", () =>
+                    {
+                        music.Wake(!music.Woken);
+                        Say(music.Woken ? "Time again." : "Held still.");
+                    });
                 var moth = Object.FindAnyObjectByType<FatherMoth>();
                 if (moth != null)
                 {

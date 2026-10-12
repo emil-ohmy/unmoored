@@ -157,6 +157,25 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheMusic_TheLastHour_StoppedTillWoken_ThenAwakeInStep()
+        {
+            var music = UnityEngine.Object.FindAnyObjectByType<MusicPlayer>();
+            Assert.IsNotNull(music);
+            Assert.AreEqual("music_last_hour_1", music.GetComponent<AudioSource>().clip.name, "the Hall as it is: stopped");
+            Assert.AreEqual("music_last_hour_2", music.woken.name);
+            Assert.AreEqual(music.GetComponent<AudioSource>().clip.length, music.woken.length, 0.01f, "one loop: they cross in step");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0f, music.WakeMix);
+            music.Wake();
+            yield return new WaitForSeconds(music.wakeCrossfade + 0.5f);
+            Assert.IsTrue(music.Woken);
+            Assert.AreEqual(1f, music.WakeMix, 0.001f, "awake: crossfaded over");
+            music.Wake(false);
+            yield return new WaitForSeconds(music.wakeCrossfade + 0.5f);
+            Assert.AreEqual(0f, music.WakeMix, 0.001f, "and still again (the lab's toggle)");
+        }
+
+        [UnityTest]
         public IEnumerator TheMarks_GlowWhenTheStrokeCouldSetTheirMachineRunning()
         {
             var lift = Machine("Gear Lift");
