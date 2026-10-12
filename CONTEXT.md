@@ -36,7 +36,7 @@ A soul the Ferryman kept too long, turned hostile; the game's enemies. Defeat sc
 _Avoid_: Enemy, monster, hollow
 
 **Soured family**:
-A kind of Soured defined by what it couldn't let go of: the Laden, the Clinger, the Keener, the Moths, the Drowned, the Gleaners, the Threshers.
+A kind of Soured defined by what it couldn't let go of: the Laden, the Clinger, the Moths, the Drowned, the Gleaners, the Threshers, the Punctual, the Wound, the Keener.
 _Avoid_: Enemy type, species, class
 
 **Laden archer**:
