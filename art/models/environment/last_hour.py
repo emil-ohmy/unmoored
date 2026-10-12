@@ -111,6 +111,7 @@ def walls(parts, storey, south=(), north=(), west=(), east=()):
 COURT = (-14.0, 16.0, -26.0, -8.0)          # the court's paving (e0, e1, n0, n1)
 CURTAIN = 5.0                               # the curtain walls' tops
 PARAPET = 2.4                               # the low south wall's top
+PIT = (-6.7, -2.3, -23.7, -19.3)            # the gear pit in the court (e0, e1, n0, n1)
 PASSAGE = (-19.0, -14.0, -19.0, -15.0)      # the gate's passage through the west wall (e0, e1, n0, n1)
 GATE_TOWER = (-19.0, -14.0, -15.0, -10.6)   # the gate tower, north of it
 GATE_TOP = 10.0
@@ -388,8 +389,25 @@ def build(variant):
         f = F[0]
         brass = kit.mat("HallBrass_Metal", "#b8913f")
         e0, e1, n0, n1 = COURT
-        parts.append(m.box("Earth", m.mat(m.MORTAR), e0, e1, n0, n1, -0.9, f - 0.2))
-        m.flagstones(parts, e0, e1, n0, n1, f)
+        q0, q1, qn0, qn1 = PIT
+        for box in ((e0, q0, n0, n1), (q1, e1, n0, n1), (q0, q1, n0, qn0), (q0, q1, qn1, n1)):   # (round the pit)
+            parts.append(m.box("Earth", m.mat(m.MORTAR), *box, -0.9, f - 0.2))
+        m.flagstones(parts, e0, e1, n0, n1, f, holes=[PIT])
+        # The gear well: a square well sunk in the paving (floored just above the river's level: nothing deeper shows
+        # under the water), a great gear lying in it and its pinion, railed round.
+        web = kit.mat("HallBrassWeb_Metal", "#9c7a38")
+        low = 0.06
+        parts.append(m.box("PitFloor", m.mat(m.PLINTH), q0, q1, qn0, qn1, -0.9, low))
+        for box in ((q0, q1, qn0, qn0 + 0.25), (q0, q1, qn1 - 0.25, qn1), (q0, q0 + 0.25, qn0, qn1), (q1 - 0.25, q1, qn0, qn1)):
+            parts.append(m.box("PitSide", m.mat(m.STONE[0]), *box, low, f))
+        cx, cn = (q0 + q1) / 2, (qn0 + qn1) / 2
+        gear(parts, brass, web, (cx - 0.3, cn - 0.2, low + 0.16), 1.6, 26, 0.2)
+        gear(parts, brass, web, (cx + 1.35, cn + 1.1, low + 0.36), 0.55, 10, 0.18)
+        parts.append(part("PitHub", kit.cylinder(10, 0.3, 0.5), brass, M(G(cx - 0.3, cn - 0.2, low + 0.25))))
+        m.balustrade(parts, q0, qn0, q1, qn0, f)
+        m.balustrade(parts, q0, qn1, q1, qn1, f)
+        m.balustrade(parts, q0, qn0, q0, qn1, f)
+        m.balustrade(parts, q1, qn0, q1, qn1, f)
         # A brass ring set in the paving before the keep's door, and a rack running to it from the gate.
         parts.append(m.box("Rack", brass, -0.4, 0.4, n0 + 1.0, n1 - 3.6, f, f + 0.03))
         n = n0 + 1.2

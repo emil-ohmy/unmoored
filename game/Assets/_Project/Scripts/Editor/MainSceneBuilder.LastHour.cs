@@ -126,8 +126,9 @@ public static partial class MainSceneBuilder
                     Object.DestroyImmediate(col); // (hung overhead)
                 Flicker(PointLight(c.transform, T(e, 9.5f - 3.0f, n), 7f, 1.6f, TowerBrass), 0.06f, 4f, 0.005f);
             }
-        Put("last_hour_props_hourglass", T(19.6f, f, -24.6f), 0f, hall.transform);
-        Put("last_hour_props_hourglass", T(24.4f, f, -24.6f), 0f, hall.transform);
+        Put("last_hour_props_hourglass", T(18.6f, f, -25.2f), 0f, hall.transform);
+        Put("last_hour_props_hourglass", T(25.4f, f, -25.2f), 0f, hall.transform);
+        Put("last_hour_props_music_drum", T(22f, f, -23.4f), 0f, hall.transform);
         Put("last_hour_props_workbench", T(19.4f, f, -7.6f), -90f, hall.transform);
         Put("last_hour_props_workbench", T(24.6f, f, -17.4f), 90f, hall.transform);
         Put("last_hour_props_cart", T(24.4f, f, -8.4f), 90f, hall.transform);
@@ -140,7 +141,8 @@ public static partial class MainSceneBuilder
         // spare wheels against the hall's wall; a mainspring on its cradle; an hourglass, its sand caught falling.
         Put("last_hour_props_fountain", T(6f, f, -21f));
         FountainWater(root, T(6f, f, -21f));
-        Put("last_hour_props_cart", T(-6.4f, f, -23.6f), 30f);
+        Put("last_hour_props_cart", T(9.4f, f, -25.0f), 0f);
+        Put("last_hour_props_crane", T(-13.6f, f, -24.0f), 0f); // (on the west wall, its crate stopped mid-air over the court)
         Put("last_hour_props_crate_gears", T(12.6f, f, -24.2f), 10f);
         Put("last_hour_props_crate_gears", T(13.6f, f, -23.0f), 35f);
         Put("last_hour_props_crate_gears", T(-12.2f, f, -9.6f), 80f);
@@ -178,12 +180,12 @@ public static partial class MainSceneBuilder
     // drop by drop.
     static void FountainWater(Transform parent, Vector3 at)
     {
-        var water = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var water = GameObject.CreatePrimitive(PrimitiveType.Cylinder); // (a round sheet of it, brim-full)
         water.name = "Fountain Water";
         Object.DestroyImmediate(water.GetComponent<Collider>());
         water.transform.SetParent(parent, true);
-        water.transform.SetPositionAndRotation(at + Vector3.up * 0.63f, Quaternion.Euler(90f, 22.5f, 0f));
-        water.transform.localScale = new Vector3(3.6f, 3.6f, 1f);
+        water.transform.SetPositionAndRotation(at + Vector3.up * 0.69f, Quaternion.identity);
+        water.transform.localScale = new Vector3(3.9f, 0.005f, 3.9f);
         water.GetComponent<MeshRenderer>().sharedMaterial = ChannelWater();
         var drops = new System.Collections.Generic.List<Vector3>();
         for (int k = 0; k < 4; k++)
@@ -246,6 +248,8 @@ public static partial class MainSceneBuilder
         clutter(face, "mainspring", T(3.4f, F(3), 2.8f), 0f);
         clutter(face, "crate_gears", T(-2.8f, F(3), -6.5f), 0f);
         clutter(face, "crate_gears", T(2.8f, F(3), -6.6f), 40f);
+        clutter(face, "dial_train", T(0f, F(3), -6.2f), 0f);                   // (behind the dial: what turns its hands)
+        clutter(undercroft, "gauge_panel", T(6.9f, F(0), -6.2f), 90f);
     }
 
     // The keep, its storeys hidden above the Apprentice inside (Storeys), its works placed, still, its light; the spire
@@ -331,6 +335,8 @@ public static partial class MainSceneBuilder
         // The clock's heart where it can be seen: the escapement hung in the belfry's south arch, stopped mid-tick; on the
         // east face, counterweights hanging on their chains from the cogged crowns, held where they stopped.
         Works(belfry, "escapement", T(0f, F(4) + 1.9f, -TowerOut - 0.35f), flat);
+        Works(belfry, "great_bell", T(-2.0f, F(4), 1.6f), flat);                 // the hour bell, in its frame
+        Works(belfry, "winding_drum", T(-4.6f, F(4), -4.6f), flat);
         Works(works, "counterweight", T(TowerOut + 0.5f, F(3) - 0.4f, 1.4f), flat);
         Works(gallery, "counterweight", T(TowerOut + 0.5f, F(4) - 0.4f, 5.6f), flat);
         var spire = Place("Environment/last_hour_props_spire", T(-15.6f, 0f, 2f), 0f);
