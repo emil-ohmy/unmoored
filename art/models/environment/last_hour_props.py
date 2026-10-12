@@ -23,7 +23,9 @@ column, a bowl of cogs; the water's the game's: held still in the air); "great_b
 frame, 3 m across), "winding_drum" (the bell-ropes' drum on its frame, a crank gear), "dial_train" (the gears behind the
 dial that turn its hands, on their frame, the arbor running south through the wall), "crane" (a wall crane: its post
 to the north, its jib out 3 m, a crate hanging from it, stopped), "music_drum" (a great pinned drum and its steel comb),
-"gauge_panel" (pipes along a wall, valves, round gauges; the back to the wall); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
+"gauge_panel" (pipes along a wall, valves, round gauges; the back to the wall); "lift_deck" (the gear lift's deck,
+1.6 m square, boards in a brass frame, its pinion to the east: origin at the deck's top middle), "lift_column" (its
+toothed column, 6 m, a housing at its head: origin at its foot); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
 and its brackets (origin at its west end); (No greenery: nothing grows in it.)"""
 import math
 
@@ -35,7 +37,8 @@ VARIANTS = ["great_wheel", "gear_large", "gear_small", "shaft", "bell_large", "b
             "hand_hour", "hand_minute", "gear_wall_large", "gear_wall_small", "spire", "drive",
             "escapement", "counterweight", "turret", "longcase", "orrery", "pendulum_hall",
             "workbench", "shelf", "crate_gears", "gear_stack", "lathe", "hoist", "mainspring", "hourglass", "chandelier",
-            "cart", "fountain", "great_bell", "winding_drum", "dial_train", "crane", "music_drum", "gauge_panel"]
+            "cart", "fountain", "great_bell", "winding_drum", "dial_train", "crane", "music_drum", "gauge_panel",
+            "lift_deck", "lift_column"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -89,6 +92,27 @@ def build(variant):
             a = 2 * math.pi * (k + 0.5) / 20
             c = (math.cos(a) * (r - 0.2), 0, math.sin(a) * (r - 0.2))
             parts.append(part("Paddle", kit.cube(), wet, M(c, rot=(0, -math.degrees(a), 0), scale=(0.5, 1.3, 0.06))))
+    elif variant == "lift_deck":
+        boards = [m.mat(x) for x in m.PLANKS]
+        for k in range(5):
+            parts.append(m.box("Board", boards[k % 3], -0.8 + k * 0.32 + 0.01, -0.8 + (k + 1) * 0.32 - 0.01, -0.8, 0.8, -0.1, 0.0))
+        for box in ((-0.82, 0.82, -0.82, -0.72), (-0.82, 0.82, 0.72, 0.82), (-0.82, -0.72, -0.72, 0.72), (0.72, 0.82, -0.72, 0.72)):
+            parts.append(m.box("Frame", iron, *box, -0.16, 0.02))
+        parts += gear(0.32, 10, 0.08, brass_web, iron, at=M(G(0.95, 0, -0.1), rot=(90, 0, 0)))   # the pinion on the column's rack
+        for n in (-0.6, 0.6):
+            parts.append(m.box("Strut", iron, 0.72, 0.82, n - 0.05, n + 0.05, -0.6, -0.1))
+        parts.append(m.box("Under", iron, -0.7, 0.7, -0.05, 0.05, -0.4, -0.16))
+    elif variant == "lift_column":
+        stone = m.mat(m.CAP)
+        parts.append(m.box("Footing", stone, -0.45, 0.45, -0.45, 0.45, 0.0, 0.3))
+        parts.append(m.box("Column", iron, -0.16, 0.16, -0.22, 0.22, 0.0, 6.0))
+        u = 0.4
+        while u < 5.9:  # the rack's teeth on its west face (the deck's pinion climbs them)
+            parts.append(m.box("Tooth", iron, -0.3, -0.16, -0.2, 0.2, u, u + 0.12))
+            u += 0.28
+        parts.append(m.box("Housing", iron, -0.3, 0.3, -0.35, 0.35, 6.0, 6.5))
+        parts += gear(0.45, 10, 0.08, brass_web, iron, at=M(G(0, -0.4, 6.25), rot=(90, 0, 0)))
+        parts.append(part("Cap", kit.cone(8, 0.35, 0.05, 0.5), gilt, M((0, 0, 6.75))))
     elif variant == "great_bell":
         # The frame: two A-frames either side, a beam across; the bell in its yoke between them.
         for e in (-1.6, 1.6):

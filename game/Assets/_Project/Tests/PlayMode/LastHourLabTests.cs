@@ -96,12 +96,102 @@ namespace MyGame.Tests
             Assert.AreEqual(4, tower.Level);
         }
 
-        // Across the court to the great hall's door, in, and down its aisle (under the pendulums) to the orrery; its roof
-        // hidden while you're in it.
+        // The Stroke: hold the heavy attack till it's charged, let go (facing `towards`, from where they stand).
+        IEnumerator Stroke(Vector3 towards)
+        {
+            apprentice.transform.rotation = Quaternion.LookRotation(new Vector3(towards.x, 0f, towards.z));
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            for (float t = 0f; t < 2.5f && !apprentice.StrokeCharged; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(apprentice.StrokeCharged, "charged");
+            input.HeavyHeld = false;
+            yield return new WaitForSeconds(0.6f);
+        }
+
+        Clockwork Machine(string name) => UnityEngine.Object.FindObjectsByType<Clockwork>(FindObjectsSortMode.None).First(c => c.name.Contains(name));
+
+        // The great hall's gear door: shut, no way in; the Stroke at its drive gear and it rolls aside a while, then back.
+        [UnityTest]
+        public IEnumerator TheGearDoor_ShutTillStruck_RollsAsideAWhile_AndBack()
+        {
+            apprentice.GiveStroke();
+            var door = UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => m.name.Contains("Gear Door"));
+            var work = Machine("Gear Door");
+            yield return WalkTo(T(14.4f, 0f, -12.5f), 0.4f, 10f);
+            input.Move = new Vector2(1f, 0f);
+            yield return new WaitForSeconds(1f);
+            input.Move = Vector2.zero;
+            Assert.Less(apprentice.transform.position.x - tower.transform.position.x, 15.4f, "the door shut: no way in");
+            yield return WalkTo(T(13.0f, 0f, -9.3f));
+            yield return Stroke(Vector3.right);
+            Assert.IsTrue(work.Running, "the Stroke at its drive: it runs");
+            yield return new WaitForSeconds(2.2f);
+            Assert.IsTrue(door.Out, "rolled aside");
+            yield return new WaitForSeconds(work.runTime + 2.5f);
+            Assert.IsFalse(work.Running);
+            Assert.IsTrue(door.Home, "rolled back: shut again");
+        }
+
+        // The gear lift: onto its deck, the Stroke at its drive (beyond the column), carried up to the west wall's walk;
+        // off onto it; the lift sinks back without you.
+        [UnityTest]
+        public IEnumerator TheGearLift_RideItUpToTheWallWalk()
+        {
+            apprentice.GiveStroke();
+            var lift = UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => m.carries);
+            yield return WalkTo(T(-11.8f, 0f, -21.4f), 0.3f);
+            yield return WalkTo(T(-11.8f, 0f, -23.2f), 0.25f);        // onto the deck
+            yield return Stroke(Vector3.right);                         // at its drive, beyond the column
+            Assert.IsTrue(Machine("Gear Lift").Running);
+            yield return new WaitForSeconds(3.0f);
+            Assert.AreEqual(5.0f, apprentice.transform.position.y, 0.2f, "carried up to the walk's height");
+            yield return WalkTo(T(-13.6f, 0f, -23.2f), 0.3f);         // off onto the walk
+            yield return new WaitForSeconds(8f);
+            Assert.IsTrue(lift.Home, "the lift back down");
+            Assert.AreEqual(5.0f, apprentice.transform.position.y, 0.2f, "and you still up on the wall");
+        }
+
+        // The pendulum: the Stroke at its bob (in the undercroft) and the keep's clockwork runs: the pendulum swings, the
+        // wheels turn, the hanging dust moves; then it all stops, and hangs still again.
+        [UnityTest]
+        public IEnumerator ThePendulum_Struck_TheKeepRunsAWhile()
+        {
+            apprentice.GiveStroke();
+            var work = Machine("Keep's Clockwork");
+            var pendulum = work.swingers[0].part;
+            var wheel = work.spinners[0].part;
+            Quaternion swingFrom = pendulum.rotation, wheelFrom = wheel.rotation;
+            yield return WalkTo(T(0f, 0f, -6.5f));
+            yield return WalkTo(T(-2.7f, 0f, -3.4f));
+            yield return Stroke(Vector3.forward);
+            Assert.IsTrue(work.Running, "set running");
+            float swung = 0f;
+            for (float t = 0f; t < 3f; t += Time.deltaTime)
+            {
+                swung = Mathf.Max(swung, Quaternion.Angle(pendulum.rotation, swingFrom));
+                yield return null;
+            }
+            Assert.Greater(swung, 12f, "the pendulum swinging (out past hanging straight)");
+            Assert.Greater(Quaternion.Angle(wheel.rotation, wheelFrom), 10f, "the great wheel turning");
+            yield return new WaitForSeconds(work.runTime + work.spinDown + 0.5f);
+            Assert.IsFalse(work.Running);
+            Assert.AreEqual(0f, work.Run, 0.001f, "stopped");
+            Quaternion held = pendulum.rotation;
+            yield return new WaitForSeconds(1f);
+            Assert.Less(Quaternion.Angle(pendulum.rotation, held), 0.01f, "held where it stopped");
+        }
+
+        // Across the court to the great hall's door (the Stroke opens it), in, and down its aisle (under the pendulums)
+        // to the orrery; its roof hidden while you're in it.
         [UnityTest]
         public IEnumerator TheGreatHall_FromTheCourt_DownTheAisleToTheOrrery()
         {
+            apprentice.GiveStroke();
             var hall = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st != tower);
+            yield return WalkTo(T(13.0f, 0f, -9.3f), 0.4f, 10f);
+            yield return Stroke(Vector3.right);
+            yield return new WaitForSeconds(1.6f);
             yield return WalkTo(T(14.4f, 0f, -12.5f), 0.4f, 10f);
             yield return WalkTo(T(19f, 0f, -12.5f));
             yield return new WaitForSeconds(0.5f);
@@ -199,6 +289,20 @@ namespace MyGame.Tests
                 yield return At("last-hour-6-the-face-room", T(2.5f, 12.55f, -3.5f), Vector3.forward);
                 yield return At("last-hour-7-the-ledge-and-the-hands", T(-5.5f, 12.55f, -8.7f), Vector3.right);
                 yield return At("last-hour-8-the-belfry", T(0f, 16.55f, -3f), Vector3.forward);
+                // The machines: the gear door rolled aside, the lift up at the walk, the pendulum swinging.
+                apprentice.GiveStroke();
+                yield return At("last-hour-9-the-gear-door-shut", T(13.0f, 0.55f, -9.3f), Vector3.right);
+                yield return Stroke(Vector3.right);
+                yield return new WaitForSeconds(1.8f);
+                Shot("last-hour-10-the-gear-door-rolled-aside");
+                yield return At("last-hour-11-on-the-lift", T(-11.8f, 0.55f, -23.2f), Vector3.right);
+                yield return Stroke(Vector3.right);
+                yield return new WaitForSeconds(2.8f);
+                Shot("last-hour-12-the-lift-up");
+                yield return At("last-hour-13-by-the-pendulum", T(-2.7f, 0.55f, -3.4f), Vector3.forward);
+                yield return Stroke(Vector3.forward);
+                yield return new WaitForSeconds(1.6f);
+                Shot("last-hour-14-the-pendulum-swinging");
             }
             finally { cam.targetTexture = null; }
         }

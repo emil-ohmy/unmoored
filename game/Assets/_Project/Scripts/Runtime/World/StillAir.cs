@@ -17,6 +17,41 @@ namespace MyGame
 
         ParticleSystem system;
 
+        ParticleSystem.Particle[] buffer;
+        Vector3[] home; // (where each was held: how far it may drift)
+
+        // Time moving here a while (a machine running near, `amount` 0..1): the dust within `radius` of `centre` drifts
+        // and settles a little, the drops fall a little; when it stops, they hang still again wherever they've got to.
+        public void Thaw(Vector3 centre, float radius, float amount, float dt)
+        {
+            if (system == null || amount <= 0f)
+                return;
+            int n = system.particleCount;
+            if (buffer == null || buffer.Length < n)
+                buffer = new ParticleSystem.Particle[n];
+            system.GetParticles(buffer, n);
+            if (home == null || home.Length != n)
+            {
+                home = new Vector3[n];
+                for (int i = 0; i < n; i++)
+                    home[i] = buffer[i].position;
+            }
+            float r2 = radius * radius;
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 p = buffer[i].position;
+                if ((p - centre).sqrMagnitude > r2)
+                    continue;
+                bool drop = i >= n - drops.Length;
+                float fall = drop ? 0.8f : 0.06f, limit = drop ? 0.7f : 0.5f;
+                float phase = i * 1.37f;
+                p += new Vector3(Mathf.Sin(Time.time * 0.7f + phase) * 0.05f, -fall, Mathf.Cos(Time.time * 0.6f + phase) * 0.05f) * amount * dt;
+                p.y = Mathf.Max(p.y, home[i].y - limit);
+                buffer[i].position = p;
+            }
+            system.SetParticles(buffer, n);
+        }
+
         void Start()
         {
             system = gameObject.AddComponent<ParticleSystem>();

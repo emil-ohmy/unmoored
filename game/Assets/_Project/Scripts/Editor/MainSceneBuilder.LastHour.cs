@@ -102,6 +102,22 @@ public static partial class MainSceneBuilder
             new Storeys.Storey { floor = o.y + f, parts = new[] { hall } },
             new Storeys.Storey { floor = o.y + 99f, parts = new[] { roof } },
         };
+        // Its door: a great gear stood in the doorway, outside; struck at its drive gear (beside it, north) it rolls
+        // aside along its rack, a while, then rolls back and shuts it.
+        var door = Put("last_hour_props_gear_large", T(15.7f, f + 2.0f, -12.5f));
+        door.name = "The Great Hall's Gear Door";
+        door.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * door.transform.rotation;
+        var doorDrive = Put("last_hour_props_gear_small", T(15.62f, f + 1.1f, -9.3f));
+        doorDrive.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * doorDrive.transform.rotation;
+        var doorWork = Machine("The Gear Door's Clockwork", doorDrive.transform, T(15.0f, f, -9.3f), 8f, root);
+        doorWork.spinners = new[] { new Clockwork.Spinner { part = doorDrive.transform, axis = Vector3.right, speed = 90f } };
+        var rolls = door.AddComponent<ClockworkMover>();
+        rolls.clockwork = doorWork;
+        rolls.travel = new Vector3(0f, 0f, -4.2f);
+        rolls.travelTime = 2f;
+        rolls.rollAxis = Vector3.right;
+        rolls.rollRadius = 2f;
+
         // Its clocks down both long walls (their backs to the walls; the door's stretch left clear), the pendulums
         // from the tie-beams stopped at their own angles, the orrery at its north end.
         for (float n = -24.4f; n < 2.2f; n += 2.6f)
@@ -142,7 +158,30 @@ public static partial class MainSceneBuilder
         Put("last_hour_props_fountain", T(6f, f, -21f));
         FountainWater(root, T(6f, f, -21f));
         Put("last_hour_props_cart", T(9.4f, f, -25.0f), 0f);
-        Put("last_hour_props_crane", T(-13.6f, f, -24.0f), 0f); // (on the west wall, its crate stopped mid-air over the court)
+        Put("last_hour_props_crane", T(12.0f, f, -25.6f), -90f); // (by the south parapet, its crate stopped mid-air over the court)
+
+        // The gear lift on the court's west side: its toothed column, its deck at the paving's level; its drive gear on
+        // the column's far side, struck from the deck: it climbs to the walk along the west wall's top (a cache waits
+        // there), a while, then sinks.
+        Put("last_hour_props_lift_column", T(-10.7f, f, -23.2f));
+        var deck = Put("last_hour_props_lift_deck", T(-11.8f, f, -23.2f));
+        var liftDrive = Put("last_hour_props_gear_small", T(-10.2f, f + 1.2f, -23.2f));
+        liftDrive.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * liftDrive.transform.rotation;
+        var lift = Machine("The Gear Lift's Clockwork", liftDrive.transform, T(-9.9f, f, -23.2f), 8f, root);
+        lift.spinners = new[] { new Clockwork.Spinner { part = liftDrive.transform, axis = Vector3.right, speed = 90f } };
+        var climbs = deck.AddComponent<ClockworkMover>();
+        climbs.clockwork = lift;
+        climbs.travel = new Vector3(0f, CurtainTop - f, 0f);
+        climbs.travelTime = 3f;
+        climbs.carries = true;
+        climbs.deck = new Vector2(1.6f, 1.6f);
+        var cache = Put("obol_cache", T(-13.6f, CurtainTop, -21.2f), 90f);
+        cache.name = "Obol Cache (the west wall's walk)";
+        cache.AddComponent<ObolCache>();
+        var glow = cache.AddComponent<PickupGlow>();
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = LanternLight;
+        glow.height = 0.7f;
         Put("last_hour_props_crate_gears", T(12.6f, f, -24.2f), 10f);
         Put("last_hour_props_crate_gears", T(13.6f, f, -23.0f), 35f);
         Put("last_hour_props_crate_gears", T(-12.2f, f, -9.6f), 80f);
@@ -206,6 +245,31 @@ public static partial class MainSceneBuilder
         still.motes = 0;
         still.drops = drops.ToArray();
         still.material = sparkMaterial;
+    }
+
+    const float CurtainTop = 5.0f; // (last_hour.py's CURTAIN: the curtain walls' tops, the walk along the west one)
+
+    // A machine of the Hall: a Clockwork struck where `strike` is (on the floor by its drive), running `runTime`.
+    static Clockwork Machine(string name, Transform drive, Vector3 strike, float runTime, Transform parent)
+    {
+        var c = new GameObject(name).AddComponent<Clockwork>();
+        c.transform.SetParent(parent, true);
+        c.transform.position = drive.position;
+        c.strikePoint = new GameObject("Strike").transform;
+        c.strikePoint.SetParent(c.transform, true);
+        c.strikePoint.position = strike;
+        c.strikeRadius = 1.3f;
+        c.runTime = runTime;
+        c.thawRadius = 7f;
+        ClockworkSounds(c);
+        return c;
+    }
+
+    static void ClockworkSounds(Clockwork c)
+    {
+        c.startSound = Clips("clockwork_start");
+        c.tickSound = Clips("clockwork_tick");
+        c.stopSound = Clips("clockwork_stop");
     }
 
     // The keep's clutter, storey by storey: a working clock-house's (benches, shelves of movements, crates of spare
@@ -299,15 +363,22 @@ public static partial class MainSceneBuilder
         // through every floor; the pendulum hanging down the middle from the face room, held mid-swing (a quarter of its
         // arc out to the west), its bob in the undercroft. (Long things belong to the lowest storey: never hidden
         // while you're inside.)
-        Works(undercroft, "great_wheel", T(0f, 0.4f, 4f), flat);
-        Works(undercroft, "gear_small", T(0f, 3.1f, 4f), flat);
-        Works(undercroft, "shaft", T(0f, 3.0f, 4f), flat);
-        Works(undercroft, "pendulum", T(0f, F(4) - 0.2f, -0.5f), Quaternion.AngleAxis(-12f, Vector3.forward));
+        // (what turns when the keep's clockwork runs: each part, its world axle, its speed)
+        var turning = new System.Collections.Generic.List<Clockwork.Spinner>();
+        GameObject Turning(GameObject go, Vector3 axis, float speed)
+        {
+            turning.Add(new Clockwork.Spinner { part = go.transform, axis = axis, speed = speed });
+            return go;
+        }
+        Turning(Works(undercroft, "great_wheel", T(0f, 0.4f, 4f), flat), Vector3.forward, 30f);
+        Turning(Works(undercroft, "gear_small", T(0f, 3.1f, 4f), flat), Vector3.up, -60f);
+        Turning(Works(undercroft, "shaft", T(0f, 3.0f, 4f), flat), Vector3.up, 60f);
+        var pendulum = Works(undercroft, "pendulum", T(0f, F(4) - 0.2f, -0.5f), Quaternion.AngleAxis(-12f, Vector3.forward));
         // The works: a great gear stood up on the shaft's line, a crown gear on the shaft, a pair beside it.
-        Works(works, "gear_large", T(-1.5f, F(1) + 2.3f, 3.0f), upright); // (clear of the way to the stair up)
-        Works(works, "gear_small", T(0f, F(1) + 1.2f, 4f), flat);
-        Works(works, "gear_small", T(-3.6f, F(1) + 1.6f, 4.6f), upright);
-        Works(works, "gear_large", T(-4.6f, F(1) + 0.5f, -4.2f), flat);
+        Turning(Works(works, "gear_large", T(-1.5f, F(1) + 2.3f, 3.0f), upright), Vector3.forward, 25f); // (clear of the way to the stair up)
+        Turning(Works(works, "gear_small", T(0f, F(1) + 1.2f, 4f), flat), Vector3.up, 60f);
+        Turning(Works(works, "gear_small", T(-3.6f, F(1) + 1.6f, 4.6f), upright), Vector3.forward, -45f);
+        Turning(Works(works, "gear_large", T(-4.6f, F(1) + 0.5f, -4.2f), flat), Vector3.up, -20f);
         // The bells, hung from the beams over the open middle.
         Works(gallery, "bell_large", T(-2.0f, F(3) - 0.7f, 2.6f), flat);
         Works(gallery, "bell_small", T(2.4f, F(3) - 0.7f, 2.6f), flat);
@@ -318,30 +389,51 @@ public static partial class MainSceneBuilder
         Works(face, "dial", T(0f, F(3), -TowerOut), flat);
         Works(face, "hand_hour", T(0f, F(3), -TowerOut), flat);
         Works(face, "hand_minute", T(0f, F(3), -TowerOut), flat);
-        Works(face, "gear_small", T(0f, F(3) + 2.2f, 4.4f), upright);
-        Works(face, "gear_large", T(0f, F(3) + 2.4f, 0.4f), upright);
+        Turning(Works(face, "gear_small", T(0f, F(3) + 2.2f, 4.4f), upright), Vector3.forward, 50f);
+        Turning(Works(face, "gear_large", T(0f, F(3) + 2.4f, 0.4f), upright), Vector3.forward, -25f);
 
         // Outside: brass gears hung on the walls (each with its storey: hidden with it), the spire in the river to the
         // west with the drive-rod across to it from the keep, green over the landing.
         var facingSouth = Quaternion.Euler(90f, 0f, 0f);   // a wall gear on the south face, its axle north
         var facingEast = Quaternion.Euler(0f, 0f, 90f);    // on the east face, its axle east
         const float face_ = TowerOut + 0.12f;
-        Works(works, "gear_wall_large", T(-5.6f, F(1) + 2.6f, -face_), facingSouth);
-        Works(works, "gear_wall_small", T(5.8f, F(1) + 1.9f, -face_), facingSouth);
-        Works(works, "gear_wall_large", T(face_, F(1) + 2.4f, -2.2f), facingEast);
-        Works(gallery, "gear_wall_small", T(-5.8f, F(2) + 2.8f, -face_), facingSouth);
-        Works(gallery, "gear_wall_small", T(face_, F(2) + 2.6f, 3.6f), facingEast);
-        Works(face, "gear_wall_small", T(face_, F(3) + 2.2f, -3.8f), facingEast);
+        Turning(Works(works, "gear_wall_large", T(-5.6f, F(1) + 2.6f, -face_), facingSouth), Vector3.forward, 18f);
+        Turning(Works(works, "gear_wall_small", T(5.8f, F(1) + 1.9f, -face_), facingSouth), Vector3.forward, -34f);
+        Turning(Works(works, "gear_wall_large", T(face_, F(1) + 2.4f, -2.2f), facingEast), Vector3.right, -18f);
+        Turning(Works(gallery, "gear_wall_small", T(-5.8f, F(2) + 2.8f, -face_), facingSouth), Vector3.forward, 34f);
+        Turning(Works(gallery, "gear_wall_small", T(face_, F(2) + 2.6f, 3.6f), facingEast), Vector3.right, 34f);
+        Turning(Works(face, "gear_wall_small", T(face_, F(3) + 2.2f, -3.8f), facingEast), Vector3.right, -34f);
         // The clock's heart where it can be seen: the escapement hung in the belfry's south arch, stopped mid-tick; on the
         // east face, counterweights hanging on their chains from the cogged crowns, held where they stopped.
-        Works(belfry, "escapement", T(0f, F(4) + 1.9f, -TowerOut - 0.35f), flat);
+        var escapement = Works(belfry, "escapement", T(0f, F(4) + 1.9f, -TowerOut - 0.35f), flat);
         Works(belfry, "great_bell", T(-2.0f, F(4), 1.6f), flat);                 // the hour bell, in its frame
         Works(belfry, "winding_drum", T(-4.6f, F(4), -4.6f), flat);
         Works(works, "counterweight", T(TowerOut + 0.5f, F(3) - 0.4f, 1.4f), flat);
         Works(gallery, "counterweight", T(TowerOut + 0.5f, F(4) - 0.4f, 5.6f), flat);
         var spire = Place("Environment/last_hour_props_spire", T(-15.6f, 0f, 2f), 0f);
         spire.name = "The Spire";
-        Place("Environment/last_hour_props_drive", T(-13.2f, F(2) + 2.0f, 2f), 0f).name = "The Drive-Rod";
+        var drive = Place("Environment/last_hour_props_drive", T(-13.2f, F(2) + 2.0f, 2f), 0f);
+        drive.name = "The Drive-Rod";
+        Turning(drive, Vector3.right, 40f);
+
+        // The keep's clockwork: struck at the pendulum's bob (in the undercroft), the pendulum swings from where it was
+        // held, the escapement ticks, and every wheel of it turns, inside and out, a while; time moves all through it.
+        var clockwork = new GameObject("The Keep's Clockwork (the pendulum)").AddComponent<Clockwork>();
+        clockwork.transform.SetParent(root.transform, true);
+        clockwork.transform.position = T(0f, F(2), 0f);
+        clockwork.strikePoint = new GameObject("Strike (the pendulum's bob)").transform;
+        clockwork.strikePoint.SetParent(clockwork.transform, true);
+        clockwork.strikePoint.position = T(-2.7f, F(0), -0.5f);
+        clockwork.strikeRadius = 1.2f;
+        clockwork.runTime = 8f;
+        clockwork.spinners = turning.ToArray();
+        clockwork.swingers = new[]
+        {
+            new Clockwork.Swinger { part = pendulum.transform, axis = Vector3.forward, amplitude = 12f, period = 2.2f, heldAt = -12f },
+            new Clockwork.Swinger { part = escapement.transform, axis = Vector3.forward, amplitude = 3f, period = 1.1f, heldAt = 0f },
+        };
+        clockwork.thawRadius = 30f;
+        ClockworkSounds(clockwork);
 
         KeepClutter((storey, model, at, yaw) =>
         {

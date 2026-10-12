@@ -112,6 +112,9 @@ COURT = (-14.0, 16.0, -26.0, -8.0)          # the court's paving (e0, e1, n0, n1
 CURTAIN = 5.0                               # the curtain walls' tops
 PARAPET = 2.4                               # the low south wall's top
 PIT = (-6.7, -2.3, -23.7, -19.3)            # the gear pit in the court (e0, e1, n0, n1)
+WALK = (-14.8, -12.6, -26.6, -20.2)         # the walk along the west wall's top (e0, e1, n0, n1), at CURTAIN
+LIFT_AT = (-24.0, -22.4)                    # where the gear lift's deck meets it (n), on its court side
+DOOR_RACK = (-18.9, -10.3)                  # the great hall's gear door rolls along this (n), at the foot of its wall
 PASSAGE = (-19.0, -14.0, -19.0, -15.0)      # the gate's passage through the west wall (e0, e1, n0, n1)
 GATE_TOWER = (-19.0, -14.0, -15.0, -10.6)   # the gate tower, north of it
 GATE_TOP = 10.0
@@ -428,6 +431,20 @@ def build(variant):
             m.wall(parts, we0, we1, wn0, wn1, -0.9, top, course=0.45, plinth=True)
             for face in faces:
                 cog_strip(parts, brass, we0, we1, wn0, wn1, top, face)
+        # The walk along the west wall's top (the gear lift climbs to it): boards out over the court on brackets,
+        # railed along both edges and its ends, but where the lift's deck comes up.
+        k0, k1, kn0, kn1 = WALK
+        m.planks(parts, e0, k1, kn0, kn1, CURTAIN)
+        n_ = kn0 + 0.4
+        while n_ < kn1:
+            parts.append(m.box("Bracket", m.mat(m.TIMBER), e0, k1 - 0.1, n_ - 0.08, n_ + 0.08, CURTAIN - 0.9, CURTAIN - 0.2))
+            n_ += 1.4
+        l0, l1 = LIFT_AT
+        m.balustrade(parts, k0 + 0.1, kn0, k0 + 0.1, kn1, CURTAIN)
+        m.balustrade(parts, k1 - 0.08, kn0, k1 - 0.08, l0, CURTAIN)
+        m.balustrade(parts, k1 - 0.08, l1, k1 - 0.08, kn1, CURTAIN)
+        m.balustrade(parts, k0 + 0.1, kn0 + 0.08, k1, kn0 + 0.08, CURTAIN)
+        m.balustrade(parts, k0 + 0.1, kn1 - 0.08, k1, kn1 - 0.08, CURTAIN)
     elif variant == "gatehouse":
         f = F[0]
         brass = kit.mat("HallBrass_Metal", "#b8913f")
@@ -484,6 +501,13 @@ def build(variant):
         m.wall(parts, h0, h1, in1, hn1, -0.9, HALL_TOP, plinth=True)                              # north
         for face, box in (("west", (h0, i0, in0, in1)), ("east", (i1, h1, in0, in1)), ("south", (h0, h1, hn0, in0)), ("north", (h0, h1, in1, hn1))):
             cog_strip(parts, brass, *box, HALL_TOP, face)
+        # The rack the gear door rolls along, at the foot of the wall outside the door.
+        r0, r1 = DOOR_RACK
+        parts.append(m.box("DoorRack", brass, h0 - 0.45, h0 - 0.25, r0, r1, f, f + 0.12))
+        n_ = r0 + 0.2
+        while n_ < r1:
+            parts.append(m.box("DoorRackCog", brass, h0 - 0.45, h0 - 0.25, n_ - 0.09, n_ + 0.09, f + 0.12, f + 0.24))
+            n_ += 0.42
         for n_ in BEAMS:                                                                         # the tie-beams
             parts.append(m.box("TieBeam", m.mat(m.TIMBER), i0, i1, n_ - 0.2, n_ + 0.2, HALL_TOP - 1.0, HALL_TOP - 0.6))
             parts.append(m.box("BeamBrass", brass, i0, i1, n_ - 0.22, n_ + 0.22, HALL_TOP - 1.04, HALL_TOP - 0.98))
