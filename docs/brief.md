@@ -203,6 +203,11 @@ back toward the Hub.
 | 3 | The Hall of the Last Hour | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
 
+**The Hall of the Last Hour's arc** (the user's direction, 2026-10-12; laid out in level design, not before): the whole
+Area is stopped in time, and you make your way through it frozen, setting its machines running a while with the Stroke.
+At its heart is a central engine; set going, time starts again throughout the Hall, and with it its traps (in the manner
+of Sen's Fortress): the same halls, now moving and dangerous.
+
 **The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
 its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to
 him as the Moths gather to a light, until he grew into the greatest of them: a vast moth (wings like dead autumn
