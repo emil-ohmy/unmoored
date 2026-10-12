@@ -26,7 +26,7 @@ namespace MyGame
 
         public string KindLine => (Kind == Rank.Soured ? "Soured" : Kind == Rank.Miniboss ? "Miniboss" : "Boss") + "  ·  " + Area;
 
-        const string DrownedCity = "The Drowned City", Orchard = "The Orchard of Last Autumn";
+        const string DrownedCity = "The Drowned City", Orchard = "The Orchard of Last Autumn", LastHour = "The Hall of the Last Hour";
 
         public static readonly LedgerEntry Laden = new LedgerEntry("laden", "The Laden", Rank.Soured, DrownedCity, "laden",
             "Each carries all it ever owned, roped in a heap on its back. Come close and it lifts the heap like a shield: it would sooner be crushed under it than set it down.",
@@ -72,7 +72,11 @@ namespace MyGame
             "The man who tended the orchard and its glasshouse. He gathered every memory of the last autumn, and they gathered to him, as Moths to a light, until he was the greatest of them.",
             "On the wing the oar can't reach him: dodge his leaves, block them, step between them, until his wings give out. Spent, he lies on the floor a while: that's the time. Fire burns him badly.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth };
+        public static readonly LedgerEntry Punctual = new LedgerEntry("punctual", "The Punctual", Rank.Soured, LastHour, "punctual",
+            "The household of the Hall, still keeping its hours. Where the heart was, a watch has grown; it does nothing that isn't on the beat.",
+            "Listen: every blow lands on the tick. Block one right on the beat and it loses count, and stands lost until it finds the bar again.");
+
+        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -91,6 +95,7 @@ namespace MyGame
             MyGame.Moth _ => Moths,
             MyGame.Gleaner _ => Gleaners,
             MyGame.Thresher _ => Threshers,
+            MyGame.Punctual _ => Punctual,
             _ => null,
         };
 

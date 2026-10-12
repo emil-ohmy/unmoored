@@ -756,6 +756,52 @@ public static partial class MainSceneBuilder
         return t;
     }
 
+    // A Punctual (the Hall of the Last Hour): one of the household, keeping its hours; does nothing but on the beat.
+    // The Count (the key raised, brought down two beats later) and the Quarters (four blows on four beats).
+    static Punctual Punctual(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/punctual", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.92f, 0f);
+        controller.height = 1.84f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var p = go.AddComponent<Punctual>();
+        p.maxHealth = 90f;
+        p.radius = 0.4f;
+        p.staggerCapacity = 50f;
+        p.staggerDuration = 1.0f;
+        p.stunDuration = 1.6f;
+        p.aggroRadius = 10f;
+        p.viewHalfAngle = 80f;
+        p.noticeCloseRadius = 2.5f;
+        p.chaseSpeed = 1.5f;
+        p.turnSpeed = 300f;
+        p.leashRadius = 14f;
+        p.attackRange = 2.4f;
+        p.obols = 45;
+        p.eyeHeight = 1.7f;
+        p.barHeight = 2.3f;
+        p.primary = new SouredAttack
+        {
+            name = "Count", windupClip = "Windup", strikeClip = "Strike", recoverClip = "Recover",
+            telegraph = 1.85f, strike = 0.3f, recover = 1.2f, impactAt = 0.5f,
+            lunge = 0.4f, maxLunge = 1.4f, trackUntil = 0.75f, damage = 22f, reach = 2.4f, arc = 55f, knockback = 8f,
+            windupSound = Clips("punctual_raise"), swingSound = Clips("laden_swing"), impactSound = Clips("punctual_impact"),
+            swingPitch = 1.2f,
+        };
+        p.quarters.windupSound = Clips("punctual_warn");
+        p.quarterSwingSound = Clips("laden_swing");
+        p.watchHand = Bone(go, "WatchHand");
+        p.tickSound = Clips("punctual_tick");
+        p.quarterSound = Clips("punctual_quarter");
+        p.lostSound = Clips("punctual_lost");
+        p.foundSound = Clips("punctual_found");
+        BeltLantern(go, p);
+        return p;
+    }
+
     // A ball of fire (the Watchman's, a Gleaner's): glowing orange, no outline.
     static Material FireballMaterial()
     {

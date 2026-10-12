@@ -29,6 +29,11 @@ namespace MyGame.Tests
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
             tower = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name.Contains("keep"));
+            // The household keeps out of every test but its own (one of the pair, then, on its own).
+            var household = UnityEngine.Object.FindObjectsByType<Punctual>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).ToArray();
+            bool theirs = TestContext.CurrentContext.Test.Name.StartsWith("Punctual");
+            for (int i = theirs ? 1 : 0; i < household.Length; i++)
+                UnityEngine.Object.Destroy(household[i].gameObject);
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -154,6 +159,155 @@ namespace MyGame.Tests
             yield return WalkTo(T(19.0f, 0f, -12.5f));
             yield return WalkTo(T(13.5f, 0f, -12.5f), 0.4f, 6f);
             Assert.Less(apprentice.transform.position.x - tower.transform.position.x, 14f, "out in the court again");
+        }
+
+        // ---- The Punctual
+
+        Punctual ThePunctual => UnityEngine.Object.FindAnyObjectByType<Punctual>();
+
+        // Face to face with it in the great hall, `distance` in front of it.
+        Punctual FaceThePunctual(float quartersChance, float distance = 1.8f)
+        {
+            var p = ThePunctual;
+            Assert.IsNotNull(p, "one of the household keeps the orrery");
+            p.quartersChance = quartersChance;
+            Vector3 at = p.transform.position + p.transform.forward * distance;
+            apprentice.Teleport(new Vector3(at.x, p.transform.position.y + 0.05f, at.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-p.transform.forward);
+            return p;
+        }
+
+        IEnumerator AwaitWindup(Punctual p, SouredAttack attack, float timeout = 8f)
+        {
+            for (float t = 0f; t < timeout; t += Time.deltaTime)
+            {
+                if (p.CurrentState == Soured.State.Telegraph && p.CurrentAttack == attack)
+                    yield break;
+                yield return null;
+            }
+            Assert.Fail($"it never began {attack.name} ({p.CurrentState})");
+        }
+
+        static double Nearest(double t) => System.Math.Round(t / HallClock.Beat);
+
+        [UnityTest]
+        public IEnumerator Punctual_TheCount_RaisedOnABeat_BroughtDownTwoBeatsLater_OnTheTick()
+        {
+            var p = FaceThePunctual(0f);
+            yield return AwaitWindup(p, p.primary);
+            double raised = HallClock.Now;
+            Assert.Less(HallClock.Through, 0.1f, "raised on the beat");
+            for (float t = 0f; t < 3f && p.LastBlowOffBeat < 0f; t += Time.deltaTime)
+                yield return null;
+            double fell = HallClock.Now;
+            Assert.GreaterOrEqual(p.LastBlowOffBeat, 0f, "it struck");
+            Assert.Less(p.LastBlowOffBeat, 0.05f, "on the tick");
+            Assert.AreEqual(2.0, Nearest(fell) - Nearest(raised), "two beats after it was raised");
+        }
+
+        [UnityTest]
+        public IEnumerator Punctual_TheQuarters_FourBlowsOnFourBeats()
+        {
+            var p = FaceThePunctual(1f);
+            yield return AwaitWindup(p, p.quarters);
+            var beats = new System.Collections.Generic.List<double>();
+            float worst = 0f;
+            int seen = p.QuarterBlows;
+            for (float t = 0f; t < 6f && beats.Count < 4; t += Time.deltaTime)
+            {
+                if (p.QuarterBlows > seen)
+                {
+                    seen = p.QuarterBlows;
+                    beats.Add(Nearest(HallClock.Now));
+                    worst = Mathf.Max(worst, p.LastBlowOffBeat);
+                    input.Move = new Vector2(0f, -1f); // (backing off: the run goes on, whether or not it lands)
+                }
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.AreEqual(4, beats.Count, "four blows");
+            for (int k = 1; k < 4; k++)
+                Assert.AreEqual(1.0, beats[k] - beats[k - 1], $"blow {k + 1} a beat after the last");
+            Assert.Less(worst, 0.05f, "each on the tick");
+        }
+
+        [UnityTest]
+        public IEnumerator Punctual_BlockedOnTheBeat_LosesCount_TillABarBegins()
+        {
+            var p = FaceThePunctual(0f);
+            yield return AwaitWindup(p, p.primary);
+            float impact = p.primary.ImpactTime;
+            for (float t = 0f; t < impact - 0.1f; t += Time.deltaTime)
+                yield return null;
+            input.BlockHeld = true; // (raised a tenth before the tick: a perfect block)
+            for (float t = 0f; t < 0.5f && p.CurrentState != Soured.State.Stunned; t += Time.deltaTime)
+                yield return null;
+            input.BlockHeld = false;
+            Assert.AreEqual(Soured.State.Stunned, p.CurrentState, "blocked on the beat: stunned");
+            Assert.IsTrue(p.Lost, "and it's lost count");
+            bool struckWhileLost = false;
+            for (float t = 0f; t < 8f && p.Lost; t += Time.deltaTime)
+            {
+                struckWhileLost |= p.CurrentState == Soured.State.Telegraph;
+                yield return null;
+            }
+            Assert.IsFalse(p.Lost, "it finds the beat again");
+            Assert.IsTrue(HallClock.BarStarts((long)Nearest(HallClock.Now)), "where a bar begins");
+            Assert.IsFalse(struckWhileLost, "nothing while it's lost");
+        }
+
+        // (SHOTS=dir) The Punctual: keeping the orrery; the Count raised; the Quarters mid-run; lost count.
+        [UnityTest]
+        public IEnumerator Punctual_Capture()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var p = ThePunctual;
+                apprentice.Teleport(p.transform.position + p.transform.forward * 7f, true, true);
+                CameraRig.Instance?.SetZoom(0.8f);
+                yield return new WaitForSeconds(0.2f);
+                Shot("punctual-0-keeping-the-orrery");
+                p = FaceThePunctual(0f, 2.2f);
+                yield return AwaitWindup(p, p.primary);
+                yield return new WaitForSeconds(1.5f);
+                Shot("punctual-1-the-count-raised");
+                for (float t = 0f; t < 3f && p.CurrentState != Soured.State.Recover; t += Time.deltaTime)
+                    yield return null;
+                yield return new WaitForSeconds(0.1f);
+                Shot("punctual-2-the-count-down");
+                apprentice.RestoreFully();
+                p.quartersChance = 1f;
+                yield return AwaitWindup(p, p.quarters);
+                for (float t = 0f; t < 4f && p.QuarterBlows % 4 != 2; t += Time.deltaTime)
+                    yield return null;
+                Shot("punctual-3-the-quarters-second-blow");
+                apprentice.RestoreFully();
+                p.Stun();
+                yield return new WaitForSeconds(p.stunDuration + 0.3f);
+                Shot("punctual-4-lost-count");
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+            }
         }
 
         [UnityTest]

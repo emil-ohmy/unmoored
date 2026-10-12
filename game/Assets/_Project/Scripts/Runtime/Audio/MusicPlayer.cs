@@ -24,6 +24,28 @@ namespace MyGame
         public float WakeMix => wake;         // (tests) 0 the ambient .. 1 the woken music
 
         public static bool Hushed; // a quiet moment (a Crossing): the ambient sinks low
+        public static MusicPlayer Instance { get; private set; }
+
+        // Seconds into the Area's music loop (the ambient's, or its woken one's: they keep step), or -1 when neither is
+        // playing. The Hall of the Last Hour keeps its beat by it (HallClock).
+        public double Clock
+        {
+            get
+            {
+                var s = wokenSource != null && wokenSource.isPlaying && wake > 0.5f ? wokenSource : source;
+                if (s == null || !s.isPlaying || s.clip == null)
+                    return -1.0;
+                // (no audio at all, e.g. a test run muted: it says it's playing but never moves on; then it's no clock)
+                if (s.timeSamples != clockSamples)
+                {
+                    clockSamples = s.timeSamples;
+                    clockMoved = Time.unscaledTime;
+                }
+                return Time.unscaledTime - clockMoved < 0.3f ? (double)s.timeSamples / s.clip.frequency : -1.0;
+            }
+        }
+        int clockSamples = -1;
+        float clockMoved = -10f;
         [Range(0f, 1f)] public float whileHushed = 0.3f;
 
         public int FightPhase { get; private set; } // the Boss track playing now (0: none)
@@ -41,6 +63,7 @@ namespace MyGame
 
         void Awake()
         {
+            Instance = this;
             Hushed = false;
             source = GetComponent<AudioSource>();
             Setup(source);

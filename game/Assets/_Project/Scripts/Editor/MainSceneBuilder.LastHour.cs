@@ -146,6 +146,9 @@ public static partial class MainSceneBuilder
             p.transform.rotation = Quaternion.AngleAxis(tilt, Vector3.forward) * p.transform.rotation;
         }
         Put("last_hour_props_orrery", T(22f, f, -0.4f), 30f, hall.transform);
+        // Two of the household keep the orrery, side by side up the aisle, facing the door's end.
+        foreach (var e in new[] { 20.6f, 23.4f })
+            Punctual("Punctual", T(e, f, -4.6f), 180f);
         foreach (var n in new[] { -20f, -12f, -4f })
             foreach (var e in new[] { 19.4f, 24.6f })
             {
