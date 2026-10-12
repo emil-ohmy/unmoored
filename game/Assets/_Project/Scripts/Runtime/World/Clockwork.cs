@@ -4,12 +4,12 @@ using UnityEngine;
 namespace MyGame
 {
     // A piece of the Hall of the Last Hour's stopped clockwork (a drive gear, the pendulum): the Stroke's wave reaching
-    // it sets it running, a while (runTime), then it winds down and stops again where it is. While it runs, what it
+    // its strike-plate (or sent from on it, whichever way) sets it running, a while (runTime), then it winds down and stops again where it is. While it runs, what it
     // turns turns (spinners), what swings swings (swingers: a pendulum from where it was held), what it drives moves
     // (ClockworkMover: a door rolls aside, a lift climbs; and back as it stops), and time moves round it: the dust and
     // drops held in the air nearby (StillAir) drift and fall a little, then hang still again. Struck again while it runs,
     // it runs on from then. Heard: a clunk as it catches, its ticking while it runs, a slowing as it stops.
-    public sealed class Clockwork : MonoBehaviour, IWaveable
+    public sealed class Clockwork : MonoBehaviour, IStoodOnWaveable
     {
         [System.Serializable]
         public sealed class Spinner

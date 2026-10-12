@@ -161,7 +161,7 @@ namespace MyGame.Tests
         {
             var lift = Machine("Gear Lift");
             var marks = UnityEngine.Object.FindObjectsByType<StrokeMark>(FindObjectsSortMode.None).Where(m => m.clockwork == lift).ToArray();
-            Assert.GreaterOrEqual(marks.Length, 4, "its drive, deck, column and plate wear the mark");
+            Assert.AreEqual(1, marks.Length, "the crescent on its deck (where you stand to use the Stroke), and nowhere else");
             yield return null;
             Assert.IsFalse(marks[0].InReach, "without the Stroke");
             apprentice.GiveStroke();
@@ -177,7 +177,7 @@ namespace MyGame.Tests
                 most = Mathf.Max(most, marks[0].Glow);
                 yield return null;
             }
-            Assert.Greater(most, 1.8f, "it brightens, pulsing");
+            Assert.Greater(most, 0.8f, "it brightens, pulsing");
         }
 
         // The gear lift: onto its deck, the Stroke at its drive (beyond the column), carried up to the west wall's walk;
@@ -189,7 +189,7 @@ namespace MyGame.Tests
             var lift = UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => m.carries);
             yield return WalkTo(T(-11.8f, 0f, -21.4f), 0.3f);
             yield return WalkTo(T(-11.8f, 0f, -23.2f), 0.25f);        // onto the deck
-            yield return Stroke(Vector3.right);                         // at its drive, beyond the column
+            yield return Stroke(Vector3.left);                          // from on its crescent, whichever way
             Assert.IsTrue(Machine("Gear Lift").Running);
             yield return new WaitForSeconds(3.0f);
             Assert.AreEqual(5.0f, apprentice.transform.position.y, 0.2f, "carried up to the walk's height");
@@ -211,7 +211,8 @@ namespace MyGame.Tests
             Quaternion swingFrom = pendulum.rotation, wheelFrom = wheel.rotation;
             yield return WalkTo(T(0f, 0f, -6.5f));
             yield return WalkTo(T(-2.7f, 0f, -3.4f));
-            yield return Stroke(Vector3.forward);
+            yield return WalkTo(T(-2.7f, 0f, -0.6f), 0.3f);            // onto its plate, under the bob
+            yield return Stroke(Vector3.back);                          // (whichever way: from on the crescent)
             Assert.IsTrue(work.Running, "set running");
             float swung = 0f;
             for (float t = 0f; t < 3f; t += Time.deltaTime)
@@ -343,6 +344,7 @@ namespace MyGame.Tests
                 yield return new WaitForSeconds(1.8f);
                 Shot("last-hour-10-the-gear-door-rolled-aside");
                 yield return At("last-hour-10b-its-drive-inside", T(19.4f, 0.55f, -10.6f), Vector3.left);
+                yield return At("last-hour-10c-the-lift-waiting", T(-10.4f, 0.55f, -20.6f), Vector3.back);
                 yield return At("last-hour-11-on-the-lift", T(-11.8f, 0.55f, -23.2f), Vector3.right);
                 yield return Stroke(Vector3.right);
                 yield return new WaitForSeconds(2.8f);

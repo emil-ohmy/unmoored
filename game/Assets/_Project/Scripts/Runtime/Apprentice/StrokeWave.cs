@@ -182,7 +182,8 @@ namespace MyGame
                 if (Mathf.Abs(to.y) > 2f)
                     continue;
                 to.y = 0f;
-                if (to.magnitude > Radius + w.WaveRadius || Vector3.Angle(forward, to) > arc * 0.5f + 8f)
+                bool on = w is IStoodOnWaveable && (to + forward * 0.5f).magnitude <= w.WaveRadius; // (sent from on it)
+                if (!on && (to.magnitude > Radius + w.WaveRadius || Vector3.Angle(forward, to) > arc * 0.5f + 8f))
                     continue;
                 met.Add(w);
                 w.TakeWave(this, (to.sqrMagnitude > 0.01f ? to.normalized : forward) * push);

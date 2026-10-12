@@ -2,10 +2,9 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // The Drowned Moon's mark on what the Stroke can move (a machine's drive, its strike-plate, a pendulum's bob, a lift's
-    // deck: silver, a glowing crescent; everything else in the Hall is brass). It glows faintly always; with the Stroke
-    // and within its reach, it brightens and pulses (as the Hook's post does when it can be thrown at); while the
-    // machine runs, it shines steady.
+    // The Drowned Moon's crescent where the Stroke sets a machine running (its strike-plate, a lift's deck: stand on it
+    // and use the Stroke). It glows faintly always; with the Stroke and within its reach, a little brighter, pulsing
+    // slowly; while the machine runs, steady.
     public sealed class StrokeMark : MonoBehaviour
     {
         public Clockwork clockwork;
@@ -60,7 +59,7 @@ namespace MyGame
         void Update()
         {
             float t = Time.time;
-            Glow = clockwork != null && clockwork.Running ? 1.4f : InReach ? 1.5f + 0.7f * Mathf.Sin(t * 6f) : 0.45f;
+            Glow = clockwork != null && clockwork.Running ? 0.6f : InReach ? 0.7f + 0.2f * Mathf.Sin(t * 4f) : 0.3f;
             for (int r = 0; r < renderers.Length; r++)
                 for (int k = 0; k < slots[r].Length; k++)
                 {

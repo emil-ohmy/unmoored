@@ -102,9 +102,9 @@ public static partial class MainSceneBuilder
             new Storeys.Storey { floor = o.y + f, parts = new[] { hall } },
             new Storeys.Storey { floor = o.y + 99f, parts = new[] { roof } },
         };
-        // Its door: a great gear stood in the doorway, outside; struck at either of its drives (silver: the Stroke moves
-        // it; one beside it in the court, north, one just inside) it rolls aside along its rack, a while, then rolls back
-        // and shuts it.
+        // Its door: a great gear stood in the doorway, outside; its drives (silver: the Stroke moves them) beside it in
+        // the court, north, and just inside; struck at either's plate, it rolls aside along its rack, a while, then
+        // rolls back and shuts it.
         var door = Put("last_hour_props_gear_large", T(15.7f, f + 2.0f, -12.5f));
         door.name = "The Great Hall's Gear Door";
         door.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * door.transform.rotation;
@@ -122,7 +122,7 @@ public static partial class MainSceneBuilder
             new Clockwork.Spinner { part = doorDrive.transform, axis = Vector3.right, speed = 90f },
             new Clockwork.Spinner { part = inside.transform, axis = Vector3.right, speed = -90f },
         };
-        Marks(doorWork, new[] { doorDrive, inside }, doorWork.strikePoint, inner.strikePoint);
+        Marks(doorWork, new GameObject[0], doorWork.strikePoint, inner.strikePoint);
         var rolls = door.AddComponent<ClockworkMover>();
         rolls.clockwork = doorWork;
         rolls.travel = new Vector3(0f, 0f, -4.2f);
@@ -173,14 +173,17 @@ public static partial class MainSceneBuilder
         Put("last_hour_props_crane", T(12.0f, f, -25.6f), -90f); // (by the south parapet, its crate stopped mid-air over the court)
 
         // The gear lift on the court's west side: its toothed column, its deck at the paving's level; its drive gear on
-        // the column's far side, struck from the deck: it climbs to the walk along the west wall's top (a cache waits
+        // the column's far side; struck from the deck (the crescent's on it): it climbs to the walk along the west wall's top (a cache waits
         // there), a while, then sinks.
-        var column = Put("last_hour_props_lift_column", T(-10.7f, f, -23.2f));
+        Put("last_hour_props_lift_column", T(-10.7f, f, -23.2f));
         var deck = Put("last_hour_props_lift_deck", T(-11.8f, f, -23.2f));
         var liftDrive = Drive(T(-10.15f, f + 1.35f, -23.2f), root);
-        var lift = Machine("The Gear Lift's Clockwork", liftDrive.transform, T(-9.4f, f, -23.2f), 8f, root);
+        // (struck from its deck: the crescent's in its middle, and rides up and down with it)
+        var lift = Machine("The Gear Lift's Clockwork", liftDrive.transform, deck.transform.position, 8f, root, plate: false);
+        lift.strikePoint.SetParent(deck.transform, true);
+        lift.strikeRadius = 1.0f;
         lift.spinners = new[] { new Clockwork.Spinner { part = liftDrive.transform, axis = Vector3.right, speed = 90f } };
-        Marks(lift, new[] { liftDrive, deck, column }, lift.strikePoint);
+        Marks(lift, new[] { deck }, lift.strikePoint);
         var climbs = deck.AddComponent<ClockworkMover>();
         climbs.clockwork = lift;
         climbs.travel = new Vector3(0f, CurtainTop - f, 0f);
@@ -262,7 +265,7 @@ public static partial class MainSceneBuilder
     const float CurtainTop = 5.0f; // (last_hour.py's CURTAIN: the curtain walls' tops, the walk along the west one)
 
     // A machine of the Hall: a Clockwork struck where `strike` is (on the floor by its drive), running `runTime`.
-    static Clockwork Machine(string name, Transform drive, Vector3 strike, float runTime, Transform parent)
+    static Clockwork Machine(string name, Transform drive, Vector3 strike, float runTime, Transform parent, bool plate = true)
     {
         var c = new GameObject(name).AddComponent<Clockwork>();
         c.transform.SetParent(parent, true);
@@ -271,7 +274,8 @@ public static partial class MainSceneBuilder
         c.strikePoint.SetParent(c.transform, true);
         c.strikePoint.position = strike;
         c.strikeRadius = 1.3f;
-        StrikePlate(strike, c.strikePoint);
+        if (plate)
+            StrikePlate(strike, c.strikePoint);
         c.runTime = runTime;
         c.thawRadius = 7f;
         ClockworkSounds(c);
@@ -287,7 +291,8 @@ public static partial class MainSceneBuilder
         return go;
     }
 
-    // Where to aim the Stroke at a machine: a silver ring in the floor (under `parent`, so the machine's own).
+    // Where to use the Stroke on a machine: a silver ring in the floor, the crescent in it (stand on it, or send the
+    // wave at it); under `parent`, so the machine's own.
     static Transform StrikePlate(Vector3 at, Transform parent)
     {
         var go = Place("Environment/last_hour_props_strike_plate", at, 0f);
@@ -299,7 +304,7 @@ public static partial class MainSceneBuilder
         return point;
     }
 
-    // The silver on a machine (its drives, its plates, what it moves) glows when the Stroke can set it running.
+    // A machine's crescents (its plates; a lift's deck) glow when the Stroke can set it running.
     static void Marks(Clockwork c, GameObject[] parts, params Transform[] points)
     {
         foreach (var p in parts)
@@ -489,7 +494,7 @@ public static partial class MainSceneBuilder
         };
         clockwork.thawRadius = 30f;
         ClockworkSounds(clockwork);
-        Marks(clockwork, new[] { pendulum }, clockwork.strikePoint);
+        Marks(clockwork, new GameObject[0], clockwork.strikePoint);
 
         KeepClutter((storey, model, at, yaw) =>
         {
