@@ -62,7 +62,7 @@ public static partial class MainSceneBuilder
         readout.font = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
         tester.readout = readout;
 
-        FinishScene(scene, LastHourLabPath, start, apprentice, "music_last_hour"); // (none yet: silence, and the river)
+        FinishScene(scene, LastHourLabPath, start, apprentice, "music_last_hour_1", "music_last_hour_2"); // The Last Hour: stopped; awake
     }
 
     // The castle round the keep (last_hour.py: courtyard, gatehouse, hall, hall_roof): the walled court before the keep's
