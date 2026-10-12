@@ -102,15 +102,27 @@ public static partial class MainSceneBuilder
             new Storeys.Storey { floor = o.y + f, parts = new[] { hall } },
             new Storeys.Storey { floor = o.y + 99f, parts = new[] { roof } },
         };
-        // Its door: a great gear stood in the doorway, outside; struck at its drive gear (beside it, north) it rolls
-        // aside along its rack, a while, then rolls back and shuts it.
+        // Its door: a great gear stood in the doorway, outside; struck at either of its drives (silver: the Stroke moves
+        // it; one beside it in the court, north, one just inside) it rolls aside along its rack, a while, then rolls back
+        // and shuts it.
         var door = Put("last_hour_props_gear_large", T(15.7f, f + 2.0f, -12.5f));
         door.name = "The Great Hall's Gear Door";
         door.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * door.transform.rotation;
-        var doorDrive = Put("last_hour_props_gear_small", T(15.62f, f + 1.1f, -9.3f));
-        doorDrive.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * doorDrive.transform.rotation;
-        var doorWork = Machine("The Gear Door's Clockwork", doorDrive.transform, T(15.0f, f, -9.3f), 8f, root);
-        doorWork.spinners = new[] { new Clockwork.Spinner { part = doorDrive.transform, axis = Vector3.right, speed = 90f } };
+        var doorDrive = Drive(T(15.55f, f + 1.35f, -9.3f), root);
+        var doorWork = Machine("The Gear Door's Clockwork", doorDrive.transform, T(14.6f, f, -9.3f), 8f, root);
+        var inside = Drive(T(17.05f, f + 1.35f, -9.6f), hall.transform);
+        var inner = new GameObject("The Gear Door's Drive (inside)").AddComponent<ClockworkDrive>();
+        inner.transform.SetParent(doorWork.transform, true);
+        inner.transform.position = inside.transform.position;
+        inner.clockwork = doorWork;
+        inner.strikePoint = StrikePlate(T(18.0f, f, -9.6f), inner.transform);
+        inner.strikeRadius = 1.3f;
+        doorWork.spinners = new[]
+        {
+            new Clockwork.Spinner { part = doorDrive.transform, axis = Vector3.right, speed = 90f },
+            new Clockwork.Spinner { part = inside.transform, axis = Vector3.right, speed = -90f },
+        };
+        Marks(doorWork, new[] { doorDrive, inside }, doorWork.strikePoint, inner.strikePoint);
         var rolls = door.AddComponent<ClockworkMover>();
         rolls.clockwork = doorWork;
         rolls.travel = new Vector3(0f, 0f, -4.2f);
@@ -122,8 +134,8 @@ public static partial class MainSceneBuilder
         // from the tie-beams stopped at their own angles, the orrery at its north end.
         for (float n = -24.4f; n < 2.2f; n += 2.6f)
         {
-            if (n > -15.2f && n < -9.8f)
-                continue;
+            if (n > -15.2f && n < -7.5f)
+                continue; // (the door, and its drive inside)
             Put("last_hour_props_longcase", T(17.15f, f, n), -90f, hall.transform);
         }
         for (float n = -24.4f; n < 2.2f; n += 2.6f)
@@ -163,12 +175,12 @@ public static partial class MainSceneBuilder
         // The gear lift on the court's west side: its toothed column, its deck at the paving's level; its drive gear on
         // the column's far side, struck from the deck: it climbs to the walk along the west wall's top (a cache waits
         // there), a while, then sinks.
-        Put("last_hour_props_lift_column", T(-10.7f, f, -23.2f));
+        var column = Put("last_hour_props_lift_column", T(-10.7f, f, -23.2f));
         var deck = Put("last_hour_props_lift_deck", T(-11.8f, f, -23.2f));
-        var liftDrive = Put("last_hour_props_gear_small", T(-10.2f, f + 1.2f, -23.2f));
-        liftDrive.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * liftDrive.transform.rotation;
-        var lift = Machine("The Gear Lift's Clockwork", liftDrive.transform, T(-9.9f, f, -23.2f), 8f, root);
+        var liftDrive = Drive(T(-10.15f, f + 1.35f, -23.2f), root);
+        var lift = Machine("The Gear Lift's Clockwork", liftDrive.transform, T(-9.4f, f, -23.2f), 8f, root);
         lift.spinners = new[] { new Clockwork.Spinner { part = liftDrive.transform, axis = Vector3.right, speed = 90f } };
+        Marks(lift, new[] { liftDrive, deck, column }, lift.strikePoint);
         var climbs = deck.AddComponent<ClockworkMover>();
         climbs.clockwork = lift;
         climbs.travel = new Vector3(0f, CurtainTop - f, 0f);
@@ -259,10 +271,52 @@ public static partial class MainSceneBuilder
         c.strikePoint.SetParent(c.transform, true);
         c.strikePoint.position = strike;
         c.strikeRadius = 1.3f;
+        StrikePlate(strike, c.strikePoint);
         c.runTime = runTime;
         c.thawRadius = 7f;
         ClockworkSounds(c);
         return c;
+    }
+
+    // A machine's drive: the silver gear the Stroke sets running (stood up, its faces east and west).
+    static GameObject Drive(Vector3 at, Transform parent)
+    {
+        var go = Place("Environment/last_hour_props_drive_gear", at, 0f);
+        go.transform.SetParent(parent, true);
+        go.transform.rotation = Quaternion.Euler(0f, 0f, 90f) * go.transform.rotation;
+        return go;
+    }
+
+    // Where to aim the Stroke at a machine: a silver ring in the floor (under `parent`, so the machine's own).
+    static Transform StrikePlate(Vector3 at, Transform parent)
+    {
+        var go = Place("Environment/last_hour_props_strike_plate", at, 0f);
+        foreach (var col in go.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(col); // (flush with the floor)
+        go.transform.SetParent(parent, true);
+        var point = parent.name.StartsWith("Strike") ? parent : go.transform;
+        go.name = "Strike Plate";
+        return point;
+    }
+
+    // The silver on a machine (its drives, its plates, what it moves) glows when the Stroke can set it running.
+    static void Marks(Clockwork c, GameObject[] parts, params Transform[] points)
+    {
+        foreach (var p in parts)
+        {
+            var mark = p.AddComponent<StrokeMark>();
+            mark.clockwork = c;
+            mark.points = points;
+        }
+        foreach (var point in points)
+        {
+            var plate = point.name == "Strike Plate" ? point : point.Find("Strike Plate");
+            if (plate == null)
+                continue;
+            var mark = plate.gameObject.AddComponent<StrokeMark>();
+            mark.clockwork = c;
+            mark.points = points;
+        }
     }
 
     static void ClockworkSounds(Clockwork c)
@@ -425,6 +479,7 @@ public static partial class MainSceneBuilder
         clockwork.strikePoint.SetParent(clockwork.transform, true);
         clockwork.strikePoint.position = T(-2.7f, F(0), -0.5f);
         clockwork.strikeRadius = 1.2f;
+        StrikePlate(clockwork.strikePoint.position, clockwork.strikePoint);
         clockwork.runTime = 8f;
         clockwork.spinners = turning.ToArray();
         clockwork.swingers = new[]
@@ -434,6 +489,7 @@ public static partial class MainSceneBuilder
         };
         clockwork.thawRadius = 30f;
         ClockworkSounds(clockwork);
+        Marks(clockwork, new[] { pendulum }, clockwork.strikePoint);
 
         KeepClutter((storey, model, at, yaw) =>
         {

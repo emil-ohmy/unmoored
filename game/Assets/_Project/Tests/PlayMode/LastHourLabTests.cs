@@ -133,6 +133,53 @@ namespace MyGame.Tests
             Assert.IsTrue(door.Home, "rolled back: shut again");
         }
 
+        [UnityTest]
+        public IEnumerator TheGearDoor_ShutBehindYou_StruckFromInside_LetsYouOut()
+        {
+            apprentice.GiveStroke();
+            var door = UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => m.name.Contains("Gear Door"));
+            var work = Machine("Gear Door");
+            yield return WalkTo(T(13.0f, 0f, -9.3f), 0.4f, 10f);
+            yield return Stroke(Vector3.right);
+            yield return new WaitForSeconds(2.2f);
+            yield return WalkTo(T(14.4f, 0f, -12.5f), 0.4f, 10f);
+            yield return WalkTo(T(19.4f, 0f, -12.5f));
+            yield return new WaitForSeconds(work.runTime + 2.5f);
+            Assert.IsTrue(door.Home, "shut behind you");
+            yield return WalkTo(T(19.4f, 0f, -9.6f));
+            yield return Stroke(Vector3.left);
+            Assert.IsTrue(work.Running, "the Stroke at its drive inside: it runs");
+            yield return new WaitForSeconds(2.2f);
+            Assert.IsTrue(door.Out, "rolled aside");
+            yield return WalkTo(T(19.0f, 0f, -12.5f));
+            yield return WalkTo(T(13.5f, 0f, -12.5f), 0.4f, 6f);
+            Assert.Less(apprentice.transform.position.x - tower.transform.position.x, 14f, "out in the court again");
+        }
+
+        [UnityTest]
+        public IEnumerator TheMarks_GlowWhenTheStrokeCouldSetTheirMachineRunning()
+        {
+            var lift = Machine("Gear Lift");
+            var marks = UnityEngine.Object.FindObjectsByType<StrokeMark>(FindObjectsSortMode.None).Where(m => m.clockwork == lift).ToArray();
+            Assert.GreaterOrEqual(marks.Length, 4, "its drive, deck, column and plate wear the mark");
+            yield return null;
+            Assert.IsFalse(marks[0].InReach, "without the Stroke");
+            apprentice.GiveStroke();
+            yield return null;
+            Assert.IsFalse(marks[0].InReach, "too far off");
+            Assert.Less(marks[0].Glow, 0.6f);
+            yield return WalkTo(T(-10.5f, 0f, -21.0f));
+            yield return null;
+            Assert.IsTrue(marks[0].InReach, "the Stroke, near enough");
+            float most = 0f;
+            for (float t = 0f; t < 1.2f; t += Time.deltaTime)
+            {
+                most = Mathf.Max(most, marks[0].Glow);
+                yield return null;
+            }
+            Assert.Greater(most, 1.8f, "it brightens, pulsing");
+        }
+
         // The gear lift: onto its deck, the Stroke at its drive (beyond the column), carried up to the west wall's walk;
         // off onto it; the lift sinks back without you.
         [UnityTest]
@@ -295,6 +342,7 @@ namespace MyGame.Tests
                 yield return Stroke(Vector3.right);
                 yield return new WaitForSeconds(1.8f);
                 Shot("last-hour-10-the-gear-door-rolled-aside");
+                yield return At("last-hour-10b-its-drive-inside", T(19.4f, 0.55f, -10.6f), Vector3.left);
                 yield return At("last-hour-11-on-the-lift", T(-11.8f, 0.55f, -23.2f), Vector3.right);
                 yield return Stroke(Vector3.right);
                 yield return new WaitForSeconds(2.8f);

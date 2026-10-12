@@ -25,7 +25,10 @@ dial that turn its hands, on their frame, the arbor running south through the wa
 to the north, its jib out 3 m, a crate hanging from it, stopped), "music_drum" (a great pinned drum and its steel comb),
 "gauge_panel" (pipes along a wall, valves, round gauges; the back to the wall); "lift_deck" (the gear lift's deck,
 1.6 m square, boards in a brass frame, its pinion to the east: origin at the deck's top middle), "lift_column" (its
-toothed column, 6 m, a housing at its head: origin at its foot); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
+toothed column, 6 m, a housing at its head, a lamp: origin at its foot); what the Stroke can move wears the Drowned
+Moon's silver and its crescent (everything else in the Hall is brass): "drive_gear" (a machine's drive, pale silver
+steel, a glowing crescent on its face, lying flat: stood up by the game), "strike_plate" (a silver ring set in the floor,
+a crescent in it: where to aim the Stroke); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
 and its brackets (origin at its west end); (No greenery: nothing grows in it.)"""
 import math
 
@@ -38,7 +41,7 @@ VARIANTS = ["great_wheel", "gear_large", "gear_small", "shaft", "bell_large", "b
             "escapement", "counterweight", "turret", "longcase", "orrery", "pendulum_hall",
             "workbench", "shelf", "crate_gears", "gear_stack", "lathe", "hoist", "mainspring", "hourglass", "chandelier",
             "cart", "fountain", "great_bell", "winding_drum", "dial_train", "crane", "music_drum", "gauge_panel",
-            "lift_deck", "lift_column"]
+            "lift_deck", "lift_column", "drive_gear", "strike_plate"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -93,11 +96,17 @@ def build(variant):
             c = (math.cos(a) * (r - 0.2), 0, math.sin(a) * (r - 0.2))
             parts.append(part("Paddle", kit.cube(), wet, M(c, rot=(0, -math.degrees(a), 0), scale=(0.5, 1.3, 0.06))))
     elif variant == "lift_deck":
-        boards = [m.mat(x) for x in m.PLANKS]
-        for k in range(5):
-            parts.append(m.box("Board", boards[k % 3], -0.8 + k * 0.32 + 0.01, -0.8 + (k + 1) * 0.32 - 0.01, -0.8, 0.8, -0.1, 0.0))
-        for box in ((-0.82, 0.82, -0.82, -0.72), (-0.82, 0.82, 0.72, 0.82), (-0.82, -0.72, -0.72, 0.72), (0.72, 0.82, -0.72, 0.72)):
-            parts.append(m.box("Frame", iron, *box, -0.16, 0.02))
+        # (moved by the Stroke: the Drowned Moon's silver on it, a gear set in its deck, so it never reads as floor)
+        steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")
+        mark = kit.mat("MoonMark_Glow", "#7f9cc4")
+        parts.append(m.box("Plate", kit.mat("DeckIron_Metal", "#4a4d58"), -0.8, 0.8, -0.8, 0.8, -0.1, 0.0))
+        parts += gear(0.62, 14, 0.02, steel, steel, at=M((0, 0, 0.005)))
+        parts.append(part("Hub", kit.cylinder(12, 0.16, 0.03), mark, M((0, 0, 0.02))))
+        for box in ((-0.86, 0.86, -0.86, -0.72), (-0.86, 0.86, 0.72, 0.86), (-0.86, -0.72, -0.72, 0.72), (0.72, 0.86, -0.72, 0.72)):
+            parts.append(m.box("Frame", steel, *box, -0.16, 0.08))
+        for e in (-0.79, 0.79):
+            for n in (-0.79, 0.79):
+                parts.append(part("Corner", kit.sphere(6, 4, 0.06), mark, M(G(e, n, 0.1))))
         parts += gear(0.32, 10, 0.08, brass_web, iron, at=M(G(0.95, 0, -0.1), rot=(90, 0, 0)))   # the pinion on the column's rack
         for n in (-0.6, 0.6):
             parts.append(m.box("Strut", iron, 0.72, 0.82, n - 0.05, n + 0.05, -0.6, -0.1))
@@ -113,6 +122,31 @@ def build(variant):
         parts.append(m.box("Housing", iron, -0.3, 0.3, -0.35, 0.35, 6.0, 6.5))
         parts += gear(0.45, 10, 0.08, brass_web, iron, at=M(G(0, -0.4, 6.25), rot=(90, 0, 0)))
         parts.append(part("Cap", kit.cone(8, 0.35, 0.05, 0.5), gilt, M((0, 0, 6.75))))
+        parts.append(part("Lamp", kit.sphere(8, 6, 0.16), kit.mat("MoonMark_Glow", "#7f9cc4"), M(G(-0.42, 0, 5.6))))
+        parts.append(part("LampCage", kit.cylinder(8, 0.2, 0.04), iron, M(G(-0.42, 0, 5.78))))
+    elif variant == "drive_gear":
+        steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")
+        web = kit.mat("StrokeSteelWeb_Metal", "#a9b4c6")
+        mark = kit.mat("MoonMark_Glow", "#7f9cc4")
+        parts += gear(1.1, 16, 0.3, web, steel)
+        # The crescent on both faces, glowing.
+        for z in (0.17, -0.17):
+            pts = []
+            for k in range(13):
+                a = math.radians(-100 + k * 200 / 12)
+                pts.append((math.cos(a) * 0.55, math.sin(a) * 0.55, z))
+            parts.append(part("Crescent", kit.tube(pts, [0.04 + 0.08 * math.sin(math.pi * k / 12) for k in range(13)], seg=6), mark))
+            parts.append(part("Boss", kit.cylinder(12, 0.2, 0.06), mark, M((0, 0, z))))
+    elif variant == "strike_plate":
+        steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")
+        mark = kit.mat("MoonMark_Glow", "#7f9cc4")
+        for k in range(24):
+            a0, a1 = 2 * math.pi * k / 24, 2 * math.pi * (k + 1) / 24
+            p0 = (math.cos(a0) * 0.72, math.sin(a0) * 0.72, 0.02)
+            p1 = (math.cos(a1) * 0.72, math.sin(a1) * 0.72, 0.02)
+            parts.append(part("Ring", kit.cube(), steel, kit.along(p0, p1) @ kit.M(scale=(0.1, 0.04, math.dist(p0, p1) + 0.02))))
+        pts = [(math.cos(math.radians(-100 + k * 200 / 12)) * 0.4, math.sin(math.radians(-100 + k * 200 / 12)) * 0.4, 0.02) for k in range(13)]
+        parts.append(part("Crescent", kit.tube(pts, [0.03 + 0.06 * math.sin(math.pi * k / 12) for k in range(13)], seg=6), mark))
     elif variant == "great_bell":
         # The frame: two A-frames either side, a beam across; the bell in its yoke between them.
         for e in (-1.6, 1.6):
@@ -213,10 +247,16 @@ def build(variant):
                   part("Clapper", kit.sphere(8, 6, r * 0.18), iron, M((0, 0, -0.7 - h + 0.05)))]
     elif variant == "pendulum":
         length = 13.0
+        # (the Stroke sets it swinging: the Drowned Moon's silver on its bob, the crescent on both faces)
+        steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")
+        mark = kit.mat("MoonMark_Glow", "#7f9cc4")
         parts += [part("Pivot", kit.cylinder(10, 0.14, 0.9), iron, M((0, 0, 0), rot=(90, 0, 0))),
-                  part("Rod", kit.cube(), iron, M((0, 0, -length / 2), scale=(0.12, 0.08, length))),
-                  part("Bob", kit.cylinder(24, 0.85, 0.22), bronze, M((0, 0, -length), rot=(90, 0, 0))),
-                  part("BobRim", kit.cylinder(24, 0.9, 0.12), iron, M((0, 0, -length), rot=(90, 0, 0)))]
+                  part("Rod", kit.cube(), iron, M((0, 0, -length / 2), scale=(0.14, 0.1, length))),
+                  part("Bob", kit.cylinder(28, 1.15, 0.26), steel, M((0, 0, -length), rot=(90, 0, 0))),
+                  part("BobRim", kit.cylinder(28, 1.2, 0.14), iron, M((0, 0, -length), rot=(90, 0, 0)))]
+        for y in (0.15, -0.15):
+            pts = [(math.cos(math.radians(-100 + k * 200 / 12)) * 0.6, y, -length + math.sin(math.radians(-100 + k * 200 / 12)) * 0.6) for k in range(13)]
+            parts.append(part("Crescent", kit.tube(pts, [0.05 + 0.09 * math.sin(math.pi * k / 12) for k in range(13)], seg=6), mark))
     elif variant == "dial":
         stone = m.mat(m.CAP)
         glass = kit.mat("DialEnamel_Glow", "#3a3426")   # (cream enamel, lit faintly from within)
