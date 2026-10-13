@@ -170,6 +170,9 @@ public static partial class MainSceneBuilder
 
         // The court's clutter (nothing grows here): the fountain, its water held in the air; a cart of gears; crates;
         // spare wheels against the hall's wall; a mainspring on its cradle; an hourglass, its sand caught falling.
+        // Two of the household's hounds keep the court, by the hall's door.
+        foreach (var e in new[] { 9.0f, 11.5f })
+            Wound("Wound", T(e, f, -11.5f), 180f);
         Put("last_hour_props_fountain", T(6f, f, -21f));
         FountainWater(root, T(6f, f, -21f));
         Put("last_hour_props_cart", T(9.4f, f, -25.0f), 0f);

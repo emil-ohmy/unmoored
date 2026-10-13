@@ -29,11 +29,14 @@ namespace MyGame.Tests
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
             tower = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name.Contains("keep"));
-            // The household keeps out of every test but its own (one of the pair, then, on its own).
-            var household = UnityEngine.Object.FindObjectsByType<Punctual>(FindObjectsSortMode.None).OrderBy(p => p.transform.position.x).ToArray();
-            bool theirs = TestContext.CurrentContext.Test.Name.StartsWith("Punctual");
-            for (int i = theirs ? 1 : 0; i < household.Length; i++)
-                UnityEngine.Object.Destroy(household[i].gameObject);
+            // The household keeps out of every test but its own kind's (one of each pair, then, on its own).
+            foreach (var kind in new[] { typeof(Punctual), typeof(Wound) })
+            {
+                var household = UnityEngine.Object.FindObjectsByType(kind, FindObjectsSortMode.None).Cast<Component>().OrderBy(c => c.transform.position.x).ToArray();
+                bool theirs = TestContext.CurrentContext.Test.Name.StartsWith(kind.Name);
+                for (int i = theirs ? 1 : 0; i < household.Length; i++)
+                    UnityEngine.Object.Destroy(household[i].gameObject);
+            }
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -302,6 +305,167 @@ namespace MyGame.Tests
                 p.Stun();
                 yield return new WaitForSeconds(p.stunDuration + 0.3f);
                 Shot("punctual-4-lost-count");
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+            }
+        }
+
+        // ---- The Wound
+
+        Wound TheWound => UnityEngine.Object.FindAnyObjectByType<Wound>();
+
+        // (bitten while the test waits: kept on its feet)
+        void KeepAlive()
+        {
+            if (apprentice.Health < apprentice.maxHealth * 0.5f)
+                apprentice.RestoreFully();
+        }
+
+        Wound FaceTheWound(float distance = 4f)
+        {
+            var w = TheWound;
+            Assert.IsNotNull(w, "a hound keeps the court");
+            Vector3 at = w.transform.position + w.transform.forward * distance;
+            apprentice.Teleport(new Vector3(at.x, w.transform.position.y + 0.05f, at.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-w.transform.forward);
+            return w;
+        }
+
+        [UnityTest]
+        public IEnumerator Wound_RunsDown_Slowing_SitsToWind_ThenRunsAgain()
+        {
+            var w = FaceTheWound();
+            w.runTime = 3f; // (quicker to run down, for the test)
+            float fastest = 0f, slowest = 9f;
+            for (float t = 0f; t < 10f && !w.Winding; t += Time.deltaTime)
+            {
+                KeepAlive();
+                if (w.CurrentState == Soured.State.Chase)
+                {
+                    fastest = Mathf.Max(fastest, w.Speed);
+                    slowest = Mathf.Min(slowest, w.Speed);
+                }
+                yield return null;
+            }
+            Assert.IsTrue(w.Winding, "run down, it sits to wind itself");
+            Assert.Greater(fastest, 1f, "wound tight, quick");
+            Assert.Less(slowest, 0.5f, "running down, slow");
+            for (float t = 0f; t < 4f && w.Winds == 0; t += Time.deltaTime)
+            {
+                KeepAlive();
+                yield return null;
+            }
+            Assert.AreEqual(1, w.Winds, "wound again");
+            Assert.AreEqual(1f, w.Tension, 0.05f);
+        }
+
+        [UnityTest]
+        public IEnumerator Wound_StruckWhileWinding_StartsAgain()
+        {
+            var w = FaceTheWound();
+            w.runTime = 2f;
+            for (float t = 0f; t < 10f && !w.Winding; t += Time.deltaTime)
+            {
+                KeepAlive();
+                yield return null;
+            }
+            Assert.IsTrue(w.Winding);
+            float started = Time.time;
+            yield return new WaitForSeconds(1.2f);
+            w.TakeHit(new Hit { Damage = 1f, From = apprentice.transform.position, Knockback = Vector3.zero, Stagger = 999f });
+            for (float t = 0f; t < 6f && w.Winds == 0; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(1, w.Winds);
+            Assert.Greater(Time.time - started, w.windTime + 1.2f, "struck, it had to start winding over");
+        }
+
+        [UnityTest]
+        public IEnumerator Wound_TheStroke_KnocksItsKeyLoose_RunsDownAtOnce()
+        {
+            var w = FaceTheWound(11.5f); // (as soon as it sees you: it closes nine metres in about a second)
+            w.immortal = true; // (the charged blow and the wave together can scatter it outright; here it must see its key go)
+            apprentice.GiveStroke();
+            Assert.Greater(w.Tension, 0.9f);
+            // Drawn as it comes (it's quick), let go when it's close.
+            apprentice.transform.rotation = Quaternion.LookRotation((w.transform.position - apprentice.transform.position).Flat());
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            bool everCharged = false;
+            float nearest = 99f;
+            for (float t = 0f; t < 4f && !(apprentice.StrokeCharged && Vector3.Distance(w.transform.position, apprentice.transform.position) < 4.5f); t += Time.deltaTime)
+            {
+                everCharged |= apprentice.StrokeCharged;
+                nearest = Mathf.Min(nearest, Vector3.Distance(w.transform.position, apprentice.transform.position));
+                apprentice.transform.rotation = Quaternion.LookRotation((w.transform.position - apprentice.transform.position).Flat());
+                yield return null;
+            }
+            Assert.IsTrue(apprentice.StrokeCharged, $"charged (ever {everCharged}, nearest {nearest:0.0} m, it {w.CurrentState}, the Apprentice {apprentice.LastEvent}, health {apprentice.Health})");
+            input.HeavyHeld = false;
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(w.KeyLoose || w.Winding || w.Winds > 0, $"the wave reached it (it {w.CurrentState}, health {w.Health}, tension {w.Tension:0.00}, {Vector3.Distance(w.transform.position, apprentice.transform.position):0.0} m; the Apprentice {apprentice.Health}, wave {(apprentice.LastWave != null)})");
+            Assert.Less(w.Tension, 0.05f, "its key knocked loose: run down at once");
+            for (float t = 0f; t < 4f && !w.Winding; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(w.Winding, "and it sits to wind");
+        }
+
+        // (SHOTS=dir) The Wound: keeping the court; running at you; the pounce; run down, winding.
+        [UnityTest]
+        public IEnumerator Wound_Capture()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var w = TheWound;
+                w.immortal = true;
+                w.runTime = 4f;
+                Vector3 post = w.transform.position, south = Vector3.back; // (it keeps the court facing south)
+                apprentice.Teleport(post + new Vector3(2.5f, 0.05f, -1.5f), true, true);
+                CameraRig.Instance?.SetZoom(0.7f);
+                yield return new WaitForSeconds(0.1f);
+                Shot("wound-0-keeping-the-court");
+                apprentice.Teleport(post + south * 8f + Vector3.up * 0.05f, true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(-south);
+                for (float t = 0f; t < 3f && w.CurrentState != Soured.State.Chase; t += Time.deltaTime)
+                    yield return null;
+                yield return new WaitForSeconds(0.25f);
+                Shot("wound-1-running-at-you");
+                for (float t = 0f; t < 3f && !(w.CurrentState == Soured.State.Strike && w.CurrentAttack == w.pounce); t += Time.deltaTime)
+                {
+                    KeepAlive();
+                    yield return null;
+                }
+                yield return new WaitForSeconds(0.12f);
+                Shot("wound-2-the-pounce");
+                for (float t = 0f; t < 8f && !w.Winding; t += Time.deltaTime)
+                {
+                    KeepAlive();
+                    yield return null;
+                }
+                yield return new WaitForSeconds(0.8f);
+                Vector3 front = w.transform.position + Vector3.back * 2.5f;
+                apprentice.Teleport(new Vector3(front.x, w.transform.position.y + 0.05f, front.z), true, true);
+                yield return new WaitForSeconds(0.1f);
+                Shot("wound-3-winding");
             }
             finally
             {

@@ -12,6 +12,10 @@ namespace MyGame
 
         public string Current { get; private set; } = "";
 
+        // Every clip played this much faster or slower (a Wound running down: everything about it slows).
+        public float Tempo { get; private set; } = 1f;
+        float baseSpeed = 1f; // (the clip now playing: its own speed, before the tempo)
+
         public ClipPlayer(Animation animation)
         {
             this.animation = animation;
@@ -30,7 +34,8 @@ namespace MyGame
                 return;
             var state = animation[full];
             state.wrapMode = WrapMode.Loop;
-            state.speed = 1f;
+            baseSpeed = 1f;
+            state.speed = Tempo;
             animation.CrossFade(full, fade);
             Current = clip;
         }
@@ -39,7 +44,17 @@ namespace MyGame
         public void SetLoopSpeed(float speed)
         {
             if (fullNames.TryGetValue(Current, out var full) && animation[full].wrapMode == WrapMode.Loop)
-                animation[full].speed = speed;
+            {
+                baseSpeed = speed;
+                animation[full].speed = speed * Tempo;
+            }
+        }
+
+        public void SetTempo(float tempo)
+        {
+            Tempo = tempo;
+            if (fullNames.TryGetValue(Current, out var full))
+                animation[full].speed = baseSpeed * tempo;
         }
 
         // (from: where in the clip to start, 0..1: a swing picked up partway)
@@ -49,7 +64,8 @@ namespace MyGame
                 return;
             var state = animation[full];
             state.wrapMode = WrapMode.ClampForever;
-            state.speed = duration > 0f ? state.length / duration : 1f;
+            baseSpeed = duration > 0f ? state.length / duration : 1f;
+            state.speed = baseSpeed * Tempo;
             state.time = from * state.length;
             if (Current == clip)
                 animation.Play(full);

@@ -76,7 +76,11 @@ namespace MyGame
             "The household of the Hall, still keeping its hours. Where the heart was, a watch has grown; it does nothing that isn't on the beat.",
             "Listen: every blow lands on the tick. Block one right on the beat and it loses count, and stands lost until it finds the bar again.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual };
+        public static readonly LedgerEntry Wound = new LedgerEntry("wound", "The Wound", Rank.Soured, LastHour, "wound",
+            "The household's hounds. They wanted more time, and were given it a turn of a key at a time: they run as they did when they were young, run down, and wind themselves again.",
+            "Outlast it: it slows as it runs down, and sits to wind its key. That's the time. The Stroke knocks the key loose.");
+
+        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -96,6 +100,7 @@ namespace MyGame
             MyGame.Gleaner _ => Gleaners,
             MyGame.Thresher _ => Threshers,
             MyGame.Punctual _ => Punctual,
+            MyGame.Wound _ => Wound,
             _ => null,
         };
 

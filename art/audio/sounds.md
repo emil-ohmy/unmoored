@@ -143,3 +143,11 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | The Quarters' notes (`punctual_quarter`, 4) | in game | Synth | small bells from its chest, one per blow, played true (no pitch varied): G5, F#5, E5, B4 (the Hall's quarter chime an octave up); the last rings longest |
 | A Punctual losing count (`punctual_lost`) | in game | Synth | its spring slipping: a ratchet running down, a mainspring's twang, stray ticks |
 | A Punctual finding the beat (`punctual_found`) | in game | Synth | on the first of a bar: one firm tick and a small bell (E6) |
+| A Wound's spring running (`wound_whirr`) | in game | Synth | a seamless 1 s loop: a quick dry ratchet and a thin humming spring; the game pitches it with the hound's pace (low as it runs down) |
+| A Wound's bite tell (`wound_growl`, 2) | in game | Synth | 0.4 s: a growl through gears, a toothed rasp rising |
+| A Wound's bite (`wound_bite`, 3) | in game | Synth | iron jaws snapping shut: a clack and a short metal ring (the pounce, pitched down) |
+| A Wound's pounce tell (`wound_gather`) | in game | Synth | 0.5 s: the spring drawn tight, a rising creak over held clicks |
+| A Wound running down (`wound_rundown`) | in game | Synth | its whirr slowing, the clicks spreading out to the last, a sigh of air |
+| A Wound winding (`wound_wind`) | in game | Synth | 2.5 s: four turns of the key, each a run of ratchet clicks and a creak, each a little higher |
+| A Wound wound tight (`wound_wound`) | in game | Synth | the key's last click, the spring caught (a bright twang), its whirr starting up |
+| A Wound's key knocked loose (`wound_loose`) | in game | Synth | the Stroke: a hard ping, the spring let go all at once (a ratchet spinning out), a wobbling twang |

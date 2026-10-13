@@ -128,6 +128,7 @@ public static partial class MainSceneBuilder
         var gleaner = Template(Gleaner("Gleaner", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         var thresher = Template(Thresher("Thresher", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         var punctual = Template(Punctual("Punctual", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
+        var wound = Template(Wound("Wound", new Vector3(0f, QuayTop, 0f), 0f).gameObject);
         spawner.kinds = new[]
         {
             new LabSpawner.Kind { name = "Laden", template = laden },
@@ -139,6 +140,7 @@ public static partial class MainSceneBuilder
             new LabSpawner.Kind { name = "Gleaner", template = gleaner },
             new LabSpawner.Kind { name = "Thresher", template = thresher },
             new LabSpawner.Kind { name = "Punctual", template = punctual },
+            new LabSpawner.Kind { name = "Wound", template = wound },
         };
         return spawner;
     }

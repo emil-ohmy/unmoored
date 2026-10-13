@@ -802,6 +802,55 @@ public static partial class MainSceneBuilder
         return p;
     }
 
+    // A Wound (the Hall of the Last Hour): one of the household's hounds, a wind-up key in its back. Fast and biting while
+    // it's wound; it runs down, slowing, and sits to wind itself again; the Stroke knocks its key loose.
+    static Wound Wound(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/wound", position, yaw);
+        go.name = name;
+        go.transform.localScale = Vector3.one * 1.2f; // (a big hound: read from the camera's height)
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.45f, 0f);
+        controller.height = 0.9f;
+        controller.radius = 0.32f;
+        controller.minMoveDistance = 0f;
+        var w = go.AddComponent<Wound>();
+        w.maxHealth = 55f;
+        w.radius = 0.4f;
+        w.staggerCapacity = 30f;
+        w.staggerDuration = 0.8f;
+        w.aggroRadius = 12f;
+        w.viewHalfAngle = 100f;
+        w.noticeCloseRadius = 4f;
+        w.chaseSpeed = 6.0f;
+        w.turnSpeed = 600f;
+        w.leashRadius = 18f;
+        w.giveUpRange = 20f;
+        w.attackRange = 1.5f;
+        w.obols = 35;
+        w.eyeHeight = 0.9f;
+        w.barHeight = 1.3f;
+        w.primary = new SouredAttack
+        {
+            name = "Bite", windupClip = "Crouch", strikeClip = "Bite", recoverClip = "BiteRecover",
+            telegraph = 0.32f, strike = 0.2f, recover = 0.3f, impactAt = 0.6f,
+            lunge = 0.6f, maxLunge = 1.8f, trackUntil = 0.7f, damage = 9f, reach = 1.5f, arc = 50f, knockback = 3f,
+            windupSound = Clips("wound_growl"), swingSound = Clips("wound_bite"),
+        };
+        w.pounce.windupSound = Clips("wound_gather");
+        w.pounce.swingSound = Clips("wound_bite");
+        w.pounce.swingPitch = 0.85f;
+        w.key = Bone(go, "Key");
+        var whirr = Clips("wound_whirr");
+        w.whirr = whirr.Length > 0 ? whirr[0] : null;
+        w.runDownSound = Clips("wound_rundown");
+        w.windSound = Clips("wound_wind");
+        w.woundSound = Clips("wound_wound");
+        w.looseSound = Clips("wound_loose");
+        BeltLantern(go, w, "Neck");
+        return w;
+    }
+
     // A ball of fire (the Watchman's, a Gleaner's): glowing orange, no outline.
     static Material FireballMaterial()
     {
