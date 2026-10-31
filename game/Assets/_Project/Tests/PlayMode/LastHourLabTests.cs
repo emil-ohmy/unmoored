@@ -29,12 +29,14 @@ namespace MyGame.Tests
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
             tower = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name.Contains("keep"));
-            // The household keeps out of every test but its own kind's (one of each pair, then, on its own).
+            // The household keeps out of every test but its own kind's (one of each pair, then, on its own; both, in a
+            // test of the pair).
             foreach (var kind in new[] { typeof(Punctual), typeof(Wound), typeof(Keener) })
             {
                 var household = UnityEngine.Object.FindObjectsByType(kind, FindObjectsSortMode.None).Cast<Component>().OrderBy(c => c.transform.position.x).ToArray();
-                bool theirs = TestContext.CurrentContext.Test.Name.StartsWith(kind.Name);
-                for (int i = theirs ? 1 : 0; i < household.Length; i++)
+                string test = TestContext.CurrentContext.Test.Name;
+                bool theirs = test.StartsWith(kind.Name);
+                for (int i = !theirs ? 0 : test.Contains("Pair") ? household.Length : 1; i < household.Length; i++)
                     UnityEngine.Object.Destroy(household[i].gameObject);
             }
             yield return new WaitForSeconds(0.3f);
@@ -503,7 +505,7 @@ namespace MyGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator Keener_DrawsBreath_ThenTollsThreeRings_HalfASecondApart()
+        public IEnumerator Keener_DrawsBreath_ThenTollsThreeRings_CloseBehindOneAnother()
         {
             var k = FaceTheKeener(7f);
             var rang = new System.Collections.Generic.List<float>();
@@ -523,26 +525,52 @@ namespace MyGame.Tests
             finally { Keener.Rang -= Heard; }
         }
 
+        // Stood still in its path: the band of three knocks you back once (its rings strike as one).
         [UnityTest]
-        public IEnumerator Keener_ARing_KnocksYouBack_WhereItsCrestPasses()
+        public IEnumerator Keener_TheBand_KnocksYouBack_Once()
         {
             var k = FaceTheKeener(6f);
-            yield return Until(() => k.LastRing != null, 4f, "the knell");
-            var ring = k.LastRing;
-            yield return Until(() => ring == null || ring.Struck, 3f, "the ring reaching you");
-            Assert.AreEqual(apprentice.maxHealth - k.ringDamage, apprentice.Health, 0.01f, "struck by the ring");
+            yield return Until(() => k.Rings >= 3, 4f, "the knell's three rings");
+            var last = k.LastRing;
+            yield return Until(() => last == null || last.Struck, 3f, "the band passing you");
+            Assert.AreEqual(apprentice.maxHealth - k.ringDamage, apprentice.Health, 0.01f, "struck once, not three times");
         }
 
+        // One dash through the band's first crest takes you through all three.
         [UnityTest]
-        public IEnumerator Keener_ARing_DashedThrough_DoesNoHarm()
+        public IEnumerator Keener_TheBand_DashedThrough_DoesNoHarm()
         {
             var k = FaceTheKeener(6f);
             yield return Until(() => k.LastRing != null, 4f, "the knell");
             var ring = k.LastRing;
             yield return Until(() => ring.Radius >= FlatDistance(apprentice.transform.position, ring.transform.position) - 0.9f, 3f, "the crest arriving");
             input.PressDash(); // (in, through it)
-            yield return Until(() => ring == null || ring.Struck, 1f, "the crest passing");
+            yield return Until(() => k.Rings >= 3, 1f, "the band's last ring");
+            var last = k.LastRing;
+            yield return Until(() => last == null || last.Struck, 2f, "the band passing");
             Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "dashed through: unharmed");
+        }
+
+        // Two mourners keen in turn: never both at once, each answering the other.
+        [UnityTest]
+        public IEnumerator Keener_APair_KeensInTurn()
+        {
+            var pair = UnityEngine.Object.FindObjectsByType<Keener>(FindObjectsSortMode.None);
+            Assert.AreEqual(2, pair.Length, "a pair keeps the hall");
+            Vector3 between = (pair[0].transform.position + pair[1].transform.position) / 2f + pair[0].transform.forward * 5f;
+            apprentice.Teleport(new Vector3(between.x, pair[0].transform.position.y + 0.05f, between.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-pair[0].transform.forward);
+            var order = new System.Collections.Generic.List<Keener>();
+            for (float t = 0f; t < 12f; t += Time.deltaTime)
+            {
+                KeepAlive();
+                Assert.IsFalse(pair[0].Keening && pair[1].Keening, "both keening at once");
+                foreach (var k in pair)
+                    if (k.Keening && (order.Count == 0 || order[order.Count - 1] != k))
+                        order.Add(k);
+                yield return null;
+            }
+            Assert.GreaterOrEqual(order.Count, 3, "each answering the other");
         }
 
         [UnityTest]

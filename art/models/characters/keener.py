@@ -7,8 +7,8 @@ belt, like every Soured's.
 
 Clips (30 fps): Idle (3 s: head bowed over the watch held to its chest, swaying), Walk (2 s: a glide, its skirts
 swinging), Breath (1.2 s: the knell's tell: it rises, head thrown back, the watch lifted high, the other arm flung
-out), Toll (1.2 s: the knell: thrown forward over the watch, a shudder at each of its three rings, at 0.18 s, 0.63 s
-and 1.08 s), Recover (1.4 s: spent, bowed low, arms hanging, then back to the watch), Stagger, Death (a last look up,
+out), Toll (1.2 s: the knell: thrown forward, the watch held out, a shudder at each of its three rings, at 0.18 s,
+0.38 s and 0.58 s, then held), Recover (1.4 s: spent, bowed low, arms hanging, then back to the watch), Stagger, Death (a last look up,
 then it folds down into its crape and falls forward).
 """
 import math
@@ -59,9 +59,9 @@ ACTIONS = {
     "Idle": ("BEZIER", [(1, MOURN_SWAY_L), (46, MOURN_SWAY_R), (91, MOURN_SWAY_L)]),
     "Walk": ("BEZIER", [(1, GLIDE_L), (16, GLIDE_M), (31, GLIDE_R), (46, GLIDE_M), (61, GLIDE_L)]),
     "Breath": ("BEZIER", [(1, MOURN), (14, with_(BREATH_IN, Head=(-10, 0, 0))), (30, BREATH_FULL), (37, BREATH_FULL)]),
-    # A shudder at each ring: frames 6, 20, 33 (0.18 s, 0.63 s, 1.08 s).
-    "Toll": ("BEZIER", [(1, BREATH_FULL), (6, WAIL_DEEP), (13, WAIL), (20, WAIL_DEEP), (27, WAIL), (33, WAIL_DEEP),
-                        (37, WAIL_DEEP)]),
+    # A shudder at each ring of the band: frames 6, 12, 18 (0.18 s, 0.38 s, 0.58 s); then held, keening.
+    "Toll": ("BEZIER", [(1, BREATH_FULL), (6, WAIL_DEEP), (9, WAIL), (12, WAIL_DEEP), (15, WAIL), (18, WAIL_DEEP),
+                        (28, with_(WAIL_DEEP, Spine=(34, 0, 0))), (37, WAIL_DEEP)]),
     "Recover": ("BEZIER", [(1, WAIL_DEEP), (12, SPENT), (30, with_(SPENT, Spine=(30, 0, 0))), (43, MOURN)]),
     "Stagger": ("BEZIER", [(1, MOURN), (5, {"Spine": (-20, 0, 10), "Head": (-14, 0, 0), "ArmL": (-60, 0, 30),
                                             "ArmR": (-20, -40, 0), "Skirt": (8, 0, 0), "Root": ((0, 0, 0), (0, 0.12, 0))}),

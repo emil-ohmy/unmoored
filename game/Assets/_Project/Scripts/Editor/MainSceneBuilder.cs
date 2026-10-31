@@ -852,7 +852,7 @@ public static partial class MainSceneBuilder
     }
 
     // A Keener (the Hall of the Last Hour): a mourner in black crape, the stopped watch in its hand. Keeps its distance;
-    // draws breath, then tolls a knell: three rings of sound across the floor, dashed through. Fragile.
+    // draws breath, then tolls a knell: a band of three rings across the floor, dashed through. Pairs keen in turn. Fragile.
     static Keener Keener(string name, Vector3 position, float yaw)
     {
         var go = Place("Characters/keener", position, yaw);
@@ -883,9 +883,10 @@ public static partial class MainSceneBuilder
             name = "Knell", windupClip = "Breath", strikeClip = "Toll", recoverClip = "Recover",
             telegraph = 1.2f, strike = 1.2f, recover = 1.4f, impactAt = 0.15f,
             lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 10f, arc = 180f, knockback = 0f,
-            ranged = true, volley = 3, volleyInterval = 0.45f, volleyTrack = 20f,
-            windupSound = Clips("keener_breath"), releaseSound = Clips("keener_knell"),
+            ranged = true, volley = 3, volleyInterval = 0.2f, volleyTrack = 0f, // (one band: three pulses about a metre apart)
+            windupSound = Clips("keener_breath"),
         };
+        k.knellSound = Clips("keener_knell");
         k.deathSound = Clips("keener_death");
         BeltLantern(go, k);
         return k;
