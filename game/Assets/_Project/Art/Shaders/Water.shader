@@ -93,9 +93,13 @@ Shader "MyGame/Water"
                 return s;
             }
 
+            half _HallStillContrast; // (the grey a little harder: an old photograph)
+
             half3 Stilled(half3 colour, half still)
             {
-                return lerp(colour, dot(colour, half3(0.3, 0.59, 0.11)) * _HallStillTint.rgb, still);
+                half l = dot(colour, half3(0.3, 0.59, 0.11));
+                l = max(0.0, 0.18 + (l - 0.18) * _HallStillContrast);
+                return lerp(colour, l * _HallStillTint.rgb, still);
             }
 
             struct Attributes
@@ -187,7 +191,7 @@ Shader "MyGame/Water"
                 Light light = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
                 half lit = smoothstep(0.35, 0.65, light.shadowAttenuation) * smoothstep(0.0, 0.1, dot(normalWS, light.direction));
                 half still = HallStillness(input.positionWS);
-                half3 albedo = Stilled(lerp(water, _FoamColor.rgb, foam), still);
+                half3 albedo = lerp(water, _FoamColor.rgb, foam);
                 half3 color = albedo * lerp(_ShadowTint.rgb, 1.0, lit) * light.color * 0.85 + albedo * SampleSH(normalWS) * 0.35;
 
                 // The night sky on the surface: a cold sheen the ripples break up, and crisp glints where they catch it.
@@ -195,7 +199,7 @@ Shader "MyGame/Water"
                 half fresnel = pow(1.0 - saturate(dot(normalWS, viewWS)), 3.0);
                 half sheen = smoothstep(0.85, 0.99, facing);
                 half glint = step(_GlintThreshold, facing) * (1.0 - foam);
-                color += Stilled(_SkyColor.rgb, still) * (0.2 + fresnel + 0.25 * sheen) * (1.0 - foam) + _GlintColor.rgb * glint * lerp(0.35, 1.0, lit);
+                color += _SkyColor.rgb * (0.2 + fresnel + 0.25 * sheen) * (1.0 - foam) + _GlintColor.rgb * glint * lerp(0.35, 1.0, lit);
 
             #if defined(_ADDITIONAL_LIGHTS)
                 // Lantern reflections: a glint on the water close to each light.
@@ -214,7 +218,7 @@ Shader "MyGame/Water"
                 LIGHT_LOOP_END
             #endif
 
-                return half4(MixFog(color, input.fogFactor), 1.0);
+                return half4(Stilled(MixFog(color, input.fogFactor), still), 1.0); // (time stopped: all of it grey)
             }
             ENDHLSL
         }

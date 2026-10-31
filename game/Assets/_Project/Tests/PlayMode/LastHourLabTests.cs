@@ -862,6 +862,9 @@ namespace MyGame.Tests
         public IEnumerator TheHallsTime_SetGoing_TheColourComesBackInAWave_TheMusicWakes()
         {
             var time = HallTime.Instance;
+            var moon = RenderSettings.sun;
+            Color cold = moon.color;
+            Assert.AreEqual(0f, time.Warmth, 0.001f, "stopped: the cold light");
             time.Run();
             yield return new WaitForSeconds(1f);
             Vector3 c = time.WaveCentre;
@@ -873,9 +876,13 @@ namespace MyGame.Tests
             yield return null;
             Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallWaveOn"), 0.001f, "done: colour everywhere");
             Assert.IsTrue(UnityEngine.Object.FindAnyObjectByType<MusicPlayer>().Woken, "the music woken");
+            Assert.AreEqual(1f, time.Warmth, 0.001f, "the light all warmed");
+            Assert.Less(moon.color.b, cold.b - 0.02f, "a (touch) warmer moon");
             time.Stop();
             yield return new WaitForSeconds(time.stopFade + 0.2f);
             Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallStill"), 0.001f, "held still again: grey again");
+            Assert.AreEqual(0f, time.Warmth, 0.001f, "and the cold light again");
+            Assert.AreEqual(cold, moon.color);
         }
 
         // The court's dust (the one the Apprentice starts in).

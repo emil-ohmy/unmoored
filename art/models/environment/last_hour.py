@@ -266,6 +266,32 @@ def wainscot(parts, storey, brass, openings):
             parts.append(m.box("Band", brass, *box, u0 + b, u0 + b + 0.16))
 
 
+def marble(parts, e0, e1, n0, n1, top, aisle, size=1.2):
+    """The great hall's floor: marble squares, deep green and cream, laid square to its walls over a grout bed; down
+    its aisle a crimson runner with gilt edges, under the rack. (Seen from above, the floor is most of the hall.)"""
+    green, cream = kit.mat("HallMarbleGreen", "#2f6a58"), kit.mat("HallMarbleCream", "#e3d7b8")
+    crimson, gilt = kit.mat("HallRunner", "#8e2a2e"), kit.mat("HallRunnerGilt", "#c9a24a")
+    parts.append(m.box("Bed", m.mat(m.GROUT), e0, e1, n0, n1, top - 0.2, top - 0.03))
+    i = 0
+    e = e0
+    while e < e1 - 0.05:
+        hi = min(e + size, e1)
+        j = 0
+        n = n0
+        while n < n1 - 0.05:
+            nh = min(n + size, n1)
+            parts.append(m.box("Marble", green if (i + j) % 2 else cream, e + 0.015, hi - 0.015, n + 0.015, nh - 0.015, top - 0.06, top))
+            n = nh
+            j += 1
+        e = hi
+        i += 1
+    half = 1.3
+    parts.append(m.box("Runner", crimson, aisle - half, aisle + half, n0 + 0.6, n1 - 0.6, top - 0.01, top + 0.015))
+    for side in (-1, 1):
+        a = aisle + side * (half - 0.08)
+        parts.append(m.box("RunnerEdge", gilt, a - 0.07, a + 0.07, n0 + 0.62, n1 - 0.62, top - 0.005, top + 0.02))  # (clear of its faces)
+
+
 def build(variant):
     m.last_hour()
     parts = []
@@ -482,9 +508,9 @@ def build(variant):
         h0, h1, hn0, hn1 = HALL
         i0, i1, in0, in1 = h0 + 0.8, h1 - 0.8, hn0 + 0.8, hn1 - 0.8
         parts.append(m.box("Earth", m.mat(m.MORTAR), i0, i1, in0, in1, -0.9, f - 0.2))
-        m.flagstones(parts, i0, i1, in0, in1, f)
-        # The rack down its aisle (to the orrery at its north end).
         mid = (i0 + i1) / 2
+        marble(parts, i0, i1, in0, in1, f, mid)
+        # The rack down its aisle (to the orrery at its north end).
         parts.append(m.box("Rack", brass, mid - 0.35, mid + 0.35, in0 + 1.0, in1 - 4.0, f, f + 0.03))
         n = in0 + 1.2
         while n < in1 - 4.2:

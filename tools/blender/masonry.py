@@ -258,16 +258,17 @@ def orchard():
 # ---------------------------------------------------------------- the Hall of the Last Hour
 
 def last_hour():
-    """Switch to the Hall of the Last Hour's palette (call before building): pale limestone, almost cream under the moon,
-    fine pale joints, cream capstones; warm honey floorboards; dark old timber."""
+    """Switch to the Hall of the Last Hour's palette (call before building): honey-gold limestone, warm joints, pale gold
+    capstones; the paving sand, slate-blue and brick; warm honey floorboards; dark old timber. Colour enough to come
+    back (time stopped drains it all to grey: the more there is, the more the turn shows)."""
     global STONE, MORTAR, CAP, PLINTH, TIMBER, PLANKS, PAVING
-    STONE = ("Limestone1", "#c3c1b8"), ("Limestone2", "#cdcbc2"), ("Limestone3", "#b6b4ab")
-    MORTAR = ("LimeJoint", "#8a877e")
-    CAP = ("LimeCap", "#e2ddcc")
-    PLINTH = ("LimePlinth", "#9c998f")
+    STONE = ("Limestone1", "#bfa47e"), ("Limestone2", "#c9b08c"), ("Limestone3", "#b29874")
+    MORTAR = ("LimeJoint", "#7d6a4e")
+    CAP = ("LimeCap", "#e4cf9f")
+    PLINTH = ("LimePlinth", "#9a8058")
     TIMBER = ("HallTimber", "#5b4532")
     PLANKS = ("HallBoard1", "#9a7a55"), ("HallBoard2", "#8c6d4b"), ("HallBoard3", "#a6855c")
-    PAVING = ("HallFlag1", "#c9c5b8"), ("HallFlag2", "#bdb9ac"), ("HallFlag3", "#d3cfc2")
+    PAVING = ("HallFlag1", "#b98a64"), ("HallFlag2", "#5f7480"), ("HallFlag3", "#a65f48")
 
 
 LEAVES = ("LeafRust", "#9a4a2c"), ("LeafOchre", "#b8873a"), ("LeafRed", "#7c2a25"), ("LeafBrown", "#7a5432"), ("LeafTan", "#9a7a4a")
