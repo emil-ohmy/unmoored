@@ -17,6 +17,7 @@ namespace MyGame
             name = "Sweep", windupClip = "SweepWindup", strikeClip = "Sweep", recoverClip = "SweepRecover",
             telegraph = 0.6f, strike = 0.25f, recover = 0.7f, impactAt = 0.5f,
             lunge = 0.15f, maxLunge = 1.2f, trackUntil = 0.9f, damage = 22f, reach = 2.5f, arc = 150f, knockback = 8f,
+            low = true, // (at the legs: vaulted over, it passes under)
         };
         [Range(0f, 1f)] public float sweepChanceInFront = 0.3f; // from the front it mixes slams and sweeps
         public float flankAngle = 50f; // beyond this the Apprentice is at its side or back: always sweep

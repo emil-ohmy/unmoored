@@ -9,8 +9,8 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke }
-        enum Act { None, Dash, Light, Heavy }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke, Vaulting }
+        enum Act { None, Dash, Light, Heavy, Vault }
 
         [Header("Movement")]
         public float moveSpeed = 5f; // play-test: 6 blasted through the level
@@ -137,6 +137,21 @@ namespace MyGame
         public float strokeSurge = 12f;       // in the boat: the surge's speed (more than any rowing), dying away
         public AudioClip[] strokeDrawSound, strokeChargedSound, strokeSound, douseSound, boatSurgeSound;
 
+        [Header("The Vault (an Ability: plant the oar and leap; an attack in the air slams down)")]
+        public float vaultPlant = 0.12f;     // the oar planted, then up
+        public float vaultFlight = 0.55f;    // the arc: from leaving the ground to coming down at the height it left
+        public float vaultDistance = 4f;     // how far it carries you, always (misjudge a gap and you fall short)
+        public float vaultHeight = 1.75f;    // the arc's top above where it was planted (clear of a 1.5 m wall)
+        [Range(0.1f, 0.9f)] public float vaultPeakAt = 0.35f; // share of the arc to its top: up quickly, over the oar
+        public float vaultLand = 0.18f;      // come down, before you can move
+        public float vaultStaminaCost = 30f;
+        public float vaultLockReach = 6f;    // locked on to a Soured within this: it carries you to its feet instead
+        public float airborneAbove = 0.8f;   // this far off the ground, low things pass under (rings, a sweep, a charge)
+        public float slamFall = 16f;         // the slam: driven down this fast
+        public float slamRadius = 2.6f, slamDamage = 30f, slamStagger = 80f, slamKnockback = 9f;
+        public float slamRecovery = 0.4f;
+        public AudioClip[] vaultPlantSound, vaultLandSound, slamSound;
+
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
         public float ceremonyDuration = 2.4f; // a key item held up
@@ -174,6 +189,7 @@ namespace MyGame
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
         public bool HasStroke { get; private set; } // the Drowned Moon, set into the oar blade (Father Moth's)
+        public bool HasVault { get; private set; }  // the Ferrule on the oar's foot (a secret in the Drowned City)
         public HookPost HookTarget { get; private set; } // with the Hook: the post it would pull to (ringed; brighter while aiming)
         public Soured HookFoe { get; private set; }      // ...or the Soured it would catch (a Soured in reach wins over a post)
         // Where the Hook's marker goes (the HUD): the post's ring, or the Soured's chest; null with nothing to aim at.
@@ -384,6 +400,10 @@ namespace MyGame
                     UpdateStroke(dt);
                     break;
 
+                case State.Vaulting:
+                    planar = UpdateVault(dt);
+                    break;
+
                 case State.Healing:
                     if (stateTime >= healDuration)
                     {
@@ -497,12 +517,14 @@ namespace MyGame
             else
             {
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
+                if (CurrentState == State.Vaulting && vaultPhase == VaultPhase.Flight)
+                    verticalVelocity = vaultVertical; // (the arc, not gravity, while it's in it)
                 if (CurrentState == State.Sinking)
                 {
                     planar = knockback = Vector3.zero; // going under, slowly
                     verticalVelocity = -1.2f;
                 }
-                if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead)
+                if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead && CurrentState != State.Vaulting)
                     planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
                 controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
@@ -516,6 +538,7 @@ namespace MyGame
             if (Input.DashPressed) Buffer(Act.Dash);
             if (Input.LightPressed) Buffer(Act.Light);
             if (Input.HeavyPressed) Buffer(Act.Heavy);
+            if (Input.VaultPressed && HasVault) Buffer(Act.Vault);
         }
 
         Vector3 MoveDirection()
@@ -1006,6 +1029,9 @@ namespace MyGame
                 case Act.Heavy:
                     StartAttack(true, 0);
                     break;
+                case Act.Vault:
+                    StartVault();
+                    break;
             }
         }
 
@@ -1020,7 +1046,8 @@ namespace MyGame
 
         void RegenerateStamina(float dt)
         {
-            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking || CurrentState == State.Stroke;
+            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking || CurrentState == State.Stroke
+                        || CurrentState == State.Vaulting;
             float rate = CurrentState == State.Blocking ? 0.4f : 1f; // holding a block slows recovery
             if (!busy && Time.time - lastStaminaUse >= staminaRegenDelay)
                 Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * rate * dt);
@@ -1546,6 +1573,181 @@ namespace MyGame
 
         public void GiveStroke() => HasStroke = true; // (no fanfare: see ReceiveKeyItem)
 
+        // ------------------------------------------------------------ the Vault
+
+        public const string VaultHint = "Press {vault}: plant the oar and leap. Over gaps and low walls, over what's low; attack in the air to slam down";
+
+        public void GiveVault() => HasVault = true; // (no fanfare: see ReceiveKeyItem)
+
+        enum VaultPhase { Plant, Flight, Fall, Land }
+        VaultPhase vaultPhase;
+        Vector3 vaultDirection;
+        float vaultSpeed, vaultFloor, vaultVertical;
+        bool slamming;
+
+        public bool Slamming => CurrentState == State.Vaulting && slamming;
+        public event System.Action<int> Slammed; // (how many Soured it struck)
+
+        // Off the ground in a vault, high enough that what's low passes under (a ring, a sweep, a charge).
+        public bool Airborne => CurrentState == State.Vaulting && (vaultPhase == VaultPhase.Flight || vaultPhase == VaultPhase.Fall)
+                                && !Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, airborneAbove + 0.1f, ~0, QueryTriggerInteraction.Ignore);
+
+        // Plant the oar and leap: always the same distance, where you steer (or face); locked on to a Soured in reach,
+        // onto it, to land at its feet.
+        void StartVault()
+        {
+            if (!HasVault)
+                return;
+            if (!CanSpend(vaultStaminaCost))
+            {
+                Announce("no stamina");
+                return;
+            }
+            Spend(vaultStaminaCost);
+            Vector3 move = MoveDirection();
+            Vector3 direction = move.sqrMagnitude > 0.001f ? move.normalized : transform.forward;
+            float distance = vaultDistance;
+            if (LockTarget != null)
+            {
+                Vector3 to = ToLockTarget();
+                if (to.sqrMagnitude > 0.01f)
+                {
+                    direction = to.normalized;
+                    if (to.magnitude <= vaultLockReach)
+                        distance = Mathf.Max(0.5f, to.magnitude - LockTarget.radius - 0.6f);
+                }
+            }
+            vaultDirection = direction;
+            vaultSpeed = distance / vaultFlight;
+            vaultFloor = transform.position.y;
+            slamming = false;
+            knockback = Vector3.zero;
+            transform.rotation = Quaternion.LookRotation(direction);
+            Enter(State.Vaulting);
+            vaultPhase = VaultPhase.Plant;
+            clips.PlayOnce("VaultPlant", vaultPlant);
+            Sfx.Instance?.Attack(vaultPlantSound, transform.position + direction * 0.6f, 1f, "vault_plant");
+            Announce("vault");
+        }
+
+        // The arc's height above where it was planted, `u` of the way through: up quickly over the oar, then down.
+        float VaultArc(float u) => u < vaultPeakAt
+            ? vaultHeight * Mathf.Sin(u / vaultPeakAt * Mathf.PI * 0.5f)
+            : vaultHeight * (1f - Mathf.Pow((u - vaultPeakAt) / (1f - vaultPeakAt), 2f));
+
+        Vector3 UpdateVault(float dt)
+        {
+            switch (vaultPhase)
+            {
+                case VaultPhase.Plant:
+                    if (stateTime >= vaultPlant)
+                    {
+                        vaultPhase = VaultPhase.Flight;
+                        stateTime = 0f;
+                        clips.PlayOnce("Vault", vaultFlight);
+                    }
+                    return Vector3.zero;
+
+                case VaultPhase.Flight:
+                {
+                    float u = Mathf.Clamp01(stateTime / vaultFlight);
+                    if (u > 0.08f && (HasBuffered(Act.Light) || HasBuffered(Act.Heavy)))
+                    {
+                        StartSlam();
+                        return vaultDirection * vaultSpeed * 0.25f;
+                    }
+                    if (u > vaultPeakAt && controller.isGrounded)
+                    {
+                        Touchdown(); // (on a ledge higher than it left from)
+                        return Vector3.zero;
+                    }
+                    vaultVertical = (vaultFloor + VaultArc(u) - transform.position.y) / Mathf.Max(dt, 1e-4f);
+                    if (u >= 1f)
+                    {
+                        vaultPhase = VaultPhase.Fall; // (still in the air: lower ground, or the water)
+                        vaultVertical = Mathf.Min(vaultVertical, -2f * vaultHeight / ((1f - vaultPeakAt) * vaultFlight));
+                        verticalVelocity = vaultVertical;
+                    }
+                    return vaultDirection * vaultSpeed;
+                }
+
+                case VaultPhase.Fall:
+                    if (!slamming && (HasBuffered(Act.Light) || HasBuffered(Act.Heavy)))
+                        StartSlam();
+                    if (controller.isGrounded)
+                    {
+                        Touchdown();
+                        return Vector3.zero;
+                    }
+                    return vaultDirection * vaultSpeed * (slamming ? 0.25f : 1f);
+
+                default: // Land
+                    if (stateTime >= (slamming ? slamRecovery : vaultLand))
+                        ToFreeAndConsume();
+                    return Vector3.zero;
+            }
+        }
+
+        // An attack in the air: the oar raised overhead, and driven down.
+        void StartSlam()
+        {
+            buffered = Act.None;
+            slamming = true;
+            vaultPhase = VaultPhase.Fall;
+            verticalVelocity = -slamFall;
+            clips.PlayOnce("SlamRaise", 0.2f);
+        }
+
+        void Touchdown()
+        {
+            vaultPhase = VaultPhase.Land;
+            stateTime = 0f;
+            verticalVelocity = -2f;
+            if (slamming)
+            {
+                Slam();
+                return;
+            }
+            clips.PlayOnce("VaultLand", vaultLand);
+            Sfx.Instance?.Attack(vaultLandSound, transform.position, 0.8f, "vault_land");
+        }
+
+        // Come down on the oar: a ring of force round where you land, every Soured in it struck, staggered and thrown
+        // outwards.
+        void Slam()
+        {
+            Vector3 at = transform.position;
+            clips.PlayOnce("Slam", slamRecovery);
+            Sfx.Instance?.Attack(slamSound, at, 1f, "vault_slam");
+            HitStop.Trigger(0.1f);
+            CameraRig.Instance?.Shake(0.35f);
+            Shockwave.Spread(at, null, slamRadius + 0.3f, 13f, 0.5f, 0f, 0f, new Color(0.8f, 0.86f, 0.95f, 0.9f)); // (seen, harmless)
+            Effects.Instance?.Rubble(at + transform.forward * 0.4f, slamRadius * 0.4f);
+            int struck = 0;
+            foreach (var collider in Physics.OverlapSphere(at, slamRadius + 1.5f))
+            {
+                if (!collider.TryGetComponent(out Soured soured) || !soured.Targetable || soured.OutOfReach)
+                    continue;
+                Vector3 to = soured.transform.position - at;
+                if (Mathf.Abs(to.y) > 1.3f)
+                    continue; // (another floor)
+                to.y = 0f;
+                if (to.magnitude > slamRadius + soured.radius)
+                    continue;
+                soured.TakeHit(new Hit
+                {
+                    Damage = slamDamage * DamageFactor,
+                    Stagger = slamStagger * Equipment.Oar.Strength,
+                    Knockback = (to.sqrMagnitude > 0.01f ? to.normalized : transform.forward) * slamKnockback,
+                    From = at,
+                    Heavy = true,
+                });
+                struck++;
+            }
+            Announce(struck > 0 ? "SLAM" : "slam");
+            Slammed?.Invoke(struck);
+        }
+
         // ------------------------------------------------------------ taking things
 
         System.Action pendingTake;
@@ -1650,9 +1852,10 @@ namespace MyGame
         public void AnnounceFind(string title, string hint) => Found?.Invoke(title, hint);
 
         // Loading a save: the Obols carried, the most Healing charges they can carry, the Abilities; health and charges full.
-        public void Restore(int obols, int healingChargeMax, bool hook, bool stroke = false)
+        public void Restore(int obols, int healingChargeMax, bool hook, bool stroke = false, bool vault = false)
         {
             HasStroke = stroke;
+            HasVault = vault;
             ApplyUpgrades(); // (the Warm Stones and Held Breaths its Equipment was given back)
             Obols = Mathf.Max(0, obols);
             maxHealingCharges = Mathf.Max(1, healingChargeMax);

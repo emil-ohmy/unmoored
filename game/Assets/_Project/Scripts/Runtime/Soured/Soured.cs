@@ -450,6 +450,8 @@ namespace MyGame
         {
             if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
                 return;
+            if (current.low && target.Airborne)
+                return; // (vaulted over: it passes under)
             if (HitTarget(current.damage, toTarget.normalized * current.knockback) == Defence.Parried)
                 Stun();
         }

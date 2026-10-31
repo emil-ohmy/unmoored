@@ -19,12 +19,13 @@ namespace MyGame
         int SwitchTarget { get; } // -1 left, +1 right, 0 none (a flick or a scroll, reported once)
         int BeltStep { get; }         // the belt: -1 / +1 to choose the one before / after (d-pad or arrow left, right), 0 none
         bool BeltUsePressed { get; }  // use the chosen one (d-pad or arrow up)
+        bool VaultPressed { get; }    // with the Vault: plant the oar and leap (RT, left shift)
     }
 
     // Keyboard/mouse and gamepad bindings (gamepad-first).
     public sealed class GameInput : IApprenticeInput, System.IDisposable
     {
-        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll;
+        readonly InputAction move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, vault, switchStick, switchScroll;
         readonly InputAction[] beltSlots;
         bool stickArmed = true;
 
@@ -35,12 +36,13 @@ namespace MyGame
             move.AddBinding("<Gamepad>/leftStick"); // (not the arrow keys: they're the belt)
             dash = Button("Dash", "<Keyboard>/space", "<Gamepad>/buttonEast");
             lightAttack = Button("Light", "<Keyboard>/j", "<Mouse>/leftButton", "<Gamepad>/buttonWest");
-            heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth", "<Gamepad>/rightTrigger");
+            heavyAttack = Button("Heavy", "<Keyboard>/k", "<Mouse>/rightButton", "<Gamepad>/buttonNorth"); // (RT is the Vault's)
             heal = Button("Heal", "<Keyboard>/q", "<Gamepad>/leftShoulder");
             interact = Button("Interact", "<Keyboard>/e", "<Gamepad>/buttonSouth");
             lockOn = Button("LockOn", "<Keyboard>/tab", "<Mouse>/middleButton", "<Gamepad>/rightStickPress");
             block = Button("Block", "<Keyboard>/l", "<Gamepad>/leftTrigger");
             hook = Button("Hook", "<Keyboard>/f", "<Gamepad>/rightShoulder");
+            vault = Button("Vault", "<Keyboard>/leftShift", "<Gamepad>/rightTrigger");
             switchStick = new InputAction("SwitchStick", InputActionType.Value, "<Gamepad>/rightStick/x");
             switchScroll = new InputAction("SwitchScroll", InputActionType.Value, "<Mouse>/scroll/y");
             beltSlots = new[]
@@ -71,6 +73,7 @@ namespace MyGame
         public bool LockPressed => lockOn.WasPressedThisFrame();
         public bool BlockHeld => block.IsPressed();
         public bool HookHeld => hook.IsPressed();
+        public bool VaultPressed => vault.WasPressedThisFrame();
 
         public bool BeltUsePressed => beltSlots[0].WasPressedThisFrame();
         public int BeltStep => beltSlots[1].WasPressedThisFrame() ? 1 : beltSlots[2].WasPressedThisFrame() ? -1 : 0;
@@ -97,7 +100,7 @@ namespace MyGame
         {
             get
             {
-                var list = new System.Collections.Generic.List<InputAction> { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, switchStick, switchScroll };
+                var list = new System.Collections.Generic.List<InputAction> { move, dash, lightAttack, heavyAttack, heal, interact, lockOn, block, hook, vault, switchStick, switchScroll };
                 list.AddRange(beltSlots);
                 return list.ToArray();
             }
@@ -114,10 +117,11 @@ namespace MyGame
     public sealed class ScriptedInput : IApprenticeInput
     {
         public Vector2 Move { get; set; }
-        bool dash, lightAttack, heavyAttack, heal, interact, lockOn;
+        bool dash, lightAttack, heavyAttack, heal, interact, lockOn, vault;
         int switchTarget;
 
         public void PressDash() => dash = true;
+        public void PressVault() => vault = true;
         public void PressLight() => lightAttack = true;
         public void PressHeavy() => heavyAttack = true;
         public void PressHeal() => heal = true;
@@ -141,6 +145,7 @@ namespace MyGame
         }
 
         public bool DashPressed => Take(ref dash);
+        public bool VaultPressed => Take(ref vault);
         public bool LightPressed => Take(ref lightAttack);
         public bool HeavyPressed => Take(ref heavyAttack);
         public bool HealPressed => Take(ref heal);

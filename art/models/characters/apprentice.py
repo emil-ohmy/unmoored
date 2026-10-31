@@ -3,7 +3,8 @@
 Clip timings match the Middle combat tuning (the controller rescales them if tuning changes):
 light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; dash 0.38 s; heal 0.7 s.
 RecoilHeavy / RecoilLight: bouncing off a Laden's heap (0.35 s). HookAim (loop), HookThrow (0.15 s), HookPull, Pickup
-(0.6 s), RaiseItem (2.4 s: a key item held up).
+(0.6 s), RaiseItem (2.4 s: a key item held up). VaultPlant (0.12 s), Vault (0.55 s), VaultLand (0.18 s), SlamRaise,
+Slam (0.4 s): the Vault.
 """
 import math
 
@@ -122,6 +123,32 @@ ROW_THRASH_IN = {"Body": (-8, 0, 14), "Head": (4, 0, -8), "Oar": ((-125, 0, 10),
 ROW_THRASH_THROUGH = {"Body": (10, 0, 10), "Head": (-4, 0, -6), "Oar": ((-140, 0, 14), (-0.26, 0.36, 0.25)), "Root": ((0, 0, 0), SIT)}
 # Resting on the oars: laid across the boat, blade out to the right, the hands in the lap.
 ROW_REST = {"Body": (6, 0, 0), "Head": (4, 0, 0), "Oar": ((0, 90, 0), (-0.36, -0.12, -0.08)), "Root": ((0, 0, 0), SIT)}
+
+# The Vault's poses. The oar's foot goes ahead by tipping its top back (negative pitch), the hand brought in and up.
+VAULT_PLANT = {"Pivot": (16, 0, 0), "Body": (6, 0, 0), "Head": (-10, 0, 0), "Oar": ((-38, 0, -8), (-0.22, -0.16, 0.22)),
+               "Root": ((0, 0, 0), (0, 0, -0.1))}
+VAULT_RISE = {"Pivot": (26, 0, 0), "Body": (4, 0, 0), "Head": (-18, 0, 0), "Oar": ((-12, 0, -6), (-0.24, -0.1, 0.42)),
+              "Root": ((0, 0, 0), (0, 0, 0.04))}
+VAULT_OVER = {"Pivot": (40, 0, 0), "Body": (10, 0, 0), "Head": (-30, 0, 0), "Oar": ((-95, 0, -8), (-0.2, 0.12, 0.3)),
+              "Root": ((0, 0, 0), (0, 0, 0.08))}
+VAULT_BEYOND = {"Pivot": (18, 0, 0), "Body": (4, 0, 0), "Head": (-14, 0, 0), "Oar": ((-80, 0, -6), (-0.1, 0.1, 0.12)),
+                "Root": ((0, 0, 0), (0, 0, 0.04))}
+VAULT_DOWN = {"Pivot": (4, 0, 0), "Head": (-4, 0, 0), "Oar": ((-30, 0, 0), (0, 0, 0.04))}
+VAULT_CROUCH = {"Pivot": (14, 0, 0), "Body": (6, 0, 0), "Head": (-10, 0, 0), "Oar": ((-20, 0, 0), (0, -0.04, -0.02)),
+                "Root": ((0, 0, 0), (0, 0, -0.12))}
+SLAM_RAISED = {"Pivot": (-8, 0, 0), "Oar": ((-150, 0, 4), (-0.38, 0.06, 0.5)), "Body": (-14, 0, 0), "Head": (10, 0, 0),
+               "Root": ((0, 0, 0), (0, 0, 0.04))}
+SLAM_DOWN = {"Pivot": (22, 0, 0), "Oar": ((96, 0, 0), (-0.38, -0.3, -0.08)), "Body": (12, 0, 0), "Head": (-14, 0, 0),
+             "Root": ((0, 0, 0), (0, -0.04, -0.16))}
+
+
+def with_slam(pose):
+    """Held over the blow a moment, a little deeper."""
+    held = dict(pose)
+    held["Pivot"] = (26, 0, 0)
+    held["Root"] = ((0, 0, 0), (0, -0.05, -0.18))
+    return held
+
 
 ACTIONS = {
     "Idle": ("BEZIER", [
@@ -274,6 +301,15 @@ ACTIONS = {
         (3, {"Body": (-18, 0, 0), "Head": (-12, 0, 0), "Oar": (-10, 0, 0), "Root": ((0, 0, 0), (0, 0.08, 0))}),
         (10, REST),
     ]),
+    # The Vault: the oar's foot planted ahead, crouched (VaultPlant, 0.12 s); up and over it, tipped forward, the oar
+    # swinging back behind as it's let go of below (Vault, 0.55 s: the top at a third); down, a crouch (VaultLand,
+    # 0.18 s). The slam: in the air the oar goes up overhead in both hands (SlamRaise, held), and is driven down into
+    # the ground as you land (Slam, 0.4 s), crouched over it.
+    "VaultPlant": ("BEZIER", [(1, REST), (4, VAULT_PLANT)]),
+    "Vault": ("BEZIER", [(1, VAULT_PLANT), (4, VAULT_RISE), (7, VAULT_OVER), (12, VAULT_BEYOND), (17, VAULT_DOWN)]),
+    "VaultLand": ("BEZIER", [(1, VAULT_DOWN), (3, VAULT_CROUCH), (6, REST)]),
+    "SlamRaise": ("BEZIER", [(1, VAULT_OVER), (6, SLAM_RAISED)]),
+    "Slam": ("LINEAR", [(1, SLAM_RAISED), (3, SLAM_DOWN), (6, with_slam(SLAM_DOWN)), (12, REST)]),
 }
 
 
