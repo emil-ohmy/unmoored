@@ -840,6 +840,83 @@ namespace MyGame.Tests
             Assert.AreEqual(before[0].position, after[0].position, "none moved");
         }
 
+        // ---- The Hall's time: stopped (drained grey but for the Apprentice, the dust stirring only round them), and set
+        // going (the colour back in a wave out from the keep, the dust falling, the music woken).
+
+        [UnityTest]
+        public IEnumerator TheHallsTime_Stopped_DrainedGrey_ButNotTheApprentice()
+        {
+            var time = HallTime.Instance;
+            Assert.IsNotNull(time, "the Hall's time");
+            Assert.IsFalse(time.Running, "stopped, as you find it");
+            yield return null;
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallStill"), 0.001f, "drained");
+            var body = apprentice.GetComponentInChildren<SkinnedMeshRenderer>();
+            Assert.IsTrue(body.sharedMaterials.All(m => m.GetFloat("_InTime") > 0.5f), "the Apprentice is in time: never stilled");
+            var prop = UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None)
+                .First(r => r.sharedMaterial != null && r.sharedMaterial.shader.name == "MyGame/Toon" && r.name.StartsWith("last_hour"));
+            Assert.AreEqual(0f, prop.sharedMaterial.GetFloat("_InTime"), "the Hall's things are stilled");
+        }
+
+        [UnityTest]
+        public IEnumerator TheHallsTime_SetGoing_TheColourComesBackInAWave_TheMusicWakes()
+        {
+            var time = HallTime.Instance;
+            time.Run();
+            yield return new WaitForSeconds(1f);
+            Vector3 c = time.WaveCentre;
+            Assert.IsFalse(time.StoppedAt(c + Vector3.right * 2f), "near the engine: time again");
+            Assert.IsTrue(time.StoppedAt(c + Vector3.right * 40f), "far off: not yet");
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallWaveOn"), 0.001f, "the wave going out");
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallStill"), 0.001f);
+            yield return Until(() => time.WaveRadius >= time.reach, 15f, "the wave past all of it");
+            yield return null;
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallWaveOn"), 0.001f, "done: colour everywhere");
+            Assert.IsTrue(UnityEngine.Object.FindAnyObjectByType<MusicPlayer>().Woken, "the music woken");
+            time.Stop();
+            yield return new WaitForSeconds(time.stopFade + 0.2f);
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallStill"), 0.001f, "held still again: grey again");
+        }
+
+        // The court's dust (the one the Apprentice starts in).
+        StillAir CourtDust => UnityEngine.Object.FindObjectsByType<StillAir>(FindObjectsSortMode.None)
+            .Where(s => s.motes > 100).OrderBy(s => Vector3.Distance(s.transform.position, apprentice.transform.position)).First();
+
+        [UnityTest]
+        public IEnumerator TheDust_StirsRoundYouAsYouPass_AndHangsWhereYouStand()
+        {
+            var dust = CourtDust;
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, dust.Moved(0.01f), "standing: it hangs");
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(1.5f);
+            input.Move = Vector2.zero;
+            int stirred = dust.Moved(0.05f);
+            Assert.Greater(stirred, 10, "it swirled round you as you passed");
+            Assert.Less(stirred, dust.Count / 4, "only round you: the rest hangs");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(stirred, dust.Moved(0.05f), 3, "and it hangs again behind you");
+        }
+
+        [UnityTest]
+        public IEnumerator TheDust_FallsAsTheWavePasses()
+        {
+            var dust = CourtDust;
+            HallTime.Instance.Run();
+            yield return new WaitForSeconds(5f);
+            Assert.Greater(dust.Moved(0.3f), dust.Count / 2, "fallen, where time's come back");
+        }
+
+        [UnityTest]
+        public IEnumerator LeavingTheHall_LeavesNoGreyBehind()
+        {
+            yield return null;
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallStill"), 0.001f);
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
+            yield return null;
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallStill"), 0.001f, "another Area: no grey");
+        }
+
         // (SHOTS=dir) The tower: from the landing, and floor by floor inside, the face's ledge and hands, and from afar.
         [UnityTest]
         public IEnumerator Capture_LastHour()

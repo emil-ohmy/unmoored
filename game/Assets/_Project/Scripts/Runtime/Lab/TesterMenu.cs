@@ -83,7 +83,17 @@ namespace MyGame
                         Say(post.ResidentsAwake ? "Up they get." : "Hush. They'll keep.");
                     });
                 var music = Object.FindAnyObjectByType<MusicPlayer>();
-                if (music != null && music.woken != null)
+                var time = HallTime.Instance;
+                if (time != null)
+                    Add("Time in the Hall", time.Running ? "running" : "stopped", "Stopped, as you find it: drained grey but for you, the dust hanging. Running, as its central engine (not built yet) will set it: the colour back in a wave out from the keep, the dust falling, the music woken.", () =>
+                    {
+                        if (time.Running)
+                            time.Stop();
+                        else
+                            time.Run();
+                        Say(time.Running ? "Time again." : "Held still.");
+                    });
+                else if (music != null && music.woken != null)
                     Add("The Area's music", music.Woken ? "awake" : "as it is", "Its music as it is now, or as it will be woken (the Hall of the Last Hour: time set going again by its central engine, not built yet).", () =>
                     {
                         music.Wake(!music.Woken);

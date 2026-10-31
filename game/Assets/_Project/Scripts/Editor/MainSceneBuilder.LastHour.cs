@@ -58,6 +58,10 @@ public static partial class MainSceneBuilder
         entrance.areaName = "The Hall of the Last Hour (Lab)";
         var apprentice = Apprentice(start.position);
         apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
+        // The Hall's time: stopped, everything not in time drained grey; set going (the central engine, not built yet;
+        // the Tester's Post), the colour comes back in a wave out from the keep's clockwork.
+        var time = new GameObject("The Hall's Time").AddComponent<HallTime>();
+        time.transform.position = new Vector3(0f, f, 0f);
         var readout = new GameObject("Lab Readout").AddComponent<LabReadout>();
         readout.font = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
         tester.readout = readout;
