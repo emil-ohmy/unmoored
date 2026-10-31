@@ -74,17 +74,15 @@ namespace MyGame
             if (stroke && !hadStroke)
                 strokeSince = Time.timeSinceLevelLoad < 1f ? -10f : Time.time; // (not a save loading: no flare)
             hadStroke = stroke;
-            bool vaultLit = apprentice.VaultGlow > 0f; // (the slam's moment)
-            if (!tarred && !stroke && !vaultLit && !glowing)
+            if (!tarred && !stroke && !glowing)
                 return;
-            glowing = tarred || stroke || vaultLit;
+            glowing = tarred || stroke;
             float t = Time.time;
             Color heat = tarred ? new Color(1f, 0.42f, 0.12f) * (0.55f + 0.3f * Mathf.PerlinNoise(t * 6f, 0.2f)) : Color.black;
             // (brightening as it's drawn; charged, a flash and then a quick shimmer while it's held)
             float charged = apprentice.DrawingStroke && apprentice.StrokeCharged
                 ? 3f * Mathf.Exp(-(t - apprentice.StrokeChargedAt) / 0.2f) + 0.45f + 0.35f * Mathf.Sin(t * 14f) : 0f;
             Sheen = stroke ? SheenLevel(t) + 2.5f * Mathf.Exp(-(t - strokeSince) / 0.7f) + 1.6f * apprentice.StrokeDrawn + charged : 0f;
-            Sheen += 2.2f * apprentice.VaultGlow; // (the slam's moment: the blade lit with the rest of the Apprentice)
             Color sheen = SheenColour(ShownStep) * Sheen;
             for (int i = 0; i < slotSteps.Length; i++)
             {
@@ -148,9 +146,6 @@ namespace MyGame
                 }
             }
         }
-
-        // Whether a slot is one of the oar's (OarLook's own: each step's oar, shown or hidden).
-        public bool IsOarSlot(int slot) => slotSteps != null && slot < slotSteps.Length && slotSteps[slot] >= 0;
 
         // Whether a slot shows now.
         public bool Showing(int slot) => slotSteps != null && slot < slotSteps.Length && (slotSteps[slot] < 0 || slotSteps[slot] == ShownStep);

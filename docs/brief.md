@@ -83,7 +83,7 @@ business and pay their fare to row them across.
 - **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
   LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
   - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on
-    RT (heavy stays on Y alone), and the Vault then an attack for its slam.
+    RT (heavy stays on Y alone).
   - **The rest extend what's there,** by context and combination (held or tapped, in the air, while rowing, locked
     on). The Stroke needs no button: the heavy attack while rowing is its wave. The Hook already does this, doing a
     different thing for a post, a Soured and something too heavy.
@@ -117,8 +117,10 @@ business and pay their fare to row them across.
     what floats or is loose and turns wheels (a wave down a mill-race turns its wheel, the wheel opens a sluice). In the
     Hall of the Last Hour it sets stopped things moving: a Stroke against a gear or a pendulum runs that part of the clock a
     while.
-  - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
-    in Area 3, which hints where it is.
+  - **Vault**, a secret in Area 1: plant the oar and leap, always the same distance (misjudge a gap and you fall
+    short), over gaps and low walls and onto ledges, and over what's low (rings across the floor, sweeps, charges).
+    Locked on, it carries you to your target. No slam: tried, and it made the move janky (the user, 2026-10-31).
+    It's optional early and required in Area 3, which hints where it is.
 - **Bow lantern:** never required. Carried at the Apprentice's hip on land and hung on the bow when rowing; its cold
   light grows with every lit Mooring post and burns through fog to optional routes and secrets. It has five levels,
   counted against every Mooring post in the game. Fully powered, it is the key to a secret last Boss and ending; the

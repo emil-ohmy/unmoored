@@ -1819,83 +1819,7 @@ namespace MyGame.Tests
             Assert.IsFalse(apprentice.Airborne);
         }
 
-        // An attack in the air: driven down, a ring of force round where you land: the Soured in it struck and thrown
-        // outwards; one further off untouched.
-        [UnityTest]
-        public IEnumerator TheVault_Slam_StrikesAllAroundWhereYouLand()
-        {
-            ReadyToVault(VaultFrom, Vector3.right);
-            Vector3 landing = VaultFrom + Vector3.right * 2.5f; // (the slam comes down short of the full leap)
-            var near = new[] { SetDown("Laden", landing + new Vector3(0.5f, 0f, 1.7f)), SetDown("Laden", landing + new Vector3(0.5f, 0f, -1.7f)) };
-            var far = SetDown("Laden", landing + new Vector3(3.5f, 0f, -3.5f));
-            foreach (var l in near.Append(far))
-                l.passive = true;
-            yield return new WaitForSeconds(0.4f);
-            Vector3[] was = near.Select(l => l.transform.position).ToArray();
-            float farHealth = far.Health;
-            int struck = -1;
-            apprentice.Slammed += n => struck = n;
-            input.PressVault();
-            yield return Until(() => apprentice.SlamReady, 1f, "the slam's moment");
-            input.PressLight();
-            yield return Until(() => struck >= 0, 2f, "the slam");
-            Assert.AreEqual(2, struck, "both near it");
-            yield return new WaitForSeconds(0.3f);
-            for (int i = 0; i < near.Length; i++)
-            {
-                Assert.Less(near[i].Health, near[i].maxHealth, "struck");
-                Assert.Greater(Flat(near[i].transform.position, apprentice.transform.position), Flat(was[i], apprentice.transform.position) + 0.15f, "thrown outwards (a Laden is heavy)");
-            }
-            Assert.AreEqual(farHealth, far.Health, "out of its reach: untouched");
-        }
-
-        // The slam's moment: from the arc's top into its fall. The Apprentice glows while it's open, and only then.
-        [UnityTest]
-        public IEnumerator TheVault_GlowsWhileTheSlamsMomentIsOpen()
-        {
-            ReadyToVault(VaultFrom, Vector3.right);
-            yield return new WaitForSeconds(0.2f);
-            input.PressVault();
-            yield return null;
-            float opened = -1f, closed = -1f, brightest = 0f, start = Time.time;
-            while (apprentice.CurrentState == Apprentice.State.Vaulting && Time.time - start < 3f)
-            {
-                if (apprentice.SlamReady && opened < 0f)
-                    opened = Time.time - start;
-                if (!apprentice.SlamReady && opened >= 0f && closed < 0f)
-                    closed = Time.time - start;
-                brightest = Mathf.Max(brightest, apprentice.VaultGlow);
-                yield return null;
-            }
-            float plant = apprentice.vaultPlant, flight = apprentice.vaultFlight;
-            Assert.AreEqual(plant + apprentice.slamFrom * flight, opened, 0.05f, "open from the arc's top");
-            Assert.AreEqual(plant + apprentice.slamUntil * flight, closed, 0.05f, "closed into the fall");
-            Assert.Greater(brightest, 0.9f, "it glowed");
-            yield return new WaitForSeconds(0.2f);
-            Assert.AreEqual(0f, apprentice.VaultGlow, "and not after");
-        }
-
-        // An attack pressed before the moment is the slam missed, for that leap: pressing again in the moment won't do.
-        [UnityTest]
-        public IEnumerator TheVault_SlamPressedTooSoon_IsMissedForThatLeap()
-        {
-            ReadyToVault(VaultFrom, Vector3.right);
-            yield return new WaitForSeconds(0.2f);
-            int slams = 0;
-            apprentice.Slammed += n => slams++;
-            input.PressVault();
-            yield return new WaitForSeconds(0.15f); // (just off the ground: too soon)
-            input.PressLight();
-            yield return null;
-            yield return null;
-            Assert.IsFalse(apprentice.SlamReady, "missed: no moment for it now");
-            yield return new WaitForSeconds(0.15f);
-            input.PressLight(); // (in what would have been the moment)
-            yield return VaultEnds();
-            Assert.AreEqual(0, slams, "no slam this leap");
-        }
-
-        // Committed: RT again in the air doesn't queue another vault; down, it doesn't go again by itself.
+        // RT again in the air doesn't queue another vault; down, it doesn't go again by itself.
         [UnityTest]
         public IEnumerator TheVault_NotAgainTillItsDown()
         {
@@ -1941,6 +1865,25 @@ namespace MyGame.Tests
             Assert.IsTrue(shadow, "a shadow under you in the air");
             yield return new WaitForSeconds(0.3f);
             Assert.IsFalse(apprentice.VaultShadowShown, "and gone when you're down");
+        }
+
+        // Down, straight on: free to move (and to act) the moment it lands, no hold; what was pressed just before
+        // landing happens then.
+        [UnityTest]
+        public IEnumerator TheVault_LandsStraightIntoMoving_NoHold()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            yield return new WaitForSeconds(0.2f);
+            bool landed = false;
+            apprentice.Landed += () => landed = true;
+            input.PressVault();
+            yield return Until(() => apprentice.Airborne, 1f, "off the ground");
+            yield return Until(() => apprentice.transform.position.y < VaultFrom.y + 0.6f && apprentice.CurrentState == Apprentice.State.Vaulting
+                                     && apprentice.StateTime > 0.4f, 1f, "coming down");
+            input.PressLight(); // (just before it lands)
+            yield return Until(() => landed, 1f, "down");
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Attacking, apprentice.CurrentState, "straight into the swing pressed as it came down");
         }
 
         // Locked on to a Soured within reach, the Vault carries you to its feet, wherever you were facing.

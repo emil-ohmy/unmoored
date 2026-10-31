@@ -3,8 +3,7 @@
 Clip timings match the Middle combat tuning (the controller rescales them if tuning changes):
 light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; dash 0.38 s; heal 0.7 s.
 RecoilHeavy / RecoilLight: bouncing off a Laden's heap (0.35 s). HookAim (loop), HookThrow (0.15 s), HookPull, Pickup
-(0.6 s), RaiseItem (2.4 s: a key item held up). VaultPlant (0.12 s), Vault (0.55 s), VaultLand (0.3 s), SlamRaise,
-Slam (0.75 s): the Vault.
+(0.6 s), RaiseItem (2.4 s: a key item held up). VaultPlant (0.12 s), Vault (0.55 s), VaultLand (0.2 s): the Vault.
 """
 import math
 
@@ -136,18 +135,6 @@ VAULT_BEYOND = {"Pivot": (18, 0, 0), "Body": (4, 0, 0), "Head": (-14, 0, 0), "Oa
 VAULT_DOWN = {"Pivot": (4, 0, 0), "Head": (-4, 0, 0), "Oar": ((-30, 0, 0), (0, 0, 0.04))}
 VAULT_CROUCH = {"Pivot": (14, 0, 0), "Body": (6, 0, 0), "Head": (-10, 0, 0), "Oar": ((-20, 0, 0), (0, -0.04, -0.02)),
                 "Root": ((0, 0, 0), (0, 0, -0.12))}
-SLAM_RAISED = {"Pivot": (-8, 0, 0), "Oar": ((-150, 0, 4), (-0.38, 0.06, 0.5)), "Body": (-14, 0, 0), "Head": (10, 0, 0),
-               "Root": ((0, 0, 0), (0, 0, 0.04))}
-SLAM_DOWN = {"Pivot": (22, 0, 0), "Oar": ((96, 0, 0), (-0.38, -0.3, -0.08)), "Body": (12, 0, 0), "Head": (-14, 0, 0),
-             "Root": ((0, 0, 0), (0, -0.04, -0.16))}
-
-
-def with_slam(pose):
-    """Held over the blow a moment, a little deeper."""
-    held = dict(pose)
-    held["Pivot"] = (26, 0, 0)
-    held["Root"] = ((0, 0, 0), (0, -0.05, -0.18))
-    return held
 
 
 ACTIONS = {
@@ -302,14 +289,11 @@ ACTIONS = {
         (10, REST),
     ]),
     # The Vault: the oar's foot planted ahead, crouched (VaultPlant, 0.12 s); up and over it, tipped forward, the oar
-    # swinging back behind as it's let go of below (Vault, 0.55 s: the top at a third); down, a crouch (VaultLand,
-    # 0.3 s). The slam: in the air the oar goes up overhead in both hands (SlamRaise, held), and is driven down into
-    # the ground as you land (Slam, 0.75 s), crouched over it, held, then up.
+    # swinging back behind as it's let go of below (Vault, 0.55 s: the top at a third); down, a dip (VaultLand, 0.2 s,
+    # blended straight into whatever comes next: there's no hold).
     "VaultPlant": ("BEZIER", [(1, REST), (4, VAULT_PLANT)]),
     "Vault": ("BEZIER", [(1, VAULT_PLANT), (4, VAULT_RISE), (7, VAULT_OVER), (12, VAULT_BEYOND), (17, VAULT_DOWN)]),
-    "VaultLand": ("BEZIER", [(1, VAULT_DOWN), (3, VAULT_CROUCH), (6, VAULT_CROUCH), (10, REST)]),
-    "SlamRaise": ("BEZIER", [(1, VAULT_OVER), (6, SLAM_RAISED)]),
-    "Slam": ("LINEAR", [(1, SLAM_RAISED), (3, SLAM_DOWN), (6, with_slam(SLAM_DOWN)), (16, with_slam(SLAM_DOWN)), (23, REST)]),
+    "VaultLand": ("BEZIER", [(1, VAULT_DOWN), (3, VAULT_CROUCH), (7, REST)]),
 }
 
 
