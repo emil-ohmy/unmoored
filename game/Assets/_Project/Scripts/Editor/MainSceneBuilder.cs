@@ -373,6 +373,10 @@ public static partial class MainSceneBuilder
         apprentice.vaultLandSound = Clips("vault_land");
         apprentice.slamSound = Clips("vault_slam");
         apprentice.slamReadySound = Clips("vault_ready");
+        var shadow = GeneratedMaterial("M_VaultShadow", "MyGame/ParticleLit"); // (a soft dark disc: black, its alpha the dot's)
+        shadow.SetTexture("_MainTex", RadialTexture("T_SoftDot", ring: false));
+        EditorUtility.SetDirty(shadow);
+        apprentice.vaultShadowMaterial = shadow;
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
         go.AddComponent<OarLook>(); // the oar's step: its trims and its wood

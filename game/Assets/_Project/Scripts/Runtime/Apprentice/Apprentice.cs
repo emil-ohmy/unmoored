@@ -143,7 +143,8 @@ namespace MyGame
         public float vaultDistance = 4f;     // how far it carries you, always (misjudge a gap and you fall short)
         public float vaultHeight = 1.75f;    // the arc's top above where it was planted (clear of a 1.5 m wall)
         [Range(0.1f, 0.9f)] public float vaultPeakAt = 0.35f; // share of the arc to its top: up quickly, over the oar
-        public float vaultLand = 0.3f;       // come down, before you can move (committed: nothing cancels it)
+        public float vaultLand = 0.2f;       // come down, before you can move (committed: nothing cancels it)
+        public float vaultSkid = 0.45f;      // landing, the leap's speed carried on a little (this share of it, dying away)
         public float vaultStaminaCost = 30f;
         public float vaultLockReach = 6f;    // locked on to a Soured within this: it carries you to its feet instead
         public float airborneAbove = 0.8f;   // this far off the ground, low things pass under (rings, a sweep, a charge)
@@ -155,6 +156,7 @@ namespace MyGame
         // open; an attack pressed before it (or after) is a slam missed, for that leap.
         [Range(0f, 1f)] public float slamFrom = 0.3f, slamUntil = 0.8f;
         public AudioClip[] vaultPlantSound, vaultLandSound, slamSound, slamReadySound;
+        public Material vaultShadowMaterial; // the shadow under you in the air (a soft dark disc: how high, and over what)
 
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
@@ -530,6 +532,7 @@ namespace MyGame
                 }
                 if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead && CurrentState != State.Vaulting)
                     planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
+                lastPlanar = planar;
                 controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
             TrackSafeGround(dt);
@@ -1586,14 +1589,28 @@ namespace MyGame
         enum VaultPhase { Plant, Flight, Fall, Land }
         VaultPhase vaultPhase;
         Vector3 vaultDirection;
-        float vaultSpeed, vaultFloor, vaultVertical, vaultGlow;
-        bool slamming, slamMissed, slamShown;
+        float vaultSpeed, vaultFloor, vaultVertical, vaultGlow, vaultCarry;
+        bool slamming, slamMissed, slamShown, vaultOnto;
+        Vector3 landSkid, lastPlanar;
 
         public bool Slamming => CurrentState == State.Vaulting && slamming;
         // In the air, the slam's moment open: the Apprentice glows.
         public bool SlamReady => CurrentState == State.Vaulting && vaultPhase == VaultPhase.Flight && !slamming && !slamMissed
                                  && stateTime >= slamFrom * vaultFlight && stateTime <= slamUntil * vaultFlight;
         public float VaultGlow => vaultGlow; // (0..1: how brightly, now)
+
+        // Where the camera looks: you, but in a vault the ground you're over (it doesn't leap with you: the world
+        // would bob; it eases to a higher ledge once you're down on it).
+        public Vector3 CameraFocus
+        {
+            get
+            {
+                Vector3 at = transform.position;
+                if (CurrentState == State.Vaulting && vaultPhase != VaultPhase.Land)
+                    at.y = Mathf.Min(at.y, vaultFloor);
+                return at;
+            }
+        }
         public event System.Action<int> Slammed; // (how many Soured it struck)
 
         // Off the ground in a vault, high enough that what's low passes under (a ring, a sweep, a charge).
@@ -1628,9 +1645,10 @@ namespace MyGame
             vaultDirection = direction;
             vaultSpeed = distance / vaultFlight;
             vaultFloor = transform.position.y;
+            vaultOnto = LockTarget != null && distance < vaultDistance;
+            vaultCarry = Mathf.Min(new Vector3(lastPlanar.x, 0f, lastPlanar.z).magnitude, moveSpeed); // (planted on the run: still going)
             slamming = slamMissed = slamShown = false;
             knockback = Vector3.zero;
-            transform.rotation = Quaternion.LookRotation(direction);
             Enter(State.Vaulting);
             vaultPhase = VaultPhase.Plant;
             clips.PlayOnce("VaultPlant", vaultPlant);
@@ -1643,26 +1661,39 @@ namespace MyGame
             ? vaultHeight * Mathf.Sin(u / vaultPeakAt * Mathf.PI * 0.5f)
             : vaultHeight * (1f - Mathf.Pow((u - vaultPeakAt) / (1f - vaultPeakAt), 2f));
 
+        // Up smoothly (lifted on the oar, no snap off the ground), then falling as anything falls.
+        float VaultRise(float u) => u < vaultPeakAt
+            ? vaultHeight * Mathf.SmoothStep(0f, 1f, u / vaultPeakAt)
+            : VaultArc(u);
+
+        void TurnToVault(float dt)
+        {
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(vaultDirection), turnSpeed * dt);
+        }
+
         Vector3 UpdateVault(float dt)
         {
             switch (vaultPhase)
             {
                 case VaultPhase.Plant:
+                    TurnToVault(dt);
                     if (stateTime >= vaultPlant)
                     {
                         vaultPhase = VaultPhase.Flight;
                         stateTime = 0f;
                         clips.PlayOnce("Vault", vaultFlight);
                     }
-                    return Vector3.zero;
+                    return vaultDirection * vaultCarry;
 
                 case VaultPhase.Flight:
                 {
                     float u = Mathf.Clamp01(stateTime / vaultFlight);
                     if (SlamReady && !slamShown)
                     {
-                        slamShown = true; // the moment opens: a glint off the oar, a chime
-                        Effects.Instance?.StrokeCharged(transform.position + Vector3.up * 0.9f);
+                        slamShown = true; // the moment opens: the glow, a few motes off it, a chime
+                        for (int i = 0; i < 5; i++)
+                            Effects.Instance?.Wisp(transform.position + Vector3.up * 0.7f + Random.insideUnitSphere * 0.3f, new Color(0.8f, 0.88f, 1f, 1f),
+                                                   vaultDirection * vaultSpeed * 0.6f + Random.insideUnitSphere * 0.6f, 0.4f);
                         Sfx.Instance?.Attack(slamReadySound, transform.position + Vector3.up, 0.7f, "vault_ready");
                     }
                     if (buffered == Act.Light || buffered == Act.Heavy)
@@ -1685,7 +1716,8 @@ namespace MyGame
                         Touchdown(); // (on a ledge higher than it left from)
                         return Vector3.zero;
                     }
-                    vaultVertical = (vaultFloor + VaultArc(u) - transform.position.y) / Mathf.Max(dt, 1e-4f);
+                    TurnToVault(dt);
+                    vaultVertical = (vaultFloor + VaultRise(u) - transform.position.y) / Mathf.Max(dt, 1e-4f);
                     if (u >= 1f)
                     {
                         vaultPhase = VaultPhase.Fall; // (still in the air: lower ground, or the water)
@@ -1708,7 +1740,7 @@ namespace MyGame
                 default: // Land
                     if (stateTime >= (slamming ? slamRecovery : vaultLand))
                         ToFreeAndConsume();
-                    return Vector3.zero;
+                    return landSkid * Mathf.Exp(-10f * stateTime); // (a short skid, dying away)
             }
         }
 
@@ -1728,6 +1760,7 @@ namespace MyGame
             vaultPhase = VaultPhase.Land;
             stateTime = 0f;
             buffered = Act.None; // (nothing pressed in the air carries over: down, it's committed)
+            landSkid = slamming || vaultOnto ? Vector3.zero : vaultDirection * vaultSpeed * vaultSkid;
             verticalVelocity = -2f;
             if (slamming)
             {
@@ -2153,6 +2186,50 @@ namespace MyGame
         MaterialPropertyBlock hookGlow;
         static readonly Color HookColour = new Color(0.62f, 0.77f, 1f);
         static readonly Color VaultGlowColour = new Color(0.55f, 0.62f, 0.75f);
+
+        // In the air, a soft dark disc on the ground under you: smaller and fainter the higher you are; none over the
+        // water (nothing to land on).
+        Transform vaultShadow;
+        Mesh vaultShadowMesh;
+        float vaultShadowFade;
+        public bool VaultShadowShown => vaultShadow != null && vaultShadow.gameObject.activeSelf; // (tests)
+
+        void UpdateVaultShadow()
+        {
+            if (vaultShadowMaterial == null)
+                return;
+            bool aloft = CurrentState == State.Vaulting && vaultPhase != VaultPhase.Land;
+            vaultShadowFade = Mathf.MoveTowards(vaultShadowFade, aloft ? 1f : 0f, Time.deltaTime / (aloft ? 0.08f : 0.12f));
+            bool over = Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out var hit, 8f, ~0, QueryTriggerInteraction.Ignore)
+                        && hit.point.y > waterLevel;
+            if (vaultShadow == null)
+            {
+                if (vaultShadowFade <= 0f)
+                    return;
+                var go = new GameObject("Vault Shadow", typeof(MeshFilter), typeof(MeshRenderer));
+                vaultShadow = go.transform;
+                vaultShadowMesh = new Mesh { name = "Vault Shadow" };
+                vaultShadowMesh.vertices = new[] { new Vector3(-0.5f, 0f, -0.5f), new Vector3(-0.5f, 0f, 0.5f), new Vector3(0.5f, 0f, 0.5f), new Vector3(0.5f, 0f, -0.5f) };
+                vaultShadowMesh.uv = new[] { new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(1f, 0f) };
+                vaultShadowMesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+                vaultShadowMesh.colors = new Color[4];
+                go.GetComponent<MeshFilter>().sharedMesh = vaultShadowMesh;
+                var r = go.GetComponent<MeshRenderer>();
+                r.sharedMaterial = vaultShadowMaterial;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+            bool show = vaultShadowFade > 0f && over;
+            if (vaultShadow.gameObject.activeSelf != show)
+                vaultShadow.gameObject.SetActive(show);
+            if (!show)
+                return;
+            float high = Mathf.Clamp01((transform.position.y - hit.point.y) / Mathf.Max(0.1f, vaultHeight));
+            vaultShadow.position = hit.point + Vector3.up * 0.03f;
+            vaultShadow.localScale = Vector3.one * Mathf.Lerp(1.4f, 0.9f, high); // (the dot's alpha falls off fast: bigger than the Apprentice)
+            var c = new Color(0f, 0f, 0f, Mathf.Lerp(0.85f, 0.6f, high) * vaultShadowFade);
+            vaultShadowMesh.colors = new[] { c, c, c, c };
+        }
         bool glowing;
         OarLook oarLook;
         MaterialPropertyBlock vaultBlock;
@@ -2168,6 +2245,7 @@ namespace MyGame
             float glow = CurrentState == State.Ceremony ? 1.6f + 0.5f * Mathf.Sin(Time.time * 6f)
                        : AimingHook && CurrentState == State.Free || CurrentState == State.Hooking ? 0.7f : 0f;
             vaultGlow = Mathf.MoveTowards(vaultGlow, SlamReady ? 1f : 0f, Time.deltaTime / 0.06f);
+            UpdateVaultShadow();
             if (hookSlot >= 0)
             {
                 hookGlow.SetColor("_EmissionColor", HookColour * glow + VaultGlowColour * vaultGlow);

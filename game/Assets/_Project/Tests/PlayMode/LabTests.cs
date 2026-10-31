@@ -1754,7 +1754,8 @@ namespace MyGame.Tests
                 top = Mathf.Max(top, apprentice.transform.position.y);
                 yield return null;
             }
-            Assert.AreEqual(apprentice.vaultDistance, apprentice.transform.position.x - from.x, 0.35f, "its distance, east");
+            float skid = apprentice.vaultDistance / apprentice.vaultFlight * apprentice.vaultSkid / 10f; // (the landing's skid)
+            Assert.AreEqual(apprentice.vaultDistance + skid, apprentice.transform.position.x - from.x, 0.35f, "its distance (and a skid), east");
             Assert.AreEqual(from.z, apprentice.transform.position.z, 0.2f);
             Assert.Greater(top - from.y, 1.6f, "up over the oar");
             Assert.AreEqual(stamina - apprentice.vaultStaminaCost, apprentice.Stamina, 6f, "it costs");
@@ -1907,7 +1908,39 @@ namespace MyGame.Tests
             yield return VaultEnds();
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
-            Assert.AreEqual(apprentice.vaultDistance, apprentice.transform.position.x - from.x, 0.35f, "one leap, not two");
+            Assert.Less(apprentice.transform.position.x - from.x, apprentice.vaultDistance + 1f, "one leap, not two");
+        }
+
+        // Planted on the run, the run carries on through the plant (no dead stop); the camera stays on the ground
+        // under you (it doesn't leap with you); the shadow under you shows, and goes when you're down.
+        [UnityTest]
+        public IEnumerator TheVault_OnTheRun_NoDeadStop_TheCameraStaysLow_AShadowUnderYou()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(0.5f);
+            Vector3 before = apprentice.transform.position;
+            input.PressVault();
+            yield return null;
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Vaulting, apprentice.CurrentState);
+            yield return new WaitForSeconds(0.08f); // (still planting)
+            Assert.Greater(apprentice.transform.position.x - before.x, 0.4f, "still going through the plant");
+            var rig = CameraRig.Instance;
+            float camera = rig.transform.position.y;
+            float highest = camera;
+            bool shadow = false;
+            while (apprentice.CurrentState == Apprentice.State.Vaulting)
+            {
+                highest = Mathf.Max(highest, rig.transform.position.y);
+                shadow |= apprentice.VaultShadowShown;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Less(highest - camera, 0.15f, "the camera didn't leap with you");
+            Assert.IsTrue(shadow, "a shadow under you in the air");
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsFalse(apprentice.VaultShadowShown, "and gone when you're down");
         }
 
         // Locked on to a Soured within reach, the Vault carries you to its feet, wherever you were facing.
