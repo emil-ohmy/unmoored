@@ -3,8 +3,8 @@
 Clip timings match the Middle combat tuning (the controller rescales them if tuning changes):
 light 0.13 s windup / 0.10 s active / 0.28 s recovery; heavy 0.5 / 0.12 / 0.5; dash 0.38 s; heal 0.7 s.
 RecoilHeavy / RecoilLight: bouncing off a Laden's heap (0.35 s). HookAim (loop), HookThrow (0.15 s), HookPull, Pickup
-(0.6 s), RaiseItem (2.4 s: a key item held up). VaultPlant (0.12 s), Vault (0.55 s), VaultLand (0.18 s), SlamRaise,
-Slam (0.4 s): the Vault.
+(0.6 s), RaiseItem (2.4 s: a key item held up). VaultPlant (0.12 s), Vault (0.55 s), VaultLand (0.3 s), SlamRaise,
+Slam (0.75 s): the Vault.
 """
 import math
 
@@ -303,13 +303,13 @@ ACTIONS = {
     ]),
     # The Vault: the oar's foot planted ahead, crouched (VaultPlant, 0.12 s); up and over it, tipped forward, the oar
     # swinging back behind as it's let go of below (Vault, 0.55 s: the top at a third); down, a crouch (VaultLand,
-    # 0.18 s). The slam: in the air the oar goes up overhead in both hands (SlamRaise, held), and is driven down into
-    # the ground as you land (Slam, 0.4 s), crouched over it.
+    # 0.3 s). The slam: in the air the oar goes up overhead in both hands (SlamRaise, held), and is driven down into
+    # the ground as you land (Slam, 0.75 s), crouched over it, held, then up.
     "VaultPlant": ("BEZIER", [(1, REST), (4, VAULT_PLANT)]),
     "Vault": ("BEZIER", [(1, VAULT_PLANT), (4, VAULT_RISE), (7, VAULT_OVER), (12, VAULT_BEYOND), (17, VAULT_DOWN)]),
-    "VaultLand": ("BEZIER", [(1, VAULT_DOWN), (3, VAULT_CROUCH), (6, REST)]),
+    "VaultLand": ("BEZIER", [(1, VAULT_DOWN), (3, VAULT_CROUCH), (6, VAULT_CROUCH), (10, REST)]),
     "SlamRaise": ("BEZIER", [(1, VAULT_OVER), (6, SLAM_RAISED)]),
-    "Slam": ("LINEAR", [(1, SLAM_RAISED), (3, SLAM_DOWN), (6, with_slam(SLAM_DOWN)), (12, REST)]),
+    "Slam": ("LINEAR", [(1, SLAM_RAISED), (3, SLAM_DOWN), (6, with_slam(SLAM_DOWN)), (16, with_slam(SLAM_DOWN)), (23, REST)]),
 }
 
 

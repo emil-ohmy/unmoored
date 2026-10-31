@@ -372,6 +372,7 @@ public static partial class MainSceneBuilder
         apprentice.vaultPlantSound = Clips("vault_plant");
         apprentice.vaultLandSound = Clips("vault_land");
         apprentice.slamSound = Clips("vault_slam");
+        apprentice.slamReadySound = Clips("vault_ready");
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
         go.AddComponent<OarLook>(); // the oar's step: its trims and its wood

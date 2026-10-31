@@ -143,14 +143,18 @@ namespace MyGame
         public float vaultDistance = 4f;     // how far it carries you, always (misjudge a gap and you fall short)
         public float vaultHeight = 1.75f;    // the arc's top above where it was planted (clear of a 1.5 m wall)
         [Range(0.1f, 0.9f)] public float vaultPeakAt = 0.35f; // share of the arc to its top: up quickly, over the oar
-        public float vaultLand = 0.18f;      // come down, before you can move
+        public float vaultLand = 0.3f;       // come down, before you can move (committed: nothing cancels it)
         public float vaultStaminaCost = 30f;
         public float vaultLockReach = 6f;    // locked on to a Soured within this: it carries you to its feet instead
         public float airborneAbove = 0.8f;   // this far off the ground, low things pass under (rings, a sweep, a charge)
         public float slamFall = 16f;         // the slam: driven down this fast
         public float slamRadius = 2.6f, slamDamage = 30f, slamStagger = 80f, slamKnockback = 9f;
-        public float slamRecovery = 0.4f;
-        public AudioClip[] vaultPlantSound, vaultLandSound, slamSound;
+        public float slamRecovery = 0.75f;   // crouched over the blow, committed
+        public float slamStaminaCost = 15f;  // on top of the vault's
+        // The slam's moment: from the arc's top into its fall (shares of the flight). The Apprentice glows while it's
+        // open; an attack pressed before it (or after) is a slam missed, for that leap.
+        [Range(0f, 1f)] public float slamFrom = 0.3f, slamUntil = 0.8f;
+        public AudioClip[] vaultPlantSound, vaultLandSound, slamSound, slamReadySound;
 
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
@@ -538,7 +542,7 @@ namespace MyGame
             if (Input.DashPressed) Buffer(Act.Dash);
             if (Input.LightPressed) Buffer(Act.Light);
             if (Input.HeavyPressed) Buffer(Act.Heavy);
-            if (Input.VaultPressed && HasVault) Buffer(Act.Vault);
+            if (Input.VaultPressed && HasVault && CurrentState != State.Vaulting) Buffer(Act.Vault); // (not again till it's down)
         }
 
         Vector3 MoveDirection()
@@ -1582,10 +1586,14 @@ namespace MyGame
         enum VaultPhase { Plant, Flight, Fall, Land }
         VaultPhase vaultPhase;
         Vector3 vaultDirection;
-        float vaultSpeed, vaultFloor, vaultVertical;
-        bool slamming;
+        float vaultSpeed, vaultFloor, vaultVertical, vaultGlow;
+        bool slamming, slamMissed, slamShown;
 
         public bool Slamming => CurrentState == State.Vaulting && slamming;
+        // In the air, the slam's moment open: the Apprentice glows.
+        public bool SlamReady => CurrentState == State.Vaulting && vaultPhase == VaultPhase.Flight && !slamming && !slamMissed
+                                 && stateTime >= slamFrom * vaultFlight && stateTime <= slamUntil * vaultFlight;
+        public float VaultGlow => vaultGlow; // (0..1: how brightly, now)
         public event System.Action<int> Slammed; // (how many Soured it struck)
 
         // Off the ground in a vault, high enough that what's low passes under (a ring, a sweep, a charge).
@@ -1620,7 +1628,7 @@ namespace MyGame
             vaultDirection = direction;
             vaultSpeed = distance / vaultFlight;
             vaultFloor = transform.position.y;
-            slamming = false;
+            slamming = slamMissed = slamShown = false;
             knockback = Vector3.zero;
             transform.rotation = Quaternion.LookRotation(direction);
             Enter(State.Vaulting);
@@ -1651,10 +1659,26 @@ namespace MyGame
                 case VaultPhase.Flight:
                 {
                     float u = Mathf.Clamp01(stateTime / vaultFlight);
-                    if (u > 0.08f && (HasBuffered(Act.Light) || HasBuffered(Act.Heavy)))
+                    if (SlamReady && !slamShown)
                     {
-                        StartSlam();
-                        return vaultDirection * vaultSpeed * 0.25f;
+                        slamShown = true; // the moment opens: a glint off the oar, a chime
+                        Effects.Instance?.StrokeCharged(transform.position + Vector3.up * 0.9f);
+                        Sfx.Instance?.Attack(slamReadySound, transform.position + Vector3.up, 0.7f, "vault_ready");
+                    }
+                    if (buffered == Act.Light || buffered == Act.Heavy)
+                    {
+                        bool now = SlamReady && CanSpend(slamStaminaCost);
+                        buffered = Act.None;
+                        if (now)
+                        {
+                            StartSlam();
+                            return vaultDirection * vaultSpeed * 0.25f;
+                        }
+                        if (!slamming && !slamMissed)
+                        {
+                            slamMissed = true; // too soon (or too late): not this leap
+                            Announce(u < slamFrom ? "too soon" : "too late");
+                        }
                     }
                     if (u > vaultPeakAt && controller.isGrounded)
                     {
@@ -1672,8 +1696,8 @@ namespace MyGame
                 }
 
                 case VaultPhase.Fall:
-                    if (!slamming && (HasBuffered(Act.Light) || HasBuffered(Act.Heavy)))
-                        StartSlam();
+                    if (buffered == Act.Light || buffered == Act.Heavy)
+                        buffered = Act.None; // (past its moment)
                     if (controller.isGrounded)
                     {
                         Touchdown();
@@ -1692,6 +1716,7 @@ namespace MyGame
         void StartSlam()
         {
             buffered = Act.None;
+            Spend(slamStaminaCost);
             slamming = true;
             vaultPhase = VaultPhase.Fall;
             verticalVelocity = -slamFall;
@@ -1702,6 +1727,7 @@ namespace MyGame
         {
             vaultPhase = VaultPhase.Land;
             stateTime = 0f;
+            buffered = Act.None; // (nothing pressed in the air carries over: down, it's committed)
             verticalVelocity = -2f;
             if (slamming)
             {
@@ -2126,6 +2152,10 @@ namespace MyGame
         int hookSlot = -1;
         MaterialPropertyBlock hookGlow;
         static readonly Color HookColour = new Color(0.62f, 0.77f, 1f);
+        static readonly Color VaultGlowColour = new Color(0.55f, 0.62f, 0.75f);
+        bool glowing;
+        OarLook oarLook;
+        MaterialPropertyBlock vaultBlock;
 
         // The Hook at the hip: shown once it's been found, hidden while it's out on the tether. Whenever it's out
         // (whirled, flying, held up) its dark iron glows faint cold blue so it reads at night; brightly when held up.
@@ -2137,10 +2167,25 @@ namespace MyGame
                 lanternBone.localScale = LanternOnTheBow ? Vector3.one * 0.0001f : Vector3.one;
             float glow = CurrentState == State.Ceremony ? 1.6f + 0.5f * Mathf.Sin(Time.time * 6f)
                        : AimingHook && CurrentState == State.Free || CurrentState == State.Hooking ? 0.7f : 0f;
+            vaultGlow = Mathf.MoveTowards(vaultGlow, SlamReady ? 1f : 0f, Time.deltaTime / 0.06f);
             if (hookSlot >= 0)
             {
-                hookGlow.SetColor("_EmissionColor", HookColour * glow);
+                hookGlow.SetColor("_EmissionColor", HookColour * glow + VaultGlowColour * vaultGlow);
                 bodyRenderer.SetPropertyBlock(hookGlow, hookSlot);
+            }
+            // The slam's moment: the Apprentice lit silver (the oar's moonlight; the blade through its own sheen, OarLook).
+            // Only the body's own slots (the oar's are OarLook's), and let go of again after (the heal's glow is the
+            // whole renderer's, and a slot's own would hide it).
+            if (bodyRenderer != null && (vaultGlow > 0f || glowing))
+            {
+                glowing = vaultGlow > 0f;
+                oarLook ??= GetComponent<OarLook>();
+                vaultBlock ??= new MaterialPropertyBlock();
+                vaultBlock.SetColor("_EmissionColor", VaultGlowColour * vaultGlow);
+                int slots = bodyRenderer.sharedMaterials.Length;
+                for (int i = 0; i < slots; i++)
+                    if (i != hookSlot && (oarLook == null || !oarLook.IsOarSlot(i)))
+                        bodyRenderer.SetPropertyBlock(glowing ? vaultBlock : null, i);
             }
             if (hookHead != null)
             {

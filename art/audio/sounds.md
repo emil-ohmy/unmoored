@@ -157,3 +157,4 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | The Vault's plant (`vault_plant`, 2) | in game | Synth | the oar's iron-shod foot knocked onto stone (a bright knock, a scrape, the ferrule's ring), the shaft creaking under the weight, the cloak's whump going up |
 | Coming down from the Vault (`vault_land`, 2) | in game | Synth | soft boots on stone, a muffled thud, the cloak settling, a little grit |
 | The slam (`vault_slam`, 2) | in game | Synth | the oar driven down into stone from the leap: a deep sub drop, the blade's crack, grit and rubble, a silvery shimmer (E, B) going out with the ring of force |
+| The slam's moment (`vault_ready`) | in game | Synth | at the Vault's top, as the Apprentice lights up: a quick glassy chime (E6 over B5) and a breath of shimmer: now |
