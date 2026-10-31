@@ -202,6 +202,7 @@ public static partial class MainSceneBuilder
         climbs.travel = new Vector3(0f, CurtainTop - f, 0f);
         climbs.travelTime = 3f;
         climbs.carries = true;
+        climbs.cycles = true; // (time running for good: it goes up and down on its own)
         climbs.deck = new Vector2(1.6f, 1.6f);
         var cache = Put("obol_cache", T(-13.6f, CurtainTop, -21.2f), 90f);
         cache.name = "Obol Cache (the west wall's walk)";
@@ -459,8 +460,8 @@ public static partial class MainSceneBuilder
         // hour hand to the west, the minute hand to the east: bridges along the face between the ledges); inside, the
         // escapement's gears on the shaft's head.
         Works(face, "dial", T(0f, F(3), -TowerOut), flat);
-        Works(face, "hand_hour", T(0f, F(3), -TowerOut), flat);
-        Works(face, "hand_minute", T(0f, F(3), -TowerOut), flat);
+        var hourHand = Works(face, "hand_hour", T(0f, F(3), -TowerOut), flat);
+        var minuteHand = Works(face, "hand_minute", T(0f, F(3), -TowerOut), flat);
         Turning(Works(face, "gear_small", T(0f, F(3) + 2.2f, 4.4f), upright), Vector3.forward, 50f);
         Turning(Works(face, "gear_large", T(0f, F(3) + 2.4f, 0.4f), upright), Vector3.forward, -25f);
 
@@ -478,8 +479,8 @@ public static partial class MainSceneBuilder
         // The clock's heart where it can be seen: the escapement hung in the belfry's south arch, stopped mid-tick; on the
         // east face, counterweights hanging on their chains from the cogged crowns, held where they stopped.
         var escapement = Works(belfry, "escapement", T(0f, F(4) + 1.9f, -TowerOut - 0.35f), flat);
-        Works(belfry, "great_bell", T(-2.0f, F(4), 1.6f), flat);                 // the hour bell, in its frame
-        Works(belfry, "winding_drum", T(-4.6f, F(4), -4.6f), flat);
+        var greatBell = Works(belfry, "great_bell", T(-2.0f, F(4), 1.6f), flat);  // the hour bell, in its frame
+        var windingDrum = Works(belfry, "winding_drum", T(-4.6f, F(4), -4.6f), flat);
         Works(works, "counterweight", T(TowerOut + 0.5f, F(3) - 0.4f, 1.4f), flat);
         Works(gallery, "counterweight", T(TowerOut + 0.5f, F(4) - 0.4f, 5.6f), flat);
         var spire = Place("Environment/last_hour_props_spire", T(-15.6f, 0f, 2f), 0f);
@@ -508,6 +509,22 @@ public static partial class MainSceneBuilder
         clockwork.thawRadius = 30f;
         ClockworkSounds(clockwork);
         Marks(clockwork, new GameObject[0], clockwork.strikePoint);
+
+        // The central engine: the clock's heart in the belfry, over its broken floor (the Vault). The Stroke at its plate
+        // (inside the south arch, under the escapement) sets the Hall's time going for good: the hour bell tolls, the
+        // hands sweep round from a quarter past nine to ten (clockwise, seen from the south), every machine runs.
+        var heart = Machine("The Central Engine's Works", windingDrum.transform, T(0f, F(4), -TowerIn + 1.0f), 1f, belfry.transform);
+        heart.spinners = new[] { new Clockwork.Spinner { part = windingDrum.transform, axis = Vector3.right, speed = 30f } };
+        Marks(heart, new GameObject[0], heart.strikePoint);
+        var engine = new GameObject("The Central Engine").AddComponent<CentralEngine>();
+        engine.transform.position = T(0f, F(4), -TowerIn + 1.0f);
+        engine.clockwork = heart;
+        engine.bell = greatBell.transform;
+        engine.hourHand = hourHand.transform;
+        engine.minuteHand = minuteHand.transform;
+        engine.hourTurn = -22.5f;
+        engine.minuteTurn = -270f;
+        engine.tollSound = Clips("last_hour_toll");
 
         KeepClutter((storey, model, at, yaw) =>
         {

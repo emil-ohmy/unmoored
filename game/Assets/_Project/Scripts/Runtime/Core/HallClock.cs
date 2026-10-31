@@ -4,7 +4,8 @@ namespace MyGame
 {
     // The Hall of the Last Hour's clock: a beat a second, the beat its music keeps (the music's place in its loop, so
     // a blow lands on the music's tick; the loop is a whole number of bars); with no music playing, the game's own
-    // time. The Punctual keep to it.
+    // time; and the game's own whenever time is stepped (tests, recordings: Time.captureDeltaTime), where the music,
+    // playing in real time, would run ahead of the game's. The Punctual keep to it.
     public static class HallClock
     {
         public const float Beat = 1f;
@@ -14,7 +15,7 @@ namespace MyGame
         {
             get
             {
-                double music = MusicPlayer.Instance != null ? MusicPlayer.Instance.Clock : -1.0;
+                double music = MusicPlayer.Instance != null && Time.captureDeltaTime <= 0f ? MusicPlayer.Instance.Clock : -1.0;
                 return music >= 0.0 ? music : Time.timeSinceLevelLoadAsDouble;
             }
         }

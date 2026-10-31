@@ -885,6 +885,92 @@ namespace MyGame.Tests
             Assert.AreEqual(cold, moon.color);
         }
 
+        // ---- The central engine: the clock's heart in the belfry, over its broken floor.
+
+        const float Belfry = 16.55f;
+
+        // Walked off the stair's side of the belfry into the gap: down to the face room, unharmed.
+        [UnityTest]
+        public IEnumerator TheBelfry_ItsBrokenFloor_FallenThrough_DownToTheFaceRoom()
+        {
+            apprentice.Teleport(T(5.3f, Belfry, -2f));
+            yield return new WaitForSeconds(0.3f);
+            float health = apprentice.Health;
+            yield return WalkTo(T(1.5f, 0f, -2f), 0.4f, 4f); // (through the gap: on along the face room's floor)
+            yield return new WaitForSeconds(0.8f);
+            Assert.AreEqual(12.5f, apprentice.transform.position.y, 0.2f, "down in the face room");
+            Assert.AreEqual(health, apprentice.Health, "no harm");
+        }
+
+        // The Vault leaps it, to the clock's heart.
+        [UnityTest]
+        public IEnumerator TheBelfry_TheVaultLeapsItsBrokenFloor()
+        {
+            apprentice.GiveVault();
+            apprentice.Teleport(T(5.3f, Belfry, -2f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.left);
+            yield return new WaitForSeconds(0.3f);
+            input.PressVault();
+            yield return null;
+            for (float t = 0f; t < 3f && apprentice.CurrentState == Apprentice.State.Vaulting; t += Time.deltaTime)
+                yield return null;
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(Belfry, apprentice.transform.position.y, 0.2f, "over it, on the belfry's floor");
+            Assert.Less(apprentice.transform.position.x - tower.transform.position.x, 2.2f, "on the far side");
+        }
+
+        // The Stroke at its plate: the Hall's time set going for good (the wave out from it, the hands swept round to
+        // ten, the camera drawn back and returned, every machine running from then on: the gear door open for good, the
+        // lift going up and down by itself).
+        [UnityTest]
+        public IEnumerator TheCentralEngine_Struck_SetsTheHallsTimeGoing_ForGood()
+        {
+            var engine = CentralEngine.Instance;
+            Assert.IsNotNull(engine, "the central engine");
+            Quaternion minute = engine.minuteHand.rotation, hour = engine.hourHand.rotation;
+            apprentice.GiveStroke();
+            apprentice.Teleport(engine.transform.position + Vector3.up * 0.05f);
+            yield return new WaitForSeconds(0.3f);
+            yield return Stroke(Vector3.back);
+            yield return Until(() => engine.Set, 2f, "set going");
+            Assert.IsTrue(HallTime.Instance.Running, "the Hall's time");
+            yield return new WaitForSeconds(1.5f);
+            Assert.Greater(CameraRig.Instance.Zoom, 1.4f, "the camera drawn back");
+            yield return new WaitForSeconds(engine.pullBackTime + 2f);
+            Assert.AreEqual(90f, Quaternion.Angle(minute, engine.minuteHand.rotation), 2f, "the minute hand round to the hour");
+            Assert.AreEqual(22.5f, Quaternion.Angle(hour, engine.hourHand.rotation), 2f, "the hour hand to ten");
+            Assert.Less(CameraRig.Instance.Zoom, 1.05f, "and back");
+            var machines = UnityEngine.Object.FindObjectsByType<Clockwork>(FindObjectsSortMode.None);
+            Assert.IsTrue(machines.All(c => c.Forever && c.Running), "every machine running for good");
+            var lift = UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => m.carries);
+            float low = 1f, high = 0f;
+            for (float t = 0f; t < 14f; t += Time.deltaTime)
+            {
+                low = Mathf.Min(low, lift.Progress);
+                high = Mathf.Max(high, lift.Progress);
+                yield return null;
+            }
+            Assert.AreEqual(1f, high, 0.01f, "the lift up...");
+            Assert.AreEqual(0f, low, 0.01f, "...and down, by itself");
+            Assert.IsTrue(UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => !m.carries).Out, "the gear door open for good");
+            Assert.IsTrue(SaveSystem.Instance.Capture().hallTimeRunning, "kept in a save");
+        }
+
+        // A save that had it going: going at once (no wave), the hands at the hour, every machine running.
+        [UnityTest]
+        public IEnumerator TheCentralEngine_ASaveThatHadItGoing_LoadsGoing()
+        {
+            var engine = CentralEngine.Instance;
+            Quaternion minute = engine.minuteHand.rotation;
+            engine.Settle();
+            yield return null;
+            Assert.IsTrue(HallTime.Instance.Running);
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallWaveOn"), 0.001f, "no wave: colour everywhere already");
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallStill"), 0.001f);
+            Assert.AreEqual(90f, Quaternion.Angle(minute, engine.minuteHand.rotation), 2f, "the hands at the hour");
+            Assert.IsTrue(UnityEngine.Object.FindObjectsByType<Clockwork>(FindObjectsSortMode.None).All(c => c.Forever));
+        }
+
         // The court's dust (the one the Apprentice starts in).
         StillAir CourtDust => UnityEngine.Object.FindObjectsByType<StillAir>(FindObjectsSortMode.None)
             .Where(s => s.motes > 100).OrderBy(s => Vector3.Distance(s.transform.position, apprentice.transform.position)).First();

@@ -266,6 +266,26 @@ def wainscot(parts, storey, brass, openings):
             parts.append(m.box("Band", brass, *box, u0 + b, u0 + b + 0.16))
 
 
+BELFRY_GAP = (2.2, 4.8, -IN, IN)  # (e0, e1, n0, n1): the belfry's floor broken through, north to south
+
+
+def broken_edges(parts, top):
+    """The broken floor's edges: flagstones snapped off and jutting, tipped, over the drop; the bed's raw edge."""
+    rng = kit.rng
+    e0, e1, n0, n1 = BELFRY_GAP
+    paving = [m.mat(p) for p in m.PAVING]
+    for edge, out in ((e0, 1), (e1, -1)):
+        n = n0 + 0.3
+        while n < n1 - 0.4:
+            d = rng.uniform(0.35, 0.8)
+            jut = rng.uniform(0.08, 0.32)
+            tip = rng.uniform(4, 14) * out
+            parts.append(part("BrokenFlag", kit.cube(), rng.choice(paving),
+                              M((-(edge + out * jut / 2), -(n + d / 2), top - 0.06 - jut * 0.15), rot=(0, tip, 0),
+                                scale=(jut + 0.1, d - 0.05, 0.1))))
+            n += d + rng.uniform(0.05, 0.5)
+
+
 def marble(parts, e0, e1, n0, n1, top, aisle, size=1.2):
     """The great hall's floor: marble squares, deep green and cream, laid square to its walls over a grout bed; down
     its aisle a crimson runner with gilt edges, under the rack. (Seen from above, the floor is most of the hall.)"""
@@ -373,7 +393,10 @@ def build(variant):
         stair(parts, 3)
     elif variant == "belfry":
         f = F[4]
-        m.flagstones(parts, -IN, IN, -IN, IN, f, holes=[stair_hole(4)])
+        # The belfry's floor broken through between the stair's head (east) and the clock's heart (the escapement in
+        # the south arch, the hour bell): a gap the Vault leaps; fallen through, the face room's below (no harm).
+        m.flagstones(parts, -IN, IN, -IN, IN, f, holes=[stair_hole(4), BELFRY_GAP])
+        broken_edges(parts, f)
         e0, e1, n0, n1, _ = STAIRS[3]
         m.balustrade(parts, e0 - 0.1, n0, e0 - 0.1, n1 - 1.6, f)
         m.balustrade(parts, e0 - 0.1, n0 - 0.1, IN, n0 - 0.1, f)

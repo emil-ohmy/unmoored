@@ -156,3 +156,4 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | A Keener falling (`keener_death`) | in game | Synth | a sigh letting go (a voice sinking B4 to E4, then breath), and its stopped watch going again: a quiet tick and tock |
 | The Vault's plant (`vault_plant`, 2) | in game | Synth | the oar's iron-shod foot knocked onto stone (a bright knock, a scrape, the ferrule's ring), the shaft creaking under the weight, the cloak's whump going up |
 | Coming down from the Vault (`vault_land`, 2) | in game | Synth | soft boots on stone, a muffled thud, the cloak settling, a little grit |
+| The Hall's hour bell (`last_hour_toll`) | in game | Synth | time set going (the central engine): the works catching (an iron clunk, a ratchet), then one great bronze toll on E2, its hum ringing on through the stone, a cold hall's tail (10 s) |

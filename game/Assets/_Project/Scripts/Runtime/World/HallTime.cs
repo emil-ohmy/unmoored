@@ -60,6 +60,8 @@ namespace MyGame
 
         void Start()
         {
+            if (engine == null && CentralEngine.Instance != null)
+                engine = CentralEngine.Instance.transform; // (the wave goes out from the clock's heart)
             moon = RenderSettings.sun;
             if (moon == null)
                 foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
@@ -125,6 +127,19 @@ namespace MyGame
             Stillness = 0f;
             MusicPlayer.Instance?.Wake(true);
             Changed?.Invoke(true);
+        }
+
+        // Going already (a save that had it going): no wave, colour and warmth everywhere at once.
+        public void RunAtOnce()
+        {
+            if (Running)
+                return;
+            Running = true;
+            WaveRadius = reach;
+            Stillness = 0f;
+            MusicPlayer.Instance?.Wake(true);
+            Changed?.Invoke(true);
+            Apply();
         }
 
         // Held still again (the lab's: the game never stops it once it's going).
