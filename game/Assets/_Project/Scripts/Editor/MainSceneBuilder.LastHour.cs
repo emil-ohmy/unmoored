@@ -157,6 +157,9 @@ public static partial class MainSceneBuilder
                     Object.DestroyImmediate(col); // (hung overhead)
                 Flicker(PointLight(c.transform, T(e, 9.5f - 3.0f, n), 7f, 1.6f, TowerBrass), 0.06f, 4f, 0.005f);
             }
+        // Two mourners at the hall's south end, among the clocks they stopped, facing up the aisle.
+        foreach (var (e, n) in new[] { (19.8f, -20.6f), (23.8f, -21.4f) })
+            Keener("Keener", T(e, f, n), 0f);
         Put("last_hour_props_hourglass", T(18.6f, f, -25.2f), 0f, hall.transform);
         Put("last_hour_props_hourglass", T(25.4f, f, -25.2f), 0f, hall.transform);
         Put("last_hour_props_music_drum", T(22f, f, -23.4f), 0f, hall.transform);

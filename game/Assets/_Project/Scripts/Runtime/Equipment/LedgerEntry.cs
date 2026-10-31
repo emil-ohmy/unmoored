@@ -80,7 +80,11 @@ namespace MyGame
             "The household's hounds. They wanted more time, and were given it a turn of a key at a time: they run as they did when they were young, run down, and wind themselves again.",
             "Outlast it: it slows as it runs down, and sits to wind its key. That's the time. The Stroke knocks the key loose.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound };
+        public static readonly LedgerEntry Keener = new LedgerEntry("keener", "The Keener", Rank.Soured, LastHour, "keener",
+            "The mourners who stopped the Hall's clocks at the minute of a death, and never let them go again. They keep the minute in their hands still, and keen it.",
+            "Listen for the breath: a knell follows, rings rolling across the floor. Dash through them, in to it; it's frail, and doesn't last.");
+
+        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound, Keener };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -101,6 +105,7 @@ namespace MyGame
             MyGame.Thresher _ => Threshers,
             MyGame.Punctual _ => Punctual,
             MyGame.Wound _ => Wound,
+            MyGame.Keener _ => Keener,
             _ => null,
         };
 

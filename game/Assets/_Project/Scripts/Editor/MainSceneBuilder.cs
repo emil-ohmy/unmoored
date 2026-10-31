@@ -851,6 +851,46 @@ public static partial class MainSceneBuilder
         return w;
     }
 
+    // A Keener (the Hall of the Last Hour): a mourner in black crape, the stopped watch in its hand. Keeps its distance;
+    // draws breath, then tolls a knell: three rings of sound across the floor, dashed through. Fragile.
+    static Keener Keener(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/keener", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.92f, 0f);
+        controller.height = 1.84f;
+        controller.radius = 0.38f;
+        controller.minMoveDistance = 0f;
+        var k = go.AddComponent<Keener>();
+        k.maxHealth = 40f;          // (three blows of the oar)
+        k.radius = 0.42f;
+        k.staggerCapacity = 35f;    // (two: the knell cut short)
+        k.staggerDuration = 1.1f;
+        k.aggroRadius = 11f;
+        k.viewHalfAngle = 100f;
+        k.noticeCloseRadius = 3f;
+        k.chaseSpeed = 1.4f;
+        k.turnSpeed = 240f;
+        k.leashRadius = 14f;
+        k.giveUpRange = 16f;
+        k.obols = 30;
+        k.eyeHeight = 1.7f;
+        k.barHeight = 2.3f;
+        k.deathDuration = 1.1f;
+        k.primary = new SouredAttack
+        {
+            name = "Knell", windupClip = "Breath", strikeClip = "Toll", recoverClip = "Recover",
+            telegraph = 1.2f, strike = 1.2f, recover = 1.4f, impactAt = 0.15f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 10f, arc = 180f, knockback = 0f,
+            ranged = true, volley = 3, volleyInterval = 0.45f, volleyTrack = 20f,
+            windupSound = Clips("keener_breath"), releaseSound = Clips("keener_knell"),
+        };
+        k.deathSound = Clips("keener_death");
+        BeltLantern(go, k);
+        return k;
+    }
+
     // A ball of fire (the Watchman's, a Gleaner's): glowing orange, no outline.
     static Material FireballMaterial()
     {

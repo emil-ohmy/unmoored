@@ -151,3 +151,6 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | A Wound winding (`wound_wind`) | in game | Synth | 2.5 s: four turns of the key, each a run of ratchet clicks and a creak, each a little higher |
 | A Wound wound tight (`wound_wound`) | in game | Synth | the key's last click, the spring caught (a bright twang), its whirr starting up |
 | A Wound's key knocked loose (`wound_loose`) | in game | Synth | the Stroke: a hard ping, the spring let go all at once (a ratchet spinning out), a wobbling twang |
+| A Keener drawing breath (`keener_breath`, 2) | in game | Synth | the knell's tell, 1.2 s: a ragged inhale through crape that catches twice in a sob, a low bell's hum (E2) swelling under it, cut off at the top |
+| A Keener's knell (`keener_knell`, 3) | in game | Synth | one per ring: a funeral bell on E3 struck through crape (muffled), a keening voice above it falling B4 to G4 (each variant its own vowel), a cold hall's tail |
+| A Keener falling (`keener_death`) | in game | Synth | a sigh letting go (a voice sinking B4 to E4, then breath), and its stopped watch going again: a quiet tick and tock |

@@ -30,7 +30,7 @@ namespace MyGame.Tests
             apprentice.Input = input = new ScriptedInput();
             tower = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name.Contains("keep"));
             // The household keeps out of every test but its own kind's (one of each pair, then, on its own).
-            foreach (var kind in new[] { typeof(Punctual), typeof(Wound) })
+            foreach (var kind in new[] { typeof(Punctual), typeof(Wound), typeof(Keener) })
             {
                 var household = UnityEngine.Object.FindObjectsByType(kind, FindObjectsSortMode.None).Cast<Component>().OrderBy(c => c.transform.position.x).ToArray();
                 bool theirs = TestContext.CurrentContext.Test.Name.StartsWith(kind.Name);
@@ -466,6 +466,187 @@ namespace MyGame.Tests
                 apprentice.Teleport(new Vector3(front.x, w.transform.position.y + 0.05f, front.z), true, true);
                 yield return new WaitForSeconds(0.1f);
                 Shot("wound-3-winding");
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+            }
+        }
+
+        // ---- The Keener
+
+        Keener TheKeener => UnityEngine.Object.FindAnyObjectByType<Keener>();
+
+        Keener FaceTheKeener(float distance)
+        {
+            var k = TheKeener;
+            Assert.IsNotNull(k, "a mourner keeps the hall");
+            Vector3 at = k.transform.position + k.transform.forward * distance;
+            apprentice.Teleport(new Vector3(at.x, k.transform.position.y + 0.05f, at.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-k.transform.forward);
+            return k;
+        }
+
+        // Waits (in game time) until `done`, or fails after `timeout`.
+        static IEnumerator Until(Func<bool> done, float timeout, string what)
+        {
+            for (float t = 0f; t < timeout && !done(); t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(done(), "timed out waiting for " + what);
+        }
+
+        static float FlatDistance(Vector3 a, Vector3 b)
+        {
+            a.y = b.y = 0f;
+            return Vector3.Distance(a, b);
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_DrawsBreath_ThenTollsThreeRings_HalfASecondApart()
+        {
+            var k = FaceTheKeener(7f);
+            var rang = new System.Collections.Generic.List<float>();
+            void Heard(Keener by, Shockwave ring) => rang.Add(Time.time);
+            Keener.Rang += Heard;
+            try
+            {
+                yield return Until(() => k.CurrentState == Soured.State.Telegraph, 4f, "the breath");
+                float breath = Time.time;
+                yield return Until(() => rang.Count >= 3, 4f, "three rings");
+                Assert.AreEqual(k.primary.telegraph + k.primary.strike * k.primary.impactAt, rang[0] - breath, 0.1f, "the breath first, then the knell");
+                Assert.AreEqual(k.primary.volleyInterval, rang[1] - rang[0], 0.05f);
+                Assert.AreEqual(k.primary.volleyInterval, rang[2] - rang[1], 0.05f);
+                yield return new WaitForSeconds(1.5f);
+                Assert.AreEqual(3, k.Rings, "three, and no more for a while");
+            }
+            finally { Keener.Rang -= Heard; }
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_ARing_KnocksYouBack_WhereItsCrestPasses()
+        {
+            var k = FaceTheKeener(6f);
+            yield return Until(() => k.LastRing != null, 4f, "the knell");
+            var ring = k.LastRing;
+            yield return Until(() => ring == null || ring.Struck, 3f, "the ring reaching you");
+            Assert.AreEqual(apprentice.maxHealth - k.ringDamage, apprentice.Health, 0.01f, "struck by the ring");
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_ARing_DashedThrough_DoesNoHarm()
+        {
+            var k = FaceTheKeener(6f);
+            yield return Until(() => k.LastRing != null, 4f, "the knell");
+            var ring = k.LastRing;
+            yield return Until(() => ring.Radius >= FlatDistance(apprentice.transform.position, ring.transform.position) - 0.9f, 3f, "the crest arriving");
+            input.PressDash(); // (in, through it)
+            yield return Until(() => ring == null || ring.Struck, 1f, "the crest passing");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "dashed through: unharmed");
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_DriftsBack_WhenYouComeNear()
+        {
+            var k = TheKeener;
+            k.firstKnellDelay = 99f; // (only its keeping away, here)
+            FaceTheKeener(3f);
+            yield return new WaitForSeconds(3f);
+            Assert.AreEqual(Soured.State.Chase, k.CurrentState);
+            Assert.Greater(FlatDistance(apprentice.transform.position, k.transform.position), 4.8f, "it keeps its distance");
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_StaggeredWhileDrawingBreath_TollsNothing()
+        {
+            var k = FaceTheKeener(7f);
+            yield return Until(() => k.CurrentState == Soured.State.Telegraph, 4f, "the breath");
+            yield return new WaitForSeconds(0.5f);
+            k.TakeHit(new Hit { Damage = 1f, From = apprentice.transform.position, Knockback = Vector3.zero, Stagger = 999f });
+            Assert.AreEqual(Soured.State.Staggered, k.CurrentState, "fragile: it reels");
+            yield return new WaitForSeconds(2f);
+            Assert.AreEqual(0, k.Rings, "the knell cut short");
+        }
+
+        // A knell's rings roll across its own floor: a wall between muffles one, and one from the floor below passes
+        // under you.
+        [UnityTest]
+        public IEnumerator TheKnell_IsMuffledByAWall_AndKeepsToItsOwnFloor()
+        {
+            Vector3 at = apprentice.transform.position;
+            Shockwave Ring(Vector3 centre)
+            {
+                var r = Shockwave.Spread(centre, apprentice, 6f, 5.5f, 0.8f, 12f, 5f, Color.white);
+                r.muffled = true;
+                return r;
+            }
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = at + Vector3.right * 1.5f + Vector3.up * 1f;
+            wall.transform.localScale = new Vector3(0.3f, 2f, 3f);
+            yield return null;
+            var walled = Ring(at + Vector3.right * 3f);
+            yield return Until(() => walled == null || walled.Struck, 2f, "the walled ring");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "a wall between: muffled");
+            UnityEngine.Object.Destroy(wall);
+            var below = Ring(at + Vector3.right * 3f + Vector3.down * 3f);
+            yield return Until(() => below == null, 2f, "the ring below fading");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "from the floor below: it passes under");
+            var open = Ring(at + Vector3.right * 3f);
+            yield return Until(() => open == null || open.Struck, 2f, "the open ring");
+            Assert.AreEqual(apprentice.maxHealth - 12f, apprentice.Health, 0.01f, "in the open, on its floor: struck");
+        }
+
+        // (SHOTS=dir) The Keener: keeping the hall; drawing breath; the knell's rings; spent.
+        [UnityTest]
+        public IEnumerator Keener_Capture()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var k = TheKeener;
+                k.immortal = true;
+                Vector3 post = k.transform.position;
+                apprentice.Teleport(post + new Vector3(2.2f, 0.05f, 1.2f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+                CameraRig.Instance?.SetZoom(0.6f);
+                k.passive = true;
+                yield return new WaitForSeconds(0.1f);
+                Shot("keener-0-keeping-the-hall");
+                k.passive = false;
+                CameraRig.Instance?.SetZoom(1.5f);
+                // Up the aisle, turned to face south, you south of it: the camera (looking north) sees it and its rings
+                // rolling down at you.
+                var body = k.GetComponent<CharacterController>();
+                body.enabled = false;
+                k.transform.position = new Vector3(T(22f, 0f, -13.5f).x, post.y, T(22f, 0f, -13.5f).z);
+                k.transform.rotation = Quaternion.AngleAxis(180f, Vector3.up) * k.transform.rotation;
+                body.enabled = true;
+                FaceTheKeener(5.5f);
+                yield return Until(() => k.CurrentState == Soured.State.Telegraph, 4f, "the breath");
+                yield return new WaitForSeconds(k.primary.telegraph * 0.8f);
+                Shot("keener-1-drawing-breath");
+                yield return Until(() => k.Rings >= 2, 3f, "the rings");
+                yield return new WaitForSeconds(0.3f);
+                Shot("keener-2-the-knell");
+                yield return Until(() => k.CurrentState == Soured.State.Recover, 3f, "spent");
+                yield return new WaitForSeconds(0.4f);
+                Shot("keener-3-spent");
             }
             finally
             {
