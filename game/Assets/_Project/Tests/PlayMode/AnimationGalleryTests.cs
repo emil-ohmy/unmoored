@@ -182,6 +182,54 @@ namespace MyGame.Tests
             File.WriteAllText(Path.Combine(outDir, "seams.md"), md.ToString());
         }
 
+        // (FILM=dir, FILM_CREATURE=title) A creature's chain filmed as the game plays it: every frame at 30 a second, from
+        // the game's angle and from its side, side by side (chain.mp4 there, made by ffmpeg; the frames as PNGs).
+        [UnityTest]
+        public IEnumerator Film_Chain()
+        {
+            string outDir = Environment.GetEnvironmentVariable("FILM");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set FILM to film");
+            string who = Environment.GetEnvironmentVariable("FILM_CREATURE") ?? "Laden";
+            Directory.CreateDirectory(outDir);
+            Time.captureDeltaTime = 1f / 30f;
+            int index = Array.FindIndex(gallery.Exhibits, e => e.title == who);
+            Assert.GreaterOrEqual(index, 0, who);
+            gallery.Select(index);
+            gallery.SetMode(AnimationGallery.Mode.Chain);
+            var cam = Camera.main;
+            var rt = new RenderTexture(640, 640, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            gallery.Zoom = 0.72f;
+            float total = AnimationGallery.ChainLength(gallery.Exhibits[index]);
+            int frames = Mathf.CeilToInt(total * 30f);
+            try
+            {
+                float gamePitch = gallery.pitch;
+                foreach (var (view, yaw, pitch) in new[] { ("game", 0f, gamePitch), ("side", 90f, 10f) })
+                {
+                    gallery.Yaw = yaw;
+                    gallery.pitch = pitch;
+                    gallery.SetMode(AnimationGallery.Mode.Chain); // (from its start)
+                    yield return null;
+                    for (int f = 0; f < frames; f++)
+                    {
+                        yield return null;
+                        var previous = RenderTexture.active;
+                        cam.Render();
+                        RenderTexture.active = rt;
+                        var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                        tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                        tex.Apply();
+                        RenderTexture.active = previous;
+                        File.WriteAllBytes(Path.Combine(outDir, $"{view}_{f + 1:0000}.png"), tex.EncodeToPNG());
+                        UnityEngine.Object.Destroy(tex);
+                    }
+                }
+            }
+            finally { cam.targetTexture = null; }
+        }
+
         // (SHOTS=dir) The gallery: a few of them, and the bones.
         [UnityTest]
         public IEnumerator Capture_Gallery()

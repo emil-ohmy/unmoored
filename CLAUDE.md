@@ -70,6 +70,17 @@ game/Assets/_Project/
   `_Glow` become emissive, and in `_Metal` metal (a hard glint from the moon and lanterns); smoothed normals are baked into tangents for the outline. Rigged FBX skip Blender's
   bake_space_transform (broken with armatures) and use Unity's bakeAxisConversion, so their roots keep a
   rotation: compose yaw with the prefab's root rotation when placing.
+- Animating a creature (the Laden is the template, art/models/characters/laden.py): key each bone on its own timing
+  as tracks (`kit.bake(tracks, length, periodic)`: a key every frame, eased, no overshoot unless keyed), so nothing
+  moves all at once: the body leads (hips, spine, chest), the head follows a few frames late, loose things (what it
+  carries, a skirt, a lantern) lag and overshoot. Prepare big moves (a dip before a lift), land them with weight (an
+  overshoot, a rebound, a settle). Don't key arms that hold something: bend them every frame with `kit.reach` so the
+  hands keep their grip (a build reports any clip whose hands come off). Key a held thing by where it is in the world
+  (the Laden's heap: by the height of its bottom), not through the body that carries it. Start walks on their upright
+  passing pose (they join what's before and after). Check with `tools/film-clips.sh <name>` (every frame, game camera
+  and side, films and sheets in builds/film-<name>/), then in the game: Lab_Gallery's Chain mode, its seam report
+  (`REPORT=dir`) and its in-game film (`FILM=dir FILM_CREATURE=<title>`, AnimationGalleryTests). Wind-ups ease in over
+  `Soured.WindupFade` (0.15 s); other one-offs over 0.05 s, loops over 0.15 s.
 - Sounds are code too: `art/audio/<name>.py` defines render(variant, rng) (+ VARIANTS, LOOP). The list of every
   sound and its source (synth / AI / library) is `art/audio/sounds.md`. Claude can't listen: check shape with a
   spectrogram (`ffmpeg ... showspectrumpic`) and look for clicks (layers cut before they decay), then the user

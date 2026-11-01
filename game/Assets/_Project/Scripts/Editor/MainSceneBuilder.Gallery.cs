@@ -70,14 +70,14 @@ public static partial class MainSceneBuilder
             if (Has(clip))
                 steps.Add(new GalleryExhibit.Step { clip = clip, duration = time, loop = true, fade = steps.Count == 0 ? 0f : 0.15f, note = note });
         }
-        void Once(string clip, float time, string note)
+        void Once(string clip, float time, string note, float fade = 0.05f)
         {
             if (Has(clip))
-                steps.Add(new GalleryExhibit.Step { clip = clip, duration = time, loop = false, fade = steps.Count == 0 ? 0f : 0.05f, note = note });
+                steps.Add(new GalleryExhibit.Step { clip = clip, duration = time, loop = false, fade = steps.Count == 0 ? 0f : fade, note = note });
         }
         void Attack(GalleryExhibit.Attack a)
         {
-            Once(a.windup, a.telegraph, $"{a.name}: the wind-up");
+            Once(a.windup, a.telegraph, $"{a.name}: the wind-up", Soured.WindupFade);
             Once(a.strike, a.strikeTime, $"{a.name}: the blow");
             Once(a.recover, a.recoverTime, $"{a.name}: recovering");
         }

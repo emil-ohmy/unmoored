@@ -104,6 +104,8 @@ namespace MyGame
         }
 
         public void TogglePause() => Paused = !Paused;
+        public float Yaw { get => yaw; set => yaw = value; }   // (the camera turned round the chosen one: 90 its side)
+        public float Zoom { get => zoom; set => zoom = value; }
         public void NextSpeed() => SpeedIndex = (SpeedIndex + 1) % Speeds.Length;
         public void SetSpeed(int index) => SpeedIndex = Mathf.Clamp(index, 0, Speeds.Length - 1);
         public void NextBones() => BonesShown = (BonesShown + 1) % 3;

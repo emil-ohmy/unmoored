@@ -87,6 +87,9 @@ namespace MyGame
         public int TimesDefeated { get; private set; } // it re-forms, but the world remembers it was beaten
 
         protected ClipPlayer clips;
+        // How long a wind-up takes to blend in from the walk or idle before it (a one-off's usual 0.05 s snaps the pose:
+        // the wind-up's own first moment is its anticipation, so it can afford to ease in).
+        public const float WindupFade = 0.15f;
         SouredAttack current;
         float lungeThisStrike;
         protected virtual string IdleClip => "Idle";
@@ -218,7 +221,7 @@ namespace MyGame
                         lockedDirection = toTarget.normalized; // locked now: sidestepping is always an answer
                         Enter(State.Telegraph);
                         committed = false;
-                        clips.PlayOnce(attack.windupClip, attack.telegraph);
+                        clips.PlayOnce(attack.windupClip, attack.telegraph, WindupFade); // (eased into from whatever it was doing)
                         tell = Sfx.Instance?.Attack(attack.windupSound, transform.position + Vector3.up, 1f, Label("windup"));
                         tellClip = tell != null ? tell.clip : null;
                     }

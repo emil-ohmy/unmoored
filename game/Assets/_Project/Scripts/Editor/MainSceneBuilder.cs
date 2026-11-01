@@ -572,7 +572,7 @@ public static partial class MainSceneBuilder
         laden.sweep.windupSound = Clips("laden_sweep_windup");
         laden.sweep.swingSound = Clips("laden_swing");
         laden.sweep.swingPitch = 1.15f; // a quicker, lighter swing than the slam
-        BeltLantern(go, laden);
+        BeltLantern(go, laden, "Lantern"); // (its lantern swings on a cord of its own)
         Swoosh(go, "Heap", "FrameGold", SouredSwoosh, 0.18f, "HeapWood"); // the whole heap, top to chest: a big heavy smear
         return laden;
     }
