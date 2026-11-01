@@ -46,6 +46,7 @@ public static partial class MainSceneBuilder
         ("punctual", "Punctual", p => Punctual("Punctual", p, 0f)),
         ("wound", "Wound", p => Wound("Wound", p, 0f)),
         ("keener", "Keener", p => Keener("Keener", p, 0f)),
+        ("widow", "The Widow Hale", p => Widow("The Widow Hale", p, 0f)),
         ("the_hour", "The One Who Waits", p => TheHourBoss(p)),
     };
 

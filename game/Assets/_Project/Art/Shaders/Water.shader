@@ -81,6 +81,8 @@ Shader "MyGame/Water"
             half _HallWaveOn;
             half _HallWaveWidth;
             half4 _HallStillTint;
+            float4 _HallPockets[4]; // xyz a pocket of time's centre, w its reach (TimePocket)
+            half _HallPocketCount;
 
             half HallStillness(float3 positionWS)
             {
@@ -89,6 +91,16 @@ Shader "MyGame/Water"
                 {
                     float d = distance(positionWS.xz, _HallWave.xz);
                     s = max(s, smoothstep(_HallWave.w - _HallWaveWidth, _HallWave.w, d));
+                }
+                // Pockets of time round machines set going (TimePocket): colour back within each, a storey up and down.
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i >= (int)_HallPocketCount)
+                        break;
+                    float4 p = _HallPockets[i];
+                    float r = distance(positionWS.xz, p.xz);
+                    half outside = max(smoothstep(p.w - 0.9, p.w, r), smoothstep(3.5, 4.0, abs(positionWS.y - p.y)));
+                    s = min(s, outside);
                 }
                 return s;
             }

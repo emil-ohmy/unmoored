@@ -84,6 +84,22 @@ namespace MyGame
                         Say(post.ResidentsAwake ? "Up they get." : "Hush. They'll keep.");
                     });
                 var music = Object.FindAnyObjectByType<MusicPlayer>();
+                var widow = Object.FindAnyObjectByType<Widow>();
+                if (widow != null)
+                    Add("The Widow Hale", widow.TimesDefeated > 0 ? "beaten" : "keeping the engine", "Keeping it, the central engine's plate won't take the Stroke until she's beaten. Beaten, it's free (and she's gone). Set back, she keeps it again.", () =>
+                    {
+                        if (widow.TimesDefeated > 0)
+                        {
+                            widow.ForgetDefeats();
+                            widow.Reform();
+                            Say("She's back at her vigil.");
+                        }
+                        else
+                        {
+                            widow.Slay(widow.transform.position + widow.transform.forward);
+                            Say("She let the minute go.");
+                        }
+                    });
                 var time = HallTime.Instance;
                 if (time != null)
                     Add("Time in the Hall", time.Running ? "running" : "stopped", "Stopped, as you find it: drained grey but for you, the dust hanging, every machine and trap held. Running, as its central engine sets it: the colour back in a wave out from the keep, the dust falling, the music woken, every machine and trap going for good.", () =>

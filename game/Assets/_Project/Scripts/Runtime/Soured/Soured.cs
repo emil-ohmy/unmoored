@@ -711,6 +711,8 @@ namespace MyGame
         protected virtual bool ArrivedHome() => false;
 
         // Loading a save: beaten before, gone (it doesn't re-form either, if it's a Boss).
+        public void ForgetDefeats() => TimesDefeated = 0; // (the lab: a miniboss set back as never beaten)
+
         protected void RestoreDefeated()
         {
             TimesDefeated = Mathf.Max(1, TimesDefeated);

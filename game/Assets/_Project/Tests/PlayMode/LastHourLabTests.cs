@@ -39,6 +39,8 @@ namespace MyGame.Tests
                 for (int i = !theirs ? 0 : test.Contains("Pair") ? household.Length : 1; i < household.Length; i++)
                     UnityEngine.Object.Destroy(household[i].gameObject);
             }
+            foreach (var widow in UnityEngine.Object.FindObjectsByType<Widow>(FindObjectsSortMode.None))
+                UnityEngine.Object.Destroy(widow.gameObject); // (her own tests have her: WidowTests)
             yield return new WaitForSeconds(0.3f);
         }
 

@@ -288,7 +288,7 @@ namespace MyGame
         void OnDestroy()
         {
             ownInput?.Dispose();
-            if (HeldInTime)
+            if (HeldInTime || slowedUntil > 0f)
                 Shader.SetGlobalFloat(HeldId, 0f);
         }
 
@@ -299,6 +299,14 @@ namespace MyGame
             float dt = Time.deltaTime;
             if (HeldInTime && CurrentState != State.Staggered)
                 ReleaseFromTime(); // (its moment over, or ended some other way)
+            if (slowedUntil > 0f && !HeldInTime)
+            {
+                // Slowed in the stillness (the Widow's veil): drained half grey while it holds, the colour back as it lets go.
+                float left = Mathf.Clamp01((slowedUntil - Time.time) / 0.4f);
+                Shader.SetGlobalFloat(HeldId, 0.55f * left);
+                if (left <= 0f)
+                    slowedUntil = 0f;
+            }
             UpdateProvisionEffects(dt);
             if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free && CurrentState != State.Rowing))
                 CloseMenu(); // (a talk on the water stays open)
@@ -331,7 +339,7 @@ namespace MyGame
                     bool wasAiming = AimingHook;
                     AimingHook = HasHook && Input.HookHeld;
                     planar = move * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f) * (AimingHook ? hookAimMoveFactor : 1f)
-                           * (clingers.Count > 0 ? clingMoveFactor : 1f);
+                           * (clingers.Count > 0 ? clingMoveFactor : 1f) * SlowFactor;
                     Vector3 face = LockTarget != null ? ToLockTarget() : move; // locked: strafe, always facing it
                     if (face.sqrMagnitude > 0.001f)
                         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(face), turnSpeed * dt);
@@ -1527,6 +1535,19 @@ namespace MyGame
         }
 
         public bool HeldInTime { get; private set; }
+
+        // Slowed a while (caught in the Widow's veil, held in the stillness): walking `factor` as fast, `duration` long.
+        public void Slow(float factor, float duration)
+        {
+            if (!IsAlive)
+                return;
+            slowFactor = Mathf.Clamp01(factor);
+            slowedUntil = Mathf.Max(slowedUntil, Time.time + duration);
+        }
+
+        public bool Slowed => Time.time < slowedUntil;
+        float SlowFactor => Slowed ? slowFactor : 1f;
+        float slowedUntil, slowFactor = 1f;
         static readonly int HeldId = Shader.PropertyToID("_HallHeld");
 
         void ReleaseFromTime()

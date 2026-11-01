@@ -42,6 +42,9 @@ namespace MyGame
         public AudioClip[] startSound, tickSound, stopSound;
 
         public bool Running => Forever || runUntil > Time.time;
+        public System.Func<bool> Locked;           // (held fast: the central engine, while the Widow keeps it)
+        public event System.Action Refused;        // struck while held fast
+        public int Refusals { get; private set; }  // (tests)
         public bool Forever { get; private set; }  // (time running in the Hall: it never stops again)
         public event System.Action Started;
         public float Run { get; private set; }     // 0 stopped .. 1 running (eased up and down)
@@ -82,7 +85,19 @@ namespace MyGame
         }
 
         // The Stroke's wave reaching it: it runs (on again, if it was running).
-        public void TakeWave(StrokeWave wave, Vector3 push) => Set();
+        public void TakeWave(StrokeWave wave, Vector3 push)
+        {
+            if (Locked != null && Locked())
+            {
+                // Held fast: the wave breaks on it, a dull knock, and nothing turns.
+                Refusals++;
+                Sfx.Instance?.BlockClang(WavePoint + Vector3.up * 0.4f, 0.6f);
+                Effects.Instance?.Grit(WavePoint + Vector3.up * 0.3f);
+                Refused?.Invoke();
+                return;
+            }
+            Set();
+        }
 
         public void Set()
         {

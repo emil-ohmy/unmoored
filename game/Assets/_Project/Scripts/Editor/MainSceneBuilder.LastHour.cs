@@ -650,6 +650,51 @@ public static partial class MainSceneBuilder
         engine.minuteTurn = -270f;
         engine.tollSound = Clips("last_hour_toll");
 
+        // The Widow Hale keeps it (the Hall's miniboss): at her vigil before it, on the belfry's west side. While she's
+        // unbeaten its plate won't take the Stroke. Held in the stillness, she can only be hurt in time: round one of the
+        // engine's three parts, each set going a while at its own drive (a silver gear, her hands on it to stop it).
+        var widow = Widow("The Widow Hale", T(-1.4f, F(4), -1.0f), 90f);
+        widow.transform.SetParent(belfry.transform, true);
+        engine.keeper = widow;
+        Widow.Part WidowPart(string name, Vector3 drive, Vector3 plate, System.Action<Clockwork, Transform> moves)
+        {
+            var gear = Drive(drive, belfry.transform);
+            gear.name = name + " (its drive)";
+            var c = Machine(name, gear.transform, plate, 8f, belfry.transform);
+            moves(c, gear.transform);
+            Marks(c, new GameObject[0], c.strikePoint);
+            var pocket = new GameObject(name + " (its pocket of time)").AddComponent<TimePocket>();
+            pocket.transform.SetParent(c.transform, true);
+            pocket.transform.position = new Vector3(drive.x, F(4), drive.z);
+            pocket.clockwork = c;
+            pocket.radius = 3.4f;
+            var tend = new GameObject(name + " (where she tends it)").transform;
+            tend.SetParent(c.transform, true);
+            tend.position = new Vector3(drive.x + 0.85f, F(4), drive.z); // (on its east face, facing west)
+            return new Widow.Part { pocket = pocket, tendAt = tend };
+        }
+        widow.parts = new[]
+        {
+            WidowPart("The Escapement", T(-2.6f, F(4) + 1.35f, -6.6f), T(-2.6f, F(4), -5.4f), (c, gear) =>
+            {
+                c.spinners = new[] { new Clockwork.Spinner { part = gear, axis = Vector3.right, speed = 70f } };
+                c.swingers = new[] { new Clockwork.Swinger { part = escapement.transform, axis = Vector3.forward, amplitude = 3f, period = 1.1f, heldAt = 0f } };
+            }),
+            WidowPart("The Winding Drum", T(-6.4f, F(4) + 1.35f, -1.8f), T(-6.4f, F(4), -0.6f), (c, gear) =>
+            {
+                c.spinners = new[]
+                {
+                    new Clockwork.Spinner { part = gear, axis = Vector3.right, speed = 60f },
+                    new Clockwork.Spinner { part = windingDrum.transform, axis = Vector3.right, speed = 30f },
+                };
+            }),
+            WidowPart("The Hour Bell", T(-1.0f, F(4) + 1.35f, 5.4f), T(-1.0f, F(4), 4.2f), (c, gear) =>
+            {
+                c.spinners = new[] { new Clockwork.Spinner { part = gear, axis = Vector3.right, speed = -60f } };
+                c.swingers = new[] { new Clockwork.Swinger { part = greatBell.transform, axis = Vector3.right, amplitude = 8f, period = 2.6f, heldAt = 0f } };
+            }),
+        };
+
         KeepClutter((storey, model, at, yaw) =>
         {
             var go = Place("Environment/last_hour_props_" + model, at, yaw);
