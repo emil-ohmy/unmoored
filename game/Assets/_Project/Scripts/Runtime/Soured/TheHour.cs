@@ -96,6 +96,7 @@ namespace MyGame
         protected override bool OnItsLevel() => true;
         protected override Vector3 ChaseStep(Vector3 toTarget, float distance) => Vector3.zero; // (rooted)
         protected override string IdleClip => Woken && !Limp ? "Idle" : "Limp";
+        protected override string DeathClip => Limp && clips.Has("LimpDeath") ? "LimpDeath" : "Death"; // (the husk just gives out)
         protected override string ChaseClip(float distance) => IdleClip;
         protected override bool LosesTarget(float distance) => target == null || !InChamber(target.transform.position);
         protected override float Floor => !Limp && Woken && CurrentPhase < 4 ? maxHealth * PhaseMarks[CurrentPhase - 1] : 0f;

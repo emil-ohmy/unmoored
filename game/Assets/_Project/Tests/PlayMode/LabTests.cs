@@ -508,7 +508,7 @@ namespace MyGame.Tests
             yield return null;
             yield return null;
             Assert.IsTrue(u.fast.Mounted, "Fast rides Hold's back");
-            Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
+            Assert.Less(Vector3.Distance(u.fast.transform.position, u.fast.mount.position), 0.7f, "on Hold's back (its seat, or hopping onto it)");
             Assert.AreEqual(HitResult.Blocked, u.fast.TakeHit(new Hit { Damage = 50f, From = apprentice.transform.position }), "Hold's shoulders take the blow");
             for (float t = 0f; t < 6f && BossFight.Current == null; t += Time.deltaTime)
                 yield return null;
@@ -658,7 +658,7 @@ namespace MyGame.Tests
             }
             input.Move = Vector2.zero;
             Assert.IsTrue(u.fast.Mounted, "back up on Hold");
-            Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
+            Assert.Less(Vector3.Distance(u.fast.transform.position, u.fast.mount.position), 0.7f, "on Hold's back (its seat, or hopping onto it)");
         }
 
         // ---- Finding the way (heights, stop 2)

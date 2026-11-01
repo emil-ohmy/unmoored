@@ -770,7 +770,7 @@ namespace MyGame
                 nextVolley = Time.time + volleyInterval;
                 Leaf(Flat(target.transform.position - transform.position).normalized);
                 if (Time.time >= streamUntil) // (spinning, he throws them from the spin)
-                    clips.PlayOnce(flicks++ % 2 == 0 ? "FlickL" : "FlickR", 0.3f); // (a wing snapped down for each)
+                    clips.PlayOnce(flicks++ % 2 == 0 ? "FlickL" : "FlickR", 0.3f, 0.1f); // (a wing snapped down for each; eased in from wherever his beat was)
                 Sfx.Instance?.Attack(wingSound, transform.position + Vector3.up * 2f, 0.4f, "father_moth_wing", 1.3f);
             }
             // Spinning: a leaf off each wingtip as it sweeps round (his wings point along the stream).

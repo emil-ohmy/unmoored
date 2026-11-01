@@ -93,6 +93,7 @@ namespace MyGame
         SouredAttack current;
         float lungeThisStrike;
         protected virtual string IdleClip => "Idle";
+        protected virtual string DeathClip => "Death"; // (how it falls: the Hour, limp, has a death of its own)
 
         // Chase behaviour by distance to the Apprentice; subclasses change gait and speed (the Laden guards up close).
         protected virtual string ChaseClip(float distance) => "Walk";
@@ -107,7 +108,7 @@ namespace MyGame
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
-        SwingTrail swingTrail;
+        SwingTrail[] swingTrails;
         int[] lanternSlot; // per renderer: index of the belt lantern's material, or -1
         MaterialPropertyBlock flash;
         Vector3 spawnPosition;
@@ -135,7 +136,7 @@ namespace MyGame
             controller = GetComponent<CharacterController>();
             clips = new ClipPlayer(GetComponentInChildren<Animation>());
             renderers = GetComponentsInChildren<Renderer>();
-            swingTrail = GetComponent<SwingTrail>();
+            swingTrails = GetComponents<SwingTrail>();
             lanternSlot = System.Array.ConvertAll(renderers, r =>
                 System.Array.FindIndex(r.sharedMaterials, m => m != null && m.name.StartsWith("SouredLantern_Glow")));
             flash = new MaterialPropertyBlock();
@@ -365,8 +366,10 @@ namespace MyGame
                 return;
             }
 
-            if (swingTrail != null) // the smear of a melee blow (a shot has none)
-                swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
+            // The smear of a melee blow (a shot has none), on whichever weapon makes it.
+            bool smearing = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
+            foreach (var trail in swingTrails)
+                trail.Emitting = smearing && trail.For(current);
             // Walking and chasing keep to solid ground. A lunge doesn't (overshooting the edge is its own mistake), nor
             // does knockback (shoving one off the edge is fair play).
             if ((CurrentState == State.Chase || CurrentState == State.Returning) && !Floats)
@@ -761,7 +764,7 @@ namespace MyGame
             knockback = hit.Knockback * 0.5f;
             HitStop.Trigger(0.2f);
             CameraRig.Instance?.Shake(0.3f);
-            clips.PlayOnce("Death", deathDuration);
+            clips.PlayOnce(DeathClip, deathDuration);
             if (target != null)
                 target.GainObols(obols);
             if (droppedLantern != null && droppedLantern.carried != null)
@@ -952,11 +955,26 @@ namespace MyGame
             oneShotUntil = Time.time + duration;
         }
 
+        // A one-off its own code starts whatever it's doing (the Drowned going under), played to its end before the
+        // idle or chase loop takes over again.
+        protected void PlayThrough(string clip, float duration)
+        {
+            clips.PlayOnce(clip, duration);
+            oneShotUntil = Time.time + duration;
+        }
+
         void LoopUnlessBusy(string clip)
         {
             if (Time.time >= oneShotUntil)
                 clips.Loop(clip);
+            if (!desynced && clips.Current == clip)
+            {
+                desynced = true; // (its first loop at a point of its own: a flock, a pair, a row of them never move in step)
+                clips.Desync();
+            }
         }
+
+        bool desynced;
 
         // Per-renderer overrides: the hit flash (emission) and the death dissolve. With neither, clear the block so
         // the materials' own values (glowing eyes, lantern) show.

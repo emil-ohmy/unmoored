@@ -80,7 +80,10 @@ game/Assets/_Project/
   passing pose (they join what's before and after). Check with `tools/film-clips.sh <name>` (every frame, game camera
   and side, films and sheets in builds/film-<name>/), then in the game: Lab_Gallery's Chain mode, its seam report
   (`REPORT=dir`) and its in-game film (`FILM=dir FILM_CREATURE=<title>`, AnimationGalleryTests). Wind-ups ease in over
-  `Soured.WindupFade` (0.15 s); other one-offs over 0.05 s, loops over 0.15 s.
+  `Soured.WindupFade` (0.15 s); other one-offs over 0.05 s, loops over 0.15 s. Keyed turns go the short way: a bone
+  keyed 280° then -58° spins 338° back round between them (key 302°). Every blow in reach draws a swipe: `Swoosh` in
+  its factory (the bone, the material at the weapon's tip, the attacks it smears), shown in the gallery too;
+  `EveryBlowInReach_DrawsItsSwipe` lists the few blows that aren't swings.
 - Sounds are code too: `art/audio/<name>.py` defines render(variant, rng) (+ VARIANTS, LOOP). The list of every
   sound and its source (synth / AI / library) is `art/audio/sounds.md`. Claude can't listen: check shape with a
   spectrogram (`ffmpeg ... showspectrumpic`) and look for clicks (layers cut before they decay), then the user

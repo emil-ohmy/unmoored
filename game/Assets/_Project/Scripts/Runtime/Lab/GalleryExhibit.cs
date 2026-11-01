@@ -14,6 +14,8 @@ namespace MyGame
             public string name;
             public string windup, strike, recover;
             public float telegraph, strikeTime, recoverTime;
+            public string attack;       // (its name on the creature: which swipe trails draw it)
+            public bool ranged;         // (a shot: no swipe)
         }
 
         // One step of its chain: a clip played as the fight plays it (`loop`: looping for its time; else once, stretched
@@ -26,6 +28,7 @@ namespace MyGame
             public bool loop;
             public float fade;
             public string note;         // (what's happening: "notices you", "the slam")
+            public string swipe;        // (a blow in reach: the attack whose swipe trails draw through it)
         }
 
         public string title;
@@ -33,6 +36,19 @@ namespace MyGame
         public float radius = 1f;
         public Attack[] attacks = new Attack[0];
         public Step[] chain = new Step[0]; // its clips one after another as a fight chains them
+
+        SwingTrail[] trails;
+        public SwingTrail[] Trails => trails ??= GetComponents<SwingTrail>(); // (its swipes, as a fight draws them)
+
+        // Its swipe trails drawing (as Soured's: through the first nine tenths of a blow in reach) or not, timed by `clock`.
+        public void Swipe(string attack, bool on, System.Func<float> clock)
+        {
+            foreach (var trail in Trails)
+            {
+                trail.Clock = clock;
+                trail.Emitting = on && attack != null && trail.For(attack);
+            }
+        }
 
         // Its pose, `clip` at `time`: every bone's local rotation and position.
         public (Quaternion[] rotations, Vector3[] positions) PoseAt(string clip, float time)

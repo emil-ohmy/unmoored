@@ -140,6 +140,9 @@ public static partial class MainSceneBuilder
         h.stop = Blow("Stop", "StopCast", "StopCast", "Idle", 1.2f, 0.2f, 0.05f, 0.5f, 1f, null, null);
         h.stopSlam = Blow("StopSlam", "HammerRaise", "HammerSlam", "HammerRecover", 0.45f, 0.25f, 1.4f, 0.6f, 1f, null, Clips("trap_blade_swish"));
         h.twitch = Blow("Twitch", "TwitchDraw", "TwitchSwing", "Limp", 1.6f, 1.0f, 0.8f, 0.5f, 1f, Clips("the_hour_twitch"), null);
+        // Its two weapons, each its own smear: the hammer (on the left lever), the blade (on the right).
+        Swoosh(go, "ForeL", "HourSilver_Metal", SouredSwoosh, 0.2f, "HourGilt_Metal", 0f, "Hammer", "StopSlam");
+        Swoosh(go, "ForeR", "HourSilver_Metal", SouredSwoosh, 0.2f, "HourGilt_Metal", 0f, "Blade", "Twitch");
         h.music = new[] { AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_last_hour_2.wav") };
         h.handSound = Clips("trap_grind");
         h.wakeSound = Clips("the_hour_wake");

@@ -43,6 +43,7 @@ namespace MyGame
         public float NowAt { get; private set; }      // ...and where in it (seconds into the clip, as authored)
 
         readonly List<float> heads = new List<float>();
+        readonly List<System.Func<float>> clocks = new List<System.Func<float>>(); // (each one's playhead: its swipes' time)
         readonly List<LineRenderer> lines = new List<LineRenderer>();
         Camera cam;
         float yaw, zoom = 1f;
@@ -59,7 +60,9 @@ namespace MyGame
             Exhibits = found;
             foreach (var e in Exhibits)
             {
+                int k = heads.Count;
                 heads.Add(0f);
+                clocks.Add(() => heads[k]);
                 if (e.Animation != null)
                 {
                     e.Animation.Stop();
@@ -154,6 +157,7 @@ namespace MyGame
                 return;
             float t = heads[i];
             bool chosen = i == Selected;
+            e.Swipe(null, false, clocks[i]); // (only the chosen one's blows draw them: Chain and Attacks, below)
             if (Current == Mode.Everyone)
             {
                 // Every clip in turn, each at least a second and a half (a short one played over again).
@@ -184,7 +188,7 @@ namespace MyGame
             }
             if (Current == Mode.Chain)
             {
-                Chain(e, t);
+                Chain(e, t, clocks[i]);
                 return;
             }
             if (Current == Mode.Clips)
@@ -228,6 +232,8 @@ namespace MyGame
                     float at = loops ? Mathf.Repeat(u, s.length) : u / d * s.length; // (stretched over its time)
                     float fade = previous != null ? Mathf.Clamp01(u / 0.05f) : 1f;    // (ClipPlayer's crossfade)
                     Sample(e, s, at, previous, previousAt, 1f - fade, true);
+                    if (clip == a.strike && previous != null && !a.ranged)
+                        e.Swipe(a.attack, u <= d * 0.9f, clocks[i]);
                     return;
                 }
                 u -= d;
@@ -237,7 +243,7 @@ namespace MyGame
         }
 
         // Its chain at `t`: the step playing, its clip where the fight would have it, crossfaded in from the step before.
-        void Chain(GalleryExhibit e, float t)
+        void Chain(GalleryExhibit e, float t, System.Func<float> clock)
         {
             var steps = e.chain;
             if (steps.Length == 0)
@@ -268,6 +274,8 @@ namespace MyGame
                     }
                 }
                 Sample(e, s, StepTime(steps[i], u, s), from, fromAt, fromWeight, true);
+                if (steps[i].swipe != null)
+                    e.Swipe(steps[i].swipe, u <= d * 0.9f, clock);
                 return;
             }
         }

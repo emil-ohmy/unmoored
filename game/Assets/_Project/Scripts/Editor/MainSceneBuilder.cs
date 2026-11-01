@@ -654,6 +654,8 @@ public static partial class MainSceneBuilder
         };
         moth.diveSound = Clips("moth_dive");
         moth.releaseSound = Clips("moth_release");
+        Swoosh(go, "WingTipL", "MothEdge_Glow", SouredSwoosh, 0.14f, null, 0f, "Dive"); // (a contrail off each wing's glowing edge, down at you)
+        Swoosh(go, "WingTipR", "MothEdge_Glow", SouredSwoosh, 0.14f, null, 0f, "Dive");
         return moth;
     }
 
@@ -695,7 +697,7 @@ public static partial class MainSceneBuilder
         g.lantern = PointLight(Bone(go, "Pole"), GlowCentre(go, "GleanerLantern_Glow"), 6.5f, g.lanternIntensity, LanternLight); // (a pool of light round it: seen in the dark rows)
         g.hopSound = Clips("gleaner_hop");
         g.gutterSound = Clips("fireball_gutter");
-        BeltLantern(go, g);
+        BeltLantern(go, g, "BeltLantern"); // (its belt lantern swings on a cord of its own; "Pole" is the pole's lantern)
         return g;
     }
 
@@ -760,7 +762,8 @@ public static partial class MainSceneBuilder
         t.chainSound = Clips("thresher_chain");
         t.stokeSound = Clips("thresher_stoke");
         t.ventSound = Clips("thresher_vent");
-        BeltLantern(go, t, "Body");
+        BeltLantern(go, t, "Lantern");
+        Swoosh(go, "Body", "ThresherFlail_Metal", SouredSwoosh, 0.16f, "ThresherFlail_Metal", 0f, "Sweep", "Charge"); // (the flails' sweep, from the reel's axle out; streaking ahead of it in the charge)
         return t;
     }
 
@@ -806,7 +809,8 @@ public static partial class MainSceneBuilder
         p.quarterSound = Clips("punctual_quarter");
         p.lostSound = Clips("punctual_lost");
         p.foundSound = Clips("punctual_found");
-        BeltLantern(go, p);
+        BeltLantern(go, p, "Lantern");
+        Swoosh(go, "Key", "PunctualKeyBit_Metal", SouredSwoosh, 0.14f, null, 0.6f, "Count", "Quarters"); // (the great key's bit, and half its shaft)
         return p;
     }
 
@@ -855,7 +859,8 @@ public static partial class MainSceneBuilder
         w.windSound = Clips("wound_wind");
         w.woundSound = Clips("wound_wound");
         w.looseSound = Clips("wound_loose");
-        BeltLantern(go, w, "Neck");
+        BeltLantern(go, w, "Lantern");
+        Swoosh(go, "Head", "WoundNose", SouredSwoosh, 0.12f, "SouredEye_Glow", 0f, "Bite", "Pounce"); // (the snap of its jaws)
         return w;
     }
 
@@ -960,7 +965,9 @@ public static partial class MainSceneBuilder
         clinger.throwSound = Clips("clinger_throw");
         clinger.keenSound = Clips("clinger_keen");
         clinger.whisperSound = Clips("clinger_whisper");
-        BeltLantern(go, clinger, "Spine");
+        BeltLantern(go, clinger, "Lantern");
+        Swoosh(go, "HandR", "Claw", SouredSwoosh, 0.1f, "SouredGrey", 0f, "Leap"); // (its claws as it lands on you)
+        Swoosh(go, "HandL", "Claw", SouredSwoosh, 0.1f, "SouredGrey", 0f, "Leap");
         return clinger;
     }
 
@@ -1008,7 +1015,9 @@ public static partial class MainSceneBuilder
         hold.sweep.swingSound = Clips("laden_swing");
         hold.sweep.swingPitch = 0.85f;
         hold.howlSound = Clips("unparted_howl");
-        BeltLantern(go, hold, "Spine");
+        BeltLantern(go, hold, "Lantern");
+        Swoosh(go, "ForeR", "HoldClaw", SouredSwoosh, 0.16f, "SouredGrey", 0f, "Sweep", "Slam"); // (its right arm's sweep; both fists in the slam)
+        Swoosh(go, "ForeL", "Claw", SouredSwoosh, 0.16f, "SouredGrey", 0f, "Slam");
         var fast = Clinger("Fast", position + Quaternion.Euler(0f, yaw, 0f) * Vector3.back * 0.3f, yaw);
         fast.transform.SetParent(root.transform, true);
         fast.mount = Bone(go, "Back");
@@ -1063,7 +1072,7 @@ public static partial class MainSceneBuilder
         archer.volley.windupSound = Clips("archer_volley_draw");
         archer.volley.releaseSound = Clips("arrow_release");
         archer.trailMaterial = sparkMaterial;
-        BeltLantern(go, archer);
+        BeltLantern(go, archer, "Lantern");
         Swoosh(go, "Bow", "BowWood", SouredSwoosh, 0.1f); // the bow-jab (inner edge: the wood nearest the shoulders, the grip)
         return archer;
     }
@@ -1075,7 +1084,8 @@ public static partial class MainSceneBuilder
     // A swing's smear (SwingTrail), traced by two points on the weapon measured from the model itself (so no
     // guessing at bone axes): the tip is the `tipMaterial` vertex farthest from the bone; the inner edge is the
     // `innerMaterial` part's centre, or (with none) the tip part's vertex nearest the bone. Both ride the bone.
-    static void Swoosh(GameObject go, string bone, string tipMaterial, Color colour, float lifetime, string innerMaterial = null, float towardsPivot = 0f)
+    static SwingTrail Swoosh(GameObject go, string bone, string tipMaterial, Color colour, float lifetime, string innerMaterial = null, float towardsPivot = 0f,
+                             params string[] attacks)
     {
         var skinned = go.GetComponentInChildren<SkinnedMeshRenderer>();
         var baked = new Mesh();
@@ -1083,6 +1093,10 @@ public static partial class MainSceneBuilder
         var materials = skinned.sharedMaterials;
         var boneTransform = Bone(go, bone);
         Vector3 pivot = boneTransform.position;
+        // The material's points on this bone only (two claws can share a material; a weapon's are its bone's), or, if
+        // none is weighted to it, all of them.
+        int boneIndex = Array.IndexOf(skinned.bones, boneTransform);
+        var weights = skinned.sharedMesh.boneWeights;
         Vector3[] Points(string material)
         {
             int index = Array.FindIndex(materials, m => m != null && m.name.StartsWith(material));
@@ -1090,10 +1104,16 @@ public static partial class MainSceneBuilder
                 throw new Exception($"{go.name}: no {material} material for its swoosh");
             var verts = baked.vertices;
             var tris = baked.GetTriangles(index);
-            var points = new Vector3[tris.Length];
-            for (int i = 0; i < tris.Length; i++)
-                points[i] = skinned.transform.TransformPoint(verts[tris[i]]);
-            return points;
+            var on = new List<Vector3>();
+            var all = new List<Vector3>();
+            foreach (int v in tris)
+            {
+                var p = skinned.transform.TransformPoint(verts[v]);
+                all.Add(p);
+                if (boneIndex >= 0 && v < weights.Length && weights[v].boneIndex0 == boneIndex && weights[v].weight0 > 0.5f)
+                    on.Add(p);
+            }
+            return (on.Count > 0 ? on : all).ToArray();
         }
         var tipPoints = Points(tipMaterial);
         Vector3 tipAt = tipPoints[0], nearAt = tipPoints[0];
@@ -1124,6 +1144,8 @@ public static partial class MainSceneBuilder
         trail.material = GeneratedMaterial("M_Swoosh", "MyGame/Swoosh");
         trail.colour = colour;
         trail.lifetime = lifetime;
+        trail.attacks = attacks;
+        return trail;
     }
 
     // Every Soured's belt lantern (sickly green light; the Anchoress hangs hers on the anchor) and the prop it drops where it falls, glowing there until the

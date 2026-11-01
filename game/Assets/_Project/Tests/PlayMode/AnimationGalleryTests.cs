@@ -74,6 +74,41 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.5f);
         }
 
+        // Every blow in reach draws a swipe through its strike (the creature's own trail for that attack, as a fight draws
+        // it), and only its own trail: the Hour's hammer doesn't smear when the blade cuts. Shots draw none.
+        static readonly string[] NotASwing =
+        {
+            "Thresher: Vent",               // (steam bursting out all round it: its own cloud)
+            "Father Moth: Beat",            // (a gust of leaves off his wings: no blow)
+            "The One Who Waits: Grind",     // (the gears grinding all round its base: their own sparks)
+            "The One Who Waits: Stop",      // (a spell: the slam that follows it, StopSlam, swipes)
+        };
+
+        [UnityTest]
+        public IEnumerator EveryBlowInReach_DrawsItsSwipe()
+        {
+            var missing = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < gallery.Exhibits.Length; i++)
+            {
+                var e = gallery.Exhibits[i];
+                gallery.Select(i);
+                gallery.SetMode(AnimationGallery.Mode.Attacks);
+                for (int k = 0; k < e.attacks.Length; k++)
+                {
+                    var a = e.attacks[k];
+                    gallery.SelectItem(k);
+                    yield return new WaitForSeconds(a.telegraph + a.strikeTime * 0.5f);
+                    yield return null;
+                    foreach (var trail in e.Trails)
+                        if (a.ranged || !trail.For(a.attack))
+                            Assert.AreEqual(0, trail.Samples, $"{e.title}: {a.name} draws a swipe that isn't its own ({trail.tip.parent.name})");
+                    if (!a.ranged && !NotASwing.Contains($"{e.title}: {a.name}") && !e.Trails.Any(t => t.For(a.attack) && t.Samples >= 2))
+                        missing.Add($"{e.title}: {a.name}");
+                }
+            }
+            Assert.IsEmpty(missing, "blows in reach without a swipe");
+        }
+
         // An attack plays as a fight times it: its wind-up stretched over the telegraph, then the strike.
         [UnityTest]
         public IEnumerator AnAttack_IsTimedAsAFightTimesIt()
@@ -183,16 +218,24 @@ namespace MyGame.Tests
         }
 
         // (FILM=dir, FILM_CREATURE=title) A creature's chain filmed as the game plays it: every frame at 30 a second, from
-        // the game's angle and from its side, side by side (chain.mp4 there, made by ffmpeg; the frames as PNGs).
-        [UnityTest]
+        // the game's angle and from its side (the frames as PNGs). Several ("Laden,Keener", or * for all): each in a
+        // folder of its own there.
+        [UnityTest, Timeout(3600000)] // (a film of every one takes minutes)
         public IEnumerator Film_Chain()
         {
             string outDir = Environment.GetEnvironmentVariable("FILM");
             if (string.IsNullOrEmpty(outDir))
                 Assert.Ignore("set FILM to film");
-            string who = Environment.GetEnvironmentVariable("FILM_CREATURE") ?? "Laden";
-            Directory.CreateDirectory(outDir);
+            string asked = Environment.GetEnvironmentVariable("FILM_CREATURE") ?? "Laden";
+            var who = asked == "*" ? gallery.Exhibits.Select(e => e.title).ToArray() : asked.Split(',').Select(w => w.Trim()).ToArray();
             Time.captureDeltaTime = 1f / 30f;
+            foreach (var title in who)
+                yield return Film(who.Length > 1 ? Path.Combine(outDir, title) : outDir, title);
+        }
+
+        IEnumerator Film(string outDir, string who)
+        {
+            Directory.CreateDirectory(outDir);
             int index = Array.FindIndex(gallery.Exhibits, e => e.title == who);
             Assert.GreaterOrEqual(index, 0, who);
             gallery.Select(index);
@@ -203,9 +246,11 @@ namespace MyGame.Tests
             gallery.Zoom = 0.72f;
             float total = AnimationGallery.ChainLength(gallery.Exhibits[index]);
             int frames = Mathf.CeilToInt(total * 30f);
+            float gamePitch = gallery.pitch;
+            var exhibit = gallery.Exhibits[index];
+            var log = new System.Text.StringBuilder("# view frame: step clip (seconds into it) [swiping]\n");
             try
             {
-                float gamePitch = gallery.pitch;
                 foreach (var (view, yaw, pitch) in new[] { ("game", 0f, gamePitch), ("side", 90f, 10f) })
                 {
                     gallery.Yaw = yaw;
@@ -224,10 +269,18 @@ namespace MyGame.Tests
                         RenderTexture.active = previous;
                         File.WriteAllBytes(Path.Combine(outDir, $"{view}_{f + 1:0000}.png"), tex.EncodeToPNG());
                         UnityEngine.Object.Destroy(tex);
+                        log.Append($"{view} {f + 1}: {gallery.Step + 1} {gallery.NowPlaying} ({gallery.NowAt:0.00}s){(exhibit.Trails.Any(t => t.Emitting || t.Samples > 1) ? " swiping" : "")}\n");
                     }
                 }
             }
-            finally { cam.targetTexture = null; }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+                gallery.pitch = gamePitch;
+                gallery.Yaw = 0f;
+                File.WriteAllText(Path.Combine(outDir, "frames.txt"), log.ToString());
+            }
         }
 
         // (SHOTS=dir) The gallery: a few of them, and the bones.

@@ -213,7 +213,7 @@ public static partial class MainSceneBuilder
         boss.hookHand = Marker(go, "Hook Hand", Bone(go, "Arms"), GlowCentre(go, "Claw"));
         boss.hookModel = AssetDatabase.LoadAssetAtPath<GameObject>(Models + "Environment/hook_head.fbx");
 
-        BeltLantern(go, boss, "Anchor"); // hung on the anchor: you can follow it in the dark
+        BeltLantern(go, boss, "Lantern"); // hung on the anchor (swinging from it): you can follow it in the dark
         Object.DestroyImmediate(boss.droppedLantern.gameObject); // (hers gutters out with her, not left on the floor)
         boss.droppedLantern = null;
         Swoosh(go, "Anchor", "AnchorArms", SouredSwoosh, 0.2f, "AnchorRing"); // the whole anchor, ring to crown

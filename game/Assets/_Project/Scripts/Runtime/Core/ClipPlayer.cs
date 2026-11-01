@@ -28,11 +28,15 @@ namespace MyGame
 
         public bool Has(string clip) => fullNames.ContainsKey(clip);
 
-        public void Loop(string clip, float fade = 0.15f)
+        public void Loop(string clip, float fade = 0.15f, bool now = false)
         {
-            if (Current == clip || !fullNames.TryGetValue(clip, out var full))
+            if (!fullNames.TryGetValue(clip, out var full))
                 return;
             var state = animation[full];
+            // Already looping it, or still playing it through once (a one-off of the same clip, not yet done: leave it be,
+            // unless `now`). Played through once and held on its last frame (a recovery that was this clip): loop it again.
+            if (Current == clip && (state.wrapMode == WrapMode.Loop || (!now && state.time < state.length)))
+                return;
             state.wrapMode = WrapMode.Loop;
             baseSpeed = 1f;
             state.speed = Tempo;
@@ -41,6 +45,14 @@ namespace MyGame
         }
 
         // Speed of the looping clip now playing (e.g. the run cycle kept in step with the actual speed).
+        // The looping clip now playing, put at a random point in its cycle (one of a flock or a pair, not in step with
+        // the rest).
+        public void Desync()
+        {
+            if (fullNames.TryGetValue(Current, out var full) && animation[full].wrapMode == WrapMode.Loop)
+                animation[full].normalizedTime = Random.value;
+        }
+
         public void SetLoopSpeed(float speed)
         {
             if (fullNames.TryGetValue(Current, out var full) && animation[full].wrapMode == WrapMode.Loop)

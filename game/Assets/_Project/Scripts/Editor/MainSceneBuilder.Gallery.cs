@@ -79,6 +79,8 @@ public static partial class MainSceneBuilder
         {
             Once(a.windup, a.telegraph, $"{a.name}: the wind-up", Soured.WindupFade);
             Once(a.strike, a.strikeTime, $"{a.name}: the blow");
+            if (!a.ranged && steps.Count > 0 && steps[steps.Count - 1].clip == a.strike)
+                steps[steps.Count - 1].swipe = a.attack;
             Once(a.recover, a.recoverTime, $"{a.name}: recovering");
         }
         string idle = Has("Idle") ? "Idle" : e.Clips.FirstOrDefault();
@@ -104,19 +106,82 @@ public static partial class MainSceneBuilder
             Loop("Idle", 2f, "lost you");
             return steps.ToArray();
         }
-        Loop(idle, 2.5f, "standing, unaware");
         string walk = Has("Walk") ? "Walk" : null;
-        if (walk != null)
+        if (GalleryLoops.TryGetValue(model, out var loops))
+        {
+            idle = Has(loops.idle) ? loops.idle : idle;
+            walk = Has(loops.chase) ? loops.chase : walk;
+        }
+        Loop(idle, 2.5f, "standing, unaware");
+        if (walk != null && walk != idle)
             Loop(walk, 2f, "it's seen you: closing in");
+        string after = walk ?? idle;
         foreach (var a in e.attacks)
         {
+            // (Father Moth's blades are afoot: down on the ground before them, and staying there after)
+            bool afoot = model == "father_moth" && a.recover == "Land";
+            if (afoot && after != "Land")
+                Loop("Land", 1.4f, "down among the rows: afoot");
             Attack(a);
-            Loop(walk ?? idle, 1.4f, walk != null ? "after you again" : "waiting");
+            after = afoot ? "Land" : walk ?? idle;
+            Loop(after, 1.4f, walk != null ? "after you again" : "waiting");
         }
         if (Has("Stagger"))
+        {
             Once("Stagger", 1f, "staggered");
+            Loop(after, 1.4f, "after you again"); // (a stagger hands back to the chase it broke into)
+        }
         Loop(idle, 2f, "lost you");
         return steps.ToArray();
+    }
+
+    // Each one's own loops where they aren't Idle and Walk (its IdleClip and ChaseClip, awake and in the open):
+    // standing, and coming after you.
+    static readonly Dictionary<string, (string idle, string chase)> GalleryLoops = new Dictionary<string, (string, string)>
+    {
+        { "moth", ("Fly", "Fly") },
+        { "father_moth", ("Fly", "Fly") },
+        { "drowned", ("Idle", "Swim") },
+        { "wound", ("Idle", "Run") },
+        { "clinger", ("Idle", "Skitter") },
+        { "thresher", ("Idle", "Idle") },
+        { "the_hour", ("Idle", "Idle") },
+        { "watchman", ("Idle", "Lurch") },
+    };
+
+    // A swipe trail the creature carries in the world, on the exhibit: the same two points on the same bone.
+    sealed class GallerySwipeOf
+    {
+        public string bone;
+        public Vector3 tip, inner;      // (in the bone's space)
+        public Material material;
+        public Color colour;
+        public float lifetime;
+        public string[] attacks;
+    }
+
+    static void GallerySwipe(GameObject go, GallerySwipeOf made)
+    {
+        var bone = go.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == made.bone);
+        if (bone == null)
+        {
+            Debug.LogWarning($"[Gallery] {go.name}: no {made.bone} bone for its swipe");
+            return;
+        }
+        Transform Point(string name, Vector3 at)
+        {
+            var point = new GameObject(name).transform;
+            point.SetParent(bone, false);
+            point.localPosition = at;
+            return point;
+        }
+        var trail = go.AddComponent<SwingTrail>();
+        trail.tip = Point("Swing Tip", made.tip);
+        trail.inner = Point("Swing Inner", made.inner);
+        trail.material = made.material;
+        trail.colour = made.colour;
+        trail.lifetime = made.lifetime;
+        trail.attacks = made.attacks;
     }
 
     static void BuildGallery()
@@ -144,6 +209,7 @@ public static partial class MainSceneBuilder
         {
             // Its attacks, from the creature as the world builds it (then that copy's gone).
             var attacks = new List<GalleryExhibit.Attack>();
+            var swipes = new List<GallerySwipeOf>(); // (its swipe trails, copied onto it below)
             if (build != null)
             {
                 Component made = null;
@@ -159,7 +225,15 @@ public static partial class MainSceneBuilder
                                     name = $"{a.name}{(soured.name != made.name && soured.GetComponentInChildren<Animation>() != null ? $" ({soured.name})" : "")}",
                                     windup = a.windupClip, strike = a.strikeClip, recover = a.recoverClip,
                                     telegraph = a.telegraph, strikeTime = a.strike, recoverTime = a.recover,
+                                    attack = a.name, ranged = a.ranged,
                                 });
+                    foreach (var trail in made.GetComponentsInChildren<SwingTrail>(true))
+                        if (trail.tip != null && trail.inner != null)
+                            swipes.Add(new GallerySwipeOf
+                            {
+                                bone = trail.tip.parent.name, tip = trail.tip.localPosition, inner = trail.inner.localPosition,
+                                material = trail.material, colour = trail.colour, lifetime = trail.lifetime, attacks = trail.attacks,
+                            });
                 }
                 catch (System.Exception ex)
                 {
@@ -202,6 +276,8 @@ public static partial class MainSceneBuilder
             // (only what it really does: an attack whose wind-up it has a clip for; a Soured's unused default has none)
             exhibit.attacks = attacks.Where(a => exhibit.State(a.windup) != null && exhibit.State(a.strike) != null).ToArray();
             exhibit.chain = GalleryChain(model, exhibit);
+            foreach (var made in swipes)
+                GallerySwipe(go, made);
             exhibits.Add(exhibit);
 
             var plinth = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

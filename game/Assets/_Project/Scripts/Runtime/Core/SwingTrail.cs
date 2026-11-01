@@ -7,15 +7,22 @@ namespace MyGame
     // edge) and draws the band they sweep through as a crescent that fades from the newest end to the oldest over
     // `lifetime`, stepped into hard-edged tones by the MyGame/Swoosh shader (a cel smear frame, not a blur). Samples
     // are smoothed (Catmull-Rom) so a fast swing still draws a clean arc. Its owner (Apprentice, Soured) sets Emitting
-    // during the active part of each strike.
+    // during the active part of each strike. A Soured with more than one weapon has a trail on each (its `attacks` say
+    // which blows are whose: the Hour's hammer and its blade).
     public sealed class SwingTrail : MonoBehaviour
     {
         public Transform tip, inner;     // two points on the weapon (anchored to its bone)
         public Material material;        // MyGame/Swoosh
         public Color colour = Color.white;
         public float lifetime = 0.11f;
+        public string[] attacks = new string[0]; // (a Soured's) only these attacks, by name, draw it: none, every blow it lands in reach
 
         public bool Emitting { get; set; }
+        public bool For(SouredAttack attack) => attack != null && For(attack.name);
+        public bool For(string attack) => attacks == null || attacks.Length == 0 || System.Array.IndexOf(attacks, attack) >= 0;
+        // What it times its smear by: game time, or (the animation gallery) its own playhead, which pauses, slows and
+        // steps back (a sample from after the playhead is dropped).
+        public System.Func<float> Clock { get; set; }
         public int Samples => samples.Count;
 
         struct Sample { public Vector3 tip, inner; public float time; }
@@ -51,10 +58,10 @@ namespace MyGame
         {
             if (tip == null || inner == null || mesh == null)
                 return;
-            float now = Time.time;
-            if (Emitting)
+            float now = Clock != null ? Clock() : Time.time;
+            samples.RemoveAll(s => now - s.time > lifetime || s.time > now);
+            if (Emitting && (samples.Count == 0 || samples[samples.Count - 1].time < now))
                 samples.Add(new Sample { tip = tip.position, inner = inner.position, time = now });
-            samples.RemoveAll(s => now - s.time > lifetime);
             Build(now);
         }
 
