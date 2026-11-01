@@ -44,6 +44,10 @@ game/Assets/_Project/
   Scenes/Lab_OneWhoWaits.unity    the One Who Waits (the Hall of the Last Hour's Boss) in its chamber behind the great dial
                                   (Build Lab (The One Who Waits)): limp with the Hall's time stopped, the real fight with it running;
                                   the Tester's Post sets the time and the quarter (TheHourTests)
+  Scenes/Lab_Hold.unity           the Hold's lab (Build Lab (The Hold)): the game's opening, before the Hub (and, unknown to
+                                  the player, the Ferryman's hold beneath it): a flooded undercroft of pilings in black water,
+                                  the lantern nearly the only light, shafts of grey daylight, drips, mist, ash, eyes in the
+                                  dark (Watcher); the route from where you wake to the Climb up to the hatch. Atmosphere only
   Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in
                                   art/models/characters on a plinth; its clips as made, its attacks as a fight times them
                                   (read from the creature as the builder makes it), everyone at once; slow motion, pause,
