@@ -59,7 +59,8 @@ namespace MyGame
             var sources = new List<NavMeshBuildSource>();
             NavMeshBuilder.CollectSources(bounds, ~0, NavMeshCollectGeometry.PhysicsColliders, 0, new List<NavMeshBuildMarkup>(), sources);
             // Characters aren't ground, nor is anything you can walk through.
-            sources.RemoveAll(s => s.component is CharacterController || s.component is Collider c && (c.isTrigger || !c.enabled));
+            sources.RemoveAll(s => s.component is CharacterController || s.component is Collider c && (c.isTrigger || !c.enabled)
+                                   || s.component != null && s.component.GetComponentInParent<NavMeshIgnore>() != null); // (a trap: it moves)
             return sources;
         }
 

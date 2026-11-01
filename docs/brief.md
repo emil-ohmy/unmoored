@@ -208,7 +208,14 @@ back toward the Hub.
 **The Hall of the Last Hour's arc** (the user's direction, 2026-10-12; laid out in level design, not before): the whole
 Area is stopped in time, and you make your way through it frozen, setting its machines running a while with the Stroke.
 At its heart is a central engine; set going, time starts again throughout the Hall, and with it its traps (in the manner
-of Sen's Fortress): the same halls, now moving and dangerous.
+of Sen's Fortress): the same halls, now moving and dangerous. The traps (built in the lab, 2026-11-01): the great hall's
+pendulums armed with silver crescents swinging low across the aisle (vault them where they pass low, or dash
+through); the Gear Run, a walled ramp from the court up to the keep's works, a great gear let go down it again and
+again (alcoves in its sides to step into); the bell gallery's clock jacks, their hammers falling on the quarters
+(each on its own beat of the Hall's bar) on bronze strips across the way; the undercroft's grinding floor, gears in
+the floor that carry you round into their mesh. Stopped, each is held where the clock stopped it (harmless, but in the
+way); the Stroke sets one going a while, like any machine; the central engine sets them all going for good. They hit
+hard (a third of the Apprentice, and a throw), no guard stops machinery (only a dodge), and they catch the Soured too.
 
 **The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
 its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to

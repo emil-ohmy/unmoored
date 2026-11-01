@@ -144,15 +144,14 @@ public static partial class MainSceneBuilder
         }
         for (float n = -24.4f; n < 2.2f; n += 2.6f)
             Put("last_hour_props_longcase", T(26.85f, f, n), 90f, hall.transform);
-        foreach (var (n, tilt) in new[] { (-20f, -14f), (-12f, 9f), (-4f, -5f) })
-        {
-            var p = Put("last_hour_props_pendulum_hall", T(22f, 9.5f - 0.6f - 0.2f, n), 0f, hall.transform);
-            p.transform.rotation = Quaternion.AngleAxis(tilt, Vector3.forward) * p.transform.rotation;
-        }
+        // The pendulums are armed (a trap): silver crescents swinging low across the aisle, each held where the clock
+        // stopped it; the Stroke at the floor under its blade swings it a while, and the Hall's time for good.
+        foreach (var (n, tilt) in new[] { (-20f, -26f), (-12f, 20f), (-4f, -9f) })
+            PendulumTrap(hall.transform, T(22f, 9.5f - 0.6f - 0.2f, n), tilt, f);
         Put("last_hour_props_orrery", T(22f, f, -0.4f), 30f, hall.transform);
-        // Two of the household keep the orrery, side by side up the aisle, facing the door's end.
+        // Two of the household keep the orrery, side by side up the aisle, facing the door's end (clear of the blades).
         foreach (var e in new[] { 20.6f, 23.4f })
-            Punctual("Punctual", T(e, f, -4.6f), 180f);
+            Punctual("Punctual", T(e, f, -6.4f), 180f);
         foreach (var n in new[] { -20f, -12f, -4f })
             foreach (var e in new[] { 19.4f, 24.6f })
             {
@@ -162,7 +161,7 @@ public static partial class MainSceneBuilder
                 Flicker(PointLight(c.transform, T(e, 9.5f - 3.0f, n), 7f, 1.6f, TowerBrass), 0.06f, 4f, 0.005f);
             }
         // Two mourners at the hall's south end, among the clocks they stopped, facing up the aisle.
-        foreach (var (e, n) in new[] { (19.8f, -20.6f), (23.8f, -21.4f) })
+        foreach (var (e, n) in new[] { (19.8f, -22.8f), (24.2f, -23.6f) })
             Keener("Keener", T(e, f, n), 0f);
         Put("last_hour_props_hourglass", T(18.6f, f, -25.2f), 0f, hall.transform);
         Put("last_hour_props_hourglass", T(25.4f, f, -25.2f), 0f, hall.transform);
@@ -211,6 +210,7 @@ public static partial class MainSceneBuilder
         glow.tier = PickupGlow.Tier.Item;
         glow.colour = LanternLight;
         glow.height = 0.7f;
+        GearRun(root, o);
         Put("last_hour_props_crate_gears", T(12.6f, f, -24.2f), 10f);
         Put("last_hour_props_crate_gears", T(13.6f, f, -23.0f), 35f);
         Put("last_hour_props_crate_gears", T(-12.2f, f, -9.6f), 80f);
@@ -274,6 +274,78 @@ public static partial class MainSceneBuilder
         still.motes = 0;
         still.drops = drops.ToArray();
         still.material = sparkMaterial;
+    }
+
+    // A pendulum of the great hall, armed: its blade hung at `pivot`, held `tilt` degrees out (east is +), its own
+    // clockwork struck at the floor under the blade.
+    static PendulumBlade PendulumTrap(Transform parent, Vector3 pivot, float tilt, float floor)
+    {
+        var blade = Place("Environment/last_hour_props_pendulum_blade", pivot, 0f);
+        blade.name = "Pendulum Blade";
+        blade.transform.SetParent(parent, true);
+        blade.transform.rotation = Quaternion.AngleAxis(tilt, Vector3.forward) * blade.transform.rotation;
+        blade.AddComponent<NavMeshIgnore>();
+        const float below = 7.7f - 1.1f; // (the crescent's middle under the pivot)
+        var under = new Vector3(pivot.x + Mathf.Sin(tilt * Mathf.Deg2Rad) * below, floor, pivot.z);
+        var work = Machine("The Pendulum's Clockwork", blade.transform, under, 8f, parent);
+        work.swingers = new[] { new Clockwork.Swinger { part = blade.transform, axis = Vector3.forward, amplitude = 38f, period = 3.4f, heldAt = tilt } };
+        Marks(work, new[] { blade }, work.strikePoint);
+        var trap = blade.AddComponent<PendulumBlade>();
+        trap.clockwork = work;
+        trap.swishSound = Clips("trap_blade_swish");
+        return trap;
+    }
+
+    // The Gear Run (a trap; last_hour.py's gear_run): its ramp in the river between the keep and the great hall, in
+    // from the court through the curtain's arch, up to a landing at the works' height and a door into the keep (a cache
+    // on it). Its great gear was caught rolling down it when the clock stopped; the Stroke at the gear sets it going a
+    // while: down into the buffers, drawn back up, held, let go. Its floor: as last_hour.py's run_ground.
+    static RollingGear GearRun(Transform root, Vector3 o)
+    {
+        Vector3 T(float e, float u, float n) => o + new Vector3(e, u, n);
+        float f = TowerFloors[0], top = TowerFloors[1];
+        var run = Place("Environment/last_hour_gear_run", o, 0f);
+        run.transform.SetParent(root, true);
+        const float lane = 11.2f, low = -4.4f, high = 3.6f, foot = -7.2f, radius = 1.45f;
+        const float startN = -0.9f; // (between the first two alcoves: rolling as the clock stopped)
+        var gear = Place("Environment/last_hour_props_rolling_gear", T(lane, f + radius, startN), 0f);
+        gear.name = "The Gear Run's Gear";
+        gear.transform.SetParent(root, true);
+        gear.AddComponent<NavMeshIgnore>();
+        var work = Machine("The Gear Run's Clockwork", gear.transform, T(lane, f, startN), 8f, root, plate: false); // (a round: down, and drawn back up)
+        work.strikeRadius = 1.8f;
+        Marks(work, new[] { gear }, work.strikePoint);
+        var rolls = gear.AddComponent<RollingGear>();
+        rolls.clockwork = work;
+        rolls.strikePoint = work.strikePoint;
+        rolls.radius = radius;
+        rolls.width = 1.7f;
+        rolls.laneE = o.x + lane;
+        rolls.lowN = o.z + low;
+        rolls.highN = o.z + high;
+        rolls.lowU = o.y + f;
+        rolls.highU = o.y + top;
+        rolls.headN = o.z + high + 0.15f;
+        rolls.footN = o.z + foot + 0.53f + radius; // (against the buffers' faces)
+        rolls.startPhase = RollingGear.Phase.Rolling;
+        rolls.startN = o.z + startN;
+        rolls.startSpeed = 4.5f;
+        rolls.releaseSound = Clips("trap_gear_release");
+        rolls.rollSound = Clips("trap_gear_roll");
+        rolls.crashSound = Clips("trap_gear_crash");
+        rolls.drawSound = Clips("trap_gear_draw");
+        // Up on its landing, by the keep's door: something for the climb.
+        var cache = Place("Environment/obol_cache", T(8.65f, top, 3.95f), 0f);
+        cache.name = "Obol Cache (the Gear Run's head)";
+        cache.transform.SetParent(root, true);
+        cache.AddComponent<ObolCache>();
+        var glow = cache.AddComponent<PickupGlow>();
+        glow.tier = PickupGlow.Tier.Item;
+        glow.colour = LanternLight;
+        glow.height = 0.7f;
+        PointLight(run.transform, T(11.2f, top + 2.6f, 5.4f), 9f, 2.2f, TowerBrass);
+        PointLight(run.transform, T(11.2f, f + 2.4f, -5.6f), 8f, 1.8f, TowerBrass);
+        return rolls;
     }
 
     const float CurtainTop = 5.0f; // (last_hour.py's CURTAIN: the curtain walls' tops, the walk along the west one)
@@ -358,7 +430,7 @@ public static partial class MainSceneBuilder
         clutter(undercroft, "gear_stack", T(-6.6f, F(0), -2.6f), -90f);
         clutter(undercroft, "shelf", T(-4.6f, F(0), -6.95f), 180f);
         clutter(undercroft, "mainspring", T(-3.0f, F(0), -6.0f), 0f);
-        clutter(undercroft, "workbench", T(-1.8f, F(0), 1.55f), 0f);
+        clutter(undercroft, "workbench", T(-5.6f, F(0), 1.55f), 0f);                 // (clear of the floor gears)
         foreach (var e in new[] { 3.4f, -5.0f })
             foreach (var c in clutter(undercroft, "hoist", T(e, F(1) - 0.2f, 4f), 0f).GetComponentsInChildren<Collider>())
                 Object.DestroyImmediate(c);
@@ -453,8 +525,8 @@ public static partial class MainSceneBuilder
         Turning(Works(works, "gear_small", T(-3.6f, F(1) + 1.6f, 4.6f), upright), Vector3.forward, -45f);
         Turning(Works(works, "gear_large", T(-4.6f, F(1) + 0.5f, -4.2f), flat), Vector3.up, -20f);
         // The bells, hung from the beams over the open middle.
-        Works(gallery, "bell_large", T(-2.0f, F(3) - 0.7f, 2.6f), flat);
-        Works(gallery, "bell_small", T(2.4f, F(3) - 0.7f, 2.6f), flat);
+        Works(gallery, "bell_large", T(-2.0f, F(3) - 0.7f, 1.6f), flat);
+        Works(gallery, "bell_small", T(2.4f, F(3) - 0.7f, 1.6f), flat);
         Works(gallery, "bell_small", T(2.6f, F(3) - 0.7f, -2.6f), flat);
         // The face: the dial in its frame (from outside: the south), the hands stopped at a quarter past nine (the
         // hour hand to the west, the minute hand to the east: bridges along the face between the ledges); inside, the
@@ -509,6 +581,55 @@ public static partial class MainSceneBuilder
         clockwork.thawRadius = 30f;
         ClockworkSounds(clockwork);
         Marks(clockwork, new GameObject[0], clockwork.strikePoint);
+
+        // The undercroft's floor gears (a trap), driven by the keep's clockwork: a great gear in the floor inside the
+        // door and a smaller one meshed with it to the north; running, whoever's on one is carried round, and into
+        // the mesh (the teeth running in on its west side), crushed.
+        var bigGear = Works(undercroft, "floor_gear_large", T(0f, F(0), -3.4f), flat);
+        var smallGear = Works(undercroft, "floor_gear_small", T(0f, F(0), 0.3f), flat);
+        foreach (var g in new[] { bigGear, smallGear })
+            foreach (var c in g.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (the floor under it is what's stood on)
+        var grinding = new GameObject("The Grinding Floor").AddComponent<GrindingGears>();
+        grinding.transform.SetParent(undercroft.transform, true);
+        grinding.transform.position = T(0f, F(0), -1.1f);
+        grinding.clockwork = clockwork;
+        grinding.gears = new[]
+        {
+            new GrindingGears.Gear { part = bigGear.transform, radius = 2.3f, speed = 40f },
+            new GrindingGears.Gear { part = smallGear.transform, radius = 1.4f, speed = -40f * 2.3f / 1.4f },
+        };
+        grinding.mesh = T(0f, F(0), -1.1f);
+        grinding.inrunning = Vector3.left;
+        grinding.grindSound = Clips("trap_grind");
+
+        // The bell gallery's clock jacks (a trap): two automata by its north wall, where the way from the stair up from
+        // the works runs west to the stair on; each strikes the quarters on the bronze strip before it (one on the
+        // bar's first beat, one on its third). Their own clockwork, struck at the plate in the corner past them.
+        var jacks = Machine("The Jacks' Clockwork", gallery.transform, T(-6.4f, F(2), 5.6f), 8f, gallery.transform);
+        Marks(jacks, new GameObject[0], jacks.strikePoint);
+        foreach (var (e, beat, held) in new[] { (-3.0f, 0, 3.2f), (-5.0f, 2, 1.3f) })
+        {
+            var body = Works(gallery, "jack", T(e, F(2), 6.4f), flat);
+            body.name = "Clock Jack";
+            var hammer = Works(gallery, "jack_hammer", T(e, F(2) + 1.5f, 6.4f), flat);
+            foreach (var c in hammer.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (it swings through what it strikes)
+            var anvil = Works(gallery, "jack_anvil", T(e, F(2), 5.5f), flat);  // (where the head lands: clear of the rail's shadow)
+            foreach (var c in anvil.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (flush with the boards)
+            var jack = body.AddComponent<ClockJack>();
+            jack.clockwork = jacks;
+            jack.hammer = hammer.transform;
+            jack.axis = Vector3.right;
+            jack.beat = beat;
+            jack.struck = -143f;                    // (its head down on the boss: 0.9 m out, 1.2 m down from the shoulders)
+            jack.strip = T(e, F(2), 5.575f);
+            jack.stripHalf = new Vector2(0.58f, 0.43f);
+            jack.startAt = held;
+            jack.windSound = Clips("trap_jack_wind");
+            jack.strikeSound = Clips("trap_jack_strike");
+        }
 
         // The central engine: the clock's heart in the belfry, over its broken floor (the Vault). The Stroke at its plate
         // (inside the south arch, under the escapement) sets the Hall's time going for good: the hour bell tolls, the

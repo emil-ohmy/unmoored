@@ -85,13 +85,19 @@ namespace MyGame
                 var music = Object.FindAnyObjectByType<MusicPlayer>();
                 var time = HallTime.Instance;
                 if (time != null)
-                    Add("Time in the Hall", time.Running ? "running" : "stopped", "Stopped, as you find it: drained grey but for you, the dust hanging. Running, as its central engine (not built yet) will set it: the colour back in a wave out from the keep, the dust falling, the music woken.", () =>
+                    Add("Time in the Hall", time.Running ? "running" : "stopped", "Stopped, as you find it: drained grey but for you, the dust hanging, every machine and trap held. Running, as its central engine sets it: the colour back in a wave out from the keep, the dust falling, the music woken, every machine and trap going for good.", () =>
                     {
-                        if (time.Running)
-                            time.Stop();
-                        else
+                        bool run = !time.Running;
+                        if (run)
                             time.Run();
-                        Say(time.Running ? "Time again." : "Held still.");
+                        else
+                            time.Stop();
+                        foreach (var c in Object.FindObjectsByType<Clockwork>(FindObjectsSortMode.None))
+                            if (run)
+                                c.RunForever();
+                            else
+                                c.Hold();
+                        Say(run ? "Time again." : "Held still.");
                     });
                 else if (music != null && music.woken != null)
                     Add("The Area's music", music.Woken ? "awake" : "as it is", "Its music as it is now, or as it will be woken (the Hall of the Last Hour: time set going again by its central engine, not built yet).", () =>

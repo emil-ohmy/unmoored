@@ -112,6 +112,13 @@ namespace MyGame
                 Run = 1f; // (a save loaded: already going)
         }
 
+        // Held still again (the lab's: the game never stops the Hall's time once it's going): it winds down where it is.
+        public void Hold()
+        {
+            Forever = false;
+            runUntil = Time.time;
+        }
+
         void Update()
         {
             float dt = Time.deltaTime;

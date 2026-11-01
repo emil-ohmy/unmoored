@@ -29,9 +29,20 @@ toothed column, 6 m, a housing at its head, a lamp: origin at its foot); what th
 Moon's silver (everything else in the Hall is brass), and its crescent marks where to stand to use it: "drive_gear"
 (a machine's drive, pale silver steel, lying flat: stood up by the game), "strike_plate" (a silver ring set in the
 floor, a crescent in it: stand on it and use the Stroke); "drive" a brass drive-rod 5.2 m long along east, a gear at each end
-and its brackets (origin at its west end); (No greenery: nothing grows in it.)"""
+and its brackets (origin at its west end); (No greenery: nothing grows in it.)
+
+The traps (set going with the Hall's time, or a while by the Stroke; what the Stroke moves wears its silver):
+"pendulum_blade" the great hall's pendulums armed: a silver crescent on a rod, its edge 7.7 m below the pivot (origin
+at the pivot; the crescent in the plane of its swing, east-west, horns up); "rolling_gear" a great gear as broad as
+the Gear Run (radius 1.5 over its teeth, 1.7 m across its face; origin at its middle, its axle along east); "jack" a
+clock jack, a squat automaton of green copper and brass on a plinth, facing south (origin at its foot; its arms and
+hammer are "jack_hammer": origin at its shoulders' pivot, 1.5 m up, the hammer raised straight up, its silver head
+1.5 m out); "jack_anvil" the bronze strip in the floor the hammer comes down on (origin at the boss it strikes, the
+strip running 0.5 m north of it to the jack's plinth); "floor_gear_large" and "floor_gear_small" brass gears lying in
+the floor (radius 2.2 and 1.3, 6 cm thick: origin at the hub's middle, at the floor)."""
 import math
 
+import bmesh
 from mathutils import Vector
 
 import masonry as m
@@ -41,7 +52,8 @@ VARIANTS = ["great_wheel", "gear_large", "gear_small", "shaft", "bell_large", "b
             "escapement", "counterweight", "turret", "longcase", "orrery", "pendulum_hall",
             "workbench", "shelf", "crate_gears", "gear_stack", "lathe", "hoist", "mainspring", "hourglass", "chandelier",
             "cart", "fountain", "great_bell", "winding_drum", "dial_train", "crane", "music_drum", "gauge_panel",
-            "lift_deck", "lift_column", "drive_gear", "strike_plate"]
+            "lift_deck", "lift_column", "drive_gear", "strike_plate",
+            "pendulum_blade", "rolling_gear", "jack", "jack_hammer", "jack_anvil", "floor_gear_large", "floor_gear_small"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -95,6 +107,115 @@ def build(variant):
             a = 2 * math.pi * (k + 0.5) / 20
             c = (math.cos(a) * (r - 0.2), 0, math.sin(a) * (r - 0.2))
             parts.append(part("Paddle", kit.cube(), wet, M(c, rot=(0, -math.degrees(a), 0), scale=(0.5, 1.3, 0.06))))
+    elif variant == "pendulum_blade":
+        steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")
+        edge = kit.mat("BladeEdge_Metal", "#eef2f8")
+        mark = kit.mat("MoonMark_Glow", "#7f9cc4")
+        length, r_out = 7.7, 1.1
+        c = -(length - r_out)  # the crescent's middle (its outer edge's lowest point `length` down)
+        # The crescent: horns up, its outer arc the edge; the inner arc a wider circle through the horns' tips.
+        k, rho = 0.7944, 1.5144
+
+        def outer(s_):
+            a = math.radians(195 + 150 * s_)
+            return (math.cos(a) * r_out, c + math.sin(a) * r_out)
+
+        def inner(s_):
+            a = math.radians(225.4 + 89.2 * s_)
+            return (math.cos(a) * rho, c + k + math.sin(a) * rho)
+
+        steps = [0.03 + 0.94 * i / 18 for i in range(19)]
+
+        def blade(bm):
+            half = 0.06
+            rows = []
+            for s_ in steps:
+                (ox, oz), (ix, iz) = outer(s_), inner(s_)
+                rows.append([bm.verts.new(p) for p in ((ox, -half, oz), (ox, half, oz), (ix, half, iz), (ix, -half, iz))])
+            for a, b in zip(rows, rows[1:]):
+                for q in range(4):
+                    bm.faces.new((a[q], b[q], b[(q + 1) % 4], a[(q + 1) % 4]))
+            bm.faces.new(rows[0])
+            bm.faces.new(list(reversed(rows[-1])))
+            bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        parts += [part("Pivot", kit.cylinder(10, 0.12, 0.6), iron, M((0, 0, 0), rot=(90, 0, 0))),
+                  part("Rod", kit.cube(), iron, M((0, 0, (c + k - rho) / 2 + 0.05), scale=(0.1, 0.07, -(c + k - rho) + 0.1))),
+                  part("Collar", kit.cylinder(10, 0.13, 0.3), gilt, M((0, 0, c + k - rho + 0.1))),
+                  part("Blade", blade, steel)]
+        parts.append(part("Edge", kit.tube([(outer(s_)[0], 0, outer(s_)[1]) for s_ in steps], [0.035] * len(steps), seg=4), edge))
+        mid = [((outer(s_)[0] + inner(s_)[0]) / 2, (outer(s_)[1] + inner(s_)[1]) / 2) for s_ in steps[3:-3]]
+        for y in (-0.065, 0.065):  # the crescent's mark along it, both faces
+            parts.append(part("Crescent", kit.tube([(x, y, z) for x, z in mid], [0.025 + 0.03 * math.sin(math.pi * i / (len(mid) - 1)) for i in range(len(mid))], seg=5), mark))
+    elif variant == "rolling_gear":
+        steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")
+        web = kit.mat("StrokeSteelWeb_Metal", "#a9b4c6")
+        mark = kit.mat("MoonMark_Glow", "#7f9cc4")
+        r, w = 1.3, 1.7
+        along = (0, 90, 0)  # (a cylinder's axis along x: the game's east)
+        parts.append(part("Drum", kit.cylinder(32, r, w), steel, M(rot=along)))
+        for k_ in range(22):
+            a = 2 * math.pi * k_ / 22
+            parts.append(part("Tooth", kit.cube(), steel, M((0, math.cos(a) * (r + 0.1), math.sin(a) * (r + 0.1)),
+                                                           rot=(math.degrees(a) - 90, 0, 0), scale=(w, 0.3, 0.26))))
+        for side in (-1, 1):
+            x = side * (w / 2 + 0.03)
+            parts.append(part("Face", kit.cylinder(32, r - 0.08, 0.04), web, M((x, 0, 0), rot=along)))
+            for k_ in range(6):
+                a = 2 * math.pi * k_ / 6
+                parts.append(part("Spoke", kit.cube(), iron, M((x + side * 0.03, math.cos(a) * r * 0.5, math.sin(a) * r * 0.5),
+                                                              rot=(math.degrees(a) - 90, 0, 0), scale=(0.06, 0.16, r * 0.85))))
+            parts.append(part("RimBand", kit.cylinder(32, r + 0.02, 0.1), iron, M((side * (w / 2 - 0.05), 0, 0), rot=along)))
+            parts.append(part("Hub", kit.cylinder(12, 0.34, 0.22), iron, M((side * (w / 2 + 0.12), 0, 0), rot=along)))
+            pts = [(side * (w / 2 + 0.24), math.cos(math.radians(-100 + k_ * 200 / 12)) * 0.24, math.sin(math.radians(-100 + k_ * 200 / 12)) * 0.24) for k_ in range(13)]
+            parts.append(part("Crescent", kit.tube(pts, [0.02 + 0.04 * math.sin(math.pi * k_ / 12) for k_ in range(13)], seg=5), mark))
+        parts.append(part("Axle", kit.cylinder(10, 0.14, w + 0.5), iron, M(rot=along)))
+    elif variant == "jack":
+        coat = kit.mat("JackCoat", "#3f7f74")
+        dark = kit.mat("HandDark", "#2a2620")
+        stone = m.mat(m.CAP)
+        parts.append(m.box("Plinth", stone, -0.42, 0.42, -0.4, 0.4, 0.0, 0.2))
+        parts.append(m.box("PlinthBand", iron, -0.44, 0.44, -0.42, 0.42, 0.16, 0.22))
+        for e in (-0.14, 0.14):
+            parts.append(m.box("Boot", dark, e - 0.09, e + 0.09, -0.18, 0.08, 0.2, 0.34))
+        parts.append(part("Coat", kit.cone(10, 0.4, 0.27, 1.0), coat, M((0, 0, 0.3 + 0.5))))
+        parts.append(part("Hem", kit.cylinder(10, 0.42, 0.06), gilt, M((0, 0, 0.32))))
+        parts.append(part("Belt", kit.cylinder(10, 0.33, 0.08), gilt, M((0, 0, 0.95))))
+        parts.append(m.box("Shoulders", iron, -0.34, 0.34, -0.17, 0.17, 1.28, 1.52))
+        parts.append(part("Neck", kit.cylinder(8, 0.09, 0.12), iron, M((0, 0, 1.58))))
+        parts.append(part("Head", kit.sphere(10, 8, 0.2), iron, M((0, 0, 1.78)), smooth=True))
+        for e in (-0.075, 0.075):  # the mask's eye slits
+            parts.append(m.box("Eye", dark, e - 0.05, e + 0.05, -0.215, -0.17, 1.8, 1.83))
+        parts.append(m.box("Mouth", dark, -0.06, 0.06, -0.2, -0.16, 1.68, 1.7))
+        parts.append(part("Brim", kit.cylinder(12, 0.3, 0.04), gilt, M((0, 0, 1.95))))
+        parts.append(part("Hat", kit.cone(12, 0.2, 0.06, 0.32), coat, M((0, 0, 2.12))))
+        parts.append(part("Finial", kit.sphere(6, 4, 0.05), gilt, M((0, 0, 2.3))))
+        parts.append(part("Key", kit.cylinder(8, 0.05, 0.3), iron, M(G(0, 0.32, 1.1), rot=(90, 0, 0))))   # the winding key in its back
+        parts.append(m.box("KeyBow", iron, -0.18, 0.18, 0.44, 0.48, 1.02, 1.18))
+    elif variant == "jack_hammer":
+        coat = kit.mat("JackCoat", "#3f7f74")
+        steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")
+        for e in (-0.4, 0.4):
+            parts.append(part("Arm", kit.tube([G(e, 0, 0), G(e * 0.55, -0.05, 0.3), G(e * 0.22, 0, 0.55)], [0.09, 0.08, 0.07], seg=6), coat))
+            parts.append(part("Shoulder", kit.sphere(8, 6, 0.12), iron, M(G(e, 0, 0))))
+            parts.append(part("Hand", kit.sphere(6, 4, 0.08), iron, M(G(e * 0.22, 0, 0.55))))
+        parts.append(m.box("Haft", timber, -0.045, 0.045, -0.045, 0.045, -0.2, 1.35))
+        parts.append(m.box("Ferrule", iron, -0.06, 0.06, -0.06, 0.06, 1.15, 1.35))
+        parts.append(part("Head", kit.cylinder(16, 0.27, 1.0), steel, M((0, 0, 1.5), rot=(0, 90, 0))))
+        for e in (-0.48, 0.48):
+            parts.append(part("HeadBand", kit.cylinder(16, 0.29, 0.06), gilt, M(G(e, 0, 1.5), rot=(0, 90, 0))))
+    elif variant == "jack_anvil":
+        dark = kit.mat("HandDark", "#2a2620")
+        parts.append(m.box("Strip", bronze, -0.55, 0.55, -0.36, 0.5, -0.02, 0.025))
+        for e in (-0.58, 0.58):  # brass teeth along both its edges: where the hammer falls
+            n = -0.3
+            while n < 0.45:
+                parts.append(m.box("StripTooth", iron, e - 0.05, e + 0.05, n, n + 0.12, -0.02, 0.035))
+                n += 0.24
+        parts.append(part("Boss", kit.cylinder(16, 0.3, 0.07), bronze, M((0, 0, 0.04))))
+        parts.append(part("BossRing", kit.cylinder(16, 0.36, 0.03), dark, M((0, 0, 0.02))))
+    elif variant in ("floor_gear_large", "floor_gear_small"):
+        r, teeth = (2.2, 26) if variant == "floor_gear_large" else (1.3, 15)
+        parts += gear(r, teeth, 0.06, brass_web, iron, at=M((0, 0, 0.035)))
     elif variant == "lift_deck":
         # (moved by the Stroke: the Drowned Moon's silver on it, a gear set in its deck, so it never reads as floor)
         steel = kit.mat("StrokeSteel_Metal", "#c9d3e2")

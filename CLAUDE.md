@@ -38,7 +38,9 @@ game/Assets/_Project/
                                   the keep (five storeys: undercroft, works, bell gallery, the face room with its ledges and
                                   the hands, the belfry), the court before it, the west gate and its quay, the great hall
                                   (clocks, pendulums, the orrery), the spire and turrets; pale limestone, brass, green copper;
-                                  time stopped. Nothing tall south of where you walk (the camera looks down from there)
+                                  time stopped. Its traps (LastHourTrapTests): the hall's pendulum blades, the Gear Run (a
+                                  ramp from the court to the keep's works, its rolling gear), the gallery's clock jacks,
+                                  the undercroft's grinding floor. Nothing tall south of where you walk (the camera looks down from there)
   Scenes/Lab_DrownedCity.unity    the Drowned City's lab (Build Lab (Drowned City)): the Tester's Post spawns any Soured and gives the Apprentice
                                   anything; a training Laden; a readout. Nothing saved. New enemies and upgrades go here first
   Scripts/Runtime/                game code, assembly MyGame.Runtime (namespace MyGame)

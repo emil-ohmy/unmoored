@@ -157,3 +157,11 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | The Vault's plant (`vault_plant`, 2) | in game | Synth | the oar's iron-shod foot knocked onto stone (a bright knock, a scrape, the ferrule's ring), the shaft creaking under the weight, the cloak's whump going up |
 | Coming down from the Vault (`vault_land`, 2) | in game | Synth | soft boots on stone, a muffled thud, the cloak settling, a little grit |
 | The Hall's hour bell (`last_hour_toll`) | in game | Synth | time set going (the central engine): the works catching (an iron clunk, a ratchet), then one great bronze toll on E2, its hum ringing on through the stone, a cold hall's tail (10 s) |
+| A pendulum blade's swish (`trap_blade_swish`, 2) | in game | Synth | a blade through the bottom of its swing: a heavy whoosh rising and falling, a thin steel singing on it, the rod creaking at its pivot |
+| The Gear Run's pawl (`trap_gear_release`) | in game | Synth | the warning: an iron catch knocked back, the gear's teeth clicking free over it, a groan as its weight comes on |
+| The gear rolling (`trap_gear_roll`, loop) | in game | Synth | a deep rumble of iron on stone, its teeth clacking on the rails (pitched and loudened with its speed) |
+| The gear's crash (`trap_gear_crash`) | in game | Synth | into the buffers: a hollow boom of iron into oak, the gear ringing like a struck bell, a timber groan, grit raining |
+| The gear drawn up (`trap_gear_draw`, loop) | in game | Synth | its chain's links clattering over the drum, a ratchet ticking, the gear grumbling up the stone |
+| A clock jack winding (`trap_jack_wind`) | in game | Synth | its hammer wound back up: a slow heavy ratchet, a spring tightening, a creak at the top |
+| A clock jack's blow (`trap_jack_strike`) | in game | Synth | the hammer on the bronze strip: a hard strike and a thud through the boards, the strip ringing out like a bell on a low E |
+| The grinding floor (`trap_grind`, loop) | in game | Synth | brass teeth grinding at the mesh: a harsh rasp, a squeal, the teeth knocking, a low drone of the train |

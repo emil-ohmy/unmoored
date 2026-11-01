@@ -574,6 +574,18 @@ namespace MyGame
             return HitResult.Landed;
         }
 
+        // A trap of the Hall (a pendulum's blade, the rolling gear, a jack's hammer, the grinding gears' mesh): machinery,
+        // not a hand, so no guard stops it; it hurts as the Stroke's wave does, harder, and throws and staggers all but
+        // the great.
+        public HitResult TakeTrap(Vector3 push, float damage, Vector3 from, float stagger) => TakeWave(push, damage, from, stagger);
+
+        // Carried by what it stands on (a turning floor gear): moved with it.
+        public void Carry(Vector3 delta)
+        {
+            if (IsAlive && controller != null && controller.enabled)
+                controller.Move(delta);
+        }
+
         // Burning (burning pitch underfoot, the flames of an Ember-tarred oar): harm no guard stops, a little at a time;
         // no stagger, no knockback. False if there's nothing to burn.
         public bool TakeBurn(float damage, Vector3 from)
