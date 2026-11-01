@@ -72,12 +72,30 @@ namespace MyGame
             velocity = Vector3.zero;
         }
 
+        // The Apprentice's own focus (in a vault, the ground under them: the camera doesn't leap with them), or the
+        // target's position.
+        Vector3 TargetPoint
+        {
+            get
+            {
+                if (followed != target)
+                {
+                    followed = target;
+                    followedApprentice = target.GetComponent<Apprentice>();
+                }
+                return followedApprentice != null ? followedApprentice.CameraFocus : target.position;
+            }
+        }
+        Transform followed;
+        Apprentice followedApprentice;
+
         Vector3 Desired()
         {
-            Vector3 focus = mourning ? target.position
-                : secondary != null ? Vector3.Lerp(target.position, secondary.position, secondaryWeight)
-                : fightFocus != null ? Vector3.Lerp(target.position, fightFocus.position, fightWeight)
-                : target.position;
+            Vector3 point = TargetPoint;
+            Vector3 focus = mourning ? point
+                : secondary != null ? Vector3.Lerp(point, secondary.position, secondaryWeight)
+                : fightFocus != null ? Vector3.Lerp(point, fightFocus.position, fightWeight)
+                : point;
             return focus + Quaternion.Euler(pitch, 0f, 0f) * new Vector3(0f, 0f, -distance * zoom);
         }
 

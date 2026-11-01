@@ -34,11 +34,20 @@ game/Assets/_Project/
   Scenes/Lab_Orchard.unity        the Orchard of Last Autumn's lab (Build Lab (Orchard)): its terraces, trees, press house,
                                   air (leaves, mist, lantern moths), night (the harvest moon), the mill off the bottom terrace (the Stroke's first use: a mill-race, its wheel, a sluice gate; barrels afloat, crates loose), the boat at its jetty (a bell at each dock calls it) and the tailrace across the water (the Stroke on the water: a current too strong to row, a landing at its head), the Unreaped Rows (the field over its wall: the Watchman's arena) and beyond its far gate the Glasshouse (Father Moth's arena). Assets > MyGame > Build
                                   All Scenes builds every scene at once
-  Scenes/Lab_LastHour.unity      the Hall of the Last Hour's lab (Build Lab (Last Hour)): a castle of clockwork in the river:
+  Scenes/Lab_LastHour.unity      the Hall of the Last Hour's lab (Build Lab (Hall of the Last Hour)): a castle of clockwork in the river:
                                   the keep (five storeys: undercroft, works, bell gallery, the face room with its ledges and
                                   the hands, the belfry), the court before it, the west gate and its quay, the great hall
                                   (clocks, pendulums, the orrery), the spire and turrets; pale limestone, brass, green copper;
-                                  time stopped. Nothing tall south of where you walk (the camera looks down from there)
+                                  time stopped. Its traps (LastHourTrapTests): the hall's pendulum blades, the Gear Run (a
+                                  ramp from the court to the keep's works, its rolling gear), the gallery's clock jacks,
+                                  the undercroft's grinding floor. Nothing tall south of where you walk (the camera looks down from there)
+  Scenes/Lab_OneWhoWaits.unity    the One Who Waits (the Hall of the Last Hour's Boss) in its chamber behind the great dial
+                                  (Build Lab (The One Who Waits)): limp with the Hall's time stopped, the real fight with it running;
+                                  the Tester's Post sets the time and the quarter (TheHourTests)
+  Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in
+                                  art/models/characters on a plinth; its clips as made, its attacks as a fight times them
+                                  (read from the creature as the builder makes it), everyone at once; slow motion, pause,
+                                  frame steps, bones (AnimationGallery; AnimationGalleryTests)
   Scenes/Lab_DrownedCity.unity    the Drowned City's lab (Build Lab (Drowned City)): the Tester's Post spawns any Soured and gives the Apprentice
                                   anything; a training Laden; a readout. Nothing saved. New enemies and upgrades go here first
   Scripts/Runtime/                game code, assembly MyGame.Runtime (namespace MyGame)
@@ -61,6 +70,20 @@ game/Assets/_Project/
   `_Glow` become emissive, and in `_Metal` metal (a hard glint from the moon and lanterns); smoothed normals are baked into tangents for the outline. Rigged FBX skip Blender's
   bake_space_transform (broken with armatures) and use Unity's bakeAxisConversion, so their roots keep a
   rotation: compose yaw with the prefab's root rotation when placing.
+- Animating a creature (the Laden is the template, art/models/characters/laden.py): key each bone on its own timing
+  as tracks (`kit.bake(tracks, length, periodic)`: a key every frame, eased, no overshoot unless keyed), so nothing
+  moves all at once: the body leads (hips, spine, chest), the head follows a few frames late, loose things (what it
+  carries, a skirt, a lantern) lag and overshoot. Prepare big moves (a dip before a lift), land them with weight (an
+  overshoot, a rebound, a settle). Don't key arms that hold something: bend them every frame with `kit.reach` so the
+  hands keep their grip (a build reports any clip whose hands come off). Key a held thing by where it is in the world
+  (the Laden's heap: by the height of its bottom), not through the body that carries it. Start walks on their upright
+  passing pose (they join what's before and after). Check with `tools/film-clips.sh <name>` (every frame, game camera
+  and side, films and sheets in builds/film-<name>/), then in the game: Lab_Gallery's Chain mode, its seam report
+  (`REPORT=dir`) and its in-game film (`FILM=dir FILM_CREATURE=<title>`, AnimationGalleryTests). Wind-ups ease in over
+  `Soured.WindupFade` (0.15 s); other one-offs over 0.05 s, loops over 0.15 s. Keyed turns go the short way: a bone
+  keyed 280° then -58° spins 338° back round between them (key 302°). Every blow in reach draws a swipe: `Swoosh` in
+  its factory (the bone, the material at the weapon's tip, the attacks it smears), shown in the gallery too;
+  `EveryBlowInReach_DrawsItsSwipe` lists the few blows that aren't swings.
 - Sounds are code too: `art/audio/<name>.py` defines render(variant, rng) (+ VARIANTS, LOOP). The list of every
   sound and its source (synth / AI / library) is `art/audio/sounds.md`. Claude can't listen: check shape with a
   spectrogram (`ffmpeg ... showspectrumpic`) and look for clicks (layers cut before they decay), then the user

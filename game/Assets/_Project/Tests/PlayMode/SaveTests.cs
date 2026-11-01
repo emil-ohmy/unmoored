@@ -117,6 +117,7 @@ namespace MyGame.Tests
             apprentice.AddHeldBreath();
             apprentice.AddHeldBreath();
             apprentice.GiveStroke();
+            apprentice.GiveVault();
             apprentice.Equipment.AddProvision(Provision.PitchPot, 3);
             apprentice.Equipment.AddProvision(Provision.WarmBroth, 1);
             apprentice.Equipment.ChooseOnBelt(1);
@@ -138,6 +139,7 @@ namespace MyGame.Tests
             Assert.AreEqual(stamina, apprentice.maxStamina);
             Assert.AreEqual(2, apprentice.GetComponent<OarLook>().ShownStep, "and it looks it");
             Assert.IsTrue(apprentice.HasStroke, "the Stroke had");
+            Assert.IsTrue(apprentice.HasVault, "the Vault had");
             Assert.Greater(apprentice.GetComponent<OarLook>().Sheen, 0.1f, "the Drowned Moon's sheen on the blade");
             Assert.Less(apprentice.GetComponent<OarLook>().Sheen, 1f, "(settled: it had it long ago)");
             Assert.AreEqual(3, e.Carried(Provision.PitchPot), "the Satchel as it was");

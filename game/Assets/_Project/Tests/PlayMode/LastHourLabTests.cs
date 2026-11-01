@@ -29,6 +29,16 @@ namespace MyGame.Tests
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
             tower = UnityEngine.Object.FindObjectsByType<Storeys>(FindObjectsSortMode.None).First(st => st.name.Contains("keep"));
+            // The household keeps out of every test but its own kind's (one of each pair, then, on its own; both, in a
+            // test of the pair).
+            foreach (var kind in new[] { typeof(Punctual), typeof(Wound), typeof(Keener) })
+            {
+                var household = UnityEngine.Object.FindObjectsByType(kind, FindObjectsSortMode.None).Cast<Component>().OrderBy(c => c.transform.position.x).ToArray();
+                string test = TestContext.CurrentContext.Test.Name;
+                bool theirs = test.StartsWith(kind.Name);
+                for (int i = !theirs ? 0 : test.Contains("Pair") ? household.Length : 1; i < household.Length; i++)
+                    UnityEngine.Object.Destroy(household[i].gameObject);
+            }
             yield return new WaitForSeconds(0.3f);
         }
 
@@ -154,6 +164,523 @@ namespace MyGame.Tests
             yield return WalkTo(T(19.0f, 0f, -12.5f));
             yield return WalkTo(T(13.5f, 0f, -12.5f), 0.4f, 6f);
             Assert.Less(apprentice.transform.position.x - tower.transform.position.x, 14f, "out in the court again");
+        }
+
+        // ---- The Punctual
+
+        Punctual ThePunctual => UnityEngine.Object.FindAnyObjectByType<Punctual>();
+
+        // Face to face with it in the great hall, `distance` in front of it.
+        Punctual FaceThePunctual(float quartersChance, float distance = 1.8f)
+        {
+            var p = ThePunctual;
+            Assert.IsNotNull(p, "one of the household keeps the orrery");
+            p.quartersChance = quartersChance;
+            Vector3 at = p.transform.position + p.transform.forward * distance;
+            apprentice.Teleport(new Vector3(at.x, p.transform.position.y + 0.05f, at.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-p.transform.forward);
+            return p;
+        }
+
+        IEnumerator AwaitWindup(Punctual p, SouredAttack attack, float timeout = 8f)
+        {
+            for (float t = 0f; t < timeout; t += Time.deltaTime)
+            {
+                if (p.CurrentState == Soured.State.Telegraph && p.CurrentAttack == attack)
+                    yield break;
+                yield return null;
+            }
+            Assert.Fail($"it never began {attack.name} ({p.CurrentState})");
+        }
+
+        static double Nearest(double t) => System.Math.Round(t / HallClock.Beat);
+
+        [UnityTest]
+        public IEnumerator Punctual_TheCount_RaisedOnABeat_BroughtDownTwoBeatsLater_OnTheTick()
+        {
+            var p = FaceThePunctual(0f);
+            yield return AwaitWindup(p, p.primary);
+            double raised = HallClock.Now;
+            Assert.Less(HallClock.Through, 0.1f, "raised on the beat");
+            for (float t = 0f; t < 3f && p.LastBlowOffBeat < 0f; t += Time.deltaTime)
+                yield return null;
+            double fell = HallClock.Now;
+            Assert.GreaterOrEqual(p.LastBlowOffBeat, 0f, "it struck");
+            Assert.Less(p.LastBlowOffBeat, 0.05f, "on the tick");
+            Assert.AreEqual(2.0, Nearest(fell) - Nearest(raised), "two beats after it was raised");
+        }
+
+        [UnityTest]
+        public IEnumerator Punctual_TheQuarters_FourBlowsOnFourBeats()
+        {
+            var p = FaceThePunctual(1f);
+            yield return AwaitWindup(p, p.quarters);
+            var beats = new System.Collections.Generic.List<double>();
+            float worst = 0f;
+            int seen = p.QuarterBlows;
+            for (float t = 0f; t < 6f && beats.Count < 4; t += Time.deltaTime)
+            {
+                if (p.QuarterBlows > seen)
+                {
+                    seen = p.QuarterBlows;
+                    beats.Add(Nearest(HallClock.Now));
+                    worst = Mathf.Max(worst, p.LastBlowOffBeat);
+                    input.Move = new Vector2(0f, -1f); // (backing off: the run goes on, whether or not it lands)
+                }
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.AreEqual(4, beats.Count, "four blows");
+            for (int k = 1; k < 4; k++)
+                Assert.AreEqual(1.0, beats[k] - beats[k - 1], $"blow {k + 1} a beat after the last");
+            Assert.Less(worst, 0.05f, "each on the tick");
+        }
+
+        [UnityTest]
+        public IEnumerator Punctual_BlockedOnTheBeat_LosesCount_TillABarBegins()
+        {
+            var p = FaceThePunctual(0f);
+            yield return AwaitWindup(p, p.primary);
+            float impact = p.primary.ImpactTime;
+            for (float t = 0f; t < impact - 0.1f; t += Time.deltaTime)
+                yield return null;
+            input.BlockHeld = true; // (raised a tenth before the tick: a perfect block)
+            for (float t = 0f; t < 0.5f && p.CurrentState != Soured.State.Stunned; t += Time.deltaTime)
+                yield return null;
+            input.BlockHeld = false;
+            Assert.AreEqual(Soured.State.Stunned, p.CurrentState, "blocked on the beat: stunned");
+            Assert.IsTrue(p.Lost, "and it's lost count");
+            bool struckWhileLost = false;
+            for (float t = 0f; t < 8f && p.Lost; t += Time.deltaTime)
+            {
+                struckWhileLost |= p.CurrentState == Soured.State.Telegraph;
+                yield return null;
+            }
+            Assert.IsFalse(p.Lost, "it finds the beat again");
+            Assert.IsTrue(HallClock.BarStarts((long)Nearest(HallClock.Now)), "where a bar begins");
+            Assert.IsFalse(struckWhileLost, "nothing while it's lost");
+        }
+
+        // (SHOTS=dir) The Punctual: keeping the orrery; the Count raised; the Quarters mid-run; lost count.
+        [UnityTest]
+        public IEnumerator Punctual_Capture()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var p = ThePunctual;
+                apprentice.Teleport(p.transform.position + p.transform.forward * 7f, true, true);
+                CameraRig.Instance?.SetZoom(0.8f);
+                yield return new WaitForSeconds(0.2f);
+                Shot("punctual-0-keeping-the-orrery");
+                p = FaceThePunctual(0f, 2.2f);
+                yield return AwaitWindup(p, p.primary);
+                yield return new WaitForSeconds(1.5f);
+                Shot("punctual-1-the-count-raised");
+                for (float t = 0f; t < 3f && p.CurrentState != Soured.State.Recover; t += Time.deltaTime)
+                    yield return null;
+                yield return new WaitForSeconds(0.1f);
+                Shot("punctual-2-the-count-down");
+                apprentice.RestoreFully();
+                p.quartersChance = 1f;
+                yield return AwaitWindup(p, p.quarters);
+                for (float t = 0f; t < 4f && p.QuarterBlows % 4 != 2; t += Time.deltaTime)
+                    yield return null;
+                Shot("punctual-3-the-quarters-second-blow");
+                apprentice.RestoreFully();
+                p.Stun();
+                yield return new WaitForSeconds(p.stunDuration + 0.3f);
+                Shot("punctual-4-lost-count");
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+            }
+        }
+
+        // ---- The Wound
+
+        Wound TheWound => UnityEngine.Object.FindAnyObjectByType<Wound>();
+
+        // (bitten while the test waits: kept on its feet)
+        void KeepAlive()
+        {
+            if (apprentice.Health < apprentice.maxHealth * 0.5f)
+                apprentice.RestoreFully();
+        }
+
+        Wound FaceTheWound(float distance = 4f)
+        {
+            var w = TheWound;
+            Assert.IsNotNull(w, "a hound keeps the court");
+            Vector3 at = w.transform.position + w.transform.forward * distance;
+            apprentice.Teleport(new Vector3(at.x, w.transform.position.y + 0.05f, at.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-w.transform.forward);
+            return w;
+        }
+
+        [UnityTest]
+        public IEnumerator Wound_RunsDown_Slowing_SitsToWind_ThenRunsAgain()
+        {
+            var w = FaceTheWound();
+            w.runTime = 3f; // (quicker to run down, for the test)
+            float fastest = 0f, slowest = 9f;
+            for (float t = 0f; t < 10f && !w.Winding; t += Time.deltaTime)
+            {
+                KeepAlive();
+                if (w.CurrentState == Soured.State.Chase)
+                {
+                    fastest = Mathf.Max(fastest, w.Speed);
+                    slowest = Mathf.Min(slowest, w.Speed);
+                }
+                yield return null;
+            }
+            Assert.IsTrue(w.Winding, "run down, it sits to wind itself");
+            Assert.Greater(fastest, 1f, "wound tight, quick");
+            Assert.Less(slowest, 0.5f, "running down, slow");
+            for (float t = 0f; t < 4f && w.Winds == 0; t += Time.deltaTime)
+            {
+                KeepAlive();
+                yield return null;
+            }
+            Assert.AreEqual(1, w.Winds, "wound again");
+            Assert.AreEqual(1f, w.Tension, 0.05f);
+        }
+
+        [UnityTest]
+        public IEnumerator Wound_StruckWhileWinding_StartsAgain()
+        {
+            var w = FaceTheWound();
+            w.runTime = 2f;
+            for (float t = 0f; t < 10f && !w.Winding; t += Time.deltaTime)
+            {
+                KeepAlive();
+                yield return null;
+            }
+            Assert.IsTrue(w.Winding);
+            float started = Time.time;
+            yield return new WaitForSeconds(1.2f);
+            w.TakeHit(new Hit { Damage = 1f, From = apprentice.transform.position, Knockback = Vector3.zero, Stagger = 999f });
+            for (float t = 0f; t < 6f && w.Winds == 0; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(1, w.Winds);
+            Assert.Greater(Time.time - started, w.windTime + 1.2f, "struck, it had to start winding over");
+        }
+
+        [UnityTest]
+        public IEnumerator Wound_TheStroke_KnocksItsKeyLoose_RunsDownAtOnce()
+        {
+            var w = FaceTheWound(11.5f); // (as soon as it sees you: it closes nine metres in about a second)
+            w.immortal = true; // (the charged blow and the wave together can scatter it outright; here it must see its key go)
+            apprentice.GiveStroke();
+            Assert.Greater(w.Tension, 0.9f);
+            // Drawn as it comes (it's quick), let go when it's close.
+            apprentice.transform.rotation = Quaternion.LookRotation((w.transform.position - apprentice.transform.position).Flat());
+            input.HeavyHeld = true;
+            input.PressHeavy();
+            bool everCharged = false;
+            float nearest = 99f;
+            for (float t = 0f; t < 4f && !(apprentice.StrokeCharged && Vector3.Distance(w.transform.position, apprentice.transform.position) < 4.5f); t += Time.deltaTime)
+            {
+                everCharged |= apprentice.StrokeCharged;
+                nearest = Mathf.Min(nearest, Vector3.Distance(w.transform.position, apprentice.transform.position));
+                apprentice.transform.rotation = Quaternion.LookRotation((w.transform.position - apprentice.transform.position).Flat());
+                yield return null;
+            }
+            Assert.IsTrue(apprentice.StrokeCharged, $"charged (ever {everCharged}, nearest {nearest:0.0} m, it {w.CurrentState}, the Apprentice {apprentice.LastEvent}, health {apprentice.Health})");
+            input.HeavyHeld = false;
+            yield return new WaitForSeconds(0.6f);
+            Assert.IsTrue(w.KeyLoose || w.Winding || w.Winds > 0, $"the wave reached it (it {w.CurrentState}, health {w.Health}, tension {w.Tension:0.00}, {Vector3.Distance(w.transform.position, apprentice.transform.position):0.0} m; the Apprentice {apprentice.Health}, wave {(apprentice.LastWave != null)})");
+            Assert.Less(w.Tension, 0.05f, "its key knocked loose: run down at once");
+            for (float t = 0f; t < 4f && !w.Winding; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(w.Winding, "and it sits to wind");
+        }
+
+        // (SHOTS=dir) The Wound: keeping the court; running at you; the pounce; run down, winding.
+        [UnityTest]
+        public IEnumerator Wound_Capture()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var w = TheWound;
+                w.immortal = true;
+                w.runTime = 4f;
+                Vector3 post = w.transform.position, south = Vector3.back; // (it keeps the court facing south)
+                apprentice.Teleport(post + new Vector3(2.5f, 0.05f, -1.5f), true, true);
+                CameraRig.Instance?.SetZoom(0.7f);
+                yield return new WaitForSeconds(0.1f);
+                Shot("wound-0-keeping-the-court");
+                apprentice.Teleport(post + south * 8f + Vector3.up * 0.05f, true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(-south);
+                for (float t = 0f; t < 3f && w.CurrentState != Soured.State.Chase; t += Time.deltaTime)
+                    yield return null;
+                yield return new WaitForSeconds(0.25f);
+                Shot("wound-1-running-at-you");
+                for (float t = 0f; t < 3f && !(w.CurrentState == Soured.State.Strike && w.CurrentAttack == w.pounce); t += Time.deltaTime)
+                {
+                    KeepAlive();
+                    yield return null;
+                }
+                yield return new WaitForSeconds(0.12f);
+                Shot("wound-2-the-pounce");
+                for (float t = 0f; t < 8f && !w.Winding; t += Time.deltaTime)
+                {
+                    KeepAlive();
+                    yield return null;
+                }
+                yield return new WaitForSeconds(0.8f);
+                Vector3 front = w.transform.position + Vector3.back * 2.5f;
+                apprentice.Teleport(new Vector3(front.x, w.transform.position.y + 0.05f, front.z), true, true);
+                yield return new WaitForSeconds(0.1f);
+                Shot("wound-3-winding");
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+            }
+        }
+
+        // ---- The Keener
+
+        Keener TheKeener => UnityEngine.Object.FindAnyObjectByType<Keener>();
+
+        Keener FaceTheKeener(float distance)
+        {
+            var k = TheKeener;
+            Assert.IsNotNull(k, "a mourner keeps the hall");
+            Vector3 at = k.transform.position + k.transform.forward * distance;
+            apprentice.Teleport(new Vector3(at.x, k.transform.position.y + 0.05f, at.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-k.transform.forward);
+            return k;
+        }
+
+        // Waits (in game time) until `done`, or fails after `timeout`.
+        static IEnumerator Until(Func<bool> done, float timeout, string what)
+        {
+            for (float t = 0f; t < timeout && !done(); t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(done(), "timed out waiting for " + what);
+        }
+
+        static float FlatDistance(Vector3 a, Vector3 b)
+        {
+            a.y = b.y = 0f;
+            return Vector3.Distance(a, b);
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_DrawsBreath_ThenTollsThreeRings_CloseBehindOneAnother()
+        {
+            var k = FaceTheKeener(7f);
+            var rang = new System.Collections.Generic.List<float>();
+            void Heard(Keener by, Shockwave ring) => rang.Add(Time.time);
+            Keener.Rang += Heard;
+            try
+            {
+                yield return Until(() => k.CurrentState == Soured.State.Telegraph, 4f, "the breath");
+                float breath = Time.time;
+                yield return Until(() => rang.Count >= 3, 4f, "three rings");
+                Assert.AreEqual(k.primary.telegraph + k.primary.strike * k.primary.impactAt, rang[0] - breath, 0.1f, "the breath first, then the knell");
+                Assert.AreEqual(k.primary.volleyInterval, rang[1] - rang[0], 0.05f);
+                Assert.AreEqual(k.primary.volleyInterval, rang[2] - rang[1], 0.05f);
+                yield return new WaitForSeconds(1.5f);
+                Assert.AreEqual(3, k.Rings, "three, and no more for a while");
+            }
+            finally { Keener.Rang -= Heard; }
+        }
+
+        // Stood still in its path: the band of three knocks you back once (its rings strike as one).
+        [UnityTest]
+        public IEnumerator Keener_TheBand_KnocksYouBack_Once()
+        {
+            var k = FaceTheKeener(6f);
+            yield return Until(() => k.Rings >= 3, 4f, "the knell's three rings");
+            var last = k.LastRing;
+            yield return Until(() => last == null || last.Struck, 3f, "the band passing you");
+            Assert.AreEqual(apprentice.maxHealth - k.ringDamage, apprentice.Health, 0.01f, "struck once, not three times");
+        }
+
+        // One dash through the band's first crest takes you through all three.
+        [UnityTest]
+        public IEnumerator Keener_TheBand_DashedThrough_DoesNoHarm()
+        {
+            var k = FaceTheKeener(6f);
+            yield return Until(() => k.LastRing != null, 4f, "the knell");
+            var ring = k.LastRing;
+            yield return Until(() => ring.Radius >= FlatDistance(apprentice.transform.position, ring.transform.position) - 0.9f, 3f, "the crest arriving");
+            input.PressDash(); // (in, through it)
+            yield return Until(() => k.Rings >= 3, 1f, "the band's last ring");
+            var last = k.LastRing;
+            yield return Until(() => last == null || last.Struck, 2f, "the band passing");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "dashed through: unharmed");
+        }
+
+        // Two mourners keen in turn: never both at once, each answering the other.
+        [UnityTest]
+        public IEnumerator Keener_APair_KeensInTurn()
+        {
+            var pair = UnityEngine.Object.FindObjectsByType<Keener>(FindObjectsSortMode.None);
+            Assert.AreEqual(2, pair.Length, "a pair keeps the hall");
+            Vector3 between = (pair[0].transform.position + pair[1].transform.position) / 2f + pair[0].transform.forward * 5f;
+            apprentice.Teleport(new Vector3(between.x, pair[0].transform.position.y + 0.05f, between.z));
+            apprentice.transform.rotation = Quaternion.LookRotation(-pair[0].transform.forward);
+            var order = new System.Collections.Generic.List<Keener>();
+            for (float t = 0f; t < 12f; t += Time.deltaTime)
+            {
+                KeepAlive();
+                Assert.IsFalse(pair[0].Keening && pair[1].Keening, "both keening at once");
+                foreach (var k in pair)
+                    if (k.Keening && (order.Count == 0 || order[order.Count - 1] != k))
+                        order.Add(k);
+                yield return null;
+            }
+            Assert.GreaterOrEqual(order.Count, 3, "each answering the other");
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_DriftsBack_WhenYouComeNear()
+        {
+            var k = TheKeener;
+            k.firstKnellDelay = 99f; // (only its keeping away, here)
+            FaceTheKeener(3f);
+            yield return new WaitForSeconds(3f);
+            Assert.AreEqual(Soured.State.Chase, k.CurrentState);
+            Assert.Greater(FlatDistance(apprentice.transform.position, k.transform.position), 4.8f, "it keeps its distance");
+        }
+
+        [UnityTest]
+        public IEnumerator Keener_StaggeredWhileDrawingBreath_TollsNothing()
+        {
+            var k = FaceTheKeener(7f);
+            yield return Until(() => k.CurrentState == Soured.State.Telegraph, 4f, "the breath");
+            yield return new WaitForSeconds(0.5f);
+            k.TakeHit(new Hit { Damage = 1f, From = apprentice.transform.position, Knockback = Vector3.zero, Stagger = 999f });
+            Assert.AreEqual(Soured.State.Staggered, k.CurrentState, "fragile: it reels");
+            yield return new WaitForSeconds(2f);
+            Assert.AreEqual(0, k.Rings, "the knell cut short");
+        }
+
+        // A knell's rings roll across its own floor: a wall between muffles one, and one from the floor below passes
+        // under you.
+        [UnityTest]
+        public IEnumerator TheKnell_IsMuffledByAWall_AndKeepsToItsOwnFloor()
+        {
+            Vector3 at = apprentice.transform.position;
+            Shockwave Ring(Vector3 centre)
+            {
+                var r = Shockwave.Spread(centre, apprentice, 6f, 5.5f, 0.8f, 12f, 5f, Color.white);
+                r.muffled = true;
+                return r;
+            }
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = at + Vector3.right * 1.5f + Vector3.up * 1f;
+            wall.transform.localScale = new Vector3(0.3f, 2f, 3f);
+            yield return null;
+            var walled = Ring(at + Vector3.right * 3f);
+            yield return Until(() => walled == null || walled.Struck, 2f, "the walled ring");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "a wall between: muffled");
+            UnityEngine.Object.Destroy(wall);
+            var below = Ring(at + Vector3.right * 3f + Vector3.down * 3f);
+            yield return Until(() => below == null, 2f, "the ring below fading");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "from the floor below: it passes under");
+            var open = Ring(at + Vector3.right * 3f);
+            yield return Until(() => open == null || open.Struck, 2f, "the open ring");
+            Assert.AreEqual(apprentice.maxHealth - 12f, apprentice.Health, 0.01f, "in the open, on its floor: struck");
+        }
+
+        // (SHOTS=dir) The Keener: keeping the hall; drawing breath; the knell's rings; spent.
+        [UnityTest]
+        public IEnumerator Keener_Capture()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+            }
+            try
+            {
+                var k = TheKeener;
+                k.immortal = true;
+                Vector3 post = k.transform.position;
+                apprentice.Teleport(post + new Vector3(2.2f, 0.05f, 1.2f), true, true);
+                apprentice.transform.rotation = Quaternion.LookRotation(Vector3.back);
+                CameraRig.Instance?.SetZoom(0.6f);
+                k.passive = true;
+                yield return new WaitForSeconds(0.1f);
+                Shot("keener-0-keeping-the-hall");
+                k.passive = false;
+                CameraRig.Instance?.SetZoom(1.5f);
+                // Up the aisle, turned to face south, you south of it: the camera (looking north) sees it and its rings
+                // rolling down at you.
+                var body = k.GetComponent<CharacterController>();
+                body.enabled = false;
+                k.transform.position = new Vector3(T(22f, 0f, -13.5f).x, post.y, T(22f, 0f, -13.5f).z);
+                k.transform.rotation = Quaternion.AngleAxis(180f, Vector3.up) * k.transform.rotation;
+                body.enabled = true;
+                FaceTheKeener(5.5f);
+                yield return Until(() => k.CurrentState == Soured.State.Telegraph, 4f, "the breath");
+                yield return new WaitForSeconds(k.primary.telegraph * 0.8f);
+                Shot("keener-1-drawing-breath");
+                yield return Until(() => k.Rings >= 2, 3f, "the rings");
+                yield return new WaitForSeconds(0.3f);
+                Shot("keener-2-the-knell");
+                yield return Until(() => k.CurrentState == Soured.State.Recover, 3f, "spent");
+                yield return new WaitForSeconds(0.4f);
+                Shot("keener-3-spent");
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+            }
         }
 
         [UnityTest]
@@ -311,6 +838,176 @@ namespace MyGame.Tests
             ps.GetParticles(after);
             Assert.AreEqual(before.Length, after.Length, "none gone");
             Assert.AreEqual(before[0].position, after[0].position, "none moved");
+        }
+
+        // ---- The Hall's time: stopped (drained grey but for the Apprentice, the dust stirring only round them), and set
+        // going (the colour back in a wave out from the keep, the dust falling, the music woken).
+
+        [UnityTest]
+        public IEnumerator TheHallsTime_Stopped_DrainedGrey_ButNotTheApprentice()
+        {
+            var time = HallTime.Instance;
+            Assert.IsNotNull(time, "the Hall's time");
+            Assert.IsFalse(time.Running, "stopped, as you find it");
+            yield return null;
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallStill"), 0.001f, "drained");
+            var body = apprentice.GetComponentInChildren<SkinnedMeshRenderer>();
+            Assert.IsTrue(body.sharedMaterials.All(m => m.GetFloat("_InTime") > 0.5f), "the Apprentice is in time: never stilled");
+            var prop = UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None)
+                .First(r => r.sharedMaterial != null && r.sharedMaterial.shader.name == "MyGame/Toon" && r.name.StartsWith("last_hour"));
+            Assert.AreEqual(0f, prop.sharedMaterial.GetFloat("_InTime"), "the Hall's things are stilled");
+        }
+
+        [UnityTest]
+        public IEnumerator TheHallsTime_SetGoing_TheColourComesBackInAWave_TheMusicWakes()
+        {
+            var time = HallTime.Instance;
+            var moon = RenderSettings.sun;
+            Color cold = moon.color;
+            Assert.AreEqual(0f, time.Warmth, 0.001f, "stopped: the cold light");
+            time.Run();
+            yield return new WaitForSeconds(1f);
+            Vector3 c = time.WaveCentre;
+            Assert.IsFalse(time.StoppedAt(c + Vector3.right * 2f), "near the engine: time again");
+            Assert.IsTrue(time.StoppedAt(c + Vector3.right * 40f), "far off: not yet");
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallWaveOn"), 0.001f, "the wave going out");
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallStill"), 0.001f);
+            yield return Until(() => time.WaveRadius >= time.reach, 15f, "the wave past all of it");
+            yield return null;
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallWaveOn"), 0.001f, "done: colour everywhere");
+            Assert.IsTrue(UnityEngine.Object.FindAnyObjectByType<MusicPlayer>().Woken, "the music woken");
+            Assert.AreEqual(1f, time.Warmth, 0.001f, "the light all warmed");
+            Assert.Less(moon.color.b, cold.b - 0.02f, "a (touch) warmer moon");
+            time.Stop();
+            yield return new WaitForSeconds(time.stopFade + 0.2f);
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallStill"), 0.001f, "held still again: grey again");
+            Assert.AreEqual(0f, time.Warmth, 0.001f, "and the cold light again");
+            Assert.AreEqual(cold, moon.color);
+        }
+
+        // ---- The central engine: the clock's heart in the belfry, over its broken floor.
+
+        const float Belfry = 16.55f;
+
+        // Walked off the stair's side of the belfry into the gap: down to the face room, unharmed.
+        [UnityTest]
+        public IEnumerator TheBelfry_ItsBrokenFloor_FallenThrough_DownToTheFaceRoom()
+        {
+            apprentice.Teleport(T(5.3f, Belfry, -2f));
+            yield return new WaitForSeconds(0.3f);
+            float health = apprentice.Health;
+            yield return WalkTo(T(1.5f, 0f, -2f), 0.4f, 4f); // (through the gap: on along the face room's floor)
+            yield return new WaitForSeconds(0.8f);
+            Assert.AreEqual(12.5f, apprentice.transform.position.y, 0.2f, "down in the face room");
+            Assert.AreEqual(health, apprentice.Health, "no harm");
+        }
+
+        // The Vault leaps it, to the clock's heart.
+        [UnityTest]
+        public IEnumerator TheBelfry_TheVaultLeapsItsBrokenFloor()
+        {
+            apprentice.GiveVault();
+            apprentice.Teleport(T(5.3f, Belfry, -2f));
+            apprentice.transform.rotation = Quaternion.LookRotation(Vector3.left);
+            yield return new WaitForSeconds(0.3f);
+            input.PressVault();
+            yield return null;
+            for (float t = 0f; t < 3f && apprentice.CurrentState == Apprentice.State.Vaulting; t += Time.deltaTime)
+                yield return null;
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(Belfry, apprentice.transform.position.y, 0.2f, "over it, on the belfry's floor");
+            Assert.Less(apprentice.transform.position.x - tower.transform.position.x, 2.2f, "on the far side");
+        }
+
+        // The Stroke at its plate: the Hall's time set going for good (the wave out from it, the hands swept round to
+        // ten, the camera drawn back and returned, every machine running from then on: the gear door open for good, the
+        // lift going up and down by itself).
+        [UnityTest]
+        public IEnumerator TheCentralEngine_Struck_SetsTheHallsTimeGoing_ForGood()
+        {
+            var engine = CentralEngine.Instance;
+            Assert.IsNotNull(engine, "the central engine");
+            Quaternion minute = engine.minuteHand.rotation, hour = engine.hourHand.rotation;
+            apprentice.GiveStroke();
+            apprentice.Teleport(engine.transform.position + Vector3.up * 0.05f);
+            yield return new WaitForSeconds(0.3f);
+            yield return Stroke(Vector3.back);
+            yield return Until(() => engine.Set, 2f, "set going");
+            Assert.IsTrue(HallTime.Instance.Running, "the Hall's time");
+            yield return new WaitForSeconds(1.5f);
+            Assert.Greater(CameraRig.Instance.Zoom, 1.4f, "the camera drawn back");
+            yield return new WaitForSeconds(engine.pullBackTime + 2f);
+            Assert.AreEqual(90f, Quaternion.Angle(minute, engine.minuteHand.rotation), 2f, "the minute hand round to the hour");
+            Assert.AreEqual(22.5f, Quaternion.Angle(hour, engine.hourHand.rotation), 2f, "the hour hand to ten");
+            Assert.Less(CameraRig.Instance.Zoom, 1.05f, "and back");
+            var machines = UnityEngine.Object.FindObjectsByType<Clockwork>(FindObjectsSortMode.None);
+            Assert.IsTrue(machines.All(c => c.Forever && c.Running), "every machine running for good");
+            var lift = UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => m.carries);
+            float low = 1f, high = 0f;
+            for (float t = 0f; t < 14f; t += Time.deltaTime)
+            {
+                low = Mathf.Min(low, lift.Progress);
+                high = Mathf.Max(high, lift.Progress);
+                yield return null;
+            }
+            Assert.AreEqual(1f, high, 0.01f, "the lift up...");
+            Assert.AreEqual(0f, low, 0.01f, "...and down, by itself");
+            Assert.IsTrue(UnityEngine.Object.FindObjectsByType<ClockworkMover>(FindObjectsSortMode.None).First(m => !m.carries).Out, "the gear door open for good");
+            Assert.IsTrue(SaveSystem.Instance.Capture().hallTimeRunning, "kept in a save");
+        }
+
+        // A save that had it going: going at once (no wave), the hands at the hour, every machine running.
+        [UnityTest]
+        public IEnumerator TheCentralEngine_ASaveThatHadItGoing_LoadsGoing()
+        {
+            var engine = CentralEngine.Instance;
+            Quaternion minute = engine.minuteHand.rotation;
+            engine.Settle();
+            yield return null;
+            Assert.IsTrue(HallTime.Instance.Running);
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallWaveOn"), 0.001f, "no wave: colour everywhere already");
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallStill"), 0.001f);
+            Assert.AreEqual(90f, Quaternion.Angle(minute, engine.minuteHand.rotation), 2f, "the hands at the hour");
+            Assert.IsTrue(UnityEngine.Object.FindObjectsByType<Clockwork>(FindObjectsSortMode.None).All(c => c.Forever));
+        }
+
+        // The court's dust (the one the Apprentice starts in).
+        StillAir CourtDust => UnityEngine.Object.FindObjectsByType<StillAir>(FindObjectsSortMode.None)
+            .Where(s => s.motes > 100).OrderBy(s => Vector3.Distance(s.transform.position, apprentice.transform.position)).First();
+
+        [UnityTest]
+        public IEnumerator TheDust_StirsRoundYouAsYouPass_AndHangsWhereYouStand()
+        {
+            var dust = CourtDust;
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(0, dust.Moved(0.01f), "standing: it hangs");
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(1.5f);
+            input.Move = Vector2.zero;
+            int stirred = dust.Moved(0.05f);
+            Assert.Greater(stirred, 10, "it swirled round you as you passed");
+            Assert.Less(stirred, dust.Count / 4, "only round you: the rest hangs");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(stirred, dust.Moved(0.05f), 3, "and it hangs again behind you");
+        }
+
+        [UnityTest]
+        public IEnumerator TheDust_FallsAsTheWavePasses()
+        {
+            var dust = CourtDust;
+            HallTime.Instance.Run();
+            yield return new WaitForSeconds(5f);
+            Assert.Greater(dust.Moved(0.3f), dust.Count / 2, "fallen, where time's come back");
+        }
+
+        [UnityTest]
+        public IEnumerator LeavingTheHall_LeavesNoGreyBehind()
+        {
+            yield return null;
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_HallStill"), 0.001f);
+            yield return SceneManager.LoadSceneAsync("Lab_DrownedCity");
+            yield return null;
+            Assert.AreEqual(0f, Shader.GetGlobalFloat("_HallStill"), 0.001f, "another Area: no grey");
         }
 
         // (SHOTS=dir) The tower: from the landing, and floor by floor inside, the face's ledge and hands, and from afar.

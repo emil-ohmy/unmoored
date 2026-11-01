@@ -19,6 +19,9 @@ public class ModelImportRules : AssetPostprocessor
 
     bool InScope => assetPath.StartsWith(Root) && assetPath.EndsWith(".fbx");
     bool IsCharacter => assetPath.StartsWith(Root + "Characters/");
+    // The Apprentice and what's theirs (the Hook's head, a thrown Pitch Pot): never stilled, wherever time's stopped.
+    static readonly string[] InTimeModels = { "apprentice.fbx", "hook_head.fbx", "provision_pitch_pot.fbx" };
+    bool InTime => System.Array.IndexOf(InTimeModels, System.IO.Path.GetFileName(assetPath)) >= 0;
 
     // (Not thin posts: a Mooring post, a street lantern, a hook post, the far light. They hide nothing worth opening,
     // and a hole in one just looks broken.)
@@ -44,7 +47,7 @@ public class ModelImportRules : AssetPostprocessor
         }
     }
 
-    public override uint GetVersion() => 11; // (2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts; 6: the Orchard; 7: not its trees; 8: the Glasshouse; 9: the mill, the tailrace; 10: the Hall of the Last Hour; 11: not the Hall's props (but its facade). Bumping re-imports every model)
+    public override uint GetVersion() => 12; // (12: the Apprentice's materials in time; 2: the cutaway flag; 3: environment meshes readable; 4: metal; 5: no cutaway for posts; 6: the Orchard; 7: not its trees; 8: the Glasshouse; 9: the mill, the tailrace; 10: the Hall of the Last Hour; 11: not the Hall's props (but its facade). Bumping re-imports every model)
 
     void OnPreprocessModel()
     {
@@ -70,6 +73,7 @@ public class ModelImportRules : AssetPostprocessor
         colour.w = 1f;
         material.SetVector("_BaseColor", colour);
         material.SetFloat("_Cutaway", IsArchitecture ? 1f : 0f);
+        material.SetFloat("_InTime", InTime ? 1f : 0f); // (where time's stopped, the rest is drained grey: not the Apprentice)
         if (description.materialName.StartsWith("Torch") && description.materialName.EndsWith("_Glow"))
         {
             // Torch flames: the animated flame shader (sways, stretches, flickers; hot core, dark red tip).

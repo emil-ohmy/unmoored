@@ -50,6 +50,17 @@ namespace MyGame
             },
             a => a.HasStroke);
 
-        public static readonly Ability[] All = { Hook, Stroke };
+        public static readonly Ability Vault = new Ability("vault", "The Vault",
+            "The Ferrule: an iron shoe for the foot of an oar, pitted and old, found where the drowned city kept its secrets. Fitted, the oar bites into stone and holds your weight.",
+            "Shift: plant the oar and leap", "RT: plant the oar and leap",
+            new[]
+            {
+                "Leap a gap (always the same distance: judge it well), a low wall, up onto a ledge.",
+                "Over what's low: a ring across the floor, a sweep at your legs, a charge.",
+                "Locked on, it carries you onto your target.",
+            },
+            a => a.HasVault);
+
+        public static readonly Ability[] All = { Hook, Stroke, Vault };
     }
 }

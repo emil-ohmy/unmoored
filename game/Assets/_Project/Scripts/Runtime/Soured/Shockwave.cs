@@ -5,13 +5,23 @@ namespace MyGame
     // A ring of water thrown out across the floor by a blow that hits the ground (the Anchoress's Anchor Drop). It
     // spreads out and fades; where its crest passes the Apprentice it knocks them outwards, unless they dash through it
     // (the i-frames) or are already beyond its reach. It can be blocked (facing where it came from) but not
-    // perfect-blocked back: it isn't her.
+    // perfect-blocked back: it isn't her. It rolls across its own floor only: not someone on a floor below, nor above it
+    // (leapt over). A muffled one (a Keener's knell: sound, not water) is stopped by a wall between. Rings sent out as one
+    // band (a Keener's three) strike as one: the first crest to reach the Apprentice decides it (hit, dodged, muffled),
+    // and the rest pass.
     public sealed class Shockwave : MonoBehaviour
     {
+        public sealed class Band
+        {
+            public bool Reached;
+        }
+
         const int Segments = 64;
 
         public float Radius { get; private set; }
         public bool Struck { get; private set; }
+        public bool muffled; // stopped by what's solid between its centre and the Apprentice (not by the Soured)
+        public Band band;    // (rings that strike as one)
 
         Apprentice target;
         float maxRadius, speed, width, damage, knockback;
@@ -82,14 +92,28 @@ namespace MyGame
                 Vector3 to = target.transform.position - transform.position;
                 float height = to.y;
                 to.y = 0f;
-                if (Mathf.Abs(to.magnitude - Radius) <= width * 0.5f && height < 0.8f)
+                if (Mathf.Abs(to.magnitude - Radius) <= width * 0.5f && height < 0.8f && height > -0.8f)
                 {
                     Struck = true; // once: the crest passes on
+                    bool first = band == null || !band.Reached;
+                    if (band != null)
+                        band.Reached = true;
                     Vector3 outwards = to.sqrMagnitude > 0.001f ? to.normalized : Vector3.forward;
-                    target.TakeHit(damage, outwards * knockback);
+                    if (first && (!muffled || !Walled(target.transform.position)))
+                        target.TakeHit(damage, outwards * knockback);
                 }
             }
             Refresh();
+        }
+
+        // Something solid between its centre and `at` (a wall, a pillar), at waist height; people don't count.
+        bool Walled(Vector3 at)
+        {
+            Vector3 from = transform.position + Vector3.up * 0.8f, to = at + Vector3.up * 0.8f;
+            foreach (var hit in Physics.RaycastAll(from, to - from, Vector3.Distance(from, to), ~0, QueryTriggerInteraction.Ignore))
+                if (!(hit.collider is CharacterController))
+                    return true;
+            return false;
         }
 
         void Refresh()

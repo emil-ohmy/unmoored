@@ -8,7 +8,8 @@ namespace MyGame
     // turns turns (spinners), what swings swings (swingers: a pendulum from where it was held), what it drives moves
     // (ClockworkMover: a door rolls aside, a lift climbs; and back as it stops), and time moves round it: the dust and
     // drops held in the air nearby (StillAir) drift and fall a little, then hang still again. Struck again while it runs,
-    // it runs on from then. Heard: a clunk as it catches, its ticking while it runs, a slowing as it stops.
+    // it runs on from then. Heard: a clunk as it catches, its ticking while it runs, a slowing as it stops. Once the
+    // Hall's time is set going (its central engine), every machine of it runs for good (RunForever).
     public sealed class Clockwork : MonoBehaviour, IStoodOnWaveable
     {
         [System.Serializable]
@@ -40,7 +41,9 @@ namespace MyGame
         public float thawRadius = 8f;          // the still air this near it moves while it runs
         public AudioClip[] startSound, tickSound, stopSound;
 
-        public bool Running => runUntil > Time.time;
+        public bool Running => Forever || runUntil > Time.time;
+        public bool Forever { get; private set; }  // (time running in the Hall: it never stops again)
+        public event System.Action Started;
         public float Run { get; private set; }     // 0 stopped .. 1 running (eased up and down)
         public int Starts { get; private set; }    // (tests)
 
@@ -88,6 +91,7 @@ namespace MyGame
                 Starts++;
                 swingTime = 0f; // (it swings on from where it was held)
                 Sfx.Instance?.Attack(startSound, WavePoint + Vector3.up, 1f, "clockwork_start");
+                Started?.Invoke();
                 if (tickSound != null && tickSound.Length > 0 && ticking != null)
                 {
                     ticking.clip = tickSound[0];
@@ -96,6 +100,23 @@ namespace MyGame
                 }
             }
             runUntil = Time.time + runTime;
+        }
+
+        // For good: time running again in the Hall.
+        public void RunForever(bool atOnce = false)
+        {
+            if (!Forever)
+                Set();
+            Forever = true;
+            if (atOnce)
+                Run = 1f; // (a save loaded: already going)
+        }
+
+        // Held still again (the lab's: the game never stops the Hall's time once it's going): it winds down where it is.
+        public void Hold()
+        {
+            Forever = false;
+            runUntil = Time.time;
         }
 
         void Update()

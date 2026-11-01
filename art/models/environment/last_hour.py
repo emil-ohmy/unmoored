@@ -24,6 +24,9 @@ tower. Every drop taller than 1.5 m is railed (for now: the Vault comes later).
                 ones high on the west; tie-beams across it (the pendulums hang from them); a toothed rack inlaid down
                 its aisle
   "hall_roof"   its steep copper roof, a row of gears standing along the ridge
+  "gear_run"    a trap: a walled ramp in the river between the keep and the great hall, from an arch in the curtain
+                up to a landing at the works' height (a door into the keep), alcoves in its sides to step into; a
+                great gear (the game's) is let go down it, again and again, and drawn back up its chain
 
 Game directions (see masonry.py); origin at the tower's middle, at the water's surface. Where the game needs them
 (MainSceneBuilder.LastHour): the floors (F), the stairs (STAIRS), the dial's centre (0, -OUT, F[3]), the hands'
@@ -31,9 +34,12 @@ tops at F[3], the channel (CHANNEL), the pendulum's pivot (PIVOT).
 """
 import math
 
+import bmesh
+
 import masonry as m
 
-VARIANTS = ["undercroft", "works", "gallery", "face", "belfry", "roof", "courtyard", "gatehouse", "hall", "hall_roof"]
+VARIANTS = ["undercroft", "works", "gallery", "face", "belfry", "roof", "courtyard", "gatehouse", "hall", "hall_roof",
+            "gear_run"]
 M, part = m.M, m.part
 kit = m.kit
 
@@ -123,8 +129,78 @@ HALL_TOP = 9.5
 HALL_DOOR = (-14.0, -11.0)                  # its door in the west wall (n), onto the court
 BEAMS = (-20.0, -12.0, -4.0)                # its tie-beams (n): the pendulums hang from them
 
+# The Gear Run (a trap: a great gear let go down it, again and again): a walled ramp in the river between the keep and
+# the great hall, in from the court through an arch in the curtain, rising north to a landing at the works' height
+# and a door into the keep. The game rolls its gear (MainSceneBuilder.LastHour: RunGround).
+RUN_LANE = (10.0, 12.4)                     # its lane (e0, e1)
+RUN_FOOT, RUN_LOW, RUN_HIGH, RUN_TOP = -7.2, -4.4, 3.6, 6.6   # (n) its foot, where it starts to rise, its head, the landing's end
+RUN_BAY = (12.4, 15.0, -7.2, -4.8)          # the bay off its foot, in from the court's arch (e0, e1, n0, n1)
+RUN_ARCH = (12.9, 14.6)                     # the arch through the curtain (e)
+RUN_ALCOVES = (("east", -3.0, -1.6), ("west", -0.6, 0.8), ("east", 1.6, 3.6))   # where to step aside: (side, n0, n1)
+# (the last opens onto the landing: the way round the gear when it's held at the head)
+RUN_WALL, RUN_DEEP = 0.4, 1.0               # its walls' thickness; how deep an alcove is
+RUN_SIDE = 1.2                              # its walls' height over the lane
+KEEP_DOOR = (3.6, 5.6)                      # the works' door onto the landing, in the keep's east wall (n)
+
+
+def run_ground(n):
+    """The Gear Run's floor at n: the court's level at its foot, rising evenly to the works' at its head."""
+    if n <= RUN_LOW:
+        return F[0]
+    if n >= RUN_HIGH:
+        return F[1]
+    return F[0] + (n - RUN_LOW) / (RUN_HIGH - RUN_LOW) * (F[1] - F[0])
+
+
+def sloped(name, material, e0, e1, n0, n1, lo, hi):
+    """A block from n0 to n1 whose bottom and top are `lo` and `hi` (numbers, or functions of n: a ramp's slab)."""
+    low = lo if callable(lo) else (lambda n: lo)
+    high = hi if callable(hi) else (lambda n: hi)
+
+    def build(bm):
+        corners = [(e0, n0, low(n0)), (e1, n0, low(n0)), (e1, n1, low(n1)), (e0, n1, low(n1)),
+                   (e0, n0, high(n0)), (e1, n0, high(n0)), (e1, n1, high(n1)), (e0, n1, high(n1))]
+        v = [bm.verts.new(G(*c)) for c in corners]
+        for face in ((0, 1, 2, 3), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)):
+            bm.faces.new([v[i] for i in face])
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return part(name, build, material)
+
+
+def run_floor(parts, e0, e1, n0, n1):
+    """A stretch of the Gear Run's floor: setts in staggered courses across it, their tones mixed as the court's
+    flagstones are, over a mortar core (the river below)."""
+    rng = kit.rng
+    paving = [m.mat(p) for p in m.PAVING]
+    parts.append(sloped("RunCore", m.mat(m.MORTAR), e0, e1, n0, n1, -0.9, lambda n: run_ground(n) - 0.03))
+    n, row = n0, 0
+    while n < n1 - 0.05:
+        b = min(n + rng.uniform(0.5, 0.7), n1)
+        e = e0 - (rng.uniform(0.15, 0.35) if row % 2 else 0.0)
+        while e < e1 - 0.05:
+            w = rng.uniform(0.45, 0.8)
+            lo, hi = max(e, e0), min(e + w, e1)
+            if hi - lo > 0.1:
+                tone = rng.choice(paving)
+                for a_, b_ in ((n, min(b, RUN_LOW)), (max(n, RUN_LOW), min(b, RUN_HIGH)), (max(n, RUN_HIGH), b)):
+                    if b_ - a_ > 0.05:  # (split where the floor bends: each piece's top a straight line)
+                        parts.append(sloped("Sett", tone, lo + 0.02, hi - 0.02, a_ + 0.02, b_ - 0.02,
+                                            lambda q: run_ground(q) - 0.06, run_ground))
+            e += w
+        n, row = b, row + 1
+
+
+def run_wall(parts, e0, e1, n0, n1):
+    """The Gear Run's side wall from n0 to n1, in lengths stepped up with the floor, capped."""
+    n = n0
+    while n < n1 - 0.05:
+        b = min(n + 0.8, n1)
+        top = max(run_ground(n), run_ground(b)) + RUN_SIDE
+        m.wall(parts, e0, e1, n, b, -0.9, top, course=0.3)
+        n = b
+
 # The portholes: round brass-rimmed windows (each a square opening behind its ring), per storey and wall.
-WINDOWS = {1: {"south": [-2.6, 2.6], "west": [-3.0, 3.0], "east": [4.5], "north": [-5.5]},
+WINDOWS = {1: {"south": [-2.6, 2.6], "west": [-3.0, 3.0], "north": [-5.5]},
            2: {"west": [-5.0], "east": [-3.0, 0.0], "north": [-5.5, 5.5]},
            3: {"west": [-3.0, 3.0], "north": [-5.0, 5.0]}}
 PORT_U, PORT_R = 2.0, 0.62  # a porthole's middle above its storey's floor; its ring's radius
@@ -266,6 +342,52 @@ def wainscot(parts, storey, brass, openings):
             parts.append(m.box("Band", brass, *box, u0 + b, u0 + b + 0.16))
 
 
+BELFRY_GAP = (2.2, 4.8, -IN, IN)  # (e0, e1, n0, n1): the belfry's floor broken through, north to south
+
+
+def broken_edges(parts, top):
+    """The broken floor's edges: flagstones snapped off and jutting, tipped, over the drop; the bed's raw edge."""
+    rng = kit.rng
+    e0, e1, n0, n1 = BELFRY_GAP
+    paving = [m.mat(p) for p in m.PAVING]
+    for edge, out in ((e0, 1), (e1, -1)):
+        n = n0 + 0.3
+        while n < n1 - 0.4:
+            d = rng.uniform(0.35, 0.8)
+            jut = rng.uniform(0.08, 0.32)
+            tip = rng.uniform(4, 14) * out
+            parts.append(part("BrokenFlag", kit.cube(), rng.choice(paving),
+                              M((-(edge + out * jut / 2), -(n + d / 2), top - 0.06 - jut * 0.15), rot=(0, tip, 0),
+                                scale=(jut + 0.1, d - 0.05, 0.1))))
+            n += d + rng.uniform(0.05, 0.5)
+
+
+def marble(parts, e0, e1, n0, n1, top, aisle, size=1.2):
+    """The great hall's floor: marble squares, deep green and cream, laid square to its walls over a grout bed; down
+    its aisle a crimson runner with gilt edges, under the rack. (Seen from above, the floor is most of the hall.)"""
+    green, cream = kit.mat("HallMarbleGreen", "#2f6a58"), kit.mat("HallMarbleCream", "#e3d7b8")
+    crimson, gilt = kit.mat("HallRunner", "#8e2a2e"), kit.mat("HallRunnerGilt", "#c9a24a")
+    parts.append(m.box("Bed", m.mat(m.GROUT), e0, e1, n0, n1, top - 0.2, top - 0.03))
+    i = 0
+    e = e0
+    while e < e1 - 0.05:
+        hi = min(e + size, e1)
+        j = 0
+        n = n0
+        while n < n1 - 0.05:
+            nh = min(n + size, n1)
+            parts.append(m.box("Marble", green if (i + j) % 2 else cream, e + 0.015, hi - 0.015, n + 0.015, nh - 0.015, top - 0.06, top))
+            n = nh
+            j += 1
+        e = hi
+        i += 1
+    half = 1.3
+    parts.append(m.box("Runner", crimson, aisle - half, aisle + half, n0 + 0.6, n1 - 0.6, top - 0.01, top + 0.015))
+    for side in (-1, 1):
+        a = aisle + side * (half - 0.08)
+        parts.append(m.box("RunnerEdge", gilt, a - 0.07, a + 0.07, n0 + 0.62, n1 - 0.62, top - 0.005, top + 0.02))  # (clear of its faces)
+
+
 def build(variant):
     m.last_hour()
     parts = []
@@ -304,7 +426,8 @@ def build(variant):
         e0, e1, n0, n1, _ = STAIRS[0]
         m.balustrade(parts, e0 - 0.1, n0 - 0.05, e0 - 0.1, n1 - 1.6, f)               # beside the stair from below
         m.balustrade(parts, e0 - 0.1, n0 - 0.1, IN, n0 - 0.1, f)
-        walls(parts, 1)
+        walls(parts, 1, east=[(KEEP_DOOR[0], KEEP_DOOR[1], 0, 2.6)])                  # the door onto the Gear Run's landing
+        m.lintel(parts, IN, OUT, KEEP_DOOR[0], KEEP_DOOR[1], f, f + 2.6)
         stair(parts, 1)
         # Beams under the gallery above, across the tower.
         for e in (-4.6, 4.6):
@@ -322,8 +445,9 @@ def build(variant):
         m.balustrade(parts, e1 + 0.1, n0 - 0.1, e1 + 0.1, IN, f)
         walls(parts, 2, south=[(-DIAL, DIAL, 0.6, 4.0)])                               # the dial's lower half
         # The bells' frame: two great beams across the open middle, under the face room's floor.
-        for n in (-2.6, 2.6):
-            parts.append(m.box("BellBeam", timber, -IN, IN, n - 0.22, n + 0.22, F[3] - 0.7, F[3] - 0.3))
+        for n in (-2.6, 1.6):  # (the north one in from the ring: from the camera it'd hide the jacks' strips)
+            west = STAIRS[2][1] if n > STAIRS[2][2] else -IN  # (resting on the stair's wall, clear of its headroom)
+            parts.append(m.box("BellBeam", timber, west, IN, n - 0.22, n + 0.22, F[3] - 0.7, F[3] - 0.3))
         stair(parts, 2)
     elif variant == "face":
         f = F[3]
@@ -347,7 +471,10 @@ def build(variant):
         stair(parts, 3)
     elif variant == "belfry":
         f = F[4]
-        m.flagstones(parts, -IN, IN, -IN, IN, f, holes=[stair_hole(4)])
+        # The belfry's floor broken through between the stair's head (east) and the clock's heart (the escapement in
+        # the south arch, the hour bell): a gap the Vault leaps; fallen through, the face room's below (no harm).
+        m.flagstones(parts, -IN, IN, -IN, IN, f, holes=[stair_hole(4), BELFRY_GAP])
+        broken_edges(parts, f)
         e0, e1, n0, n1, _ = STAIRS[3]
         m.balustrade(parts, e0 - 0.1, n0, e0 - 0.1, n1 - 1.6, f)
         m.balustrade(parts, e0 - 0.1, n0 - 0.1, IN, n0 - 0.1, f)
@@ -425,10 +552,14 @@ def build(variant):
         walls_ = [(e0 - 0.8, e0, n0 - 0.8, pn0 - 0.8, CURTAIN, ("west", "east")),            # west, south of the gate
                   (e0 - 0.8, e0, tn1, n1 + 0.8, CURTAIN, ("west", "east")),                  # west, north of its tower
                   (e0 - 0.8, -OUT, n1, n1 + 0.8, CURTAIN, ("south", "north")),               # to the keep's south-west corner
-                  (OUT, e1, n1, n1 + 0.8, CURTAIN, ("south", "north")),                      # keep to hall
+                  (OUT, e1, n1, n1 + 0.8, CURTAIN, ("south", "north")),                      # keep to hall (the Gear Run's arch)
                   (e0 - 0.8, e1, n0 - 0.8, n0, PARAPET, ("south", "north"))]                 # the south parapet
         for we0, we1, wn0, wn1, top, faces in walls_:
-            m.wall(parts, we0, we1, wn0, wn1, -0.9, top, course=0.45, plinth=True)
+            arch = [(RUN_ARCH[0], RUN_ARCH[1], f, f + 3.0)] if we0 == OUT else []
+            m.wall(parts, we0, we1, wn0, wn1, -0.9, top, openings=arch, course=0.45, plinth=True)
+            if arch:
+                m.lintel(parts, RUN_ARCH[0], RUN_ARCH[1], wn0, wn1, f, f + 3.0)
+                m.flagstones(parts, RUN_ARCH[0], RUN_ARCH[1], wn0, wn1, f)
             for face in faces:
                 cog_strip(parts, brass, we0, we1, wn0, wn1, top, face)
         # The walk along the west wall's top (the gear lift climbs to it): boards out over the court on brackets,
@@ -482,9 +613,9 @@ def build(variant):
         h0, h1, hn0, hn1 = HALL
         i0, i1, in0, in1 = h0 + 0.8, h1 - 0.8, hn0 + 0.8, hn1 - 0.8
         parts.append(m.box("Earth", m.mat(m.MORTAR), i0, i1, in0, in1, -0.9, f - 0.2))
-        m.flagstones(parts, i0, i1, in0, in1, f)
-        # The rack down its aisle (to the orrery at its north end).
         mid = (i0 + i1) / 2
+        marble(parts, i0, i1, in0, in1, f, mid)
+        # The rack down its aisle (to the orrery at its north end).
         parts.append(m.box("Rack", brass, mid - 0.35, mid + 0.35, in0 + 1.0, in1 - 4.0, f, f + 0.03))
         n = in0 + 1.2
         while n < in1 - 4.2:
@@ -535,6 +666,65 @@ def build(variant):
         while n_ < hn1 - 1.0:  # gears standing along the ridge, their axles along it
             gear(parts, brass, web, (mid, n_, base + rise + 0.9), 0.9, 12, 0.14, rot=(90, 0, 0))
             n_ += 3.8
+    elif variant == "gear_run":
+        f = F[0]
+        brass = kit.mat("HallBrass_Metal", "#b8913f")
+        e0, e1 = RUN_LANE
+        w, d = RUN_WALL, RUN_DEEP
+        # Its foot (flat: where the gear comes to a stop against the buffers), the bay off it in from the arch.
+        b0, b1, bn0, bn1 = RUN_BAY
+        parts.append(m.box("Earth", m.mat(m.MORTAR), e0, e1, RUN_FOOT, RUN_LOW, -0.9, f - 0.2))
+        parts.append(m.box("Earth", m.mat(m.MORTAR), b0, b1, bn0, bn1, -0.9, f - 0.2))
+        m.flagstones(parts, e0, e1, RUN_FOOT, RUN_LOW, f)
+        m.flagstones(parts, b0, b1, bn0, bn1, f)
+        m.wall(parts, b1, b1 + w, bn0, bn1 + w, -0.9, f + 1.8, course=0.3)                         # the bay's east side
+        m.wall(parts, e1, b1 + w, bn1, bn1 + w, -0.9, f + 1.8, course=0.3)                         # ...and its north
+        for lo, hi in ((e0 + 0.25, e0 + 0.85), (e1 - 0.85, e1 - 0.25)):                          # the buffers
+            parts.append(m.box("Buffer", timber, lo, hi, RUN_FOOT, RUN_FOOT + 0.45, f + 0.4, f + 1.4))
+            parts.append(m.box("BufferFace", brass, lo - 0.04, hi + 0.04, RUN_FOOT + 0.45, RUN_FOOT + 0.53, f + 0.36, f + 1.44))
+        # The lane, rising; the alcoves in its sides.
+        run_floor(parts, e0, e1, RUN_LOW, RUN_HIGH)
+        for side, n0, n1 in RUN_ALCOVES:
+            lo, hi = (e1, e1 + d) if side == "east" else (e0 - d, e0)
+            run_floor(parts, lo, hi, n0, n1)
+        # Its rails (the gear's rims run on them) and the slot between for the chain that draws it back up.
+        for lo, hi in ((10.35, 10.5), (11.9, 12.05)):
+            parts.append(sloped("RunRail", brass, lo, hi, RUN_LOW, RUN_HIGH, lambda n: run_ground(n) - 0.02, lambda n: run_ground(n) + 0.02))
+        parts.append(sloped("ChainSlot", kit.mat("HandDark", "#2a2620"), 11.13, 11.27, RUN_LOW, RUN_TOP - 0.4,
+                            lambda n: run_ground(n) - 0.02, lambda n: run_ground(n) + 0.004))
+        # Its walls: the lane's sides (from its foot on the west; from the bay on the east), broken at each alcove,
+        # the alcove walled round behind.
+        for side, outer in (("west", (e0 - w, e0)), ("east", (e1, e1 + w))):
+            cuts = sorted((n0 - w, n1 + w) for s_, n0, n1 in RUN_ALCOVES if s_ == side)
+            n = RUN_FOOT if side == "west" else bn1 + w
+            for c0, c1 in cuts + [(RUN_HIGH, RUN_HIGH)]:
+                if c0 > n:
+                    run_wall(parts, *outer, n, c0)
+                n = max(n, c1)
+        for side, n0, n1 in RUN_ALCOVES:
+            back = (e1 + d, e1 + d + w) if side == "east" else (e0 - d - w, e0 - d)
+            ends = (e1, e1 + d) if side == "east" else (e0 - d, e0)  # (abutting the back: no faces shared)
+            onto = n1 >= RUN_HIGH  # (open at its head, onto the landing)
+            run_wall(parts, *back, n0 - w, n1 if onto else n1 + w)
+            run_wall(parts, *ends, n0 - w, n0)
+            if not onto:
+                run_wall(parts, *ends, n1, n1 + w)
+        # The landing at its head, at the works' floor: the keep's door on its west; railed round; the gear's house
+        # over the lane's head (two posts, a beam, the drum its chain winds on).
+        top = F[1]
+        l0, l1, ln0, ln1 = OUT, 14.2, RUN_HIGH, RUN_TOP  # (wide to the east: room round the gear's house off the last alcove)
+        m.wall(parts, l0, l1, ln0, ln1, -0.9, top - 0.2, course=0.45, cap=False, plinth=True)
+        m.flagstones(parts, l0, l1, ln0, ln1, top)
+        m.balustrade(parts, l0, ln1 - 0.1, l1, ln1 - 0.1, top)
+        m.balustrade(parts, l1 - 0.1, ln0, l1 - 0.1, ln1 - 0.1, top)
+        m.balustrade(parts, l0 + 0.1, ln0 + 0.1, e0 - w, ln0 + 0.1, top)
+        hn = 4.6  # (just behind where the gear's held, its middle at the lane's lip; clear of the way off the alcove)
+        for lo, hi in ((e0 - 0.3, e0 - 0.05), (e1 + 0.05, e1 + 0.3)):
+            parts.append(m.box("HousePost", brass, lo, hi, hn - 0.15, hn + 0.15, top, top + 3.95))
+        parts.append(m.box("HouseBeam", timber, e0 - 0.35, e1 + 0.35, hn - 0.2, hn + 0.2, top + 3.6, top + 3.95))
+        parts.append(part("Drum", kit.cylinder(16, 0.32, e1 - e0 - 0.3), brass, M(G((e0 + e1) / 2, hn, top + 3.25), rot=(0, 90, 0))))
+        for e in (e0 + 0.35, e1 - 0.35):
+            parts.append(part("DrumCheek", kit.cylinder(16, 0.45, 0.06), brass, M(G(e, hn, top + 3.25), rot=(0, 90, 0))))
     # The machine of it: each storey's cogged crown, its corner spines and pipes, its portholes, its brass band inside;
     # a great gear inlaid in the floors (the belfry's floor is one).
     brass = kit.mat("HallBrass_Metal", "#b8913f")
@@ -548,7 +738,7 @@ def build(variant):
         for side, positions in WINDOWS.get(storey, {}).items():
             for a in positions:
                 porthole(parts, storey, side, a, brass, dark)
-    inlay = {0: ((0.0, -3.4), 2.2), 3: ((2.8, -3.6), 1.6), 4: ((-1.0, -1.0), 4.2)}.get(storey)
+    inlay = {3: ((2.8, -3.6), 1.6), 4: ((-1.0, -1.0), 4.2)}.get(storey)  # (the undercroft's floor gears turn: the game's)
     if inlay is not None:
         (e, n), r = inlay
         gear(parts, brass, web, (e, n, F[storey] + 0.01), r, int(r * 11), 0.03)

@@ -508,7 +508,7 @@ namespace MyGame.Tests
             yield return null;
             yield return null;
             Assert.IsTrue(u.fast.Mounted, "Fast rides Hold's back");
-            Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
+            Assert.Less(Vector3.Distance(u.fast.transform.position, u.fast.mount.position), 0.7f, "on Hold's back (its seat, or hopping onto it)");
             Assert.AreEqual(HitResult.Blocked, u.fast.TakeHit(new Hit { Damage = 50f, From = apprentice.transform.position }), "Hold's shoulders take the blow");
             for (float t = 0f; t < 6f && BossFight.Current == null; t += Time.deltaTime)
                 yield return null;
@@ -658,7 +658,7 @@ namespace MyGame.Tests
             }
             input.Move = Vector2.zero;
             Assert.IsTrue(u.fast.Mounted, "back up on Hold");
-            Assert.Less(Vector3.Distance(u.fast.transform.position, u.hold.transform.position), 1.5f);
+            Assert.Less(Vector3.Distance(u.fast.transform.position, u.fast.mount.position), 0.7f, "on Hold's back (its seat, or hopping onto it)");
         }
 
         // ---- Finding the way (heights, stop 2)
@@ -1353,6 +1353,27 @@ namespace MyGame.Tests
             Assert.LessOrEqual(hud.Menu.ShownLabels.Count, 8);
         }
 
+        // Every kind of Soured, and every Boss and miniboss, has its page in the Ledger: all but the few that are part of
+        // another (Hold and Fast are the Unparted) or have no soul (a scarecrow).
+        [Test]
+        public void EveryKindOfSoured_AndEveryBoss_HasItsPage()
+        {
+            var notTheirOwn = new[] { typeof(Soured), typeof(Scarecrow), typeof(UnpartedHold) }; // (Soured: only ever a kind of it)
+            var types = typeof(Soured).Assembly.GetTypes().Where(t => !t.IsAbstract && (typeof(Soured).IsAssignableFrom(t) || typeof(IBoss).IsAssignableFrom(t)));
+            var missing = new System.Collections.Generic.List<string>();
+            foreach (var t in types)
+            {
+                if (notTheirOwn.Contains(t))
+                    continue;
+                var made = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(t); // (only its kind is asked)
+                var entry = made is IBoss boss ? LedgerEntry.For(boss) : LedgerEntry.For((Soured)made);
+                if (entry == null)
+                    missing.Add(t.Name);
+            }
+            Assert.IsEmpty(missing, "kinds with no page in the Ledger");
+            Assert.AreEqual(LedgerEntry.All.Length, LedgerEntry.All.Select(e => e.Id).Distinct().Count(), "each its own id");
+        }
+
         // (the lab) The Tester's Post writes the whole Ledger in, so every page can be seen.
         [UnityTest]
         public IEnumerator TestersPost_WritesInTheWholeLedger()
@@ -1695,6 +1716,211 @@ namespace MyGame.Tests
             yield return OpenTheMenu();
             screen.Toggle(true);
             Assert.IsFalse(screen.Open, "not while a post's menu is open");
+        }
+
+        // ---- The Vault
+
+        // An open stretch of the quay at the west end, nothing overhead (the walkway by the tower would catch the leap).
+        static readonly Vector3 VaultFrom = new Vector3(-1f, 0.55f, 0f);
+
+        void ReadyToVault(Vector3 at, Vector3 facing)
+        {
+            apprentice.GiveVault();
+            apprentice.Teleport(at);
+            apprentice.transform.rotation = Quaternion.LookRotation(facing);
+        }
+
+        IEnumerator VaultEnds(float timeout = 3f)
+        {
+            for (float t = 0f; t < timeout && apprentice.CurrentState == Apprentice.State.Vaulting; t += Time.deltaTime)
+                yield return null;
+        }
+
+        static IEnumerator Until(System.Func<bool> done, float timeout, string what)
+        {
+            for (float t = 0f; t < timeout && !done(); t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(done(), "timed out waiting for " + what);
+        }
+
+        static float Flat(Vector3 a, Vector3 b)
+        {
+            a.y = b.y = 0f;
+            return Vector3.Distance(a, b);
+        }
+
+        [UnityTest]
+        public IEnumerator TheVault_WithoutIt_RTDoesNothing()
+        {
+            apprentice.Teleport(VaultFrom);
+            yield return new WaitForSeconds(0.2f);
+            input.PressVault();
+            yield return new WaitForSeconds(0.2f);
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+        }
+
+        // Always the same distance, where you face; up high enough to clear a 1.5 m wall; and stamina spent.
+        [UnityTest]
+        public IEnumerator TheVault_LeapsItsDistance_WhereYouFace()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            yield return new WaitForSeconds(0.2f);
+            Vector3 from = apprentice.transform.position;
+            float stamina = apprentice.Stamina, top = from.y;
+            input.PressVault();
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Vaulting, apprentice.CurrentState);
+            for (float t = 0f; t < 3f && apprentice.CurrentState == Apprentice.State.Vaulting; t += Time.deltaTime)
+            {
+                top = Mathf.Max(top, apprentice.transform.position.y);
+                yield return null;
+            }
+            float skid = apprentice.vaultDistance / apprentice.vaultFlight * apprentice.vaultSkid / 10f; // (the landing's skid)
+            Assert.AreEqual(apprentice.vaultDistance + skid, apprentice.transform.position.x - from.x, 0.35f, "its distance (and a skid), east");
+            Assert.AreEqual(from.z, apprentice.transform.position.z, 0.2f);
+            Assert.Greater(top - from.y, 1.6f, "up over the oar");
+            Assert.AreEqual(stamina - apprentice.vaultStaminaCost, apprentice.Stamina, 6f, "it costs");
+        }
+
+        // Over a wall of 1.4 m; not over one of 2.4 m (it comes down this side of it).
+        [UnityTest]
+        public IEnumerator TheVault_OverALowWall_NotATallOne()
+        {
+            GameObject Wall(float height)
+            {
+                var w = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                w.transform.position = VaultFrom + Vector3.right * 1.8f + Vector3.up * (height / 2f - 0.05f);
+                w.transform.localScale = new Vector3(0.3f, height, 3f);
+                return w;
+            }
+            var low = Wall(1.4f);
+            ReadyToVault(VaultFrom, Vector3.right);
+            yield return new WaitForSeconds(0.2f);
+            input.PressVault();
+            yield return null;
+            yield return VaultEnds();
+            Assert.Greater(apprentice.transform.position.x, low.transform.position.x + 0.5f, "over the low wall");
+            Object.Destroy(low);
+            var tall = Wall(2.4f);
+            ReadyToVault(VaultFrom, Vector3.right);
+            yield return new WaitForSeconds(0.6f);
+            input.PressVault();
+            yield return null;
+            yield return VaultEnds();
+            Assert.Less(apprentice.transform.position.x, tall.transform.position.x, "not over the tall one");
+        }
+
+        // Misjudged: off the quay's edge and short of anything, into the water; washed ashore.
+        [UnityTest]
+        public IEnumerator TheVault_FallsShort_IntoTheWater_WashedAshore()
+        {
+            ReadyToVault(new Vector3(26f, 0.55f, -4.4f), Vector3.back); // (the quay's south edge, open water beyond)
+            yield return new WaitForSeconds(0.3f);
+            float health = apprentice.Health;
+            input.PressVault();
+            yield return Until(() => apprentice.CurrentState == Apprentice.State.Sinking, 3f, "into the water");
+            yield return Until(() => apprentice.CurrentState == Apprentice.State.Free, 4f, "washed ashore");
+            Assert.Less(apprentice.Health, health, "a little hurt");
+            Assert.Greater(apprentice.transform.position.z, -5.5f, "on the quay again");
+        }
+
+        // In the air, what's low passes under: a ring across the floor.
+        [UnityTest]
+        public IEnumerator TheVault_ARingPassesUnder()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            yield return new WaitForSeconds(0.2f);
+            input.PressVault();
+            yield return Until(() => apprentice.Airborne, 1f, "off the ground");
+            Vector3 at = apprentice.transform.position;
+            var ring = Shockwave.Spread(new Vector3(at.x - 1f, VaultFrom.y - 0.05f, at.z), apprentice, 3f, 20f, 0.8f, 12f, 5f, Color.white);
+            yield return Until(() => ring == null || ring.Struck, 0.5f, "the ring passing");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "it passed under");
+            yield return VaultEnds();
+            Assert.IsFalse(apprentice.Airborne);
+        }
+
+        // RT again in the air doesn't queue another vault; down, it doesn't go again by itself.
+        [UnityTest]
+        public IEnumerator TheVault_NotAgainTillItsDown()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            yield return new WaitForSeconds(0.2f);
+            Vector3 from = apprentice.transform.position;
+            input.PressVault();
+            yield return new WaitForSeconds(0.4f);
+            input.PressVault();
+            yield return VaultEnds();
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(Apprentice.State.Free, apprentice.CurrentState);
+            Assert.Less(apprentice.transform.position.x - from.x, apprentice.vaultDistance + 1f, "one leap, not two");
+        }
+
+        // Planted on the run, the run carries on through the plant (no dead stop); the camera stays on the ground
+        // under you (it doesn't leap with you); the shadow under you shows, and goes when you're down.
+        [UnityTest]
+        public IEnumerator TheVault_OnTheRun_NoDeadStop_TheCameraStaysLow_AShadowUnderYou()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            input.Move = Vector2.right;
+            yield return new WaitForSeconds(0.5f);
+            Vector3 before = apprentice.transform.position;
+            input.PressVault();
+            yield return null;
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Vaulting, apprentice.CurrentState);
+            yield return new WaitForSeconds(0.08f); // (still planting)
+            Assert.Greater(apprentice.transform.position.x - before.x, 0.4f, "still going through the plant");
+            var rig = CameraRig.Instance;
+            float camera = rig.transform.position.y;
+            float highest = camera;
+            bool shadow = false;
+            while (apprentice.CurrentState == Apprentice.State.Vaulting)
+            {
+                highest = Mathf.Max(highest, rig.transform.position.y);
+                shadow |= apprentice.VaultShadowShown;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Less(highest - camera, 0.15f, "the camera didn't leap with you");
+            Assert.IsTrue(shadow, "a shadow under you in the air");
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsFalse(apprentice.VaultShadowShown, "and gone when you're down");
+        }
+
+        // Down, straight on: free to move (and to act) the moment it lands, no hold; what was pressed just before
+        // landing happens then.
+        [UnityTest]
+        public IEnumerator TheVault_LandsStraightIntoMoving_NoHold()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            yield return new WaitForSeconds(0.2f);
+            bool landed = false;
+            apprentice.Landed += () => landed = true;
+            input.PressVault();
+            yield return Until(() => apprentice.Airborne, 1f, "off the ground");
+            yield return Until(() => apprentice.transform.position.y < VaultFrom.y + 0.6f && apprentice.CurrentState == Apprentice.State.Vaulting
+                                     && apprentice.StateTime > 0.4f, 1f, "coming down");
+            input.PressLight(); // (just before it lands)
+            yield return Until(() => landed, 1f, "down");
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Attacking, apprentice.CurrentState, "straight into the swing pressed as it came down");
+        }
+
+        // Locked on to a Soured within reach, the Vault carries you to its feet, wherever you were facing.
+        [UnityTest]
+        public IEnumerator TheVault_LockedOn_CarriesYouToItsFeet()
+        {
+            ReadyToVault(VaultFrom, Vector3.right);
+            var laden = SetDown("Laden", VaultFrom + new Vector3(2.5f, 0f, -2.8f));
+            laden.passive = true;
+            yield return new WaitForSeconds(0.4f);
+            input.PressLock();
+            yield return Until(() => apprentice.LockTarget == laden, 1f, "locked on");
+            input.PressVault();
+            yield return null;
+            yield return VaultEnds();
+            Assert.Less(Flat(apprentice.transform.position, laden.transform.position), laden.radius + 1.1f, "at its feet");
         }
     }
 }

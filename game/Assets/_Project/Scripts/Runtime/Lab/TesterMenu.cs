@@ -17,6 +17,7 @@ namespace MyGame
         readonly List<(string description, System.Action action)> actions = new List<(string, System.Action)>();
         Page page;
         static int gardenerPhase = 1;
+        static int hourQuarter = 1;
 
         public TesterMenu(TesterPost post, Apprentice apprentice)
         {
@@ -83,7 +84,23 @@ namespace MyGame
                         Say(post.ResidentsAwake ? "Up they get." : "Hush. They'll keep.");
                     });
                 var music = Object.FindAnyObjectByType<MusicPlayer>();
-                if (music != null && music.woken != null)
+                var time = HallTime.Instance;
+                if (time != null)
+                    Add("Time in the Hall", time.Running ? "running" : "stopped", "Stopped, as you find it: drained grey but for you, the dust hanging, every machine and trap held. Running, as its central engine sets it: the colour back in a wave out from the keep, the dust falling, the music woken, every machine and trap going for good.", () =>
+                    {
+                        bool run = !time.Running;
+                        if (run)
+                            time.Run();
+                        else
+                            time.Stop();
+                        foreach (var c in Object.FindObjectsByType<Clockwork>(FindObjectsSortMode.None))
+                            if (run)
+                                c.RunForever();
+                            else
+                                c.Hold();
+                        Say(run ? "Time again." : "Held still.");
+                    });
+                else if (music != null && music.woken != null)
                     Add("The Area's music", music.Woken ? "awake" : "as it is", "Its music as it is now, or as it will be woken (the Hall of the Last Hour: time set going again by its central engine, not built yet).", () =>
                     {
                         music.Wake(!music.Woken);
@@ -99,6 +116,18 @@ namespace MyGame
                         apprentice.Teleport(moth.middle + new Vector3(0f, 0.05f, -5f));
                         moth.BeginAt(gardenerPhase);
                         Say(gardenerPhase == 1 ? "He's waking." : $"Phase {gardenerPhase}. Mind his shears.");
+                    });
+                }
+                var theHour = Object.FindAnyObjectByType<TheHour>();
+                if (theHour != null)
+                {
+                    Add("The Hour: quarter", $"{hourQuarter}", "Which of its four quarters to face it from (time running): 1 its hammer and blade, 2 + the floor's hands, 3 + Stop You and the pendulums, 4 the last hour, quicker. Stopped, it's a husk whatever the quarter.", () =>
+                        hourQuarter = hourQuarter % 4 + 1);
+                    Add("Face the Hour", $"quarter {hourQuarter}", "Into its chamber, and its fight begun at the quarter chosen (at its health). Set the Hall's time first: stopped, it's limp (the bad ending's way); running, the real fight.", () =>
+                    {
+                        apprentice.Teleport(theHour.middle + new Vector3(0f, 0.05f, -6.5f));
+                        theHour.BeginAt(hourQuarter);
+                        Say(theHour.Limp ? "It hangs there. Barely moving." : hourQuarter == 1 ? "It wakes." : $"The {(hourQuarter == 4 ? "last hour" : $"quarter {hourQuarter}")}.");
                     });
                 }
                 Add("Clear them all", $"{Spawner.Spawned.Count}", "Every Soured set down here, gone (and the readout's counts start again).", () =>
@@ -158,6 +187,7 @@ namespace MyGame
                 }, equipment.charmSlots >= 3);
                 Add("The Hook", apprentice.HasHook ? "Owned" : "Take", "Pull to hook posts, yank Soured.", apprentice.GiveHook, apprentice.HasHook);
                 Add("The Stroke", apprentice.HasStroke ? "Owned" : "Take", "The Drowned Moon in the oar blade: hold the heavy attack, let go, a wave.", apprentice.GiveStroke, apprentice.HasStroke);
+                Add("The Vault", apprentice.HasVault ? "Owned" : "Take", "The Ferrule on the oar's foot: RT (Shift) to plant the oar and leap.", apprentice.GiveVault, apprentice.HasVault);
                 Add("500 Obols", $"{apprentice.Obols}", "Obols (souls, basically).", () => apprentice.GainObols(500));
                 Add("A full Satchel", $"{Provision.All.Length} kinds", "Every Provision, as many as the Satchel takes of each (and on the belt).", () =>
                 {

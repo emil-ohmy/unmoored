@@ -255,6 +255,7 @@ namespace MyGame
             returning = leapt = false;
             SetCarried(true);
             BeBusy("Cling", 3600f);
+            clips.Loop("Cling", 0.05f, now: true); // (clinging, it squeezes, hitches up, whispers: its clip looping, not held)
             mountedAt = Time.time;
             hopFrom = transform.position;
             hopStart = instantly ? -1f : Time.time;
@@ -335,6 +336,7 @@ namespace MyGame
             target.Cling(this);
             SetCarried(true);
             BeBusy("Cling", 3600f);
+            clips.Loop("Cling", 0.05f, now: true); // (clinging, it squeezes, hitches up, whispers: its clip looping, not held)
             Sfx.Instance?.Attack(grabSound, transform.position + Vector3.up, 0.9f, "clinger_grab");
             nextWhisper = Time.time + Random.Range(1.0f, 2.0f);
         }

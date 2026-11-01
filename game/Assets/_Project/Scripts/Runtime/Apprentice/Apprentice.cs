@@ -9,8 +9,8 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke }
-        enum Act { None, Dash, Light, Heavy }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke, Vaulting }
+        enum Act { None, Dash, Light, Heavy, Vault }
 
         [Header("Movement")]
         public float moveSpeed = 5f; // play-test: 6 blasted through the level
@@ -137,6 +137,19 @@ namespace MyGame
         public float strokeSurge = 12f;       // in the boat: the surge's speed (more than any rowing), dying away
         public AudioClip[] strokeDrawSound, strokeChargedSound, strokeSound, douseSound, boatSurgeSound;
 
+        [Header("The Vault (an Ability: plant the oar and leap)")]
+        public float vaultPlant = 0.12f;     // the oar planted, then up
+        public float vaultFlight = 0.55f;    // the arc: from leaving the ground to coming down at the height it left
+        public float vaultDistance = 4f;     // how far it carries you, always (misjudge a gap and you fall short)
+        public float vaultHeight = 1.75f;    // the arc's top above where it was planted (clear of a 1.5 m wall)
+        [Range(0.1f, 0.9f)] public float vaultPeakAt = 0.35f; // share of the arc to its top: up quickly, over the oar
+        public float vaultSkid = 0.45f;      // landing, the leap's speed carried on a little (this share of it, dying away)
+        public float vaultStaminaCost = 30f;
+        public float vaultLockReach = 6f;    // locked on to a Soured within this: it carries you to its feet instead
+        public float airborneAbove = 0.8f;   // this far off the ground, low things pass under (rings, a sweep, a charge)
+        public AudioClip[] vaultPlantSound, vaultLandSound;
+        public Material vaultShadowMaterial; // the shadow under you in the air (a soft dark disc: how high, and over what)
+
         [Header("Taking things")]
         public float pickupDuration = 0.6f;  // the stoop to pick an item up; it's taken at the bottom
         public float ceremonyDuration = 2.4f; // a key item held up
@@ -174,6 +187,7 @@ namespace MyGame
         public bool IsAlive => CurrentState != State.Dead;
         public bool HasHook { get; private set; }
         public bool HasStroke { get; private set; } // the Drowned Moon, set into the oar blade (Father Moth's)
+        public bool HasVault { get; private set; }  // the Ferrule on the oar's foot (a secret in the Drowned City)
         public HookPost HookTarget { get; private set; } // with the Hook: the post it would pull to (ringed; brighter while aiming)
         public Soured HookFoe { get; private set; }      // ...or the Soured it would catch (a Soured in reach wins over a post)
         // Where the Hook's marker goes (the HUD): the post's ring, or the Soured's chest; null with nothing to aim at.
@@ -271,13 +285,20 @@ namespace MyGame
                 Input = ownInput = new GameInput();
         }
 
-        void OnDestroy() => ownInput?.Dispose();
+        void OnDestroy()
+        {
+            ownInput?.Dispose();
+            if (HeldInTime)
+                Shader.SetGlobalFloat(HeldId, 0f);
+        }
 
         void Update()
         {
             if (Pause.IsPaused)
                 return; // (the pause menu has the controls)
             float dt = Time.deltaTime;
+            if (HeldInTime && CurrentState != State.Staggered)
+                ReleaseFromTime(); // (its moment over, or ended some other way)
             UpdateProvisionEffects(dt);
             if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free && CurrentState != State.Rowing))
                 CloseMenu(); // (a talk on the water stays open)
@@ -382,6 +403,10 @@ namespace MyGame
 
                 case State.Stroke:
                     UpdateStroke(dt);
+                    break;
+
+                case State.Vaulting:
+                    planar = UpdateVault(dt);
                     break;
 
                 case State.Healing:
@@ -497,13 +522,16 @@ namespace MyGame
             else
             {
                 verticalVelocity = controller.isGrounded ? -2f : verticalVelocity - 20f * dt;
+                if (CurrentState == State.Vaulting && vaultPhase == VaultPhase.Flight)
+                    verticalVelocity = vaultVertical; // (the arc, not gravity, while it's in it)
                 if (CurrentState == State.Sinking)
                 {
                     planar = knockback = Vector3.zero; // going under, slowly
                     verticalVelocity = -1.2f;
                 }
-                if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead)
+                if (Wading && CurrentState != State.Dashing && CurrentState != State.Dead && CurrentState != State.Vaulting)
                     planar = planar * wadeFactor + wadeDrift; // (a dash cuts through it)
+                lastPlanar = planar;
                 controller.Move((planar + knockback + Vector3.up * verticalVelocity) * dt);
             }
             TrackSafeGround(dt);
@@ -516,6 +544,7 @@ namespace MyGame
             if (Input.DashPressed) Buffer(Act.Dash);
             if (Input.LightPressed) Buffer(Act.Light);
             if (Input.HeavyPressed) Buffer(Act.Heavy);
+            if (Input.VaultPressed && HasVault && CurrentState != State.Vaulting) Buffer(Act.Vault); // (not again till it's down)
         }
 
         Vector3 MoveDirection()
@@ -1006,6 +1035,9 @@ namespace MyGame
                 case Act.Heavy:
                     StartAttack(true, 0);
                     break;
+                case Act.Vault:
+                    StartVault();
+                    break;
             }
         }
 
@@ -1020,7 +1052,8 @@ namespace MyGame
 
         void RegenerateStamina(float dt)
         {
-            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking || CurrentState == State.Stroke;
+            bool busy = CurrentState == State.Dashing || CurrentState == State.Attacking || CurrentState == State.Stroke
+                        || CurrentState == State.Vaulting;
             float rate = CurrentState == State.Blocking ? 0.4f : 1f; // holding a block slows recovery
             if (!busy && Time.time - lastStaminaUse >= staminaRegenDelay)
                 Stamina = Mathf.Min(maxStamina, Stamina + staminaRegenPerSecond * rate * dt);
@@ -1476,8 +1509,37 @@ namespace MyGame
             return Defence.Blocked;
         }
 
+        // Stopped in time (the Hour's doing): held where they stand, mid-motion, drained grey like the stopped Hall, a
+        // moment; nothing they press does anything. A dodge's moment of grace (or a blow's) slips it. True if it took.
+        public bool StopInTime(float duration)
+        {
+            if (!IsAlive || Invulnerable || CurrentState == State.Ceremony || CurrentState == State.Rowing || CurrentState == State.Sinking)
+                return false;
+            stateAfterStagger = State.Free;
+            Enter(State.Staggered);
+            stateDuration = duration;
+            buffered = Act.None;
+            knockback = Vector3.zero;
+            HeldInTime = true;
+            clips.SetTempo(0f);
+            Shader.SetGlobalFloat(HeldId, 1f);
+            return true;
+        }
+
+        public bool HeldInTime { get; private set; }
+        static readonly int HeldId = Shader.PropertyToID("_HallHeld");
+
+        void ReleaseFromTime()
+        {
+            HeldInTime = false;
+            clips.SetTempo(1f);
+            Shader.SetGlobalFloat(HeldId, 0f);
+        }
+
         void EnterStagger(float duration, string clip)
         {
+            if (HeldInTime)
+                ReleaseFromTime(); // (struck: knocked back into time)
             stateAfterStagger = State.Free;
             Enter(State.Staggered);
             stateDuration = duration;
@@ -1545,6 +1607,142 @@ namespace MyGame
         public const string StrokeHint = "Hold {heavy} and let go: the oar pulls like the tide, and what it meets is moved";
 
         public void GiveStroke() => HasStroke = true; // (no fanfare: see ReceiveKeyItem)
+
+        // ------------------------------------------------------------ the Vault
+
+        public const string VaultHint = "Press {vault}: plant the oar and leap. Over gaps and low walls, and over what's low";
+
+        public void GiveVault() => HasVault = true; // (no fanfare: see ReceiveKeyItem)
+
+        enum VaultPhase { Plant, Flight, Fall }
+        VaultPhase vaultPhase;
+        Vector3 vaultDirection;
+        float vaultSpeed, vaultFloor, vaultVertical, vaultCarry;
+        bool vaultOnto;
+        Vector3 lastPlanar;
+
+        public event System.Action Landed; // (tests)
+
+        // Where the camera looks: you, but in a vault the ground you're over (it doesn't leap with you: the world
+        // would bob; it eases to a higher ledge once you're down on it).
+        public Vector3 CameraFocus
+        {
+            get
+            {
+                Vector3 at = transform.position;
+                if (CurrentState == State.Vaulting)
+                    at.y = Mathf.Min(at.y, vaultFloor);
+                return at;
+            }
+        }
+
+        // Off the ground in a vault, high enough that what's low passes under (a ring, a sweep, a charge).
+        public bool Airborne => CurrentState == State.Vaulting && (vaultPhase == VaultPhase.Flight || vaultPhase == VaultPhase.Fall)
+                                && !Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, airborneAbove + 0.1f, ~0, QueryTriggerInteraction.Ignore);
+
+        // Plant the oar and leap: always the same distance, where you steer (or face); locked on to a Soured in reach,
+        // onto it, to land at its feet.
+        void StartVault()
+        {
+            if (!HasVault)
+                return;
+            if (!CanSpend(vaultStaminaCost))
+            {
+                Announce("no stamina");
+                return;
+            }
+            Spend(vaultStaminaCost);
+            Vector3 move = MoveDirection();
+            Vector3 direction = move.sqrMagnitude > 0.001f ? move.normalized : transform.forward;
+            float distance = vaultDistance;
+            if (LockTarget != null)
+            {
+                Vector3 to = ToLockTarget();
+                if (to.sqrMagnitude > 0.01f)
+                {
+                    direction = to.normalized;
+                    if (to.magnitude <= vaultLockReach)
+                        distance = Mathf.Max(0.5f, to.magnitude - LockTarget.radius - 0.6f);
+                }
+            }
+            vaultDirection = direction;
+            vaultSpeed = distance / vaultFlight;
+            vaultFloor = transform.position.y;
+            vaultOnto = LockTarget != null && distance < vaultDistance;
+            vaultCarry = Mathf.Min(new Vector3(lastPlanar.x, 0f, lastPlanar.z).magnitude, moveSpeed); // (planted on the run: still going)
+            knockback = Vector3.zero;
+            Enter(State.Vaulting);
+            vaultPhase = VaultPhase.Plant;
+            clips.PlayOnce("VaultPlant", vaultPlant);
+            Sfx.Instance?.Attack(vaultPlantSound, transform.position + direction * 0.6f, 1f, "vault_plant");
+            Announce("vault");
+        }
+
+        // The arc's height above where it was planted, `u` of the way through: up smoothly (lifted on the oar, no snap
+        // off the ground) to its top, then falling as anything falls.
+        float VaultArc(float u) => u < vaultPeakAt
+            ? vaultHeight * Mathf.SmoothStep(0f, 1f, u / vaultPeakAt)
+            : vaultHeight * (1f - Mathf.Pow((u - vaultPeakAt) / (1f - vaultPeakAt), 2f));
+
+        void TurnToVault(float dt)
+        {
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(vaultDirection), turnSpeed * dt);
+        }
+
+        Vector3 UpdateVault(float dt)
+        {
+            switch (vaultPhase)
+            {
+                case VaultPhase.Plant:
+                    TurnToVault(dt);
+                    if (stateTime >= vaultPlant)
+                    {
+                        vaultPhase = VaultPhase.Flight;
+                        stateTime = 0f;
+                        clips.PlayOnce("Vault", vaultFlight);
+                    }
+                    return vaultDirection * vaultCarry;
+
+                case VaultPhase.Flight:
+                {
+                    float u = Mathf.Clamp01(stateTime / vaultFlight);
+                    if (u > vaultPeakAt && controller.isGrounded)
+                    {
+                        Touchdown(); // (on a ledge higher than it left from)
+                        return Vector3.zero;
+                    }
+                    TurnToVault(dt);
+                    vaultVertical = (vaultFloor + VaultArc(u) - transform.position.y) / Mathf.Max(dt, 1e-4f);
+                    if (u >= 1f)
+                    {
+                        vaultPhase = VaultPhase.Fall; // (still in the air: lower ground, or the water)
+                        vaultVertical = Mathf.Min(vaultVertical, -2f * vaultHeight / ((1f - vaultPeakAt) * vaultFlight));
+                        verticalVelocity = vaultVertical;
+                    }
+                    return vaultDirection * vaultSpeed;
+                }
+
+                default: // Fall
+                    if (controller.isGrounded)
+                    {
+                        Touchdown();
+                        return Vector3.zero;
+                    }
+                    return vaultDirection * vaultSpeed;
+            }
+        }
+
+        // Down, and straight on: no hold. The leap's speed carries on a little as momentum you can steer out of (none
+        // onto a target: you meant to stop there), and whatever was pressed just before landing happens now.
+        void Touchdown()
+        {
+            verticalVelocity = -2f;
+            knockback = vaultOnto ? Vector3.zero : vaultDirection * vaultSpeed * vaultSkid;
+            clips.PlayOnce("VaultLand", 0.2f);
+            Sfx.Instance?.Attack(vaultLandSound, transform.position, 0.8f, "vault_land");
+            Landed?.Invoke();
+            ToFreeAndConsume();
+        }
 
         // ------------------------------------------------------------ taking things
 
@@ -1650,9 +1848,10 @@ namespace MyGame
         public void AnnounceFind(string title, string hint) => Found?.Invoke(title, hint);
 
         // Loading a save: the Obols carried, the most Healing charges they can carry, the Abilities; health and charges full.
-        public void Restore(int obols, int healingChargeMax, bool hook, bool stroke = false)
+        public void Restore(int obols, int healingChargeMax, bool hook, bool stroke = false, bool vault = false)
         {
             HasStroke = stroke;
+            HasVault = vault;
             ApplyUpgrades(); // (the Warm Stones and Held Breaths its Equipment was given back)
             Obols = Mathf.Max(0, obols);
             maxHealingCharges = Mathf.Max(1, healingChargeMax);
@@ -1924,6 +2123,50 @@ namespace MyGame
         MaterialPropertyBlock hookGlow;
         static readonly Color HookColour = new Color(0.62f, 0.77f, 1f);
 
+        // In the air, a soft dark disc on the ground under you: smaller and fainter the higher you are; none over the
+        // water (nothing to land on).
+        Transform vaultShadow;
+        Mesh vaultShadowMesh;
+        float vaultShadowFade;
+        public bool VaultShadowShown => vaultShadow != null && vaultShadow.gameObject.activeSelf; // (tests)
+
+        void UpdateVaultShadow()
+        {
+            if (vaultShadowMaterial == null)
+                return;
+            bool aloft = CurrentState == State.Vaulting;
+            vaultShadowFade = Mathf.MoveTowards(vaultShadowFade, aloft ? 1f : 0f, Time.deltaTime / (aloft ? 0.08f : 0.12f));
+            bool over = Physics.Raycast(transform.position + Vector3.up * 0.2f, Vector3.down, out var hit, 8f, ~0, QueryTriggerInteraction.Ignore)
+                        && hit.point.y > waterLevel;
+            if (vaultShadow == null)
+            {
+                if (vaultShadowFade <= 0f)
+                    return;
+                var go = new GameObject("Vault Shadow", typeof(MeshFilter), typeof(MeshRenderer));
+                vaultShadow = go.transform;
+                vaultShadowMesh = new Mesh { name = "Vault Shadow" };
+                vaultShadowMesh.vertices = new[] { new Vector3(-0.5f, 0f, -0.5f), new Vector3(-0.5f, 0f, 0.5f), new Vector3(0.5f, 0f, 0.5f), new Vector3(0.5f, 0f, -0.5f) };
+                vaultShadowMesh.uv = new[] { new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(1f, 0f) };
+                vaultShadowMesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+                vaultShadowMesh.colors = new Color[4];
+                go.GetComponent<MeshFilter>().sharedMesh = vaultShadowMesh;
+                var r = go.GetComponent<MeshRenderer>();
+                r.sharedMaterial = vaultShadowMaterial;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+            bool show = vaultShadowFade > 0f && over;
+            if (vaultShadow.gameObject.activeSelf != show)
+                vaultShadow.gameObject.SetActive(show);
+            if (!show)
+                return;
+            float high = Mathf.Clamp01((transform.position.y - hit.point.y) / Mathf.Max(0.1f, vaultHeight));
+            vaultShadow.position = hit.point + Vector3.up * 0.03f;
+            vaultShadow.localScale = Vector3.one * Mathf.Lerp(1.4f, 0.9f, high); // (the dot's alpha falls off fast: bigger than the Apprentice)
+            var c = new Color(0f, 0f, 0f, Mathf.Lerp(0.85f, 0.6f, high) * vaultShadowFade);
+            vaultShadowMesh.colors = new[] { c, c, c, c };
+        }
+
         // The Hook at the hip: shown once it's been found, hidden while it's out on the tether. Whenever it's out
         // (whirled, flying, held up) its dark iron glows faint cold blue so it reads at night; brightly when held up.
         void LateUpdate()
@@ -1934,6 +2177,7 @@ namespace MyGame
                 lanternBone.localScale = LanternOnTheBow ? Vector3.one * 0.0001f : Vector3.one;
             float glow = CurrentState == State.Ceremony ? 1.6f + 0.5f * Mathf.Sin(Time.time * 6f)
                        : AimingHook && CurrentState == State.Free || CurrentState == State.Hooking ? 0.7f : 0f;
+            UpdateVaultShadow();
             if (hookSlot >= 0)
             {
                 hookGlow.SetColor("_EmissionColor", HookColour * glow);

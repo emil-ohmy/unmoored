@@ -126,7 +126,7 @@ namespace MyGame
                 Stall(hit.point, crashed: true);
                 return;
             }
-            if (!struckThisCharge && target != null && target.IsAlive)
+            if (!struckThisCharge && target != null && target.IsAlive && !target.Airborne) // (vaulted over: it drives on under)
             {
                 Vector3 to = target.transform.position - transform.position;
                 to.y = 0f;

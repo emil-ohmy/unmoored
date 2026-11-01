@@ -27,6 +27,8 @@ namespace MyGame
         public int healingCharges = 3;              // the most they can carry
         public bool hasHook;
         public bool hasStroke;
+        public bool hasVault;
+        public bool hallTimeRunning; // the Hall of the Last Hour's central engine set going
         public int oarStep;                         // the oar's step (0: the Apprentice's own)
         public int ferryNails;                      // carried, not yet spent
         public int warmStones, heldBreaths;         // found: more health, more stamina

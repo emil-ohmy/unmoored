@@ -31,3 +31,7 @@ Resolved 2026-09-27 with the user (quiz format).
 
 - 2026-09-28: the bow lantern is now also carried at the Apprentice's hip on land (the user's idea), so its growth with
   lit Mooring posts is visible from the start of the game; it still hangs on the bow when rowing.
+- 2026-10-31: the Vault built (RT): a fixed 4 m leap that can fall short, over 1.5 m walls and what's low, onto a
+  locked-on target. Its slam was tried (an attack in the air, a ring of force where you land; then a timed window
+  with a glow, and committed landings against spamming it) and removed: it made the move feel janky. The Vault is
+  traversal and evasion only, and lands straight into free movement.

@@ -782,6 +782,9 @@ public static partial class MainSceneBuilder
         m.snip = Shears("Snip", "ShearsDraw", "Shears", 0.45f, 0.22f, 0.25f, 14f, 3.0f, 70f, 0.4f, 1.5f, "father_moth_snip");
         m.sweep = Shears("Sweep", "ShearsDraw", "Shears", 0.65f, 0.3f, 0.45f, 20f, 3.6f, 130f, 0.6f, 2f, "father_moth_snip");
         m.lunge = Shears("Lunge", "ThrustDraw", "Thrust", 0.7f, 0.4f, 0.6f, 22f, 3.0f, 60f, 1f, 6.5f, "father_moth_stall");
+        // His shears' smears (afoot): the right blade in every cut, both in the lunge.
+        Swoosh(go, "ForeR", "ShearBladeR_Metal", SouredSwoosh, 0.14f, "ShearIron_Metal", 0f, "Snip", "Sweep", "Lunge");
+        Swoosh(go, "ForeL", "ShearBladeL_Metal", SouredSwoosh, 0.14f, "ShearIron_Metal", 0f, "Lunge");
         var leaf = GeneratedMaterial("M_DriftLeaf", "MyGame/Toon");
         leaf.SetColor("_BaseColor", Hex("#9a4a1e"));
         leaf.SetColor("_EmissionColor", new Color(0.6f, 0.22f, 0.05f)); // (smouldering a little: seen in the dark, still a dead leaf's brown-orange)

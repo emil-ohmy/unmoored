@@ -29,6 +29,7 @@ Shader "MyGame/Toon"
         [HDR] _DissolveEdgeColor("Dissolve Edge", Color) = (1.4, 3.0, 0.8, 1)
         _DissolveScale("Dissolve Noise Scale", Float) = 7
         _Cutaway("Cutaway (opens between camera and Apprentice)", Float) = 0
+        _InTime("In time (never stilled: the Apprentice's)", Float) = 0
     }
 
     SubShader
@@ -55,7 +56,39 @@ Shader "MyGame/Toon"
             half4 _DissolveEdgeColor;
             float _DissolveScale;
             half _Cutaway;
+            half _InTime;
         CBUFFER_END
+
+        // The Hall of the Last Hour with its time stopped (HallTime): what isn't in time is drained to grey, all of its
+        // shading (its colour, the light on it, the fog), only its glow keeping its colour (the Soured's eyes green, a
+        // lamp's glass). Set going again, the colour comes back in a wave out from its engine. Outside the Hall these
+        // are all 0: no effect.
+        half _HallStill;      // 0..1, everywhere
+        half _HallHeld;       // 0..1: what's in time (the Apprentice) stopped too, a moment (the Hour's doing)
+        float4 _HallWave;     // xyz the wave's centre, w its radius (colour back within it)
+        half _HallWaveOn;
+        half _HallWaveWidth;
+        half4 _HallStillTint;
+
+        half HallStillness(float3 positionWS)
+        {
+            half s = _HallStill;
+            if (_HallWaveOn > 0.5)
+            {
+                float d = distance(positionWS.xz, _HallWave.xz);
+                s = max(s, smoothstep(_HallWave.w - _HallWaveWidth, _HallWave.w, d));
+            }
+            return s;
+        }
+
+        half _HallStillContrast; // (the grey a little harder: an old photograph)
+
+        half3 Stilled(half3 colour, half still)
+        {
+            half l = dot(colour, half3(0.3, 0.59, 0.11));
+            l = max(0.0, 0.18 + (l - 0.18) * _HallStillContrast);
+            return lerp(colour, l * _HallStillTint.rgb, still);
+        }
 
         float4 _CutawayCentre;
 
@@ -161,13 +194,14 @@ Shader "MyGame/Toon"
                 half lit = smoothstep(_ShadeThreshold - _ShadeSoftness, _ShadeThreshold + _ShadeSoftness, ndotl);
                 lit *= smoothstep(0.35, 0.65, light.shadowAttenuation); // shadows get the same hard edge
 
+                half still = max(HallStillness(input.positionWS) * (1.0 - _InTime), _HallHeld * _InTime);
                 half3 albedo = _BaseColor.rgb;
                 half3 direct = albedo * lerp(_ShadowTint.rgb, 1.0, lit) * light.color;
                 half3 ambient = albedo * SampleSH(normalWS) * _AmbientStrength;
                 half3 viewDir = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 half rim = pow(1.0 - saturate(dot(normalWS, viewDir)), 4.0) * _RimStrength * lit;
 
-                half3 color = direct + ambient + rim * _RimColor.rgb + _EmissionColor.rgb;
+                half3 color = direct + ambient + rim * _RimColor.rgb; // (its glow added at the end: kept in colour)
                 // Metal: a hard-edged glint, tinted by the metal (gold glints gold), and a darker body between.
                 half3 glintTint = lerp(albedo, 1.0, 0.45);
                 half glintEdge = 1.0 - _SpecularSize;
@@ -199,8 +233,12 @@ Shader "MyGame/Toon"
                 LIGHT_LOOP_END
             #endif
 
-                color = lerp(color, _DissolveEdgeColor.rgb, edge);
-                return half4(MixFog(color, input.fogFactor), 1.0);
+                // Its glow (and a dissolve's edge) kept apart: time stopped drains the rest, fog and all, to grey.
+                half3 glow = lerp(_EmissionColor.rgb, _DissolveEdgeColor.rgb, edge);
+                color *= 1.0 - edge;
+                half3 bare = MixFog(color, input.fogFactor);
+                half3 glowing = MixFog(color + glow, input.fogFactor);
+                return half4(Stilled(bare, still) + (glowing - bare), 1.0);
             }
             ENDHLSL
         }

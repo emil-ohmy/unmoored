@@ -162,7 +162,7 @@ namespace MyGame
             {
                 sinking = stayDown = true; // (and it stays under until it next rises)
                 sinkAt = -1f;
-                clips.PlayOnce("Sink", 0.6f);
+                PlayThrough("Sink", 0.6f); // (to its end: it rolls forward into the swim)
             }
             if (sinking && height <= 0.02f)
                 sinking = false;
@@ -198,6 +198,7 @@ namespace MyGame
                 {
                     ashore = false; // nobody: back under, and home
                     sinking = stayDown = true;
+                    PlayThrough("Sink", 0.6f);
                     lurkAt = Home;
                 }
             }

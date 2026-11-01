@@ -48,6 +48,8 @@ public static partial class MainSceneBuilder
         BuildLab();
         BuildOrchardLab();
         BuildLastHourLab();
+        BuildTheHourLab();
+        BuildGallery();
         BuildBossArena();
         BuildTitle();
         Build();
@@ -253,7 +255,12 @@ public static partial class MainSceneBuilder
         {
             var model = Place($"Characters/{LedgerEntry.All[i].Model}", new Vector3(0f, -400f, 0f), 0f);
             model.name = $"{LedgerEntry.All[i].Name} (character screen)";
-            model.AddComponent<StagePose>(); // (standing as it idles)
+            var stagePose = model.AddComponent<StagePose>(); // (standing as it idles)
+            if (LedgerEntry.All[i] == LedgerEntry.OneWhoWaits)
+            {
+                stagePose.clip = "StopCast"; // (its arms drawn in, its mask's hands racing: stopping you in time)
+                stagePose.at = 0.5f;
+            }
             if (LedgerEntry.All[i] == LedgerEntry.Unparted)
             {
                 // The Unparted is two: Fast rides Hold's back, clinging, as in the fight.
@@ -369,6 +376,12 @@ public static partial class MainSceneBuilder
         apprentice.strokeChargedSound = Clips("stroke_charged");
         apprentice.douseSound = Clips("steam_hiss");
         apprentice.boatSurgeSound = Clips("boat_surge");
+        apprentice.vaultPlantSound = Clips("vault_plant");
+        apprentice.vaultLandSound = Clips("vault_land");
+        var shadow = GeneratedMaterial("M_VaultShadow", "MyGame/ParticleLit"); // (a soft dark disc: black, its alpha the dot's)
+        shadow.SetTexture("_MainTex", RadialTexture("T_SoftDot", ring: false));
+        EditorUtility.SetDirty(shadow);
+        apprentice.vaultShadowMaterial = shadow;
         go.AddComponent<DashGhosts>().ghostMaterial = GeneratedMaterial("M_DashGhost", "MyGame/Ghost");
         go.AddComponent<HealGlow>();
         go.AddComponent<OarLook>(); // the oar's step: its trims and its wood
@@ -564,7 +577,7 @@ public static partial class MainSceneBuilder
         laden.sweep.windupSound = Clips("laden_sweep_windup");
         laden.sweep.swingSound = Clips("laden_swing");
         laden.sweep.swingPitch = 1.15f; // a quicker, lighter swing than the slam
-        BeltLantern(go, laden);
+        BeltLantern(go, laden, "Lantern"); // (its lantern swings on a cord of its own)
         Swoosh(go, "Heap", "FrameGold", SouredSwoosh, 0.18f, "HeapWood"); // the whole heap, top to chest: a big heavy smear
         return laden;
     }
@@ -646,6 +659,8 @@ public static partial class MainSceneBuilder
         };
         moth.diveSound = Clips("moth_dive");
         moth.releaseSound = Clips("moth_release");
+        Swoosh(go, "WingTipL", "MothEdge_Glow", SouredSwoosh, 0.14f, null, 0f, "Dive"); // (a contrail off each wing's glowing edge, down at you)
+        Swoosh(go, "WingTipR", "MothEdge_Glow", SouredSwoosh, 0.14f, null, 0f, "Dive");
         return moth;
     }
 
@@ -687,7 +702,7 @@ public static partial class MainSceneBuilder
         g.lantern = PointLight(Bone(go, "Pole"), GlowCentre(go, "GleanerLantern_Glow"), 6.5f, g.lanternIntensity, LanternLight); // (a pool of light round it: seen in the dark rows)
         g.hopSound = Clips("gleaner_hop");
         g.gutterSound = Clips("fireball_gutter");
-        BeltLantern(go, g);
+        BeltLantern(go, g, "BeltLantern"); // (its belt lantern swings on a cord of its own; "Pole" is the pole's lantern)
         return g;
     }
 
@@ -752,8 +767,147 @@ public static partial class MainSceneBuilder
         t.chainSound = Clips("thresher_chain");
         t.stokeSound = Clips("thresher_stoke");
         t.ventSound = Clips("thresher_vent");
-        BeltLantern(go, t, "Body");
+        BeltLantern(go, t, "Lantern");
+        Swoosh(go, "Body", "ThresherFlail_Metal", SouredSwoosh, 0.16f, "ThresherFlail_Metal", 0f, "Sweep", "Charge"); // (the flails' sweep, from the reel's axle out; streaking ahead of it in the charge)
         return t;
+    }
+
+    // A Punctual (the Hall of the Last Hour): one of the household, keeping its hours; does nothing but on the beat.
+    // The Count (the key raised, brought down two beats later) and the Quarters (four blows on four beats).
+    static Punctual Punctual(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/punctual", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.92f, 0f);
+        controller.height = 1.84f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var p = go.AddComponent<Punctual>();
+        p.maxHealth = 90f;
+        p.radius = 0.4f;
+        p.staggerCapacity = 50f;
+        p.staggerDuration = 1.0f;
+        p.stunDuration = 1.6f;
+        p.aggroRadius = 10f;
+        p.viewHalfAngle = 80f;
+        p.noticeCloseRadius = 2.5f;
+        p.chaseSpeed = 1.5f;
+        p.turnSpeed = 300f;
+        p.leashRadius = 14f;
+        p.attackRange = 2.4f;
+        p.obols = 45;
+        p.eyeHeight = 1.7f;
+        p.barHeight = 2.3f;
+        p.primary = new SouredAttack
+        {
+            name = "Count", windupClip = "Windup", strikeClip = "Strike", recoverClip = "Recover",
+            telegraph = 1.85f, strike = 0.3f, recover = 1.2f, impactAt = 0.5f,
+            lunge = 0.4f, maxLunge = 1.4f, trackUntil = 0.75f, damage = 22f, reach = 2.4f, arc = 55f, knockback = 8f,
+            windupSound = Clips("punctual_raise"), swingSound = Clips("laden_swing"), impactSound = Clips("punctual_impact"),
+            swingPitch = 1.2f,
+        };
+        p.quarters.windupSound = Clips("punctual_warn");
+        p.quarterSwingSound = Clips("laden_swing");
+        p.watchHand = Bone(go, "WatchHand");
+        p.tickSound = Clips("punctual_tick");
+        p.quarterSound = Clips("punctual_quarter");
+        p.lostSound = Clips("punctual_lost");
+        p.foundSound = Clips("punctual_found");
+        BeltLantern(go, p, "Lantern");
+        Swoosh(go, "Key", "PunctualKeyBit_Metal", SouredSwoosh, 0.14f, null, 0.6f, "Count", "Quarters"); // (the great key's bit, and half its shaft)
+        return p;
+    }
+
+    // A Wound (the Hall of the Last Hour): one of the household's hounds, a wind-up key in its back. Fast and biting while
+    // it's wound; it runs down, slowing, and sits to wind itself again; the Stroke knocks its key loose.
+    static Wound Wound(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/wound", position, yaw);
+        go.name = name;
+        go.transform.localScale = Vector3.one * 1.2f; // (a big hound: read from the camera's height)
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.45f, 0f);
+        controller.height = 0.9f;
+        controller.radius = 0.32f;
+        controller.minMoveDistance = 0f;
+        var w = go.AddComponent<Wound>();
+        w.maxHealth = 55f;
+        w.radius = 0.4f;
+        w.staggerCapacity = 30f;
+        w.staggerDuration = 0.8f;
+        w.aggroRadius = 12f;
+        w.viewHalfAngle = 100f;
+        w.noticeCloseRadius = 4f;
+        w.chaseSpeed = 6.0f;
+        w.turnSpeed = 600f;
+        w.leashRadius = 18f;
+        w.giveUpRange = 20f;
+        w.attackRange = 1.5f;
+        w.obols = 35;
+        w.eyeHeight = 0.9f;
+        w.barHeight = 1.3f;
+        w.primary = new SouredAttack
+        {
+            name = "Bite", windupClip = "Crouch", strikeClip = "Bite", recoverClip = "BiteRecover",
+            telegraph = 0.32f, strike = 0.2f, recover = 0.3f, impactAt = 0.6f,
+            lunge = 0.6f, maxLunge = 1.8f, trackUntil = 0.7f, damage = 9f, reach = 1.5f, arc = 50f, knockback = 3f,
+            windupSound = Clips("wound_growl"), swingSound = Clips("wound_bite"),
+        };
+        w.pounce.windupSound = Clips("wound_gather");
+        w.pounce.swingSound = Clips("wound_bite");
+        w.pounce.swingPitch = 0.85f;
+        w.key = Bone(go, "Key");
+        var whirr = Clips("wound_whirr");
+        w.whirr = whirr.Length > 0 ? whirr[0] : null;
+        w.runDownSound = Clips("wound_rundown");
+        w.windSound = Clips("wound_wind");
+        w.woundSound = Clips("wound_wound");
+        w.looseSound = Clips("wound_loose");
+        BeltLantern(go, w, "Lantern");
+        Swoosh(go, "Head", "WoundNose", SouredSwoosh, 0.12f, "SouredEye_Glow", 0f, "Bite", "Pounce"); // (the snap of its jaws)
+        return w;
+    }
+
+    // A Keener (the Hall of the Last Hour): a mourner in black crape, the stopped watch in its hand. Keeps its distance;
+    // draws breath, then tolls a knell: a band of three rings across the floor, dashed through. Pairs keen in turn. Fragile.
+    static Keener Keener(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/keener", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.92f, 0f);
+        controller.height = 1.84f;
+        controller.radius = 0.38f;
+        controller.minMoveDistance = 0f;
+        var k = go.AddComponent<Keener>();
+        k.maxHealth = 40f;          // (three blows of the oar)
+        k.radius = 0.42f;
+        k.staggerCapacity = 35f;    // (two: the knell cut short)
+        k.staggerDuration = 1.1f;
+        k.aggroRadius = 11f;
+        k.viewHalfAngle = 100f;
+        k.noticeCloseRadius = 3f;
+        k.chaseSpeed = 1.4f;
+        k.turnSpeed = 240f;
+        k.leashRadius = 14f;
+        k.giveUpRange = 16f;
+        k.obols = 30;
+        k.eyeHeight = 1.7f;
+        k.barHeight = 2.3f;
+        k.deathDuration = 1.1f;
+        k.primary = new SouredAttack
+        {
+            name = "Knell", windupClip = "Breath", strikeClip = "Toll", recoverClip = "Recover",
+            telegraph = 1.2f, strike = 1.2f, recover = 1.4f, impactAt = 0.15f,
+            lunge = 0f, maxLunge = 0f, trackUntil = 0.8f, damage = 0f, reach = 10f, arc = 180f, knockback = 0f,
+            ranged = true, volley = 3, volleyInterval = 0.2f, volleyTrack = 0f, // (one band: three pulses about a metre apart)
+            windupSound = Clips("keener_breath"),
+        };
+        k.knellSound = Clips("keener_knell");
+        k.deathSound = Clips("keener_death");
+        BeltLantern(go, k);
+        return k;
     }
 
     // A ball of fire (the Watchman's, a Gleaner's): glowing orange, no outline.
@@ -816,7 +970,9 @@ public static partial class MainSceneBuilder
         clinger.throwSound = Clips("clinger_throw");
         clinger.keenSound = Clips("clinger_keen");
         clinger.whisperSound = Clips("clinger_whisper");
-        BeltLantern(go, clinger, "Spine");
+        BeltLantern(go, clinger, "Lantern");
+        Swoosh(go, "HandR", "Claw", SouredSwoosh, 0.1f, "SouredGrey", 0f, "Leap"); // (its claws as it lands on you)
+        Swoosh(go, "HandL", "Claw", SouredSwoosh, 0.1f, "SouredGrey", 0f, "Leap");
         return clinger;
     }
 
@@ -864,7 +1020,9 @@ public static partial class MainSceneBuilder
         hold.sweep.swingSound = Clips("laden_swing");
         hold.sweep.swingPitch = 0.85f;
         hold.howlSound = Clips("unparted_howl");
-        BeltLantern(go, hold, "Spine");
+        BeltLantern(go, hold, "Lantern");
+        Swoosh(go, "ForeR", "HoldClaw", SouredSwoosh, 0.16f, "SouredGrey", 0f, "Sweep", "Slam"); // (its right arm's sweep; both fists in the slam)
+        Swoosh(go, "ForeL", "Claw", SouredSwoosh, 0.16f, "SouredGrey", 0f, "Slam");
         var fast = Clinger("Fast", position + Quaternion.Euler(0f, yaw, 0f) * Vector3.back * 0.3f, yaw);
         fast.transform.SetParent(root.transform, true);
         fast.mount = Bone(go, "Back");
@@ -919,7 +1077,7 @@ public static partial class MainSceneBuilder
         archer.volley.windupSound = Clips("archer_volley_draw");
         archer.volley.releaseSound = Clips("arrow_release");
         archer.trailMaterial = sparkMaterial;
-        BeltLantern(go, archer);
+        BeltLantern(go, archer, "Lantern");
         Swoosh(go, "Bow", "BowWood", SouredSwoosh, 0.1f); // the bow-jab (inner edge: the wood nearest the shoulders, the grip)
         return archer;
     }
@@ -931,7 +1089,8 @@ public static partial class MainSceneBuilder
     // A swing's smear (SwingTrail), traced by two points on the weapon measured from the model itself (so no
     // guessing at bone axes): the tip is the `tipMaterial` vertex farthest from the bone; the inner edge is the
     // `innerMaterial` part's centre, or (with none) the tip part's vertex nearest the bone. Both ride the bone.
-    static void Swoosh(GameObject go, string bone, string tipMaterial, Color colour, float lifetime, string innerMaterial = null, float towardsPivot = 0f)
+    static SwingTrail Swoosh(GameObject go, string bone, string tipMaterial, Color colour, float lifetime, string innerMaterial = null, float towardsPivot = 0f,
+                             params string[] attacks)
     {
         var skinned = go.GetComponentInChildren<SkinnedMeshRenderer>();
         var baked = new Mesh();
@@ -939,6 +1098,10 @@ public static partial class MainSceneBuilder
         var materials = skinned.sharedMaterials;
         var boneTransform = Bone(go, bone);
         Vector3 pivot = boneTransform.position;
+        // The material's points on this bone only (two claws can share a material; a weapon's are its bone's), or, if
+        // none is weighted to it, all of them.
+        int boneIndex = Array.IndexOf(skinned.bones, boneTransform);
+        var weights = skinned.sharedMesh.boneWeights;
         Vector3[] Points(string material)
         {
             int index = Array.FindIndex(materials, m => m != null && m.name.StartsWith(material));
@@ -946,10 +1109,16 @@ public static partial class MainSceneBuilder
                 throw new Exception($"{go.name}: no {material} material for its swoosh");
             var verts = baked.vertices;
             var tris = baked.GetTriangles(index);
-            var points = new Vector3[tris.Length];
-            for (int i = 0; i < tris.Length; i++)
-                points[i] = skinned.transform.TransformPoint(verts[tris[i]]);
-            return points;
+            var on = new List<Vector3>();
+            var all = new List<Vector3>();
+            foreach (int v in tris)
+            {
+                var p = skinned.transform.TransformPoint(verts[v]);
+                all.Add(p);
+                if (boneIndex >= 0 && v < weights.Length && weights[v].boneIndex0 == boneIndex && weights[v].weight0 > 0.5f)
+                    on.Add(p);
+            }
+            return (on.Count > 0 ? on : all).ToArray();
         }
         var tipPoints = Points(tipMaterial);
         Vector3 tipAt = tipPoints[0], nearAt = tipPoints[0];
@@ -980,6 +1149,8 @@ public static partial class MainSceneBuilder
         trail.material = GeneratedMaterial("M_Swoosh", "MyGame/Swoosh");
         trail.colour = colour;
         trail.lifetime = lifetime;
+        trail.attacks = attacks;
+        return trail;
     }
 
     // Every Soured's belt lantern (sickly green light; the Anchoress hangs hers on the anchor) and the prop it drops where it falls, glowing there until the

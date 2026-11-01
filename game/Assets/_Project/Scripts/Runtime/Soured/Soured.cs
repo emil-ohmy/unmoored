@@ -87,9 +87,13 @@ namespace MyGame
         public int TimesDefeated { get; private set; } // it re-forms, but the world remembers it was beaten
 
         protected ClipPlayer clips;
+        // How long a wind-up takes to blend in from the walk or idle before it (a one-off's usual 0.05 s snaps the pose:
+        // the wind-up's own first moment is its anticipation, so it can afford to ease in).
+        public const float WindupFade = 0.15f;
         SouredAttack current;
         float lungeThisStrike;
         protected virtual string IdleClip => "Idle";
+        protected virtual string DeathClip => "Death"; // (how it falls: the Hour, limp, has a death of its own)
 
         // Chase behaviour by distance to the Apprentice; subclasses change gait and speed (the Laden guards up close).
         protected virtual string ChaseClip(float distance) => "Walk";
@@ -104,7 +108,7 @@ namespace MyGame
         protected Apprentice target;
         CharacterController controller;
         Renderer[] renderers;
-        SwingTrail swingTrail;
+        SwingTrail[] swingTrails;
         int[] lanternSlot; // per renderer: index of the belt lantern's material, or -1
         MaterialPropertyBlock flash;
         Vector3 spawnPosition;
@@ -132,7 +136,7 @@ namespace MyGame
             controller = GetComponent<CharacterController>();
             clips = new ClipPlayer(GetComponentInChildren<Animation>());
             renderers = GetComponentsInChildren<Renderer>();
-            swingTrail = GetComponent<SwingTrail>();
+            swingTrails = GetComponents<SwingTrail>();
             lanternSlot = System.Array.ConvertAll(renderers, r =>
                 System.Array.FindIndex(r.sharedMaterials, m => m != null && m.name.StartsWith("SouredLantern_Glow")));
             flash = new MaterialPropertyBlock();
@@ -218,7 +222,7 @@ namespace MyGame
                         lockedDirection = toTarget.normalized; // locked now: sidestepping is always an answer
                         Enter(State.Telegraph);
                         committed = false;
-                        clips.PlayOnce(attack.windupClip, attack.telegraph);
+                        clips.PlayOnce(attack.windupClip, attack.telegraph, WindupFade); // (eased into from whatever it was doing)
                         tell = Sfx.Instance?.Attack(attack.windupSound, transform.position + Vector3.up, 1f, Label("windup"));
                         tellClip = tell != null ? tell.clip : null;
                     }
@@ -362,8 +366,10 @@ namespace MyGame
                 return;
             }
 
-            if (swingTrail != null) // the smear of a melee blow (a shot has none)
-                swingTrail.Emitting = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
+            // The smear of a melee blow (a shot has none), on whichever weapon makes it.
+            bool smearing = CurrentState == State.Strike && current != null && !current.ranged && stateTime <= current.strike * 0.9f;
+            foreach (var trail in swingTrails)
+                trail.Emitting = smearing && trail.For(current);
             // Walking and chasing keep to solid ground. A lunge doesn't (overshooting the edge is its own mistake), nor
             // does knockback (shoving one off the edge is fair play).
             if ((CurrentState == State.Chase || CurrentState == State.Returning) && !Floats)
@@ -450,6 +456,8 @@ namespace MyGame
         {
             if (toTarget.magnitude > current.reach + 0.35f || Vector3.Angle(transform.forward, toTarget) > current.arc)
                 return;
+            if (current.low && target.Airborne)
+                return; // (vaulted over: it passes under)
             if (HitTarget(current.damage, toTarget.normalized * current.knockback) == Defence.Parried)
                 Stun();
         }
@@ -516,6 +524,7 @@ namespace MyGame
                 return HitResult.Blocked;
             }
 
+            hit.Damage *= Vulnerability;
             float was = Health;
             Health = Mathf.Max(Floor, Health - hit.Damage);
             dealt = Floor > 0f ? was - Health : hit.Damage; // (held at a floor: only what it took)
@@ -572,6 +581,18 @@ namespace MyGame
             return HitResult.Landed;
         }
 
+        // A trap of the Hall (a pendulum's blade, the rolling gear, a jack's hammer, the grinding gears' mesh): machinery,
+        // not a hand, so no guard stops it; it hurts as the Stroke's wave does, harder, and throws and staggers all but
+        // the great.
+        public HitResult TakeTrap(Vector3 push, float damage, Vector3 from, float stagger) => TakeWave(push, damage, from, stagger);
+
+        // Carried by what it stands on (a turning floor gear): moved with it.
+        public void Carry(Vector3 delta)
+        {
+            if (IsAlive && controller != null && controller.enabled)
+                controller.Move(delta);
+        }
+
         // Burning (burning pitch underfoot, the flames of an Ember-tarred oar): harm no guard stops, a little at a time;
         // no stagger, no knockback. False if there's nothing to burn.
         public bool TakeBurn(float damage, Vector3 from)
@@ -596,6 +617,9 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // How much a blow of the oar does to it, times this (the Hour, limp in stopped time: brittle).
+        protected virtual float Vulnerability => 1f;
 
         // As low as its health goes for now (a Boss between phases: no blow carries it through the next).
         protected virtual float Floor => 0f;
@@ -740,7 +764,7 @@ namespace MyGame
             knockback = hit.Knockback * 0.5f;
             HitStop.Trigger(0.2f);
             CameraRig.Instance?.Shake(0.3f);
-            clips.PlayOnce("Death", deathDuration);
+            clips.PlayOnce(DeathClip, deathDuration);
             if (target != null)
                 target.GainObols(obols);
             if (droppedLantern != null && droppedLantern.carried != null)
@@ -931,11 +955,26 @@ namespace MyGame
             oneShotUntil = Time.time + duration;
         }
 
+        // A one-off its own code starts whatever it's doing (the Drowned going under), played to its end before the
+        // idle or chase loop takes over again.
+        protected void PlayThrough(string clip, float duration)
+        {
+            clips.PlayOnce(clip, duration);
+            oneShotUntil = Time.time + duration;
+        }
+
         void LoopUnlessBusy(string clip)
         {
             if (Time.time >= oneShotUntil)
                 clips.Loop(clip);
+            if (!desynced && clips.Current == clip)
+            {
+                desynced = true; // (its first loop at a point of its own: a flock, a pair, a row of them never move in step)
+                clips.Desync();
+            }
         }
+
+        bool desynced;
 
         // Per-renderer overrides: the hit flash (emission) and the death dissolve. With neither, clear the block so
         // the materials' own values (glowing eyes, lantern) show.

@@ -138,6 +138,17 @@ namespace MyGame
         public AudioSource Attack(AudioClip[] set, Vector3 at, float volume, string label, float pitch = 1f) =>
             Play(set, at, volume, label, pitch);
 
+        // A note of a tune (a Punctual's quarter chime): played true, no pitch varied.
+        public AudioSource Note(AudioClip clip, Vector3 at, float volume, string label)
+        {
+            if (clip == null)
+                return null;
+            var voice = Play(new[] { clip }, at, volume, label);
+            if (voice != null)
+                voice.pitch = 1f;
+            return voice;
+        }
+
         AudioSource Play(AudioClip[] set, Vector3 at, float volume, string label, float pitch = 1f)
         {
             LastPlayed = label;

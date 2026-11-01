@@ -73,6 +73,35 @@ Shader "MyGame/Water"
                 half _GlintThreshold;
             CBUFFER_END
 
+            // The Hall of the Last Hour with its time stopped (HallTime): what isn't in time is drained to a cold grey,
+            // its own colour only (light and glow keep theirs: lantern pools stay warm, the Soured's eyes green). Set going
+            // again, the colour comes back in a wave out from its engine. Outside the Hall these are all 0: no effect.
+            half _HallStill;      // 0..1, everywhere
+            float4 _HallWave;     // xyz the wave's centre, w its radius (colour back within it)
+            half _HallWaveOn;
+            half _HallWaveWidth;
+            half4 _HallStillTint;
+
+            half HallStillness(float3 positionWS)
+            {
+                half s = _HallStill;
+                if (_HallWaveOn > 0.5)
+                {
+                    float d = distance(positionWS.xz, _HallWave.xz);
+                    s = max(s, smoothstep(_HallWave.w - _HallWaveWidth, _HallWave.w, d));
+                }
+                return s;
+            }
+
+            half _HallStillContrast; // (the grey a little harder: an old photograph)
+
+            half3 Stilled(half3 colour, half still)
+            {
+                half l = dot(colour, half3(0.3, 0.59, 0.11));
+                l = max(0.0, 0.18 + (l - 0.18) * _HallStillContrast);
+                return lerp(colour, l * _HallStillTint.rgb, still);
+            }
+
             struct Attributes
             {
                 float4 positionOS : POSITION;
@@ -161,6 +190,7 @@ Shader "MyGame/Water"
                 float3 reflected = reflect(-viewWS, normalWS);
                 Light light = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
                 half lit = smoothstep(0.35, 0.65, light.shadowAttenuation) * smoothstep(0.0, 0.1, dot(normalWS, light.direction));
+                half still = HallStillness(input.positionWS);
                 half3 albedo = lerp(water, _FoamColor.rgb, foam);
                 half3 color = albedo * lerp(_ShadowTint.rgb, 1.0, lit) * light.color * 0.85 + albedo * SampleSH(normalWS) * 0.35;
 
@@ -188,7 +218,7 @@ Shader "MyGame/Water"
                 LIGHT_LOOP_END
             #endif
 
-                return half4(MixFog(color, input.fogFactor), 1.0);
+                return half4(Stilled(MixFog(color, input.fogFactor), still), 1.0); // (time stopped: all of it grey)
             }
             ENDHLSL
         }

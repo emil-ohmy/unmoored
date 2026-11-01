@@ -83,7 +83,7 @@ business and pay their fare to row them across.
 - **Buttons:** few, and kept that way as Abilities arrive. Gamepad: A interact, B dash, X light, Y heavy, LT block,
   LB heal, RB the Hook, R3 lock on (right stick: switch target), Start pause, Select the character screen.
   - **Only the big Abilities get a button of their own,** on the shoulders and triggers: the Hook on RB, the Vault on
-    RT (heavy stays on Y alone), and the Vault then an attack for its slam.
+    RT (heavy stays on Y alone).
   - **The rest extend what's there,** by context and combination (held or tapped, in the air, while rowing, locked
     on). The Stroke needs no button: the heavy attack while rowing is its wave. The Hook already does this, doing a
     different thing for a post, a Soured and something too heavy.
@@ -117,8 +117,10 @@ business and pay their fare to row them across.
     what floats or is loose and turns wheels (a wave down a mill-race turns its wheel, the wheel opens a sluice). In the
     Hall of the Last Hour it sets stopped things moving: a Stroke against a gear or a pendulum runs that part of the clock a
     while.
-  - **Vault**, a secret in Area 1: leap gaps, walls and attacks, and slam down. It's optional early and required
-    in Area 3, which hints where it is.
+  - **Vault**, a secret in Area 1: plant the oar and leap, always the same distance (misjudge a gap and you fall
+    short), over gaps and low walls and onto ledges, and over what's low (rings across the floor, sweeps, charges).
+    Locked on, it carries you to your target. No slam: tried, and it made the move janky (the user, 2026-10-31).
+    It's optional early and required in Area 3, which hints where it is.
 - **Bow lantern:** never required. Carried at the Apprentice's hip on land and hung on the bow when rowing; its cold
   light grows with every lit Mooring post and burns through fog to optional routes and secrets. It has five levels,
   counted against every Mooring post in the game. Fully powered, it is the key to a secret last Boss and ending; the
@@ -200,13 +202,42 @@ back toward the Hub.
 |---|---|---|---|---|---|
 | 1 | The Drowned City | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
 | 2 | The Orchard of Last Autumn | Hook | The Gardener (Father Moth, Who Gathered Autumn) | Stroke | Moths, Gleaners, Threshers |
-| 3 | The Hall of the Last Hour | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | Keener |
+| 3 | The Hall of the Last Hour | Stroke (+ Vault inside) | The One Who Waits | the way to the Ferryman | the Punctual, the Wound, Keeners |
 | – | Beneath the Hub (the water drains) | after Boss 3 | The Ferryman | the ending | |
 
 **The Hall of the Last Hour's arc** (the user's direction, 2026-10-12; laid out in level design, not before): the whole
 Area is stopped in time, and you make your way through it frozen, setting its machines running a while with the Stroke.
 At its heart is a central engine; set going, time starts again throughout the Hall, and with it its traps (in the manner
-of Sen's Fortress): the same halls, now moving and dangerous.
+of Sen's Fortress): the same halls, now moving and dangerous. The traps (built in the lab, 2026-11-01): the great hall's
+pendulums armed with silver crescents swinging low across the aisle (vault them where they pass low, or dash
+through); the Gear Run, a walled ramp from the court up to the keep's works, a great gear let go down it again and
+again (alcoves in its sides to step into); the bell gallery's clock jacks, their hammers falling on the quarters
+(each on its own beat of the Hall's bar) on bronze strips across the way; the undercroft's grinding floor, gears in
+the floor that carry you round into their mesh. Stopped, each is held where the clock stopped it (harmless, but in the
+way); the Stroke sets one going a while, like any machine; the central engine sets them all going for good. They hit
+hard (a third of the Apprentice, and a throw), no guard stops machinery (only a dodge), and they catch the Soured too.
+
+**The One Who Waits**, the Hall of the Last Hour's Boss (the user's direction, 2026-11-01): **the Hour**, the Hall's last
+hour, which never struck, given a body (inspired by the Clockwork God of Morrowind, hung dead from his own contraption:
+the motifs, not the man). A robed, hooded figure whose face is a full mask that is a clock's dial (its two hands its
+only expression), long jointed lever arms ending in a silver hammer and a silver crescent blade, no body below the
+robe but its works (a brass cage of gears, a pendulum, a green lantern at its point), hung by cables from its
+contraption over the middle of **its chamber**: the room behind the great dial, inside the clock, the dial's glass its
+north wall (lit through, numerals reversed, its hands at three to twelve), the floor a dial too (Roman numerals round
+it, two great hands lying on it). Rooted: the room is its reach.
+- **Time stopped** (the Hall as you find it): a husk dangling on its cables, grey like everything else; it only twitches
+  an arm now and then (a slow, weak swing); brittle (blows do two and a half times their harm), no quarters, no tricks,
+  its machines still. Quickly killed, and it should feel wrong: **beaten so, the hour never comes (the bad ending)**.
+- **Time running** (the central engine set going): the real fight, four quarters. At three quarters, half and a quarter
+  of its health it strikes the quarter (a cascade of the Hall's chime, untouchable a moment) and one thing is added:
+  1 its hammer brought down in front of it, its blade swept round low (vault it, or dodge), its works ground round under
+  it; 2 + the floor dial's hands sweeping round the chamber, low (vault them); 3 + **Stop You** (its mask's hands race:
+  it stops the Apprentice in time, a beat, drained grey and still, and brings the hammer down on them; a dodge just before
+  slips it) and the two pendulums swinging across the floor; 4 the last hour: quicker tells, quicker hands, rewinds
+  sooner. All through, **Rewind**: take too much from it at once (a burst within a few seconds) and it winds itself back,
+  its mask's hands spinning backwards, mending the burst, unless it's struck while it winds (broken off, reeling).
+  **Beaten so, the hour strikes at last: the way on, toward the true ending** (nothing past the Boss is designed yet).
+- Its lab: `Lab_OneWhoWaits` (the Tester's Post sets the Hall's time and begins the fight at any quarter).
 
 **The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
 its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to
@@ -311,7 +342,9 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 |---|---|---|---|
 | Laden | things | Tank; approaches with its heap of belongings low (open), then up close lifts it as a shield that blocks frontal hits; two attacks: an overhead slam along a line (long recovery) and a wide low sweep for anyone at its flank or back (short recovery); huge stagger meter | Hook |
 | Clinger | a person | Fast pairs that circle, leap and cling to your back: stamina drains (and a little health), you slow; dash to throw off (even spent). Scatter one and the other turns frantic | Stroke |
-| Keener | grief | Ranged wailer; dash through its sound rings; fragile | Vault |
+| Punctual | their duty | The Hall's household, still keeping its hours: a servant with a pocket watch grown into its chest where the heart was. Melee, and only ever on the beat (the Hall's clock, a second to the beat): it strikes exactly on the tick, in counts you can learn by ear. Staggered, it loses count and stands still to find the beat again | The perfect block (on the beat) |
+| Wound | more time | A clockwork hound, a winding key in its back turned tight: a burst of speed and a flurry of bites, then it runs down, slower and slower, open; it stops to wind itself again | Stroke (the wave knocks its key loose: it runs down at once) |
+| Keener | grief | The mourners who stopped the Hall's clocks at the minute of a death, in black crape, a stopped watch in hand. Ranged: draws breath, then tolls a knell, rings of sound across the floor you dash through; fragile | Vault |
 | Moths | memories | A flock of one-hit wisps drawn to light: they circle their lantern, then come to yours, circling you just out of reach and sending one in at a time. It stalls, flaring (the tell), then dives straight through; a perfect block breaks it | The heavy attack (it sweeps through all it reaches) and fire (one alight sets the next alight) |
 | Gleaners | the harvest | Farmhands who went on gleaning, walking the rows at night with lanterns on long poles. They keep their distance (backing off, skipping lightly away from the oar, but never while winding up) and fling fire from the lantern: the pole drawn back over the head, the lantern flaring (the tell), then one slow ball of flame. Turned back with a perfect block, its own fire burns one up at once. In the Orchard, where you learn to turn fire back before the Watchman | Their own fire, turned back (the Hook brings one close; pitch and tar burn it well) |
 | Threshers | the work | The orchard's old threshing machines, iron and oak, their drivers grown into the seats. A heavy: it lines up on you (boiler hissing, steam from the stack, the flail reel spinning up: the tell), then charges straight, barely turning: only with a clear run at you (with something between, it drives round, slowly, for one). Sidestepped, it runs into whatever's solid (a tree, a wall, a stook) and stalls a while, steaming, open; then it backs off it. The oar glances off its front; from behind (and stalled, from anywhere) it reaches the driver. Up close, flails sweep in front and steam bursts behind. Fire doesn't burn iron: it stokes the boiler, and it charges faster | Running it into something; the Hook (it wrenches the drive chain off: stalled) |

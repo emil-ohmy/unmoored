@@ -136,3 +136,40 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | A crate shoved (`crate_scrape`, 2) | in game | Synth | a rough wooden scrape across stone, a knock as it stops |
 | Music: Father Moth (`Music/music_father_moth_1`..`_4`) | in game | Synth | Last Autumn grown huge: a 72 s loop, A minor, 3/4 at 80 bpm, the Orchard's chords and tune, four variants sharing one loop (crossfading in step), one a phase. 1: the waltz as a full dance (reed organ, harp with leaf-fall runs, the music box strong, a deep drum on each first beat: his wingbeats). 2: busier (strings trembling, a reed voice chasing the tune a beat behind and a third below, leaves shaken on the off-beats). 3: afoot, the waltz broken (a stamping drum every beat, shears snipping between, a bass sawing quavers, a fiddle hacking out the tune). 4: the dark, at half the level (a drone, a heartbeat, the music box slowed and flat, wind) |
 | Music: Father Moth's end (`Music/music_father_moth_end`) | in game | Synth | beaten: the music box plays Last Autumn's last phrase, winding down, and this once comes home to A, a soft reed A minor swelling under it |
+| A Punctual's watch (`punctual_tick`, 3) | in game | Synth | once a beat while it's aware of you: a small, bright, dry pocket-watch tick |
+| The Count's tell (`punctual_raise`) | in game | Synth | 1.9 s: the key raised (a ratchet's three clicks), a firm tick on the next beat, then a bowed-metal whine swelling to the blow |
+| The Count's blow (`punctual_impact`, 2) | in game | Synth | the brass key on stone: an inharmonic clang, a thud, grit |
+| The Quarters' tell (`punctual_warn`) | in game | Synth | 0.85 s: a clock's warning: a lever's click, then the train of wheels whirring up |
+| The Quarters' notes (`punctual_quarter`, 4) | in game | Synth | small bells from its chest, one per blow, played true (no pitch varied): G5, F#5, E5, B4 (the Hall's quarter chime an octave up); the last rings longest |
+| A Punctual losing count (`punctual_lost`) | in game | Synth | its spring slipping: a ratchet running down, a mainspring's twang, stray ticks |
+| A Punctual finding the beat (`punctual_found`) | in game | Synth | on the first of a bar: one firm tick and a small bell (E6) |
+| A Wound's spring running (`wound_whirr`) | in game | Synth | a seamless 1 s loop: a quick dry ratchet and a thin humming spring; the game pitches it with the hound's pace (low as it runs down) |
+| A Wound's bite tell (`wound_growl`, 2) | in game | Synth | 0.4 s: a growl through gears, a toothed rasp rising |
+| A Wound's bite (`wound_bite`, 3) | in game | Synth | iron jaws snapping shut: a clack and a short metal ring (the pounce, pitched down) |
+| A Wound's pounce tell (`wound_gather`) | in game | Synth | 0.5 s: the spring drawn tight, a rising creak over held clicks |
+| A Wound running down (`wound_rundown`) | in game | Synth | its whirr slowing, the clicks spreading out to the last, a sigh of air |
+| A Wound winding (`wound_wind`) | in game | Synth | 2.5 s: four turns of the key, each a run of ratchet clicks and a creak, each a little higher |
+| A Wound wound tight (`wound_wound`) | in game | Synth | the key's last click, the spring caught (a bright twang), its whirr starting up |
+| A Wound's key knocked loose (`wound_loose`) | in game | Synth | the Stroke: a hard ping, the spring let go all at once (a ratchet spinning out), a wobbling twang |
+| A Keener drawing breath (`keener_breath`, 2) | in game | Synth | the knell's tell, 1.2 s: a ragged inhale through crape that catches twice in a sob, a low bell's hum (E2) swelling under it, cut off at the top |
+| A Keener's knell (`keener_knell`, 3) | in game | Synth | one per ring: a funeral bell on E3 struck through crape (muffled), a keening voice above it falling B4 to G4 (each variant its own vowel), a cold hall's tail |
+| A Keener falling (`keener_death`) | in game | Synth | a sigh letting go (a voice sinking B4 to E4, then breath), and its stopped watch going again: a quiet tick and tock |
+| The Vault's plant (`vault_plant`, 2) | in game | Synth | the oar's iron-shod foot knocked onto stone (a bright knock, a scrape, the ferrule's ring), the shaft creaking under the weight, the cloak's whump going up |
+| Coming down from the Vault (`vault_land`, 2) | in game | Synth | soft boots on stone, a muffled thud, the cloak settling, a little grit |
+| The Hall's hour bell (`last_hour_toll`) | in game | Synth | time set going (the central engine): the works catching (an iron clunk, a ratchet), then one great bronze toll on E2, its hum ringing on through the stone, a cold hall's tail (10 s) |
+| A pendulum blade's swish (`trap_blade_swish`, 2) | in game | Synth | a blade through the bottom of its swing: a heavy whoosh rising and falling, a thin steel singing on it, the rod creaking at its pivot |
+| The Gear Run's pawl (`trap_gear_release`) | in game | Synth | the warning: an iron catch knocked back, the gear's teeth clicking free over it, a groan as its weight comes on |
+| The gear rolling (`trap_gear_roll`, loop) | in game | Synth | a deep rumble of iron on stone, its teeth clacking on the rails (pitched and loudened with its speed) |
+| The gear's crash (`trap_gear_crash`) | in game | Synth | into the buffers: a hollow boom of iron into oak, the gear ringing like a struck bell, a timber groan, grit raining |
+| The gear drawn up (`trap_gear_draw`, loop) | in game | Synth | its chain's links clattering over the drum, a ratchet ticking, the gear grumbling up the stone |
+| A clock jack winding (`trap_jack_wind`) | in game | Synth | its hammer wound back up: a slow heavy ratchet, a spring tightening, a creak at the top |
+| A clock jack's blow (`trap_jack_strike`) | in game | Synth | the hammer on the bronze strip: a hard strike and a thud through the boards, the strip ringing out like a bell on a low E |
+| The grinding floor (`trap_grind`, loop) | in game | Synth | brass teeth grinding at the mesh: a harsh rasp, a squeal, the teeth knocking, a low drone of the train |
+| The Hour waking (`the_hour_wake`) | in game | Synth | its cables drawing taut with a groan, a heavy ratchet as its contraption takes its weight, one low bell-stroke inside it |
+| The Hour striking a quarter (`the_hour_chime`) | in game | Synth | the Hall's quarter chime (G, F#, E, B) rung huge and fast, the last note ringing on over a deep hum |
+| The Hour's hammer (`the_hour_slam`, 2) | in game | Synth | on the marble: a colossal crack and boom, the silver head ringing, grit falling |
+| The Hour rewinding (`the_hour_rewind`) | in game | Synth | its ticking run backwards, quickening, a reversed swell, a ratchet whirring in reverse |
+| The Hour about to stop you (`the_hour_stop`) | in game | Synth | its ticking racing and rising, a breath drawn in, to the edge of a stop |
+| Stopped in time (`the_hour_stopped`) | in game | Synth | a glassy snap, a high tone held dead still, a heartbeat thumping under it |
+| The Hour killed with time stopped (`the_hour_limp_death`) | in game | Synth | its cables creaking slack, a dull dead clunk of brass, no bell at all |
+| The limp Hour's twitch (`the_hour_twitch`, 2) | in game | Synth | a cable jerking, a dry creak of its lever arm |

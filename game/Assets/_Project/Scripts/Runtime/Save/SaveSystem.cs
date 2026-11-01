@@ -112,6 +112,8 @@ namespace MyGame
             d.healingCharges = apprentice.maxHealingCharges;
             d.hasHook = apprentice.HasHook;
             d.hasStroke = apprentice.HasStroke;
+            d.hasVault = apprentice.HasVault;
+            d.hallTimeRunning = HallTime.Instance != null && HallTime.Instance.Running;
             d.oarStep = apprentice.Equipment.OarStep;
             d.ferryNails = apprentice.Equipment.FerryNails;
             d.warmStones = apprentice.Equipment.WarmStones;
@@ -175,7 +177,14 @@ namespace MyGame
             foreach (var id in d.charmsFitted)
                 if (Charm.ById(id) is Charm charm && !apprentice.Equipment.IsFitted(charm))
                     apprentice.Equipment.Toggle(charm);
-            apprentice.Restore(d.obols, d.healingCharges, d.hasHook, d.hasStroke);
+            apprentice.Restore(d.obols, d.healingCharges, d.hasHook, d.hasStroke, d.hasVault);
+            if (d.hallTimeRunning)
+            {
+                if (CentralEngine.Instance != null)
+                    CentralEngine.Instance.Settle(); // (going: the hands at the hour, every machine running)
+                else
+                    HallTime.Instance?.RunAtOnce();
+            }
             if (d.shade)
             {
                 var ghosts = apprentice.GetComponent<DashGhosts>();

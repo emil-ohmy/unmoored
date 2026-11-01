@@ -117,10 +117,13 @@ namespace MyGame
             if (index > 0)
                 clips.PlayOnce(attack.strikeClip, attack.volleyInterval * 0.9f); // the snap of each release
             // Along its aim (sidestepping still escapes it), rising or falling to where the Apprentice is: up on a
-            // walkway, down in a yard.
+            // walkway, down in a yard. Loosed from the bow (held out to its side as it draws) to the point on its aim
+            // line as far off as you are, so the side the bow is on doesn't carry it past you.
             Vector3 from = BowPoint(), chest = target.transform.position + Vector3.up * 0.7f;
-            Vector3 flat = new Vector3(chest.x - from.x, 0f, chest.z - from.z);
-            Vector3 aim = new Vector3(direction.x, 0f, direction.z).normalized * Mathf.Max(0.5f, flat.magnitude) + Vector3.up * (chest.y - from.y);
+            Vector3 flat = new Vector3(chest.x - transform.position.x, 0f, chest.z - transform.position.z);
+            Vector3 aimed = transform.position + new Vector3(direction.x, 0f, direction.z).normalized * Mathf.Max(0.5f, flat.magnitude);
+            aimed.y = chest.y;
+            Vector3 aim = aimed - from;
             Arrow.Fire(from, aim, attack.projectileSpeed, attack.damage, attack.knockback, target, this, wood, tipGlow, trailMaterial);
         }
 
@@ -136,7 +139,22 @@ namespace MyGame
                 charge.intensity = draw * draw * (nockedCount > 1 ? 2.6f : 1.1f);
         }
 
-        Vector3 BowPoint() => transform.position + transform.forward * 0.62f + Vector3.up * 1.03f;
+        // Where the arrow sits: on the bow (its bone's head is the grip), wherever the clips put it; without one, where
+        // a drawn bow would be.
+        Vector3 BowPoint()
+        {
+            if (bow == null && !lookedForBow)
+            {
+                lookedForBow = true;
+                foreach (var t in GetComponentsInChildren<Transform>())
+                    if (t.name == "Bow")
+                        bow = t;
+            }
+            return bow != null ? bow.position : transform.position + transform.forward * 0.62f + Vector3.up * 1.03f;
+        }
+
+        Transform bow;
+        bool lookedForBow;
 
         // The arrow(s) on the string while it draws: one, or three fanned out for a volley (the tell you can see).
         void Nock(int count)

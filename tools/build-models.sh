@@ -21,7 +21,7 @@ run() { # label, blender args...
   if ! out="$("$BLENDER" "$@" 2>&1)"; then
     echo "FAILED $label"; echo "$out" | grep -E "Error|Traceback|line [0-9]+" | head -20; exit 1
   fi
-  echo "$out" | grep -E "^\[kit\]" || { echo "FAILED $label (no export)"; echo "$out" | tail -20; exit 1; }
+  echo "$out" | grep -E "^\[[a-z_]+\]" || { echo "FAILED $label (no export)"; echo "$out" | tail -20; exit 1; }
 }
 
 for script in "$ROOT"/art/models/*/*.py; do
