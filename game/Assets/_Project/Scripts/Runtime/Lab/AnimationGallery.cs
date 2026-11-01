@@ -7,7 +7,10 @@ namespace MyGame
 {
     // The animation gallery (Lab_Gallery): every rigged creature on its own plinth in a row, nothing to fight, only how
     // they move. One is chosen (the camera on it, from the game's angle, turnable); it plays
-    //   Clips     one clip at a time, looping, at its own speed (the motion as made);
+    //   Chain     its clips one after another as a fight chains them (idle, walking up, the guard, each attack, back),
+    //             with the game's own crossfades, slowly enough to see the joins: a timeline below shows each step and,
+    //             at every join, how far the pose jumps there (the bone that turns most, in degrees);
+    //   Clips     one clip at a time at its own speed (the motion as made), a one-off held a beat at its end;
     //   Attacks   its attacks as the game times them: wind-up, strike, recovery, each clip stretched to the attack's own
     //             duration (as ClipPlayer plays them in a fight), a breath of idling between;
     //   Everyone  every creature at once, each going through all its clips in turn.
@@ -16,7 +19,7 @@ namespace MyGame
     // its playheads, so pausing and stepping are exact.
     public sealed class AnimationGallery : MonoBehaviour
     {
-        public enum Mode { Clips, Attacks, Everyone }
+        public enum Mode { Chain, Clips, Attacks, Everyone }
 
         public Font font, titleFont;
         public Material boneMaterial;
@@ -28,7 +31,9 @@ namespace MyGame
         public GalleryExhibit[] Exhibits { get; private set; }
         public int Selected { get; private set; }
         public int Item { get; private set; }         // the clip (Clips) or the attack (Attacks) chosen
-        public Mode Current { get; private set; } = Mode.Clips;
+        public Mode Current { get; private set; } = Mode.Chain;
+        public int Step { get; private set; }         // (Chain: the step playing now)
+        public float hold = 0.7f;                      // (Clips: a one-off held at its end this long)
         public bool Paused { get; private set; }
         public int SpeedIndex { get; private set; }
         public float Speed => Speeds[SpeedIndex];
@@ -41,6 +46,9 @@ namespace MyGame
         readonly List<LineRenderer> lines = new List<LineRenderer>();
         Camera cam;
         float yaw, zoom = 1f;
+        RectTransform timeline, playhead;
+        GalleryExhibit timelineOf;
+        Mode timelineMode;
         Vector3 focus;
         Text panel, help;
 
@@ -101,7 +109,7 @@ namespace MyGame
         public void NextBones() => BonesShown = (BonesShown + 1) % 3;
 
         // A frame on (or back), paused.
-        public void Step(int frames)
+        public void StepFrames(int frames)
         {
             Paused = true;
             for (int i = 0; i < heads.Count; i++)
@@ -117,7 +125,7 @@ namespace MyGame
         GalleryExhibit Chosen => Exhibits.Length > 0 ? Exhibits[Selected] : null;
 
         // How many there are to choose between, in this mode, for the chosen one.
-        public int Items => Chosen == null ? 0 : Current == Mode.Attacks ? Chosen.attacks.Length : Chosen.Clips.Length;
+        public int Items => Chosen == null ? 0 : Current == Mode.Attacks ? Chosen.attacks.Length : Current == Mode.Chain ? 1 : Chosen.Clips.Length;
 
         // ---- every frame
 
@@ -133,6 +141,7 @@ namespace MyGame
             Frame();
             Bones();
             Write();
+            Timeline();
         }
 
         // Each one's pose at its playhead.
@@ -171,11 +180,22 @@ namespace MyGame
                     Sample(e, idle, Mathf.Repeat(t, idle.length), null, 0f, 0f, false);
                 return;
             }
+            if (Current == Mode.Chain)
+            {
+                Chain(e, t);
+                return;
+            }
             if (Current == Mode.Clips)
             {
-                var s = e.State(e.Clips.Length > 0 ? e.Clips[Mathf.Clamp(Item, 0, e.Clips.Length - 1)] : null);
-                if (s != null)
-                    Sample(e, s, Mathf.Repeat(t, Mathf.Max(0.01f, s.length)), null, 0f, 0f, true);
+                string name = e.Clips.Length > 0 ? e.Clips[Mathf.Clamp(Item, 0, e.Clips.Length - 1)] : null;
+                var s = e.State(name);
+                if (s == null)
+                    return;
+                float length = Mathf.Max(0.01f, s.length);
+                if (Loops(e, name))
+                    Sample(e, s, Mathf.Repeat(t, length), null, 0f, 0f, true);
+                else
+                    Sample(e, s, Mathf.Min(Mathf.Repeat(t, length + hold), length), null, 0f, 0f, true); // (then held a beat)
                 return;
             }
             // Attacks: wind-up, strike, recovery (each clip stretched over its time, as a fight plays it), then idling.
@@ -212,6 +232,84 @@ namespace MyGame
                 previous = s;
                 previousAt = s != null ? s.length : 0f;
             }
+        }
+
+        // Its chain at `t`: the step playing, its clip where the fight would have it, crossfaded in from the step before.
+        void Chain(GalleryExhibit e, float t)
+        {
+            var steps = e.chain;
+            if (steps.Length == 0)
+                return;
+            float total = ChainLength(e);
+            float u = Mathf.Repeat(t, total);
+            for (int i = 0; i < steps.Length; i++)
+            {
+                float d = Mathf.Max(0.01f, steps[i].duration);
+                if (u >= d && i < steps.Length - 1)
+                {
+                    u -= d;
+                    continue;
+                }
+                Step = i;
+                var s = e.State(steps[i].clip);
+                if (s == null)
+                    return;
+                AnimationState from = null;
+                float fromAt = 0f, fromWeight = 0f;
+                if (i > 0 && u < steps[i].fade)
+                {
+                    from = e.State(steps[i - 1].clip);
+                    if (from != null)
+                    {
+                        fromAt = StepTime(steps[i - 1], steps[i - 1].duration + u, from);
+                        fromWeight = 1f - u / steps[i].fade;
+                    }
+                }
+                Sample(e, s, StepTime(steps[i], u, s), from, fromAt, fromWeight, true);
+                return;
+            }
+        }
+
+        public static float ChainLength(GalleryExhibit e)
+        {
+            float total = 0f;
+            foreach (var step in e.chain)
+                total += Mathf.Max(0.01f, step.duration);
+            return total;
+        }
+
+        // Where in its clip a step is, `local` seconds in: a loop at its own speed; a one-off stretched over its time,
+        // held on its last frame after (as ClipPlayer's ClampForever).
+        static float StepTime(GalleryExhibit.Step step, float local, AnimationState state) =>
+            step.loop ? Mathf.Repeat(local, Mathf.Max(0.01f, state.length)) : Mathf.Clamp01(local / Mathf.Max(0.01f, step.duration)) * state.length;
+
+        // Each join in its chain: how far the pose jumps (the step before, at its end, to this one at its start).
+        public (float degrees, string bone, float shift)[] Seams(GalleryExhibit e)
+        {
+            if (seams.TryGetValue(e, out var found))
+                return found;
+            var steps = e.chain;
+            var result = new (float, string, float)[steps.Length];
+            for (int i = 1; i < steps.Length; i++)
+            {
+                var from = e.State(steps[i - 1].clip);
+                var to = e.State(steps[i].clip);
+                if (from == null || to == null)
+                    continue;
+                result[i] = e.Jump(steps[i - 1].clip, StepTime(steps[i - 1], steps[i - 1].duration, from), steps[i].clip, 0f);
+            }
+            seams[e] = result;
+            return result;
+        }
+
+        readonly Dictionary<GalleryExhibit, (float, string, float)[]> seams = new Dictionary<GalleryExhibit, (float, string, float)[]>();
+        readonly Dictionary<(GalleryExhibit, string), bool> loops = new Dictionary<(GalleryExhibit, string), bool>();
+
+        bool Loops(GalleryExhibit e, string clip)
+        {
+            if (!loops.TryGetValue((e, clip), out bool loop))
+                loops[(e, clip)] = loop = e.Loops(clip);
+            return loop;
         }
 
         static float Hold(GalleryExhibit e, string clip)
@@ -336,7 +434,7 @@ namespace MyGame
             if (Pressed(Key.UpArrow) || Pressed(Key.W) || (g != null && g.dpad.up.wasPressedThisFrame))
                 SelectItem(Item - 1);
             if (Pressed(Key.Tab) || (g != null && g.buttonNorth.wasPressedThisFrame))
-                SetMode((Mode)(((int)Current + 1) % 3));
+                SetMode((Mode)(((int)Current + 1) % 4));
             if (Pressed(Key.Space) || (g != null && g.buttonSouth.wasPressedThisFrame))
                 TogglePause();
             if (Pressed(Key.F) || (g != null && g.buttonWest.wasPressedThisFrame))
@@ -344,9 +442,9 @@ namespace MyGame
             if (Pressed(Key.B) || (g != null && g.buttonEast.wasPressedThisFrame))
                 NextBones();
             if (Pressed(Key.C) || Pressed(Key.Period) || (g != null && g.rightShoulder.wasPressedThisFrame))
-                Step(1);
+                StepFrames(1);
             if (Pressed(Key.Z) || Pressed(Key.Comma) || (g != null && g.leftShoulder.wasPressedThisFrame))
-                Step(-1);
+                StepFrames(-1);
             if (Pressed(Key.Home) || (g != null && g.rightStickButton.wasPressedThisFrame))
             {
                 yaw = 0f;
@@ -381,8 +479,57 @@ namespace MyGame
             var bottom = new Vector2(0.5f, 0f);
             UiKit.Image(canvasGo.transform, "Band", UiKit.Band, Color.black.WithAlpha(0.45f), bottom, new Vector2(0, 50), new Vector2(1800, 70));
             help = UiKit.Text(canvasGo.transform, "Help", font, 21, UiKit.Bone.WithAlpha(0.75f), TextAnchor.MiddleCenter, bottom, new Vector2(0, 50));
+            timeline = UiKit.Rect(canvasGo.transform, "Timeline", bottom, new Vector2(0, 150), new Vector2(TimelineWidth, 90));
             help.text = "←/→ creature   ↑/↓ clip or attack   Tab mode   Space pause   C/Z a frame on/back   F speed   B bones   Q/E turn   wheel near/far   Home reset"
                       + "\n(pad: d-pad, Y mode, A pause, RB/LB a frame, X speed, B bones, right stick turn and near/far)";
+        }
+
+        const float TimelineWidth = 1760f;
+
+        // The chain's timeline (Chain mode): a bar per step (blue a loop, amber a one-off; its clip named), a mark at
+        // every join coloured by how far the pose jumps there (green a little, yellow some, red a lot) and the degrees
+        // over it, and where it's playing now.
+        void Timeline()
+        {
+            if (timeline == null)
+                return;
+            var e = Chosen;
+            bool show = Current == Mode.Chain && e != null && e.chain.Length > 0;
+            timeline.gameObject.SetActive(show);
+            if (!show)
+                return;
+            float total = ChainLength(e);
+            if (timelineOf != e || timelineMode != Current)
+            {
+                timelineOf = e;
+                timelineMode = Current;
+                for (int i = timeline.childCount - 1; i >= 0; i--)
+                    Destroy(timeline.GetChild(i).gameObject);
+                var seamsHere = Seams(e);
+                float x = -TimelineWidth / 2f;
+                var left = new Vector2(0.5f, 0.5f);
+                for (int i = 0; i < e.chain.Length; i++)
+                {
+                    var step = e.chain[i];
+                    float w = Mathf.Max(0.01f, step.duration) / total * TimelineWidth;
+                    var bar = UiKit.Image(timeline, "Step", null, (step.loop ? new Color(0.35f, 0.5f, 0.7f) : new Color(0.85f, 0.6f, 0.25f)).WithAlpha(0.85f),
+                                          left, new Vector2(x + w / 2f, -12f), new Vector2(Mathf.Max(2f, w - 2f), 26f));
+                    var label = UiKit.Text(timeline, "Clip", font, 15, Color.black, TextAnchor.MiddleCenter, left, new Vector2(x + w / 2f, -12f));
+                    label.text = w > 50f ? step.clip : "";
+                    if (i > 0)
+                    {
+                        float deg = seamsHere[i].degrees;
+                        var colour = deg < 6f ? new Color(0.4f, 0.9f, 0.4f) : deg < 15f ? new Color(1f, 0.85f, 0.3f) : new Color(1f, 0.3f, 0.25f);
+                        UiKit.Image(timeline, "Join", null, colour, left, new Vector2(x, -4f), new Vector2(4f, 46f));
+                        var mark = UiKit.Text(timeline, "Degrees", font, 16, colour, TextAnchor.MiddleCenter, left, new Vector2(x, 26f));
+                        mark.text = $"{deg:0}°";
+                    }
+                    x += w;
+                }
+                playhead = UiKit.Image(timeline, "Playhead", null, Color.white, left, Vector2.zero, new Vector2(3f, 60f)).rectTransform;
+            }
+            if (playhead != null)
+                playhead.anchoredPosition = new Vector2(-TimelineWidth / 2f + Mathf.Repeat(Playhead, total) / total * TimelineWidth, -8f);
         }
 
         void Write()
@@ -392,8 +539,17 @@ namespace MyGame
             var e = Chosen;
             var s = new System.Text.StringBuilder();
             s.Append($"<size=34>{e.title}</size>   ({Selected + 1} of {Exhibits.Length})\n");
-            s.Append(Current == Mode.Clips ? "Its clips, as made\n" : Current == Mode.Attacks ? "Its attacks, as a fight times them\n" : "Everyone, every clip in turn\n");
-            if (Current == Mode.Attacks && e.attacks.Length > 0)
+            s.Append(Current == Mode.Chain ? "Its clips chained as a fight chains them\n" : Current == Mode.Clips ? "Its clips, as made\n" : Current == Mode.Attacks ? "Its attacks, as a fight times them\n" : "Everyone, every clip in turn\n");
+            if (Current == Mode.Chain && e.chain.Length > 0)
+            {
+                var step = e.chain[Mathf.Clamp(Step, 0, e.chain.Length - 1)];
+                var st = e.State(step.clip);
+                float stretch = !step.loop && st != null && step.duration > 0f ? st.length / step.duration : 1f;
+                var seam = Seams(e)[Mathf.Clamp(Step, 0, e.chain.Length - 1)];
+                s.Append($"{Step + 1} of {e.chain.Length}: {step.note}   ({(step.loop ? "looping" : $"once, played ×{stretch:0.00}")}, faded in over {step.fade:0.00}s)");
+                s.Append(Step > 0 ? $"   joined: {seam.degrees:0}° ({seam.bone}){(seam.shift > 0.02f ? $", {seam.shift * 100f:0} cm" : "")}\n" : "\n");
+            }
+            else if (Current == Mode.Attacks && e.attacks.Length > 0)
             {
                 var a = e.attacks[Mathf.Clamp(Item, 0, e.attacks.Length - 1)];
                 s.Append($"{a.name} ({Item + 1} of {e.attacks.Length}):  {a.windup} {a.telegraph:0.00}s  ▸  {a.strike} {a.strikeTime:0.00}s  ▸  {a.recover} {a.recoverTime:0.00}s\n");

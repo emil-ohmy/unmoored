@@ -101,15 +101,85 @@ namespace MyGame.Tests
             float held = gallery.Playhead;
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(held, gallery.Playhead, 1e-5f, "held");
-            gallery.Step(1);
+            gallery.StepFrames(1);
             Assert.AreEqual(held + 1f / AnimationGallery.Fps, gallery.Playhead, 1e-4f, "a frame on");
-            gallery.Step(-2);
+            gallery.StepFrames(-2);
             Assert.AreEqual(held - 1f / AnimationGallery.Fps, gallery.Playhead, 1e-4f, "two back");
             gallery.TogglePause();
             gallery.SetSpeed(2); // (a quarter)
             float from = gallery.Playhead;
             yield return new WaitForSeconds(1f);
             Assert.AreEqual(from + 0.25f, gallery.Playhead, 0.03f, "a quarter speed");
+        }
+
+        // The Laden's chain: its steps as its fight chains them, each played in turn, the joins measured.
+        [UnityTest]
+        public IEnumerator TheChain_PlaysEachStepInTurn_AndMeasuresTheJoins()
+        {
+            int laden = Array.FindIndex(gallery.Exhibits, e => e.title == "Laden");
+            gallery.Select(laden);
+            gallery.SetMode(AnimationGallery.Mode.Chain);
+            var e = gallery.Exhibits[laden];
+            Assert.Greater(e.chain.Length, 10, "its fight, step by step");
+            var seams = gallery.Seams(e);
+            float at = 0f;
+            for (int i = 0; i < e.chain.Length; i++)
+            {
+                if (e.chain[i].duration < 0.1f)
+                {
+                    at += e.chain[i].duration; // (a step of a frame or two: too brief to catch in the middle of)
+                    continue;
+                }
+                float mid = at + e.chain[i].duration * 0.5f;
+                while (gallery.Playhead < mid)
+                    yield return null;
+                Assert.AreEqual(i, gallery.Step, $"step {i + 1}: {e.chain[i].clip}");
+                at += e.chain[i].duration;
+                if (i > 0)
+                    Assert.GreaterOrEqual(seams[i].degrees, 0f);
+            }
+        }
+
+        // (REPORT=dir) Every creature's joins and stretches, worst first: the seam report (markdown).
+        [UnityTest]
+        public IEnumerator Report_Seams()
+        {
+            string outDir = Environment.GetEnvironmentVariable("REPORT");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set REPORT to write it");
+            Directory.CreateDirectory(outDir);
+            var md = new System.Text.StringBuilder("# The seam report\n\nEach creature's chain (its clips one after another as a fight chains them): at every join, how far the pose jumps (the bone that turns most, degrees; the furthest any bone shifts); for every one-off, how much the fight's timing speeds it up (×1 as made, ×2 twice as fast) or slows it. The game's crossfades: 0.15 s into a loop, 0.05 s into a one-off.\n");
+            foreach (var e in gallery.Exhibits)
+            {
+                if (e.chain.Length == 0)
+                    continue;
+                var seams = gallery.Seams(e);
+                md.Append($"\n## {e.title}\n\n| # | from → to | fade | jump | bone | shift | played |\n|---|---|---|---|---|---|---|\n");
+                for (int i = 0; i < e.chain.Length; i++)
+                {
+                    var step = e.chain[i];
+                    var st = e.State(step.clip);
+                    string played = step.loop || st == null ? "loop" : $"×{st.length / Mathf.Max(0.01f, step.duration):0.00} ({st.length:0.00}s in {step.duration:0.00}s)";
+                    string from = i > 0 ? e.chain[i - 1].clip + " → " : "";
+                    md.Append(i == 0 ? $"| 1 | {step.clip} | | | | | {played} |\n"
+                                     : $"| {i + 1} | {from}{step.clip} | {step.fade:0.00}s | **{seams[i].degrees:0}°** | {seams[i].bone} | {seams[i].shift * 100f:0} cm | {played} |\n");
+                }
+                // Into an attack from a loop at any point in it (the game's are at whatever point the loop is at).
+                foreach (var a in e.attacks)
+                    foreach (var loop in new[] { "Idle", "Walk", "GuardWalk" })
+                    {
+                        var st = e.State(loop);
+                        if (st == null)
+                            continue;
+                        float worst = 0f;
+                        for (int k = 0; k < 12; k++)
+                            worst = Mathf.Max(worst, e.Jump(loop, st.length * k / 12f, a.windup, 0f).degrees);
+                        md.Append($"\n- {loop} (anywhere in it) → {a.windup}: up to {worst:0}°");
+                    }
+                md.Append("\n");
+                yield return null;
+            }
+            File.WriteAllText(Path.Combine(outDir, "seams.md"), md.ToString());
         }
 
         // (SHOTS=dir) The gallery: a few of them, and the bones.

@@ -58,6 +58,67 @@ public static partial class MainSceneBuilder
         saturation = 0f, contrast = 4f, exposure = 0.2f, vignette = 0.15f, grain = 0f, filter = Hex("#ffffff"),
     };
 
+    // Its clips one after another as a fight chains them (Soured: a loop crossfades in over 0.15 s, a one-off over
+    // 0.05 s; a one-off is stretched over its time and held on its last frame after). The Laden's, step by step from
+    // its own code; the rest: standing, closing in, each attack and back after you, then losing you.
+    static GalleryExhibit.Step[] GalleryChain(string model, GalleryExhibit e)
+    {
+        var steps = new List<GalleryExhibit.Step>();
+        bool Has(string clip) => e.State(clip) != null;
+        void Loop(string clip, float time, string note)
+        {
+            if (Has(clip))
+                steps.Add(new GalleryExhibit.Step { clip = clip, duration = time, loop = true, fade = steps.Count == 0 ? 0f : 0.15f, note = note });
+        }
+        void Once(string clip, float time, string note)
+        {
+            if (Has(clip))
+                steps.Add(new GalleryExhibit.Step { clip = clip, duration = time, loop = false, fade = steps.Count == 0 ? 0f : 0.05f, note = note });
+        }
+        void Attack(GalleryExhibit.Attack a)
+        {
+            Once(a.windup, a.telegraph, $"{a.name}: the wind-up");
+            Once(a.strike, a.strikeTime, $"{a.name}: the blow");
+            Once(a.recover, a.recoverTime, $"{a.name}: recovering");
+        }
+        string idle = Has("Idle") ? "Idle" : e.Clips.FirstOrDefault();
+        if (model == "laden")
+        {
+            var slam = e.attacks.FirstOrDefault(a => a.windup == "Windup");
+            var sweep = e.attacks.FirstOrDefault(a => a.windup == "SweepWindup");
+            Loop("Idle", 2.5f, "standing, unaware: the heap on its hip");
+            Loop("Walk", 1.8f, "it's seen you: lumbering in, heap on the hip");
+            Once("GuardUp", 0.35f, "near: the heap comes up before its face");
+            Loop("GuardWalk", 1.6f, "shuffling in behind it");
+            if (slam != null)
+                Attack(slam);
+            Loop("Walk", 1f / 30f, "after you again (a moment: still near)");
+            Once("GuardUp", 0.35f, "...so the guard comes up");
+            Loop("GuardWalk", 1.2f, "shuffling in behind it");
+            Once("Block", 0.3f, "a blow turned on its guard");
+            Loop("GuardWalk", 0.8f, "shuffling in");
+            if (sweep != null)
+                Attack(sweep);
+            Once("Stagger", 1.2f, "struck hard enough: staggered");
+            Loop("Walk", 1.4f, "after you");
+            Loop("Idle", 2f, "lost you");
+            return steps.ToArray();
+        }
+        Loop(idle, 2.5f, "standing, unaware");
+        string walk = Has("Walk") ? "Walk" : null;
+        if (walk != null)
+            Loop(walk, 2f, "it's seen you: closing in");
+        foreach (var a in e.attacks)
+        {
+            Attack(a);
+            Loop(walk ?? idle, 1.4f, walk != null ? "after you again" : "waiting");
+        }
+        if (Has("Stagger"))
+            Once("Stagger", 1f, "staggered");
+        Loop(idle, 2f, "lost you");
+        return steps.ToArray();
+    }
+
     static void BuildGallery()
     {
         var scene = BeginScene(new Vector3(0f, -40f, 0f), GalleryLight); // (the water far below: none here)
@@ -140,6 +201,7 @@ public static partial class MainSceneBuilder
             exhibit.radius = radius;
             // (only what it really does: an attack whose wind-up it has a clip for; a Soured's unused default has none)
             exhibit.attacks = attacks.Where(a => exhibit.State(a.windup) != null && exhibit.State(a.strike) != null).ToArray();
+            exhibit.chain = GalleryChain(model, exhibit);
             exhibits.Add(exhibit);
 
             var plinth = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
