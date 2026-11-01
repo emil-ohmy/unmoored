@@ -255,7 +255,12 @@ public static partial class MainSceneBuilder
         {
             var model = Place($"Characters/{LedgerEntry.All[i].Model}", new Vector3(0f, -400f, 0f), 0f);
             model.name = $"{LedgerEntry.All[i].Name} (character screen)";
-            model.AddComponent<StagePose>(); // (standing as it idles)
+            var stagePose = model.AddComponent<StagePose>(); // (standing as it idles)
+            if (LedgerEntry.All[i] == LedgerEntry.OneWhoWaits)
+            {
+                stagePose.clip = "StopCast"; // (its arms drawn in, its mask's hands racing: stopping you in time)
+                stagePose.at = 0.5f;
+            }
             if (LedgerEntry.All[i] == LedgerEntry.Unparted)
             {
                 // The Unparted is two: Fast rides Hold's back, clinging, as in the fight.

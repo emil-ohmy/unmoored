@@ -24,6 +24,9 @@ namespace MyGame
 
         public bool Standing => this != Moths && this != FatherMoth; // (on the page: a figure on its feet, facing you; a Moth's seen from above)
 
+        // How high up it's framed on the page, metres from its feet (the Hour's cables run on up out of the picture).
+        public float FramedBelow => this == OneWhoWaits ? 7.4f : float.MaxValue;
+
         public string KindLine => (Kind == Rank.Soured ? "Soured" : Kind == Rank.Miniboss ? "Miniboss" : "Boss") + "  ·  " + Area;
 
         const string DrownedCity = "The Drowned City", Orchard = "The Orchard of Last Autumn", LastHour = "The Hall of the Last Hour";
@@ -84,7 +87,11 @@ namespace MyGame
             "The mourners who stopped the Hall's clocks at the minute of a death, and never let them go again. They keep the minute in their hands still, and keen it.",
             "Listen for the breath: a knell follows, rings rolling across the floor. Dash through them, in to it; it's frail, and doesn't last.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound, Keener };
+        public static readonly LedgerEntry OneWhoWaits = new LedgerEntry("the_hour", "The One Who Waits, the Hour That Never Struck", Rank.Boss, LastHour, "the_hour",
+            "The Hall's last hour, the one its mourners stopped the clocks to keep from striking, given a body: a robe, a dial for a face, long arms ending in a hammer and a blade, hung on cables in the room behind the great dial. It has waited there ever since for its time to come.",
+            "Found as the Hall was left, stopped, it's a husk that a few blows bring down, and the hour never comes. Set the Hall going first and it fights in quarters, adding something at each. Hurt it too fast and it winds itself back: strike it while it winds.");
+
+        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound, Keener, OneWhoWaits };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -116,6 +123,7 @@ namespace MyGame
             MyGame.Unparted _ => Unparted,
             MyGame.Watchman _ => Watchman,
             MyGame.FatherMoth _ => FatherMoth,
+            MyGame.TheHour _ => OneWhoWaits,
             _ => null,
         };
     }

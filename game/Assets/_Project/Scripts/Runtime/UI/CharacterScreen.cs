@@ -200,7 +200,7 @@ namespace MyGame
                 for (int i = 0; i < ledgerModels.Length && i < LedgerEntry.All.Length; i++)
                 {
                     if (LedgerEntry.All[i].Standing)
-                        stage.Add(ledgerModels[i], 2.7f, byHeight: true); // (all the same height, whatever they carry)
+                        stage.Add(ledgerModels[i], 2.7f, byHeight: true, below: LedgerEntry.All[i].FramedBelow); // (all the same height, whatever they carry)
                     else
                         stage.Add(ledgerModels[i], 2.9f);
                 }
@@ -834,7 +834,8 @@ namespace MyGame
             }
 
             // Onto the stage, fitted: its longest side (or its height) `size` metres, its middle on the pivot. Hidden until shown.
-            public void Add(GameObject model, float size, bool byHeight = false)
+            // (`below`: fitted by what's under that height, metres above its feet; the rest runs on out of the picture)
+            public void Add(GameObject model, float size, bool byHeight = false, float below = float.MaxValue)
             {
                 if (model == null)
                     return;
@@ -849,7 +850,7 @@ namespace MyGame
                 bool first = true;
                 foreach (var r in model.GetComponentsInChildren<Renderer>())
                 {
-                    var b = r is SkinnedMeshRenderer skinned ? Posed(skinned) : r.bounds; // (as it stands, not its rest pose)
+                    var b = r is SkinnedMeshRenderer skinned ? Posed(skinned, holder.position.y + below) : r.bounds; // (as it stands, not its rest pose)
                     if (first)
                         bounds = b;
                     else
@@ -864,7 +865,7 @@ namespace MyGame
             }
 
             // Where a skinned mesh is, in the pose it's in now (its own bounds are its rest pose's, or a guess).
-            static Bounds Posed(SkinnedMeshRenderer skinned)
+            static Bounds Posed(SkinnedMeshRenderer skinned, float below = float.MaxValue)
             {
                 var mesh = new Mesh();
                 skinned.BakeMesh(mesh, true);
@@ -873,10 +874,22 @@ namespace MyGame
                 Object.Destroy(mesh);
                 if (verts.Length == 0)
                     return skinned.bounds;
-                var b = new Bounds(t.position + t.rotation * verts[0], Vector3.zero);
+                Bounds? b = null;
                 foreach (var v in verts)
-                    b.Encapsulate(t.position + t.rotation * v);
-                return b;
+                {
+                    var at = t.position + t.rotation * v;
+                    if (at.y > below)
+                        continue;
+                    if (b.HasValue)
+                    {
+                        var grown = b.Value;
+                        grown.Encapsulate(at);
+                        b = grown;
+                    }
+                    else
+                        b = new Bounds(at, Vector3.zero);
+                }
+                return b ?? skinned.bounds;
             }
 
             // The one to show (null: none), leaning so, turning slowly about its own up.

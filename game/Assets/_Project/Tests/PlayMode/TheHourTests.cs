@@ -75,6 +75,7 @@ namespace MyGame.Tests
             Assert.IsFalse(hour.HandsTurning, "its hands still");
             Assert.AreEqual(false, running, "beaten with time stopped");
             Assert.AreEqual("TIME OUT", hour.Farewell);
+            Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.OneWhoWaits), "written in the Ledger (beaten either way)");
         }
 
         // Limp, its only blow: a slow twitch of an arm (a long tell), weak.
@@ -204,6 +205,7 @@ namespace MyGame.Tests
             Assert.AreEqual(true, running, "beaten with time running");
             Assert.IsTrue(hour.BeatenRunning);
             Assert.AreEqual("TIME'S UP", hour.Farewell);
+            Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.OneWhoWaits), "written in the Ledger");
         }
 
         // (SHOTS=dir) The Hour: limp in its chamber; awake, poised; the hammer raised; Stop You; the hands sweeping.

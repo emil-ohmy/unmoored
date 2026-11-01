@@ -1353,6 +1353,27 @@ namespace MyGame.Tests
             Assert.LessOrEqual(hud.Menu.ShownLabels.Count, 8);
         }
 
+        // Every kind of Soured, and every Boss and miniboss, has its page in the Ledger: all but the few that are part of
+        // another (Hold and Fast are the Unparted) or have no soul (a scarecrow).
+        [Test]
+        public void EveryKindOfSoured_AndEveryBoss_HasItsPage()
+        {
+            var notTheirOwn = new[] { typeof(Soured), typeof(Scarecrow), typeof(UnpartedHold) }; // (Soured: only ever a kind of it)
+            var types = typeof(Soured).Assembly.GetTypes().Where(t => !t.IsAbstract && (typeof(Soured).IsAssignableFrom(t) || typeof(IBoss).IsAssignableFrom(t)));
+            var missing = new System.Collections.Generic.List<string>();
+            foreach (var t in types)
+            {
+                if (notTheirOwn.Contains(t))
+                    continue;
+                var made = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(t); // (only its kind is asked)
+                var entry = made is IBoss boss ? LedgerEntry.For(boss) : LedgerEntry.For((Soured)made);
+                if (entry == null)
+                    missing.Add(t.Name);
+            }
+            Assert.IsEmpty(missing, "kinds with no page in the Ledger");
+            Assert.AreEqual(LedgerEntry.All.Length, LedgerEntry.All.Select(e => e.Id).Distinct().Count(), "each its own id");
+        }
+
         // (the lab) The Tester's Post writes the whole Ledger in, so every page can be seen.
         [UnityTest]
         public IEnumerator TestersPost_WritesInTheWholeLedger()
