@@ -322,6 +322,23 @@ little.
 - **Lock-on** never picks a scarecrow, nor him while he's still one of them: only him, fighting.
 - **Fire turned back** goes to him, through anything in between: it's his.
 
+The Hall of the Last Hour's is **the chief mourner**, her name plate **The Widow Hale, Who Kept the Minute** (the user's
+direction, 2026-11-01): the widow of the Hall, who stopped the great clock itself at the minute of the death, as her
+Keeners stopped the small ones. If time runs, the death comes after all; so she keeps vigil at the **central engine**
+in the belfry, and the Hall stays stopped. She guards it: the engine's plate can't be struck while she keeps it.
+- **Held in the stillness:** she moves through the stopped Hall as the Keeners do, but no blow touches her (it passes
+  as through a photograph), as the stopped machines can't be moved.
+- **Pockets of time:** the engine's three parts (the escapement, the winding drum, the hour bell) can each be set going
+  a while with the Stroke, like any machine of the Hall. Around a running part, time comes back in a ring a few metres
+  across (the colour with it): inside it, she can be hurt.
+- **She goes to stop it:** a running part draws her; she lays her hands on it (the tell: a few beats) and it stops,
+  its ring of time gone. So she comes into the ring, and that's the time to strike her. Struck there, she reels.
+- **Her blows:** **a great knell** (as the Keeners', at its fullest: she draws breath, then tolls, rings rolling across
+  the floor; dash through them) and **the veil** (her crape cast out, a long low sweep along the floor: caught, you're
+  slowed, held in the stillness a moment).
+- **Beaten**, she lets the minute go: the engine's plate is free. Starting it stays the Apprentice's choice (the bad
+  ending stays possible). Her farewell: **"GOOD MOURNING"** / *She let the minute pass.*
+
 The **Drowned** appear at water edges everywhere.
 
 **Everything in the Orchard burns:** it's dry as old leaves. Fire does 1.75 times the harm to any Soured there, and

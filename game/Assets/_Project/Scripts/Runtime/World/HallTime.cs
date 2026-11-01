@@ -51,6 +51,8 @@ namespace MyGame
         static readonly int StillId = Shader.PropertyToID("_HallStill"), WaveId = Shader.PropertyToID("_HallWave"),
                             WaveOnId = Shader.PropertyToID("_HallWaveOn"), WaveWidthId = Shader.PropertyToID("_HallWaveWidth"),
                             TintId = Shader.PropertyToID("_HallStillTint");
+        static readonly int PocketsId = Shader.PropertyToID("_HallPockets"), PocketCountId = Shader.PropertyToID("_HallPocketCount");
+        readonly Vector4[] pockets = new Vector4[TimePocket.Most];
 
         void Awake()
         {
@@ -115,6 +117,7 @@ namespace MyGame
                 Instance = null;
             Shader.SetGlobalFloat(StillId, 0f);
             Shader.SetGlobalFloat(WaveOnId, 0f);
+            Shader.SetGlobalFloat(PocketCountId, 0f);
         }
 
         // The central engine set going: time again, out from it.
@@ -157,7 +160,7 @@ namespace MyGame
         public bool StoppedAt(Vector3 point)
         {
             if (!Running)
-                return true;
+                return !TimePocket.InAny(point, 0f); // (but in a pocket of time round a machine set going)
             Vector3 d = point - WaveCentre;
             d.y = 0f;
             return d.magnitude > WaveRadius - waveWidth * 0.5f;
@@ -198,6 +201,19 @@ namespace MyGame
             Shader.SetGlobalVector(WaveId, new Vector4(c.x, c.y, c.z, WaveRadius));
             Shader.SetGlobalFloat(WaveWidthId, waveWidth);
             Shader.SetGlobalColor(TintId, tint);
+            // The pockets of time round machines set going (stopped, only: running, time's everywhere).
+            int n = 0;
+            if (!Running)
+                foreach (var p in TimePocket.All)
+                    if (p != null && p.Reach > 0.01f && n < pockets.Length)
+                    {
+                        var at = p.Centre;
+                        pockets[n++] = new Vector4(at.x, at.y, at.z, p.Reach);
+                    }
+            for (int i = n; i < pockets.Length; i++)
+                pockets[i] = Vector4.zero;
+            Shader.SetGlobalVectorArray(PocketsId, pockets);
+            Shader.SetGlobalFloat(PocketCountId, n);
         }
 
         // A colour as time stopped shows it: its brightness only, in the cold grey.

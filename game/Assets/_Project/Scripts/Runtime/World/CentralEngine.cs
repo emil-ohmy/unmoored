@@ -19,6 +19,7 @@ namespace MyGame
         public float sweepTime = 3.2f;
         public float pullBack = 2.4f, pullBackTime = 3.6f; // the camera drawn back (zoom), this long
         public AudioClip[] tollSound;
+        public Soured keeper;                // who keeps it stopped (the Widow Hale): while she's unbeaten, it can't be struck
 
         public bool Set { get; private set; }  // (tests) time set going by it (or loaded so)
         public event System.Action Going;
@@ -51,6 +52,8 @@ namespace MyGame
         void Start()
         {
             Ready();
+            if (clockwork != null && keeper != null)
+                clockwork.Locked = () => keeper != null && keeper.TimesDefeated == 0 && !Set;
             if (clockwork != null)
                 clockwork.Started += () =>
                 {

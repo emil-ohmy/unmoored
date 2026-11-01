@@ -87,11 +87,15 @@ namespace MyGame
             "The mourners who stopped the Hall's clocks at the minute of a death, and never let them go again. They keep the minute in their hands still, and keen it.",
             "Listen for the breath: a knell follows, rings rolling across the floor. Dash through them, in to it; it's frail, and doesn't last.");
 
+        public static readonly LedgerEntry WidowHale = new LedgerEntry("widow", "The Widow Hale, Who Kept the Minute", Rank.Miniboss, LastHour, "widow",
+            "The widow of the Hall, who stopped the great clock at the minute of the death, as her mourners stopped the small ones. If time runs, the death comes after all; so she kept vigil at its heart, in the belfry, and the hour never came.",
+            "Held in the stillness, nothing touches her. Set one of the engine's parts going with the Stroke: in the time round it she can be hurt, and she'll come to stop it. Strike her while her hands are on it.");
+
         public static readonly LedgerEntry OneWhoWaits = new LedgerEntry("the_hour", "The One Who Waits, the Hour That Never Struck", Rank.Boss, LastHour, "the_hour",
             "The Hall's last hour, the one its mourners stopped the clocks to keep from striking, given a body: a robe, a dial for a face, long arms ending in a hammer and a blade, hung on cables in the room behind the great dial. It has waited there ever since for its time to come.",
             "Found as the Hall was left, stopped, it's a husk that a few blows bring down, and the hour never comes. Set the Hall going first and it fights in quarters, adding something at each. Hurt it too fast and it winds itself back: strike it while it winds.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound, Keener, OneWhoWaits };
+        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound, Keener, WidowHale, OneWhoWaits };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -124,6 +128,7 @@ namespace MyGame
             MyGame.Watchman _ => Watchman,
             MyGame.FatherMoth _ => FatherMoth,
             MyGame.TheHour _ => OneWhoWaits,
+            MyGame.Widow _ => WidowHale,
             _ => null,
         };
     }
