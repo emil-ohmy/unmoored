@@ -64,6 +64,7 @@ Shader "MyGame/Toon"
         // lamp's glass). Set going again, the colour comes back in a wave out from its engine. Outside the Hall these
         // are all 0: no effect.
         half _HallStill;      // 0..1, everywhere
+        half _HallHeld;       // 0..1: what's in time (the Apprentice) stopped too, a moment (the Hour's doing)
         float4 _HallWave;     // xyz the wave's centre, w its radius (colour back within it)
         half _HallWaveOn;
         half _HallWaveWidth;
@@ -193,7 +194,7 @@ Shader "MyGame/Toon"
                 half lit = smoothstep(_ShadeThreshold - _ShadeSoftness, _ShadeThreshold + _ShadeSoftness, ndotl);
                 lit *= smoothstep(0.35, 0.65, light.shadowAttenuation); // shadows get the same hard edge
 
-                half still = HallStillness(input.positionWS) * (1.0 - _InTime);
+                half still = max(HallStillness(input.positionWS) * (1.0 - _InTime), _HallHeld * _InTime);
                 half3 albedo = _BaseColor.rgb;
                 half3 direct = albedo * lerp(_ShadowTint.rgb, 1.0, lit) * light.color;
                 half3 ambient = albedo * SampleSH(normalWS) * _AmbientStrength;

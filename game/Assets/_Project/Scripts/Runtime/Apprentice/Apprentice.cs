@@ -285,13 +285,20 @@ namespace MyGame
                 Input = ownInput = new GameInput();
         }
 
-        void OnDestroy() => ownInput?.Dispose();
+        void OnDestroy()
+        {
+            ownInput?.Dispose();
+            if (HeldInTime)
+                Shader.SetGlobalFloat(HeldId, 0f);
+        }
 
         void Update()
         {
             if (Pause.IsPaused)
                 return; // (the pause menu has the controls)
             float dt = Time.deltaTime;
+            if (HeldInTime && CurrentState != State.Staggered)
+                ReleaseFromTime(); // (its moment over, or ended some other way)
             UpdateProvisionEffects(dt);
             if (OpenMenu != null && (!OpenMenu.IsOpen || CurrentState != State.Free && CurrentState != State.Rowing))
                 CloseMenu(); // (a talk on the water stays open)
@@ -1502,8 +1509,37 @@ namespace MyGame
             return Defence.Blocked;
         }
 
+        // Stopped in time (the Hour's doing): held where they stand, mid-motion, drained grey like the stopped Hall, a
+        // moment; nothing they press does anything. A dodge's moment of grace (or a blow's) slips it. True if it took.
+        public bool StopInTime(float duration)
+        {
+            if (!IsAlive || Invulnerable || CurrentState == State.Ceremony || CurrentState == State.Rowing || CurrentState == State.Sinking)
+                return false;
+            stateAfterStagger = State.Free;
+            Enter(State.Staggered);
+            stateDuration = duration;
+            buffered = Act.None;
+            knockback = Vector3.zero;
+            HeldInTime = true;
+            clips.SetTempo(0f);
+            Shader.SetGlobalFloat(HeldId, 1f);
+            return true;
+        }
+
+        public bool HeldInTime { get; private set; }
+        static readonly int HeldId = Shader.PropertyToID("_HallHeld");
+
+        void ReleaseFromTime()
+        {
+            HeldInTime = false;
+            clips.SetTempo(1f);
+            Shader.SetGlobalFloat(HeldId, 0f);
+        }
+
         void EnterStagger(float duration, string clip)
         {
+            if (HeldInTime)
+                ReleaseFromTime(); // (struck: knocked back into time)
             stateAfterStagger = State.Free;
             Enter(State.Staggered);
             stateDuration = duration;

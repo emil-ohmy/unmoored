@@ -518,6 +518,7 @@ namespace MyGame
                 return HitResult.Blocked;
             }
 
+            hit.Damage *= Vulnerability;
             float was = Health;
             Health = Mathf.Max(Floor, Health - hit.Damage);
             dealt = Floor > 0f ? was - Health : hit.Damage; // (held at a floor: only what it took)
@@ -610,6 +611,9 @@ namespace MyGame
         }
 
         protected virtual bool BlocksHit(Hit hit) => false;
+
+        // How much a blow of the oar does to it, times this (the Hour, limp in stopped time: brittle).
+        protected virtual float Vulnerability => 1f;
 
         // As low as its health goes for now (a Boss between phases: no blow carries it through the next).
         protected virtual float Floor => 0f;

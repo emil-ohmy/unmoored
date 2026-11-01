@@ -217,6 +217,28 @@ the floor that carry you round into their mesh. Stopped, each is held where the 
 way); the Stroke sets one going a while, like any machine; the central engine sets them all going for good. They hit
 hard (a third of the Apprentice, and a throw), no guard stops machinery (only a dodge), and they catch the Soured too.
 
+**The One Who Waits**, the Hall of the Last Hour's Boss (the user's direction, 2026-11-01): **the Hour**, the Hall's last
+hour, which never struck, given a body (inspired by the Clockwork God of Morrowind, hung dead from his own contraption:
+the motifs, not the man). A robed, hooded figure whose face is a full mask that is a clock's dial (its two hands its
+only expression), long jointed lever arms ending in a silver hammer and a silver crescent blade, no body below the
+robe but its works (a brass cage of gears, a pendulum, a green lantern at its point), hung by cables from its
+contraption over the middle of **its chamber**: the room behind the great dial, inside the clock, the dial's glass its
+north wall (lit through, numerals reversed, its hands at three to twelve), the floor a dial too (Roman numerals round
+it, two great hands lying on it). Rooted: the room is its reach.
+- **Time stopped** (the Hall as you find it): a husk dangling on its cables, grey like everything else; it only twitches
+  an arm now and then (a slow, weak swing); brittle (blows do two and a half times their harm), no quarters, no tricks,
+  its machines still. Quickly killed, and it should feel wrong: **beaten so, the hour never comes (the bad ending)**.
+- **Time running** (the central engine set going): the real fight, four quarters. At three quarters, half and a quarter
+  of its health it strikes the quarter (a cascade of the Hall's chime, untouchable a moment) and one thing is added:
+  1 its hammer brought down in front of it, its blade swept round low (vault it, or dodge), its works ground round under
+  it; 2 + the floor dial's hands sweeping round the chamber, low (vault them); 3 + **Stop You** (its mask's hands race:
+  it stops the Apprentice in time, a beat, drained grey and still, and brings the hammer down on them; a dodge just before
+  slips it) and the two pendulums swinging across the floor; 4 the last hour: quicker tells, quicker hands, rewinds
+  sooner. All through, **Rewind**: take too much from it at once (a burst within a few seconds) and it winds itself back,
+  its mask's hands spinning backwards, mending the burst, unless it's struck while it winds (broken off, reeling).
+  **Beaten so, the hour strikes at last: the way on, toward the true ending** (nothing past the Boss is designed yet).
+- Its lab: `Lab_TheHour` (the Tester's Post sets the Hall's time and begins the fight at any quarter).
+
 **The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
 its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to
 him as the Moths gather to a light, until he grew into the greatest of them: a vast moth (wings like dead autumn

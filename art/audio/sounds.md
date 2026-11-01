@@ -165,3 +165,11 @@ Synth suits stylised sounds; organic ones (water, wood, voices) are better from 
 | A clock jack winding (`trap_jack_wind`) | in game | Synth | its hammer wound back up: a slow heavy ratchet, a spring tightening, a creak at the top |
 | A clock jack's blow (`trap_jack_strike`) | in game | Synth | the hammer on the bronze strip: a hard strike and a thud through the boards, the strip ringing out like a bell on a low E |
 | The grinding floor (`trap_grind`, loop) | in game | Synth | brass teeth grinding at the mesh: a harsh rasp, a squeal, the teeth knocking, a low drone of the train |
+| The Hour waking (`the_hour_wake`) | in game | Synth | its cables drawing taut with a groan, a heavy ratchet as its contraption takes its weight, one low bell-stroke inside it |
+| The Hour striking a quarter (`the_hour_chime`) | in game | Synth | the Hall's quarter chime (G, F#, E, B) rung huge and fast, the last note ringing on over a deep hum |
+| The Hour's hammer (`the_hour_slam`, 2) | in game | Synth | on the marble: a colossal crack and boom, the silver head ringing, grit falling |
+| The Hour rewinding (`the_hour_rewind`) | in game | Synth | its ticking run backwards, quickening, a reversed swell, a ratchet whirring in reverse |
+| The Hour about to stop you (`the_hour_stop`) | in game | Synth | its ticking racing and rising, a breath drawn in, to the edge of a stop |
+| Stopped in time (`the_hour_stopped`) | in game | Synth | a glassy snap, a high tone held dead still, a heartbeat thumping under it |
+| The Hour killed with time stopped (`the_hour_limp_death`) | in game | Synth | its cables creaking slack, a dull dead clunk of brass, no bell at all |
+| The limp Hour's twitch (`the_hour_twitch`, 2) | in game | Synth | a cable jerking, a dry creak of its lever arm |

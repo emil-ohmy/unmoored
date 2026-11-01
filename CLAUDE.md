@@ -41,6 +41,9 @@ game/Assets/_Project/
                                   time stopped. Its traps (LastHourTrapTests): the hall's pendulum blades, the Gear Run (a
                                   ramp from the court to the keep's works, its rolling gear), the gallery's clock jacks,
                                   the undercroft's grinding floor. Nothing tall south of where you walk (the camera looks down from there)
+  Scenes/Lab_TheHour.unity        the One Who Waits (the Hall of the Last Hour's Boss) in its chamber behind the great dial
+                                  (Build Lab (The Hour)): limp with the Hall's time stopped, the real fight with it running;
+                                  the Tester's Post sets the time and the quarter (TheHourTests)
   Scenes/Lab_DrownedCity.unity    the Drowned City's lab (Build Lab (Drowned City)): the Tester's Post spawns any Soured and gives the Apprentice
                                   anything; a training Laden; a readout. Nothing saved. New enemies and upgrades go here first
   Scripts/Runtime/                game code, assembly MyGame.Runtime (namespace MyGame)

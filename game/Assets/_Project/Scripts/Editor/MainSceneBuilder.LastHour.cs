@@ -278,18 +278,21 @@ public static partial class MainSceneBuilder
 
     // A pendulum of the great hall, armed: its blade hung at `pivot`, held `tilt` degrees out (east is +), its own
     // clockwork struck at the floor under the blade.
-    static PendulumBlade PendulumTrap(Transform parent, Vector3 pivot, float tilt, float floor)
+    static PendulumBlade PendulumTrap(Transform parent, Vector3 pivot, float tilt, float floor, bool plate = true, bool northSouth = false)
     {
-        var blade = Place("Environment/last_hour_props_pendulum_blade", pivot, 0f);
+        var blade = Place("Environment/last_hour_props_pendulum_blade", pivot, northSouth ? 90f : 0f);
         blade.name = "Pendulum Blade";
         blade.transform.SetParent(parent, true);
-        blade.transform.rotation = Quaternion.AngleAxis(tilt, Vector3.forward) * blade.transform.rotation;
+        Vector3 axis = northSouth ? Vector3.right : Vector3.forward; // (it swings across it)
+        blade.transform.rotation = Quaternion.AngleAxis(tilt, axis) * blade.transform.rotation;
         blade.AddComponent<NavMeshIgnore>();
         const float below = 7.7f - 1.1f; // (the crescent's middle under the pivot)
-        var under = new Vector3(pivot.x + Mathf.Sin(tilt * Mathf.Deg2Rad) * below, floor, pivot.z);
-        var work = Machine("The Pendulum's Clockwork", blade.transform, under, 8f, parent);
-        work.swingers = new[] { new Clockwork.Swinger { part = blade.transform, axis = Vector3.forward, amplitude = 38f, period = 3.4f, heldAt = tilt } };
-        Marks(work, new[] { blade }, work.strikePoint);
+        var under = pivot + Quaternion.AngleAxis(tilt, axis) * Vector3.down * below;
+        under.y = floor;
+        var work = Machine("The Pendulum's Clockwork", blade.transform, under, 8f, parent, plate);
+        work.swingers = new[] { new Clockwork.Swinger { part = blade.transform, axis = axis, amplitude = 38f, period = 3.4f, heldAt = tilt } };
+        if (plate)
+            Marks(work, new[] { blade }, work.strikePoint);
         var trap = blade.AddComponent<PendulumBlade>();
         trap.clockwork = work;
         trap.swishSound = Clips("trap_blade_swish");
