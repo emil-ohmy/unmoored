@@ -44,6 +44,10 @@ game/Assets/_Project/
   Scenes/Lab_OneWhoWaits.unity    the One Who Waits (the Hall of the Last Hour's Boss) in its chamber behind the great dial
                                   (Build Lab (The One Who Waits)): limp with the Hall's time stopped, the real fight with it running;
                                   the Tester's Post sets the time and the quarter (TheHourTests)
+  Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in
+                                  art/models/characters on a plinth; its clips as made, its attacks as a fight times them
+                                  (read from the creature as the builder makes it), everyone at once; slow motion, pause,
+                                  frame steps, bones (AnimationGallery; AnimationGalleryTests)
   Scenes/Lab_DrownedCity.unity    the Drowned City's lab (Build Lab (Drowned City)): the Tester's Post spawns any Soured and gives the Apprentice
                                   anything; a training Laden; a readout. Nothing saved. New enemies and upgrades go here first
   Scripts/Runtime/                game code, assembly MyGame.Runtime (namespace MyGame)
