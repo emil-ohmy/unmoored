@@ -9,10 +9,10 @@ using UnityEngine;
 // fight at any quarter.
 public static partial class MainSceneBuilder
 {
-    const string TheHourLabPath = "Assets/_Project/Scenes/Lab_TheHour.unity";
+    const string TheHourLabPath = "Assets/_Project/Scenes/Lab_OneWhoWaits.unity";
     const float HourFloor = 10f; // (its floor, high in the clock: the dark of the works below, the river far under)
 
-    [MenuItem("Assets/MyGame/Build Lab (The Hour)")]
+    [MenuItem("Assets/MyGame/Build Lab (The One Who Waits)")]
     static void BuildTheHourLabFromMenu()
     {
         if (!UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
@@ -84,7 +84,7 @@ public static partial class MainSceneBuilder
         start.position = T(0f, 0f, -15.6f);
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
         entrance.transform.position = start.position + Vector3.up;
-        entrance.areaName = "The Hour's Chamber (Lab)";
+        entrance.areaName = "The One Who Waits (Lab)";
         var apprentice = Apprentice(start.position);
         apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
         var time = new GameObject("The Hall's Time").AddComponent<HallTime>();

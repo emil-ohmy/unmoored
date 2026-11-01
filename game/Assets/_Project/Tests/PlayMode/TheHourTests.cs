@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 
 namespace MyGame.Tests
 {
-    // The One Who Waits, the Hour (Scenes/Lab_TheHour.unity): limp and brittle with the Hall's time stopped, the real
+    // The One Who Waits, the Hour (Scenes/Lab_OneWhoWaits.unity): limp and brittle with the Hall's time stopped, the real
     // fight with it running (its quarters, its rewind, Stop You, the floor's hands); beaten either way, and which way kept.
     public class TheHourTests
     {
@@ -21,7 +21,7 @@ namespace MyGame.Tests
         {
             Application.targetFrameRate = -1;
             Time.captureDeltaTime = 1f / 60f;
-            yield return SceneManager.LoadSceneAsync("Lab_TheHour");
+            yield return SceneManager.LoadSceneAsync("Lab_OneWhoWaits");
             yield return null;
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();

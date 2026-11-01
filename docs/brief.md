@@ -237,7 +237,7 @@ it, two great hands lying on it). Rooted: the room is its reach.
   sooner. All through, **Rewind**: take too much from it at once (a burst within a few seconds) and it winds itself back,
   its mask's hands spinning backwards, mending the burst, unless it's struck while it winds (broken off, reeling).
   **Beaten so, the hour strikes at last: the way on, toward the true ending** (nothing past the Boss is designed yet).
-- Its lab: `Lab_TheHour` (the Tester's Post sets the Hall's time and begins the fight at any quarter).
+- Its lab: `Lab_OneWhoWaits` (the Tester's Post sets the Hall's time and begins the fight at any quarter).
 
 **The Gardener**, the Orchard's Boss, in full **Father Moth, Who Gathered Autumn**: the man who tended the orchard and
 its glasshouse, who couldn't let go of the last autumn. He gathered every memory of it, and the memories gathered to

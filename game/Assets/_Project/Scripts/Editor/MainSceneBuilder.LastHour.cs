@@ -16,7 +16,7 @@ public static partial class MainSceneBuilder
     static readonly float[] TowerFloors = { 0.5f, 4.5f, 8.5f, 12.5f, 16.5f, 20.5f };
     const float TowerOut = 8f, TowerIn = 7.2f;
 
-    [MenuItem("Assets/MyGame/Build Lab (Last Hour)")]
+    [MenuItem("Assets/MyGame/Build Lab (Hall of the Last Hour)")]
     static void BuildLastHourLabFromMenu()
     {
         if (!UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
