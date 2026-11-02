@@ -1,5 +1,3 @@
-using System.IO;
-using System.Linq;
 using MyGame;
 using UnityEditor;
 using UnityEngine;
@@ -7,8 +5,7 @@ using UnityEngine;
 // The Hub's lab (docs/brief.md): the Ferryman's island at the centre of the underworld, a quiet refuge after the Hold. A
 // small island in still black water (hub.py): his hut at the north, where you come up out of the Hold through the
 // trapdoor in its floor; a worn path down to the jetty and its landing, where his boat waits and the Mooring post
-// stands; the merchant soul by the hut; and the dead, a long patient queue of them, waiting along the jetty and the
-// shore to cross (soul.py, WaitingSoul). Warm lanterns (warm light is safety), mist on the water, the Far shore's
+// stands; the merchant soul by the hut. Warm lanterns (warm light is safety), mist on the water, the Far shore's
 // light out in the dark to the south-east, and the ways to the Areas leading off into the mist, each marked by its
 // lanterns (the Drowned City west, the Orchard east, the Hall north). Atmosphere only: no Lingerers, no Crossings yet.
 public static partial class MainSceneBuilder
@@ -79,27 +76,6 @@ public static partial class MainSceneBuilder
         var bench = Place("Environment/hub_bench", new Vector3(-5.2f, QuayTop, 2.6f), 200f); // (for a Lingerer, later)
         bench.transform.SetParent(root, true);
 
-        // The dead, waiting to cross: along the jetty's west side (room to pass on its east), then up the shore and
-        // round to the west along the island's south edge. Each different, out of step with the rest.
-        var queue = new GameObject("The Queue").transform;
-        queue.SetParent(root, true);
-        var souls = Directory.GetFiles(Models + "Characters", "soul*.fbx").Select(Path.GetFileNameWithoutExtension).OrderBy(n => n).ToArray();
-        int k = 0;
-        foreach (var (at, yaw) in HubQueue(landing))
-        {
-            if (souls.Length == 0)
-                break;
-            var soul = HubSoul(souls[(k * 7 + k / 3) % souls.Length], at, yaw);
-            soul.transform.SetParent(queue, true);
-            k++;
-        }
-        var murmurs = new GameObject("The Queue (murmurs)").AddComponent<AmbientOneShots>();
-        murmurs.transform.SetParent(root, true);
-        murmurs.transform.position = new Vector3(-1f, QuayTop + 1.2f, -12f);
-        murmurs.clips = Clips("hub_murmur");
-        murmurs.every = new Vector2(4f, 10f);
-        murmurs.spread = 9f;
-        murmurs.volume = 0.35f;
 
         // The ways off to the Areas, each marked out into the mist by its lanterns: the Drowned City west, the
         // Orchard east, the Hall of the Last Hour north, past the hut.
@@ -243,46 +219,5 @@ public static partial class MainSceneBuilder
         foreach (float e in new[] { -3.2f, 3.2f })
             PointLight(root, new Vector3(HubHut.x + e, floor + 1.3f, HubHut.z), 4.5f, 1.2f, LanternLight);
         return root;
-    }
-
-    // A soul waiting to cross (soul.py's variants): idling, out of step, watching you go by.
-    static GameObject HubSoul(string model, Vector3 at, float yaw)
-    {
-        var go = Place("Characters/" + model, at, yaw);
-        go.name = "A Soul Waiting (" + model + ")";
-        foreach (var c in go.GetComponentsInChildren<Collider>())
-            Object.DestroyImmediate(c);
-        // (solid: you walk round them, not through)
-        var body = go.AddComponent<CapsuleCollider>();
-        body.center = new Vector3(0f, 0.8f, 0f);
-        body.height = 1.6f;
-        body.radius = 0.25f;
-        var soul = go.AddComponent<WaitingSoul>();
-        soul.head = go.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == "Head");
-        go.AddComponent<NavMeshIgnore>();
-        return go;
-    }
-
-    // Where the queue stands: from the landing's edge back up the jetty's west side, then up the shore path a little,
-    // and round to the west along the island's south edge; each facing the one ahead (towards the boat).
-    static System.Collections.Generic.IEnumerable<(Vector3 at, float yaw)> HubQueue(Vector3 landing)
-    {
-        const float apart = 0.95f;
-        // On the jetty: facing south, the boat ahead.
-        for (float z = landing.z + 0.4f; z < HubJettyHead.z - 0.3f; z += apart)
-            yield return (new Vector3(-0.45f, QuayTop, z), 180f);
-        // Off its head, up onto the shore, then west along the south edge, facing back along the line.
-        var bend = new[]
-        {
-            new Vector2(-0.6f, -8.4f), new Vector2(-1.3f, -7.7f), new Vector2(-2.2f, -7.3f), new Vector2(-3.2f, -7.1f),
-            new Vector2(-4.2f, -7.0f), new Vector2(-5.2f, -6.9f), new Vector2(-6.2f, -6.6f), new Vector2(-7.1f, -6.2f),
-            new Vector2(-8.0f, -5.7f), new Vector2(-8.8f, -5.1f),
-        };
-        for (int i = 0; i < bend.Length; i++)
-        {
-            Vector2 ahead = i == 0 ? new Vector2(-0.45f, HubJettyHead.z) : bend[i - 1];
-            Vector2 d = ahead - bend[i];
-            yield return (new Vector3(bend[i].x, QuayTop, bend[i].y), Mathf.Atan2(d.x, d.y) * Mathf.Rad2Deg);
-        }
     }
 }

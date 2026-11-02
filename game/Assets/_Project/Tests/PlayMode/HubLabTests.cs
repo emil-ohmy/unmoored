@@ -10,8 +10,7 @@ using UnityEngine.TestTools;
 namespace MyGame.Tests
 {
     // The Hub's lab (Lab_Hub): the Ferryman's island, a quiet refuge. You come up out of the Hold through the trapdoor
-    // in his hut; out of his door, a path down to the jetty and its landing (the boat, the Mooring post); the dead
-    // waiting along it in a long line to cross, watching you go by.
+    // in his hut; out of his door, a path down to the jetty and its landing (the boat, the Mooring post).
     public class HubLabTests
     {
         Apprentice apprentice;
@@ -62,7 +61,7 @@ namespace MyGame.Tests
         {
             new Vector2(0.3f, 3.9f), new Vector2(0f, 2.2f),      // (out of his door)
             new Vector2(0.2f, -4f), new Vector2(0.45f, -9f),     // (down the path to the jetty's head)
-            new Vector2(0.45f, -22.5f), new Vector2(0.4f, -24.8f) // (down the jetty, east of the queue, onto the landing)
+            new Vector2(0.45f, -22.5f), new Vector2(0.4f, -24.8f) // (down the jetty, onto the landing)
         };
 
         // You come up in his hut, beside the open trapdoor: inside (its roof faded), the shaft covered over.
@@ -78,7 +77,7 @@ namespace MyGame.Tests
                 "beside the trapdoor");
         }
 
-        // Out of his door, down the path and the jetty past the queue, onto the landing: the boat, the Mooring post.
+        // Out of his door, down the path and the jetty, onto the landing: the boat, the Mooring post.
         [UnityTest]
         public IEnumerator YouWalkOutOfHisDoor_DownToTheLanding()
         {
@@ -93,36 +92,7 @@ namespace MyGame.Tests
             Assert.Less(Vector3.Distance(boat.transform.position, apprentice.transform.position), 4f, "his boat, waiting");
         }
 
-        // The dead, a long line of them along the jetty and the shore; each different from the one beside it.
-        [UnityTest]
-        public IEnumerator TheDead_WaitInALongLine()
-        {
-            var souls = UnityEngine.Object.FindObjectsByType<WaitingSoul>(FindObjectsSortMode.None);
-            Assert.GreaterOrEqual(souls.Length, 20, "a long queue");
-            Assert.IsTrue(souls.All(s => s.head != null), "each with a head to turn");
-            var kinds = souls.Select(s => s.name).Distinct().Count();
-            Assert.GreaterOrEqual(kinds, 4, "not all alike");
-            yield return new WaitForSeconds(1f);
-            var anim = souls.Select(s => s.GetComponentInChildren<Animation>()).ToArray();
-            Assert.IsTrue(anim.All(a => a != null && a.isPlaying), "breathing, swaying");
-        }
-
-        // One of them watches you go by: its head turns to follow you, and back when you're gone.
-        [UnityTest]
-        public IEnumerator ASoul_WatchesYouGoBy()
-        {
-            var soul = UnityEngine.Object.FindObjectsByType<WaitingSoul>(FindObjectsSortMode.None)
-                .OrderBy(s => Mathf.Abs(s.transform.position.z + 15f) + Mathf.Abs(s.transform.position.x + 0.45f)).First(); // (one on the jetty)
-            apprentice.Teleport(soul.transform.position + new Vector3(0.9f, 0.05f, -1.6f)); // (ahead of it, a little to its side)
-            yield return new WaitForSeconds(1.5f);
-            Assert.IsTrue(soul.Looking, "it's seen you");
-            Assert.Greater(Mathf.Abs(soul.HeadTurn), 10f, "its head turned to you");
-            apprentice.Teleport(new Vector3(0.45f, 0.55f, -2f)); // (gone, up the path)
-            yield return new WaitForSeconds(3f);
-            Assert.Less(Mathf.Abs(soul.HeadTurn), 1f, "looking ahead again");
-        }
-
-        // (SHOTS=dir) The Hub from the game camera: in his hut, out of his door, the path, the queue, the landing.
+        // (SHOTS=dir) The Hub from the game camera: in his hut, out of his door, the path, the jetty, the landing.
         [UnityTest]
         public IEnumerator Capture_TheHub()
         {
@@ -155,7 +125,7 @@ namespace MyGame.Tests
             Shot("3-the-path");
             yield return Walk(new Vector2(0.45f, -9f));
             yield return new WaitForSeconds(0.6f);
-            Shot("4-the-queue");
+            Shot("4-the-jetty-head");
             yield return Walk(new Vector2(0.45f, -16f));
             yield return new WaitForSeconds(0.6f);
             Shot("5-along-the-jetty");
