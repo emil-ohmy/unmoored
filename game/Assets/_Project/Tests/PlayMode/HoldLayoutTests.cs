@@ -36,10 +36,10 @@ namespace MyGame.Tests
         // The route, in the scene's metres (the drawing's, from where you begin).
         static readonly Vector2[] Route =
         {
-            new Vector2(-1.1f, 8.8f),    // (up the south passage)
-            new Vector2(-1.1f, 38.8f),   // (into the long hall)
-            new Vector2(4.5f, 73.8f),    // (into the corridor at its north-east)
-            new Vector2(4.5f, 120f),     // (up it, to the lantern)
+            new Vector2(-0.7f, 5.3f),    // (up the south passage)
+            new Vector2(-0.7f, 23.3f),   // (into the long hall)
+            new Vector2(2.7f, 44.3f),    // (into the corridor at its north-east)
+            new Vector2(2.7f, 70f),      // (up it, to the lantern)
         };
 
         IEnumerator Walk(Vector2 to, Action each = null)
@@ -143,16 +143,16 @@ namespace MyGame.Tests
             input.PressInteract();
             yield return new WaitForSeconds(0.6f);
             Shot("2-the-first-message");
-            yield return Walk(new Vector2(-1.1f, 26f));
+            yield return Walk(new Vector2(-0.7f, 15.6f));
             yield return new WaitForSeconds(1.5f);
             Shot("3-the-hall-the-kept");
-            yield return Walk(new Vector2(-1.1f, 50f));
+            yield return Walk(new Vector2(-0.7f, 30f));
             yield return new WaitForSeconds(1f);
             Shot("4-the-hall-north");
-            yield return Walk(new Vector2(4.5f, 80f));
+            yield return Walk(new Vector2(2.7f, 48f));
             yield return new WaitForSeconds(0.6f);
             Shot("5-the-corridor");
-            yield return Walk(new Vector2(4.5f, 120f));
+            yield return Walk(new Vector2(2.7f, 70f));
             yield return new WaitForSeconds(0.6f);
             Shot("6-the-lantern");
         }

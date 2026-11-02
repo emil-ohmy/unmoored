@@ -5,11 +5,12 @@ using MyGame;
 using UnityEditor;
 using UnityEngine;
 
-// The Hold as the user drew it (the Figma level-design file, exported to Levels/the_hold.json; docs: CLAUDE.md): a
-// blockout of their layout, built from the drawing, not hold.py's sculpted cave. Its ground pieces become floors (+0.5)
-// and the cave's walls (+4.8: rock, breathing like the Hold's); its markers its set pieces, each on the wall face
-// nearest it (eyes, faces and hands pressing out); the Kept torn out of the wall nearest their spot; drips all through
-// it; the lantern a Mooring post; its notes the start ("We begin here") and the tutorial's messages on the floor.
+// The Hold as the user drew it (the Figma level-design file, exported to Levels/the_hold.json; CLAUDE.md), taken as a
+// sketch: hold_drawn.py grows hold.py's living cave round its floors (at the drawing's scale, its corners rounded, its
+// walls leaning, folding, breathing, the kept pressing out of them) and says where it put the markers' pieces
+// (Levels/the_hold.spots.json): the eyes in their sockets' holes, the faces and hands pressing out, the wall each of the
+// Kept tears out of as you pass its spot. Drips all through it; the lantern a Mooring post; its notes the start ("We
+// begin here") and the tutorial's messages on the floor.
 public static partial class MainSceneBuilder
 {
     const string HoldLayoutLabPath = "Assets/_Project/Scenes/Lab_HoldLayout.unity";
@@ -18,7 +19,11 @@ public static partial class MainSceneBuilder
     [System.Serializable] sealed class LevelGround { public string kind; public float e0, e1, n0, n1; }
     [System.Serializable] sealed class LevelMarker { public string code, label; public float e, n; }
     [System.Serializable] sealed class LevelNote { public string text; public float e0, e1, n0, n1; }
-    [System.Serializable] sealed class LevelData { public float width, height; public LevelGround[] ground; public LevelMarker[] markers; public LevelNote[] notes; }
+    [System.Serializable] sealed class LevelData { public float width, height, scale = 1f, originE, originN; public LevelGround[] ground; public LevelMarker[] markers; public LevelNote[] notes; }
+    // Where hold_drawn.py put the markers' pieces in its cave (its metres: the scene's).
+    [System.Serializable] sealed class LevelSpot { public string what; public float[] at, normal; }
+    [System.Serializable] sealed class LevelKept { public float[] spot, foot, @out; }
+    [System.Serializable] sealed class LevelSpots { public LevelSpot[] eyes, presences; public LevelKept[] kept; }
 
     // The tutorial's messages: the genre's own templates, in the game's dry voice (docs/brief.md, Tone and voice).
     static readonly (string match, string message, string line)[] HoldMessages =
@@ -44,89 +49,41 @@ public static partial class MainSceneBuilder
         var scene = BeginScene(new Vector3(0f, -60f, 0f), HoldNight); // (no water to be seen: the dark outside the walls)
         var root = new GameObject("The Hold (as drawn)").transform;
 
-        // Where things are: the drawing's metres, the start (its "We begin here") at the origin.
-        var startNote = data.notes.FirstOrDefault(n => n.text.ToLowerInvariant().Contains("begin"));
-        Vector2 origin = startNote != null ? Into(data, new Vector2((startNote.e0 + startNote.e1) / 2f, (startNote.n0 + startNote.n1) / 2f), 0f)
-                                           : new Vector2(data.width / 2f, -data.height / 2f);
-        Vector3 W(Vector2 p, float u) => new Vector3(p.x - origin.x, u, p.y - origin.y);
+        // Where things are: the drawing's metres at its scale (it's a sketch), its origin where "We begin here" is.
+        Vector2 origin = new Vector2(data.originE, data.originN);
+        float scale = data.scale > 0f ? data.scale : 1f;
+        Vector3 W(Vector2 p, float u) => new Vector3((p.x - origin.x) * scale, u, (p.y - origin.y) * scale);
 
-        // The ground: floors, the cave's walls.
-        var floorMat = GeneratedMaterial("M_LayoutFloor", "MyGame/Toon");
-        floorMat.SetColor("_BaseColor", Hex("#5e5f64"));
-        EditorUtility.SetDirty(floorMat);
-        var wallMat = GeneratedMaterial("M_LayoutWall", "MyGame/Toon");
-        wallMat.SetColor("_BaseColor", Hex("#4c4553"));
-        wallMat.SetFloat("_Breathe", 1f);
-        wallMat.SetVector("_EmissionColor", (Vector4)(Hex("#4c4553") * 0.4f));
-        EditorUtility.SetDirty(wallMat);
-        int k = 0;
-        foreach (var g in data.ground)
-        {
-            float top = LevelTop(g.kind);
-            bool wall = top > 3f;
-            // (a wall south of every floor beside it: the camera looks over it from the south, so it's kept low, a rim)
-            bool southOf = wall && Floors(data).Any(f => g.e0 < f.e1 && g.e1 > f.e0 && Mathf.Abs(g.n1 - f.n0) < 0.6f)
-                                && !Floors(data).Any(f => g.e0 < f.e1 && g.e1 > f.e0 && g.n0 > f.n0 && g.n0 < f.n1);
-            if (southOf)
-                top = 1.2f;
-            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            box.name = (wall ? "Wall " : "Floor ") + g.kind;
-            box.transform.SetParent(root, true);
-            float lift = 0.004f * k++; // (no two tops in one plane: they'd flicker)
-            float bottom = -1.5f;
-            box.transform.position = W(new Vector2((g.e0 + g.e1) / 2f, (g.n0 + g.n1) / 2f), (bottom + top + lift) / 2f);
-            box.transform.localScale = new Vector3(g.e1 - g.e0, top + lift - bottom, g.n1 - g.n0);
-            box.GetComponent<MeshRenderer>().sharedMaterial = wall ? wallMat : floorMat;
-        }
+        // The cave, grown round the drawing's floors (hold_drawn.py): its living walls breathe.
+        var cave = Place("Environment/hold_drawn", Vector3.zero, 0f);
+        cave.transform.SetParent(root, true);
         var living = new GameObject("The Living Walls").AddComponent<LivingWalls>();
         living.transform.SetParent(root, true);
         living.inSound = Clips("hold_breath_in");
         living.outSound = Clips("hold_breath_out");
 
-        // Its markers.
-        int kind = 0, kept = 0;
-        var keptSpots = data.markers.Where(m => m.code == "KP").OrderBy(m => m.n).ToList(); // (south first: the first met)
-        foreach (var m in data.markers)
+        // Its markers' pieces, where the cave put them: eyes in their sockets' holes, faces and hands pressing out.
+        var spots = JsonUtility.FromJson<LevelSpots>(File.ReadAllText(HoldLayoutData.Replace(".json", ".spots.json")));
+        Vector3 V(float[] a) => new Vector3(a[0], a[2], a[1]); // (its e, n, u: the scene's x, z, y)
+        foreach (var eye in spots.eyes)
+            WallEyeAt(root, V(eye.at), V(eye.normal));
+        int kind = 0;
+        foreach (var p in spots.presences)
+            PresenceAt(root, V(p.at), V(p.normal), p.what == "face" ? new[] { "face_1", "face_2", "face_3" }[kind++ % 3] : new[] { "hand_1", "hand_2" }[kind++ % 2]);
+        // The Kept: each torn out of the wall nearest its spot as you pass the spot; the first met on its own.
+        int kept = 0;
+        foreach (var k in spots.kept.OrderBy(k => k.spot[1]))
         {
-            var at = new Vector2(m.e, m.n);
-            switch (m.code)
-            {
-                case "EYE":
-                case "FACE":
-                case "HAND":
-                {
-                    // On the wall face nearest it, looking out into the cave.
-                    var (face, normal) = WallFace(data, at);
-                    float up = m.code == "EYE" ? 1.9f + 0.5f * Mathf.Repeat(m.e * 0.37f + m.n * 0.11f, 1f) : 1.3f + 0.6f * Mathf.Repeat(m.e * 0.23f + m.n * 0.29f, 1f);
-                    Vector3 wallAt = W(face, 0.5f + up) - new Vector3(normal.x, 0f, normal.y) * 0.02f;
-                    var n3 = new Vector3(normal.x, 0f, normal.y);
-                    if (m.code == "EYE")
-                        WallEyeAt(root, wallAt + n3 * 0.06f, n3);
-                    else
-                        PresenceAt(root, wallAt, n3, m.code == "FACE" ? new[] { "face_1", "face_2", "face_3" }[kind++ % 3] : new[] { "hand_1", "hand_2" }[kind++ % 2]);
-                    break;
-                }
-                case "KP":
-                {
-                    // Torn out of the wall nearest its spot; the first met on their own, the rest together.
-                    var (face, outward) = NearestWall(data, at);
-                    int group = keptSpots.IndexOf(m) == 0 ? 1 : 2;
-                    var o3 = new Vector3(outward.x, 0f, outward.y);
-                    var one = Kept("The Kept", W(face, 0.5f) + o3 * 1.1f, W(face, 0.5f) + o3 * 0.2f, group);
-                    one.transform.SetParent(root, true);
-                    one.wakeWithin = Mathf.Max(one.wakeWithin, (face - at).magnitude + 4f); // (it tears free as you pass the spot drawn)
-                    kept++;
-                    break;
-                }
-                case "LT":
-                {
-                    // The lantern: a Mooring post (Rest, and its lantern is lit).
-                    var spot = Into(data, at, 1.2f);
-                    MooringPostAt(W(spot, 0.5f), 270f);
-                    break;
-                }
-            }
+            var foot = new Vector3(k.foot[0], k.foot[2], k.foot[1]);
+            var o3 = new Vector3(k.@out[0], 0f, k.@out[1]).normalized;
+            var one = Kept("The Kept", foot + o3 * 1.1f, foot + o3 * 0.2f, kept == 0 ? 1 : 2);
+            one.transform.SetParent(root, true);
+            one.wakeWithin = Mathf.Max(one.wakeWithin, new Vector2(k.foot[0] - k.spot[0], k.foot[1] - k.spot[1]).magnitude + 3f);
+            kept++;
         }
+        // The lantern: a Mooring post (Rest, and its lantern is lit).
+        foreach (var m in data.markers.Where(m => m.code == "LT"))
+            MooringPostAt(W(Into(data, new Vector2(m.e, m.n), 2f), 0.5f), 270f);
 
         // Drips all through it (the markers say so: all around), the rock settling far off, ash in the dark.
         float minE = data.ground.Min(g => g.e0), maxE = data.ground.Max(g => g.e1), minN = data.ground.Min(g => g.n0), maxN = data.ground.Max(g => g.n1);
@@ -134,11 +91,11 @@ public static partial class MainSceneBuilder
         var drips = new GameObject("Drips").AddComponent<Drips>();
         drips.transform.SetParent(root, true);
         drips.transform.position = middle;
-        drips.size = new Vector3(maxE - minE, 0f, maxN - minN);
+        drips.size = new Vector3(maxE - minE, 0f, maxN - minN) * scale;
         drips.everySecond = 0.4f;
         drips.from = 6f;
         drips.dripSound = Clips("hold_drip");
-        HoldAsh(root, middle + Vector3.up * 8.5f, new Vector3(maxE - minE, 1f, maxN - minN));
+        HoldAsh(root, middle + Vector3.up * 8.5f, new Vector3((maxE - minE) * scale, 1f, (maxN - minN) * scale));
         var groans = new GameObject("The Rock Settling").AddComponent<AmbientOneShots>();
         groans.transform.SetParent(root, true);
         groans.transform.position = middle + Vector3.up * 6f;
@@ -149,18 +106,14 @@ public static partial class MainSceneBuilder
 
         // A cold gleam here and there along it (the walls' shapes, no more): every 14 m or so over the floor.
         foreach (var g in data.ground.Where(g => LevelTop(g.kind) < 3f))
-            for (float n = g.n0 + 5f; n < g.n1; n += 10f)
-                PointLight(root, W(new Vector2((g.e0 + g.e1) / 2f, n), 5f), 14f, 2.4f, Hex("#6f7a96")).shadows = LightShadows.None;
+            for (float n = g.n0 + 5f / scale; n < g.n1; n += 10f / scale)
+                PointLight(root, W(new Vector2((g.e0 + g.e1) / 2f, n), 3.6f), 11f, 14f, Hex("#7d879e")).shadows = LightShadows.None;
 
         // Where the drawing ends (its far end, open): the way on, grey daylight beyond, and nothing to fall off into.
         var end = data.ground.Where(g => LevelTop(g.kind) < 3f).OrderByDescending(g => g.n1).First();
-        Vector3 wayOn = W(new Vector2((end.e0 + end.e1) / 2f, end.n1), 0.5f);
-        PointLight(root, wayOn + new Vector3(0f, 3f, 1.5f), 12f, 3f, HoldDaylight).shadows = LightShadows.Soft;
+        Vector3 wayOn = W(new Vector2((end.e0 + end.e1) / 2f, end.n1 - 2.5f), 0.5f); // (where the drawing ends: the cave closes there, for now)
+        PointLight(root, wayOn + new Vector3(0f, 3f, 1.5f), 12f, 3f, HoldDaylight).shadows = LightShadows.None;
         LightShaft(root, wayOn + Vector3.back * 1.5f, 4f, 1.1f, brightness: 2.5f);
-        var stop = new GameObject("The Way On (not drawn yet)").AddComponent<BoxCollider>();
-        stop.transform.SetParent(root, true);
-        stop.transform.position = wayOn + new Vector3(0f, 1.5f, 0.3f);
-        stop.size = new Vector3(end.e1 - end.e0, 3f, 0.6f);
 
         // The tutorial's messages on the floor, where its notes are.
         foreach (var note in data.notes)
@@ -175,7 +128,7 @@ public static partial class MainSceneBuilder
 
         // Where you begin; the lab's post beside it.
         var start = new GameObject("Start Point").transform;
-        start.position = W(Vector2.zero + origin, 0.5f);
+        start.position = W(origin, 0.5f);
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
         entrance.transform.position = start.position + Vector3.up;
         entrance.areaName = "The Hold";
@@ -219,36 +172,6 @@ public static partial class MainSceneBuilder
             if (dist < bestD) { bestD = dist; best = c; }
         }
         return best;
-    }
-
-    // For something in a wall: the face of the wall nearest it (where the floor begins) and the way that face looks.
-    static (Vector2 face, Vector2 normal) WallFace(LevelData d, Vector2 p)
-    {
-        Vector2 edge = Into(d, p, 0f);
-        Vector2 normal = edge - p;
-        if (normal.sqrMagnitude < 0.0001f) // (drawn on the floor: the wall nearest it instead)
-        {
-            var (face, outward) = NearestWall(d, p);
-            return (face, outward);
-        }
-        // Straight off the face (the larger axis): not at a slant into a corner.
-        normal = Mathf.Abs(normal.x) > Mathf.Abs(normal.y) ? new Vector2(Mathf.Sign(normal.x), 0f) : new Vector2(0f, Mathf.Sign(normal.y));
-        return (edge, normal);
-    }
-
-    // For something on the floor: the nearest wall along the four ways, its face, and the way out of it (back to p).
-    static (Vector2 face, Vector2 outward) NearestWall(LevelData d, Vector2 p)
-    {
-        Vector2 bestFace = p, bestOut = Vector2.right;
-        float bestD = float.MaxValue;
-        foreach (var dir in new[] { Vector2.right, Vector2.left, Vector2.up, Vector2.down })
-        {
-            float t = 0f;
-            while (t < 60f && OnFloor(d, p + dir * (t + 0.1f)))
-                t += 0.1f;
-            if (t < bestD) { bestD = t; bestFace = p + dir * t; bestOut = -dir; }
-        }
-        return (bestFace, bestOut);
     }
 
     // A message on the floor: a faint warm scrawl you stand on and read (FloorMessage).

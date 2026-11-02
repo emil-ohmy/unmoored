@@ -1,6 +1,9 @@
 {
   "source": "Figma: The Ferryman's Apprentice: Level Design (MysuLAJcAzztDJRDTszuD0), page Area template, frame 3:83 'Area: NAME (duplicate me)'",
   "units": "metres; e east, n north (Figma's y down is south); from the frame's top-left corner",
+  "scale": 0.6,
+  "originE": 68.1,
+  "originN": -168.75,
   "width": 140,
   "height": 178,
   "ground": [
