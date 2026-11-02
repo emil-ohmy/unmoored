@@ -50,6 +50,7 @@ public static partial class MainSceneBuilder
         BuildLastHourLab();
         BuildTheHourLab();
         BuildHoldLab();
+        BuildHubLab();
         BuildGallery();
         BuildBossArena();
         BuildTitle();
@@ -1304,28 +1305,28 @@ public static partial class MainSceneBuilder
 
     // Out in the dark south-east of the landing: the Far shore, where the dead go on. A small jetty, a tall post with
     // a pale warm light, and beyond it the way on, glowing faintly through the dark. A Lingerer's Crossing ends here.
-    static FarShoreParts FarShore(Boat boat)
+    static FarShoreParts FarShore(Boat boat, Vector3 offset = default) // (`offset`: from where Main has it)
     {
-        var jetty = new Vector3(14.0f, QuayTop - 0.03f, -43.5f); // its planks run south, to z -46.6
+        var jetty = new Vector3(14.0f, QuayTop - 0.03f, -43.5f) + offset; // its planks run south, to z -46.6
         Place("Environment/jetty_landing", jetty, 0f);
-        Place("Environment/islet_big", new Vector3(16.5f, -0.8f, -53.5f), 30f);
-        var post = Place("Environment/far_light", new Vector3(15.1f, QuayTop, -46.1f), 200f);
+        Place("Environment/islet_big", new Vector3(16.5f, -0.8f, -53.5f) + offset, 30f);
+        var post = Place("Environment/far_light", new Vector3(15.1f, QuayTop, -46.1f) + offset, 200f);
         var light = PointLight(post.transform, GlowCentre(post, "FarLight_Glow"), 9f, 3.4f, FarLightColour);
         Flicker(light, 0.05f, 1.2f, 0.005f); // steady: it isn't a flame
         var motes = new GameObject("Motes").AddComponent<Motes>();
         motes.transform.SetParent(post.transform, false);
         motes.transform.position = GlowCentre(post, "FarLight_Glow");
-        var beyond = PointLight(post.transform, new Vector3(15.5f, 1.8f, -49.5f), 11f, 1.8f, FarLightColour); // the way on
+        var beyond = PointLight(post.transform, new Vector3(15.5f, 1.8f, -49.5f) + offset, 11f, 1.8f, FarLightColour); // the way on
         beyond.name = "The Way On";
         var way = new GameObject("Motes (the Way On)").AddComponent<Motes>();
         way.transform.SetParent(post.transform, false);
-        way.transform.position = new Vector3(15.5f, 0.3f, -49.5f);
+        way.transform.position = new Vector3(15.5f, 0.3f, -49.5f) + offset;
         way.radius = 3f;
         way.perSecond = 4f;
-        var dock = DockAt("the Far shore", new Vector3(11.45f, -0.12f, -45.0f), 180f, new Vector3(12.95f, QuayTop, -45.0f), true);
+        var dock = DockAt("the Far shore", new Vector3(11.45f, -0.12f, -45.0f) + offset, 180f, new Vector3(12.95f, QuayTop, -45.0f) + offset, true);
         boat.docks = new[] { boat.home, dock };
         // What Hesper leaves there once she's crossed: his lantern, set down by the post, still burning.
-        var left = Place("Environment/boat_lantern", new Vector3(14.55f, QuayTop, -45.75f), 160f);
+        var left = Place("Environment/boat_lantern", new Vector3(14.55f, QuayTop, -45.75f) + offset, 160f);
         left.name = "Boat-Lantern (Left on the Far shore)";
         foreach (var c in left.GetComponentsInChildren<Collider>())
             UnityEngine.Object.DestroyImmediate(c);

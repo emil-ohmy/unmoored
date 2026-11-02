@@ -49,6 +49,10 @@ game/Assets/_Project/
                                   breathe ("..._Breathe" materials, the Toon shader's _Breathe: LivingWalls), faces and hands
                                   press out (WallPresence), eyes in them open and follow you (WallEye); black water, the Kept's
                                   eyes in the dark (Watcher), the Kept tearing free of the walls (Kept), a crack of daylight at the way out. Atmosphere only
+  Scenes/Lab_Hub.unity            the Hub's lab (Build Lab (The Hub)): the Ferryman's island, a quiet refuge (hub.py): his hut
+                                  (you come up through the trapdoor in its floor; its roof fades inside: Storeys), the path
+                                  down to the jetty and its landing (his boat, the Mooring post), the merchant soul, the
+                                  Areas' way markers, the Far shore. Atmosphere only
   Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in
                                   art/models/characters on a plinth; its clips as made, its attacks as a fight times them
                                   (read from the creature as the builder makes it), everyone at once; slow motion, pause,
