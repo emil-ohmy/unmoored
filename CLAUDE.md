@@ -23,7 +23,8 @@ tools/
   audio/mix_recording.py          rebuilds a recording's audio from its sound-event log
   level-editor.sh [level]         the level editor in the browser (tools/level-editor/: a grid in metres, floors as paths,
                                   rects and rounds, every set piece as a sticker); its little server saves straight into
-                                  game/Assets/_Project/Levels/<level>.json (format "level/2")
+                                  game/Assets/_Project/Levels/<level>.json (format "level/2"). Floors and set pieces carry
+                                  a `note` (the user's intent: "a flat wall here"): read every note before building
   unity.sh                        open | import | build-mac | build-webgl | test
 game/Assets/_Project/
   Art/Models/                     generated FBX (never edit; rebuild from art/models)

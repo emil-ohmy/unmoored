@@ -74,7 +74,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return self.send(200, json.dumps({"saved": os.path.relpath(p, os.path.join(HERE, "..", ".."))}))
 
     def log_message(self, fmt, *args):
-        if "/api/" in (args[0] if args else ""):
+        if "/api/" in str(args[0] if args else ""):
             sys.stderr.write("[level-editor] " + (fmt % args) + "\n")
 
 

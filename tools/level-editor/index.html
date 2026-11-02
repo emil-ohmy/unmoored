@@ -48,6 +48,11 @@
   ul.help li { margin: 3px 0; }
   .toast { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: #3a3324; border: 1px solid var(--accent); padding: 6px 12px; border-radius: 6px; opacity: 0; transition: opacity .25s; pointer-events: none; }
   .toast.show { opacity: 1; }
+  .notelist { list-style: none; padding: 0; margin: 4px 0; }
+  .notelist li { background: #f3e6b9; color: #2b2416; border-radius: 4px; padding: 5px 7px; margin: 5px 0; cursor: pointer; font-size: 12px; white-space: pre-wrap; }
+  .notelist li:hover { outline: 2px solid var(--accent); }
+  .notelist li b { font-weight: 600; color: #6b5427; display: block; font-size: 11px; }
+  .unsaved { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -88,7 +93,7 @@
 "use strict";
 // ---------------------------------------------------------------- the vocabulary (the Figma sticker sheet's)
 const GROUPS = [
-  ["Places", "#3c8b86", [["START", "Start (you begin here)"], ["MP", "Mooring post"], ["AE", "Area entrance"], ["DK", "Dock (and its bell)"], ["SG", "Shortcut (one-way)"], ["HP", "Hook post"], ["AG", "Arena gate (seals the fight)"], ["MSG", "Message on the floor"]]],
+  ["Places", "#3c8b86", [["START", "Start (you begin here)"], ["MP", "Mooring post"], ["AE", "Area entrance"], ["DK", "Dock (and its bell)"], ["SG", "Shortcut (one-way)"], ["HP", "Hook post"], ["AG", "Arena gate (seals the fight)"], ["MSG", "Message on the floor"], ["SEAL", "Sealed door (opens later in the game)"]]],
   ["Ability gates", "#7a5aa6", [["HK", "Gate: Hook"], ["ST", "Gate: Stroke"], ["VT", "Gate: Vault"]]],
   ["Bosses", "#9c2f3a", [["BOSS", "Boss arena (a new Boss)"], ["HOLD", "The Hold, That Would Not Let Go"], ["ANC", "The Antediluvian Anchoress"], ["MOTH", "Father Moth (the Gardener)"], ["HOUR", "The One Who Waits"], ["FERR", "The Ferryman"]]],
   ["Minibosses", "#b3505c", [["MB", "Miniboss (a new one)"], ["UNP", "The Unparted (Hold and Fast)"], ["WAT", "The Watchman (Abner Wick)"], ["WID", "The Widow Hale"]]],
@@ -97,7 +102,7 @@ const GROUPS = [
   ["Provisions", "#b8963e", [["PP", "Pitch Pot"], ["ET", "Ember Tar"], ["WB", "The Way Back"], ["BR", "Warm Broth"], ["RT", "Bitter Root"], ["SS", "Sodden Sack"]]],
   ["Soured", "#b44a3e", [["LA", "Laden"], ["AR", "Laden archer"], ["CL", "Clingers (a pair)"], ["DR", "Drowned"], ["GL", "Gleaner"], ["TH", "Thresher"], ["MO", "Moths"], ["PU", "Punctual"], ["WO", "Wound"], ["KE", "Keener"], ["KP", "The Kept"], ["SC", "Scarecrows"]]],
   ["Traps and devices", "#c46f2c", [["PB", "Pendulum blades"], ["RG", "Rolling gear"], ["CJ", "Clock jacks"], ["GF", "Grinding floor"], ["CU", "Current"], ["SL", "Sluice gate"], ["SP", "Strike-plate (the Stroke starts it)"], ["LI", "Clockwork lift"], ["CD", "Clockwork door"], ["MR", "Mill race"], ["WW", "Water wheel"], ["SH", "Loose barrels or crates"], ["TP", "Pocket of moving time"], ["SA", "Still air (time stopped)"]]],
-  ["The Hold's walls", "#8e9ab0", [["EYE", "An eye that follows"], ["FACE", "A face pressing out"], ["HAND", "A hand pressing out"], ["DRIP", "Drips (all through it)"]]],
+  ["The Hold's walls", "#8e9ab0", [["EYE", "An eye that follows"], ["FACE", "A face pressing out"], ["HAND", "A hand pressing out"], ["DRIP", "Drips (all through it)"], ["EYED", "The door of eyes (won't open yet)"]]],
   ["Light and cover", "#6f6a5d", [["LT", "Lantern"], ["TO", "Torch"], ["BZ", "Brazier"], ["CV", "Cover (crates, barrels)"], ["BN", "Bench"], ["RK", "Rocks"], ["RW", "Ruined wall"], ["MK", "Way marker"]]],
 ];
 const STICKER = {};
@@ -126,6 +131,10 @@ let tool = "select";        // select | rect | circle | path | note | sticker
 let stickerCode = null;
 let floorTop = 0.5;
 let labels = true;          // (L: show the set pieces' labels)
+let showNotes = true;       // (N: show the notes pinned to floors and set pieces)
+let savedText = null;       // the level as last opened or saved (to know what isn't saved yet)
+const levelText = () => JSON.stringify(level);
+const dirty = () => savedText !== null ? levelText() !== savedText : (level.floors.length + level.markers.length + level.notes.length) > 0;
 let drawing = null;         // a path being drawn
 const history = [], future = [];
 function snapshot() { history.push(JSON.stringify(level)); if (history.length > 200) history.shift(); future.length = 0; }
@@ -165,6 +174,11 @@ function render() {
   // Notes and markers.
   level.notes.forEach((t, i) => drawNote(t, i));
   level.markers.forEach((m, i) => drawMarker(m, i));
+  if (showNotes) {
+    placed = [];
+    level.floors.forEach((f, i) => { if (f.note) drawPinned(f.note, floorAnchor(f), "floor", i); });
+    level.markers.forEach((m, i) => { if (m.note) drawPinned(m.note, markerAnchor(m), "marker", i); });
+  }
   // North, and the camera.
   const [nx, ny] = [r.width - 34, 40];
   el("path", { d: `M ${nx} ${ny + 34} V ${ny} M ${nx - 9} ${ny + 11} L ${nx} ${ny} L ${nx + 9} ${ny + 11}`, stroke: "#ece6d8", "stroke-width": 2.5, fill: "none", "stroke-linecap": "round" }, svg);
@@ -175,8 +189,10 @@ function render() {
   el("rect", { x: bx, y: by, width: bar / 2, height: 5, fill: "#5d6a70" }, svg);
   const bt = el("text", { x: bx, y: by + 18, fill: "#a9a394", "font-size": 11 }, svg); bt.textContent = "10 m";
   inspector();
-  document.getElementById("levelName").textContent = (level.name || "untitled") + (server ? (fileName ? `  —  Levels/${fileName}.json` : "  (not saved yet)") : fileHandle ? "" : "  (not saved to a file yet)");
-  try { localStorage.setItem("levelEditor.autosave", JSON.stringify(level)); } catch (_) {}
+  const nameEl = document.getElementById("levelName");
+  nameEl.textContent = (level.name || "untitled") + (server ? (fileName ? `  —  Levels/${fileName}.json` : "  (not saved yet)") : fileHandle ? "" : "  (not saved to a file yet)");
+  if (dirty()) { const u = document.createElement("span"); u.className = "unsaved"; u.textContent = "  •  unsaved changes (⌘S)"; nameEl.appendChild(u); }
+  try { localStorage.setItem("levelEditor.autosave", JSON.stringify({ fileName, level })); } catch (_) {}
 }
 
 function isSel(kind, i) { return selection && selection.kind === kind && selection.index === i; }
@@ -237,6 +253,78 @@ function drawNote(t, i) {
   lines.forEach((line, k) => { const s = el("tspan", { x, dy: k ? 17 : 0 }, txt); s.textContent = line; });
 }
 
+// A note pinned to a floor or a set piece: where it's pinned (screen), above the thing.
+function floorAnchor(f) {
+  if (f.type === "circle") return toScreen(f.e, f.n + f.r);
+  if (f.type === "rect") {
+    const a = (f.rot || 0) * Math.PI / 180, cs = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) => {
+      const dx = sx * f.w / 2, dn = sy * f.h / 2; return toScreen(f.e + dx * Math.cos(a) - dn * Math.sin(a), f.n + dx * Math.sin(a) + dn * Math.cos(a)); });
+    return [cs.reduce((s, c) => s + c[0], 0) / 4, Math.min(...cs.map(c => c[1]))];
+  }
+  // a path: half way along it
+  let half = pathLength(f) / 2;
+  for (let k = 1; k < f.points.length; k++) {
+    const [a, b] = [f.points[k - 1], f.points[k]], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (half <= L || k === f.points.length - 1) { const t = L ? Math.min(1, half / L) : 0; return toScreen(a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])); }
+    half -= L;
+  }
+  return toScreen(f.points[0][0], f.points[0][1]);
+}
+function markerAnchor(m) { const [x, y] = toScreen(m.e, m.n); return [x, y - Math.max(9, Math.min(16, 1.3 * view.ppm))]; }
+function wrap(text, width) {
+  const out = [];
+  for (const para of text.split("\n")) {
+    let line = "";
+    for (const word of para.split(/\s+/)) { if (line && (line + " " + word).length > width) { out.push(line); line = word; } else line = line ? line + " " + word : word; }
+    out.push(line);
+  }
+  return out;
+}
+let placed = [];   // (the pinned notes drawn so far this frame: the next steps up out of their way)
+function drawPinned(text, [x, y], kind, i) {
+  const g = el("g", { "data-kind": kind, "data-index": i, style: "cursor: pointer" }, svg);
+  let lines = wrap(text, 30);
+  if (lines.length > 4) lines = lines.slice(0, 4), lines[3] = lines[3].replace(/.?.?$/, "…");
+  const sel = isSel(kind, i);
+  const stem = el("line", { x1: x, y1: y, stroke: "#f3e6b9", "stroke-width": 1.5 }, g);
+  el("circle", { cx: x, cy: y, r: 2.5, fill: "#f3e6b9" }, g);
+  const box = el("rect", { rx: 3, fill: "#f3e6b9", stroke: sel ? "#ffd27a" : "#0006", "stroke-width": sel ? 2 : 1, opacity: 0.96 }, g);
+  const t = el("text", { fill: "#2b2416", "font-size": 11 }, g);
+  const spans = lines.map((line, k) => { const s = el("tspan", { dy: k ? 14 : 0 }, t); s.textContent = line; return s; });
+  const w = Math.max(...spans.map(s => s.getComputedTextLength())) + 14, h = lines.length * 14 + 9;
+  let bx = x - w / 2, by = y - 14 - h;
+  for (let tries = 0; tries < 12; tries++) {   // up, out of the way of the notes already there
+    const o = placed.find(b => bx < b.x + b.w + 3 && b.x < bx + w + 3 && by < b.y + b.h + 3 && b.y < by + h + 3);
+    if (!o) break;
+    by = o.y - h - 4;
+  }
+  placed.push({ x: bx, y: by, w, h });
+  stem.setAttribute("x2", x); stem.setAttribute("y2", by + h);
+  Object.entries({ x: bx, y: by, width: w, height: h }).forEach(([k, v]) => box.setAttribute(k, v));
+  t.setAttribute("x", bx + 7); t.setAttribute("y", by + 15);
+  spans.forEach(s => s.setAttribute("x", bx + 7));
+  const tip = el("title", {}, g); tip.textContent = text;
+}
+function noteField(box, item) {
+  const t = document.createElement("h3"); t.textContent = "Note"; box.appendChild(t);
+  const input = field(box, "", item.note || "", v => { if (v.trim()) item.note = v; else delete item.note; }, "textarea");
+  input.placeholder = "For the builder: what this should be, e.g. \"a flat, built wall along its north side, the door of eyes in it\". Shown on the map, pinned to it.";
+  return input;
+}
+// Every note in the level, to read them through.
+function allNotes() {
+  const out = [];
+  level.floors.forEach((f, i) => { if (f.note) out.push({ kind: "floor", index: i, what: f.type === "path" ? "A path" : f.type === "circle" ? "A round floor" : "A rectangle", text: f.note }); });
+  level.markers.forEach((m, i) => { if (m.note) out.push({ kind: "marker", index: i, what: (STICKER[m.code] || {}).name || m.code, text: m.note }); });
+  level.notes.forEach((t, i) => out.push({ kind: "note", index: i, what: "On the map", text: t.text }));
+  return out;
+}
+function centreOn(kind, index) {
+  const item = listOf(kind)[index];
+  if (item.points) { const p = item.points[Math.floor(item.points.length / 2)]; view.cx = p[0]; view.cn = p[1]; }
+  else { view.cx = item.e; view.cn = item.n; }
+}
+
 // ---------------------------------------------------------------- the panels
 function buildPalette() {
   const tools = document.getElementById("tools");
@@ -262,7 +350,7 @@ function buildPalette() {
     for (const [code, name] of items) {
       const b = document.createElement("button");
       b.className = "sticker"; b.dataset.code = code; b.title = name;
-      b.innerHTML = `<span class="dot" style="background:${colour}">${code}</span>${name}`;
+      b.innerHTML = `<span class="dot" style="background:${colour};${code.length > 3 ? "font-size:6px;letter-spacing:-.3px" : ""}">${code}</span>${name}`;
       b.onclick = () => { stickerCode = code; setTool("sticker"); };
       box.appendChild(b);
     }
@@ -311,14 +399,28 @@ function inspector() {
     const c = document.createElement("div"); c.className = "muted"; c.style.marginTop = "10px";
     c.innerHTML = `<b>${level.floors.length}</b> floors, <b>${level.markers.length}</b> set pieces, <b>${level.notes.length}</b> notes.`;
     box.appendChild(c);
+    const notes = allNotes();
+    if (notes.length) {
+      const nh = document.createElement("h3"); nh.textContent = `Every note (${notes.length})`; box.appendChild(nh);
+      const ul = document.createElement("ul"); ul.className = "notelist";
+      for (const n of notes) {
+        const li = document.createElement("li");
+        const b = document.createElement("b"); b.textContent = n.what; li.appendChild(b);
+        li.appendChild(document.createTextNode(n.text));
+        li.onclick = () => { selection = { kind: n.kind, index: n.index }; centreOn(n.kind, n.index); render(); };
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
     const help = document.createElement("div");
     help.innerHTML = `<h3>How it's read</h3><ul class="help">
       <li>North is up. The camera looks north from the south, so walls south of where you walk stay low.</li>
       <li>Floors are where you can walk; everything else is the area's rock (a cave's walls grow round them).</li>
       <li>It's a sketch: proportions and distances count, exact outlines don't.</li>
-      <li>A set piece's centre is where it stands; its label says more ("Kept ×2").</li></ul>
+      <li>A set piece's centre is where it stands; its label says more ("Kept ×2").</li>
+      <li>Anything the shapes can't say goes in a note: select a floor or a set piece and write in its Note ("a flat wall here"). It's pinned to it on the map; the builder reads them all.</li></ul>
       <h3>Keys</h3><ul class="help"><li><kbd>V</kbd> select, <kbd>P</kbd> path, <kbd>R</kbd> rect, <kbd>C</kbd> round, <kbd>T</kbd> note</li>
-      <li><kbd>⌘Z</kbd> undo, <kbd>⇧⌘Z</kbd> redo, <kbd>⌘S</kbd> save, <kbd>⌘D</kbd> duplicate</li><li><kbd>F</kbd> fit the level in view, <kbd>L</kbd> labels on or off</li></ul>`;
+      <li><kbd>⌘Z</kbd> undo, <kbd>⇧⌘Z</kbd> redo, <kbd>⌘S</kbd> save, <kbd>⌘D</kbd> duplicate</li><li><kbd>F</kbd> fit the level in view, <kbd>L</kbd> labels on or off, <kbd>N</kbd> notes on or off</li></ul>`;
     box.appendChild(help);
     return;
   }
@@ -341,13 +443,14 @@ function inspector() {
       field(box, "Depth (m)", f.h, v => f.h = Math.max(0.5, v), "number", "0.5");
       field(box, "Turned (°)", f.rot || 0, v => f.rot = v, "number", "5");
     }
-    field(box, "Note", f.note || "", v => f.note = v);
+    noteField(box, f);
   } else if (kind === "marker") {
     const m = level.markers[index], s = STICKER[m.code] || {};
     h.textContent = s.name || m.code;
     const d = document.createElement("div"); d.className = "muted"; d.textContent = `${s.group || ""} · ${m.code} · at ${m.e.toFixed(1)}, ${m.n.toFixed(1)}`; box.appendChild(d);
     const input = field(box, "Label", m.label || "", v => m.label = v, m.code === "MSG" ? "textarea" : "text");
     if (m.code === "MSG") { const p = document.createElement("div"); p.className = "muted"; p.textContent = "What it says (the genre's template, then the dry line: \"Try dodging / {dodge} to dodge...\")."; box.appendChild(p); }
+    noteField(box, m);
     setTimeout(() => input.focus(), 0);
   } else {
     const t = level.notes[index];
@@ -525,6 +628,7 @@ document.addEventListener("keydown", evt => {
   else if (!cmd && "vprct".includes(evt.key.toLowerCase())) setTool({ v: "select", p: "path", r: "rect", c: "circle", t: "note" }[evt.key.toLowerCase()]);
   else if (!cmd && evt.key.toLowerCase() === "f") fit();
   else if (!cmd && evt.key.toLowerCase() === "l") { labels = !labels; render(); }
+  else if (!cmd && evt.key.toLowerCase() === "n") { showNotes = !showNotes; toast(showNotes ? "Notes shown" : "Notes hidden"); render(); }
 });
 document.addEventListener("keyup", evt => { if (evt.code === "Space") spaceDown = false; });
 window.addEventListener("resize", render);
@@ -539,7 +643,7 @@ async function save(as) {
     let name = fileName;
     if (!name || as) { name = prompt("Save as (a name in game/Assets/_Project/Levels/):", fileName || slug(level.name)); if (!name) return; name = slug(name); }
     const r = await fetch("/api/level?name=" + encodeURIComponent(name), { method: "POST", body: text });
-    if (r.ok) { fileName = name; toast("Saved Levels/" + name + ".json"); refreshLevels(); render(); }
+    if (r.ok) { fileName = name; savedText = levelText(); toast("Saved Levels/" + name + ".json"); refreshLevels(); render(); }
     else toast("Couldn't save: " + (await r.text()));
     return;
   }
@@ -547,7 +651,7 @@ async function save(as) {
     try {
       if (!fileHandle || as) fileHandle = await window.showSaveFilePicker({ suggestedName: (level.name || "level").toLowerCase().replace(/[^a-z0-9]+/g, "_") + ".json", types: [{ description: "Level", accept: { "application/json": [".json"] } }] });
       const w = await fileHandle.createWritable(); await w.write(text); await w.close();
-      toast("Saved " + fileHandle.name); render(); return;
+      savedText = levelText(); toast("Saved " + fileHandle.name); render(); return;
     } catch (err) { if (err && err.name === "AbortError") return; }
   }
   const a = document.createElement("a");
@@ -563,11 +667,19 @@ async function refreshLevels() {
   sel.hidden = false;
   document.getElementById("open").textContent = "Open a file…";
 }
-document.getElementById("levels").onchange = async evt => { const n = evt.target.value; if (n) await openNamed(n); };
+document.getElementById("levels").onchange = async evt => {
+  const n = evt.target.value;
+  if (n && dirty() && !confirm("Open " + n + "? Your unsaved changes here are lost.")) { refreshLevels(); return; }
+  if (n) await openNamed(n);
+};
 async function openNamed(name) {
   const r = await fetch("/api/level?name=" + encodeURIComponent(name));
   if (!r.ok) { toast("No level " + name); return; }
   load(await r.text(), null); fileName = name; render();
+}
+// What the last session left unsaved in this browser: {fileName, level} (an older autosave: the level alone).
+function autosaved() {
+  try { const a = JSON.parse(localStorage.getItem("levelEditor.autosave")); return a && a.format === "level/2" ? { fileName: null, level: a } : a; } catch (_) { return null; }
 }
 async function open() {
   if ("showOpenFilePicker" in window) {
@@ -580,7 +692,7 @@ document.getElementById("fileInput").onchange = async evt => { const f = evt.tar
 function load(text, handle) {
   let data = JSON.parse(text);
   if (data.format !== "level/2") data = fromFigma(data);
-  snapshot(); level = data; fileHandle = handle; fileName = null; selection = null; fit(); toast("Opened " + (level.name || ""));
+  snapshot(); level = data; fileHandle = handle; fileName = null; selection = null; savedText = levelText(); fit(); toast("Opened " + (level.name || ""));
 }
 // (an old level, exported from the Figma file: its ground pieces and markers)
 function fromFigma(d) {
@@ -593,7 +705,8 @@ function fromFigma(d) {
 document.getElementById("save").onclick = () => save(false);
 document.getElementById("saveAs").onclick = () => save(true);
 document.getElementById("open").onclick = open;
-document.getElementById("new").onclick = () => { if (!confirm("Start a new level? (unsaved changes are lost)")) return; snapshot(); level = blank(); fileHandle = null; fileName = null; selection = null; view = { cx: 0, cn: 0, ppm: 8 }; render(); };
+document.getElementById("new").onclick = () => { if (dirty() && !confirm("Start a new level? (unsaved changes are lost)")) return; snapshot(); level = blank(); fileHandle = null; fileName = null; savedText = null; selection = null; view = { cx: 0, cn: 0, ppm: 8 }; render(); };
+window.addEventListener("beforeunload", evt => { if (dirty()) { evt.preventDefault(); evt.returnValue = ""; } });
 document.getElementById("undo").onclick = undo;
 document.getElementById("redo").onclick = redo;
 
@@ -603,8 +716,18 @@ buildPalette();
   try { const r = await fetch("/api/levels"); server = r.ok; } catch (_) { server = false; }
   if (server) await refreshLevels();
   const want = new URLSearchParams(location.search).get("level");
-  if (want && server) { await openNamed(want); return; }
-  try { const saved = localStorage.getItem("levelEditor.autosave"); if (saved) { level = JSON.parse(saved); fit(); return; } } catch (_) {}
+  const left = autosaved();
+  if (want && server) {
+    await openNamed(want);
+    // Unsaved work on this level from before (the browser keeps it as you go): offer it back.
+    const same = left && left.level && (left.fileName === want || (!left.fileName && left.level.name === level.name));
+    if (same && JSON.stringify(left.level) !== savedText &&
+        confirm("You have changes to " + want + " that were never saved (from your last session). Bring them back?")) {
+      snapshot(); level = left.level; fit(); toast("Brought back your unsaved changes: ⌘S saves them");
+    }
+    return;
+  }
+  if (left && left.level) { level = left.level; fileName = left.fileName; fit(); return; }
   render();
 })();
 </script>
