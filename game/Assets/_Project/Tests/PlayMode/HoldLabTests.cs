@@ -40,7 +40,7 @@ namespace MyGame.Tests
             Assert.Less(Vector3.Distance(apprentice.transform.position, At(0f, 0f)), 0.5f);
             Assert.IsTrue(apprentice.IsAlive);
             Assert.GreaterOrEqual(UnityEngine.Object.FindObjectsByType<Watcher>(FindObjectsSortMode.None).Length, 6, "the Kept's eyes in the dark");
-            Assert.AreEqual(21, UnityEngine.Object.FindObjectsByType<WallEye>(FindObjectsSortMode.None).Length, "an eye in every socket of the walls");
+            Assert.AreEqual(25, UnityEngine.Object.FindObjectsByType<WallEye>(FindObjectsSortMode.None).Length, "an eye in every socket of the walls");
         }
 
         // A pair of eyes: watching; your lantern comes near and they're gone; you go on, and they're back.
@@ -193,6 +193,142 @@ namespace MyGame.Tests
             Assert.Greater(drips.Fallen, 3, "drops falling, near you");
         }
 
+        // ---- The Hold, That Would Not Let Go (its Boss, at the way out)
+
+        TheHoldWall Boss => UnityEngine.Object.FindAnyObjectByType<TheHoldWall>();
+
+        IEnumerator IntoTheChamber()
+        {
+            apprentice.postHitInvulnerability = 1000f; // (struck once, then left alone: the tests watch it, not you)
+            apprentice.Teleport(Boss.arenaCentre + Vector3.back * 3f + Vector3.up * 0.05f);
+            for (float t = 0f; t < 8f && Boss.State != TheHoldWall.Mood.Fighting; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(TheHoldWall.Mood.Fighting, Boss.State, "awake");
+        }
+
+        static void Strike(HoldPart part, float damage, Vector3 from) =>
+            part.TakeHit(new Hit { Damage = damage, Stagger = 0f, From = from, Knockback = Vector3.zero });
+
+        // Asleep in the wall till you come into its chamber; then it wakes, and the fight's on.
+        [UnityTest]
+        public IEnumerator TheHold_SleepsTillYouCome_ThenWakes()
+        {
+            var boss = Boss;
+            Assert.IsNotNull(boss, "in the chamber's north wall");
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(TheHoldWall.Mood.Dormant, boss.State, "asleep");
+            Assert.IsTrue(boss.wayOut.enabled, "the way out blocked");
+            yield return IntoTheChamber();
+            Assert.AreEqual(boss, BossFight.Current, "its name plate and bar");
+        }
+
+        // A hand slams down where you stand, then lies stunned: struck there, it hurts the whole.
+        [UnityTest]
+        public IEnumerator TheHold_AHandSlams_LiesStunned_AndStrikingItHurtsTheWhole()
+        {
+            yield return IntoTheChamber();
+            var boss = Boss;
+            HoldPart open = null;
+            for (float t = 0f; t < 20f && open == null; t += Time.deltaTime)
+            {
+                open = boss.handL.Open ? boss.handL : boss.handR.Open ? boss.handR : null;
+                yield return null;
+            }
+            Assert.IsNotNull(open, "a hand lying stunned after a slam");
+            Assert.Greater(boss.Slams, 0);
+            Assert.IsTrue(open.Targetable, "in reach");
+            Strike(open, 20f, apprentice.transform.position);
+            Assert.Less(boss.HealthFraction, 1f, "it hurt the whole");
+        }
+
+        // Wound both hands and they withdraw into the wall; then the face sags down into reach, and takes harm doubly.
+        [UnityTest]
+        public IEnumerator TheHold_BothHandsWithdrawn_TheFaceSags_AndItsBlowsCountDouble()
+        {
+            yield return IntoTheChamber();
+            var boss = Boss;
+            for (float t = 0f; t < 45f && !(boss.Withdrawn(true) && boss.Withdrawn(false)); t += Time.deltaTime)
+            {
+                if (boss.handL.Open) Strike(boss.handL, boss.handWound, apprentice.transform.position);
+                if (boss.handR.Open) Strike(boss.handR, boss.handWound, apprentice.transform.position);
+                yield return null;
+            }
+            Assert.IsTrue(boss.Withdrawn(true) && boss.Withdrawn(false), "both hands back in the wall");
+            for (float t = 0f; t < 4f && !boss.Sagged; t += Time.deltaTime)
+                yield return null;
+            Assert.IsTrue(boss.Sagged, "the face sagged into reach");
+            float was = boss.HealthFraction;
+            Strike(boss.face, 20f, apprentice.transform.position);
+            Assert.AreEqual(was - 40f / boss.maxHealth, boss.HealthFraction, 0.001f, "doubly");
+        }
+
+        // Beaten, it lets go: the way out opens, and it's in the Ledger.
+        [UnityTest]
+        public IEnumerator TheHold_Beaten_LetsGo_AndTheWayOutOpens()
+        {
+            yield return IntoTheChamber();
+            var boss = Boss;
+            for (float t = 0f; t < 45f && boss.IsAlive; t += Time.deltaTime)
+            {
+                foreach (var part in new[] { boss.handL, boss.handR, boss.face })
+                    if (part.Open)
+                        Strike(part, 200f, apprentice.transform.position);
+                yield return null;
+            }
+            Assert.IsFalse(boss.IsAlive, "beaten");
+            Assert.AreEqual("LET GO", boss.Farewell);
+            yield return new WaitForSeconds(5.5f);
+            Assert.IsFalse(boss.wayOut.enabled, "its mouth open on the way out");
+            Assert.AreEqual(TheHoldWall.Mood.Gone, boss.State);
+            Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.TheHold), "written in the Ledger");
+        }
+
+        // (SHOTS=dir) The fight from the game camera: waking, the hands, a slam and the stunned hand, the face sagged.
+        [UnityTest]
+        public IEnumerator Capture_TheHoldFight()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            void Shot(string name)
+            {
+                var rt = new RenderTexture(1600, 900, 24);
+                cam.targetTexture = rt;
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0);
+                File.WriteAllBytes(Path.Combine(outDir, $"fight-{name}.png"), tex.EncodeToPNG());
+                cam.targetTexture = null;
+                RenderTexture.active = null;
+                UnityEngine.Object.Destroy(tex);
+                rt.Release();
+            }
+            var boss = Boss;
+            apprentice.postHitInvulnerability = 1000f;
+            apprentice.Teleport(boss.arenaCentre + Vector3.back * 2f + Vector3.up * 0.05f);
+            yield return new WaitForSeconds(2f);
+            Shot("1-waking");
+            yield return new WaitForSeconds(2.5f);
+            Shot("2-awake");
+            int slams = boss.Slams;
+            for (float t = 0f; t < 15f && boss.Slams == slams; t += Time.deltaTime)
+                yield return null;
+            Shot("3-slam");
+            yield return new WaitForSeconds(0.5f);
+            Shot("4-stunned");
+            for (float t = 0f; t < 45f && !(boss.Withdrawn(true) && boss.Withdrawn(false)); t += Time.deltaTime)
+            {
+                if (boss.handL.Open) Strike(boss.handL, boss.handWound, apprentice.transform.position);
+                if (boss.handR.Open) Strike(boss.handR, boss.handWound, apprentice.transform.position);
+                yield return null;
+            }
+            yield return new WaitForSeconds(2.5f);
+            Shot("5-sagged");
+        }
+
         // (SHOTS=dir) An eye in the wall up close, from in front: shut, then open (to see its parts are the right way round).
         [UnityTest]
         public IEnumerator Capture_AnEye()
@@ -244,7 +380,7 @@ namespace MyGame.Tests
             var cam = Camera.main;
             foreach (var (name, at) in new[] { ("1-pool", At(0f, 0f)), ("2-passage", At(0.4f, 12f)), ("3-passage", At(2.6f, 19f)), ("4-gallery", At(4f, 35f)),
                                                ("5-gallery", At(4f, 42f)), ("6-lake", At(5f, 58f)), ("7-mooring", At(-6f, 53.5f)), ("8-ramp", At(-8.4f, 69.9f, 4.1f)),
-                                               ("9-crack", At(-2.4f, 68.6f, 6f)) })
+                                               ("9-crack", At(-2.4f, 68.6f, 6f)), ("10-chamber", At(-1f, 78f, 6f)) })
             {
                 apprentice.Teleport(at + Vector3.up * 0.05f);
                 yield return new WaitForSeconds(2.5f);

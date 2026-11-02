@@ -15,8 +15,13 @@ The way, south to north (the camera looks north from the south, 15 m back, 50 de
 - the Black Water: a cavern north-west, a still lake; a ledge round its east and north sides; a rock islet near its middle
   (the game's Mooring post), a rock bar to it from the east ledge;
 - the Way Out: from the north ledge's west end a rock ramp with broad steps climbs back east along the north wall to a
-  ledge before a tall narrow crack in the wall (the game pours grey daylight through it); beyond it a few metres of
-  rock, then nothing.
+  ledge before a tall narrow crack in the wall; through it, a short threshold (a rock-walled gap through the wall, then
+  a passage between living walls) into
+- the Chamber of That Would Not Let Go (the Hold's Boss): a round cavern up at the crack's level, its floor flat rock,
+  its walls tall on the north, east and west (faces and hands in the east and west walls), low on the south. Its north
+  wall is a broad, smooth, gently concave face, clear of the kept: the Boss's face and arms (the game's) come out of it.
+  At that wall's foot, behind where the face hangs, a tunnel mouth: a short tunnel north under the rock, rising, to an
+  opening open above and to the north (the game lights grey daylight there): the way out, to the Hub.
 Every wall is one sheet (a curtain round the open space: finely divided, smooth); the rock mass round the spaces is a
 height field (its tops low south of any floor, so the camera always sees the way).
 
@@ -68,14 +73,24 @@ RAMP_W, LAND_W, RAMP_BACK = 2.05, 2.7, 0.6             # its width (from the wal
 RAMP_FOOT = 1.6                                        # a round of floor at its foot (the north ledge's west end)
 STEPS, STEP_H, TOP_U = 9, 0.22, 6.0                    # its broad steps; the top ledge's height
 CRACK_E, CRACK_W, CRACK_H = -2.0, 1.5, 4.0             # the crack in the north wall (its middle's e; width; height)
-CRACK_DEPTH = 3.6                                      # how far it runs back into the rock
-SPACES = ["pool", "passage", "gallery", "throat", "lake"]
-H_TALL = [6.8, 6.2, 8.4, 5.6, 8.6]                     # the walls' tops (u) on the far sides of each space
-H_LOW = 1.3                                            # the walls' tops on the near (south) sides
+CRACK_FOOT = (-2.06, 70.31)                            # the crack's middle at the wall's foot (the wall there faces
+_CD = math.hypot(0.33, 0.94)                           # (-0.33, -0.94)): the way the crack runs in, and across it
+CRACK_DIR = (0.33 / _CD, 0.94 / _CD)
+CRACK_SIDE = (CRACK_DIR[1], -CRACK_DIR[0])
+CRACK_END = 1.8                                        # how far the crack runs in (through the wall, to the threshold)
+THRESH_LEN, THRESH_HW = 4.4, 1.4                       # the threshold passage beyond (on from the crack, into the chamber)
+CHAMBER_C, CHAMBER_R = (-1.0, 82.0), 8.5               # the Boss's chamber (its floor at TOP_U)
+BOSS_E, BOSS_N, BOSS_BOW, BOSS_HALF = -1.0, 90.5, 22.0, 7.5   # its north wall's face: foot line n = BOSS_N - (e - BOSS_E)^2
+#                                                        / (2 BOSS_BOW), from e BOSS_E - BOSS_HALF to BOSS_E + BOSS_HALF
+TUNNEL_W, TUNNEL_H, TUNNEL_RISE = 2.4, 3.0, 1.0        # the way out behind it: its mouth; how far its floor rises
+TUNNEL_ROOF, CLEFT_HW = 5.5, 1.4                       # where its roof ends (the opening, open above and north): its half-width
+SPACES = ["pool", "passage", "gallery", "throat", "lake", "chamber", "threshold"]
+H_TALL = [6.8, 6.2, 8.4, 5.6, 8.6, 15.3, 7.9]          # the walls' tops (u) on the far sides of each space
+H_LOW = [1.3, 1.3, 1.3, 1.3, 1.3, 6.75, 6.75]            # the walls' tops on the near (south) sides
 TAN_WALK, TAN_WATER = 1.0, 1.15                        # how steeply anything south of a floor may rise (the camera)
 
 RES = 0.2                                              # the fields' grid
-GX0, GX1, GY0, GY1 = -32.0, 22.0, -18.0, 86.0
+GX0, GX1, GY0, GY1 = -32.0, 22.0, -18.0, 104.0
 STEP = 0.3                                             # the living walls' vertex spacing
 
 S_TOP = math.radians(RAMP_T0 - RAMP_TL) * RAMP_RMID
@@ -279,6 +294,47 @@ def sd_rrect(E, N, e0, e1, n0, n1, r):
     return np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - r
 
 
+def sd_obox(E, N, p0, d, length, hw, r):
+    """A rounded box from p0 along the direction d (unit), length long, hw either side of its middle line."""
+    x = (E - p0[0]) * d[1] - (N - p0[1]) * d[0]
+    y = (E - p0[0]) * d[0] + (N - p0[1]) * d[1]
+    return sd_rrect(x, y, -hw, hw, 0.0, length, r)
+
+
+def boss_foot(e):
+    """The Boss's wall: its foot line (n) at e (a shallow arc, concave towards the chamber)."""
+    return BOSS_N - (np.asarray(e, float) - BOSS_E) ** 2 / (2 * BOSS_BOW)
+
+
+def sd_chamber(E, N):
+    """The Boss's chamber: a round cavern, its north side squared off into the Boss's broad wall."""
+    circ = sd_circle(E, N, CHAMBER_C, CHAMBER_R)
+    north = sd_rrect(E, N, BOSS_E - BOSS_HALF, BOSS_E + BOSS_HALF, CHAMBER_C[1], BOSS_N + 1.0, 3.0)
+    return smax(smin(circ, north, 1.5), N - boss_foot(E), 0.8)
+
+
+def sd_threshold(E, N):
+    p0 = (CRACK_FOOT[0] + CRACK_DIR[0] * CRACK_END, CRACK_FOOT[1] + CRACK_DIR[1] * CRACK_END)
+    return sd_obox(E, N, p0, CRACK_DIR, THRESH_LEN, THRESH_HW, 0.25)
+
+
+def crack_frame(e, n):
+    """(across, in): a point's offset across the crack (east +) and how far in from its foot."""
+    de, dn = np.asarray(e, float) - CRACK_FOOT[0], np.asarray(n, float) - CRACK_FOOT[1]
+    return de * CRACK_SIDE[0] + dn * CRACK_SIDE[1], de * CRACK_DIR[0] + dn * CRACK_DIR[1]
+
+
+def tunnel_hw(rel):
+    """The tunnel mouth's half-width at a fraction of its height (straight sides, a round top)."""
+    t = np.clip((np.asarray(rel, float) - 0.62) / 0.38, 0, 1)
+    return TUNNEL_W / 2 * np.sqrt(np.clip(1 - t * t, 0, 1))
+
+
+def tunnel_floor(a):
+    """The tunnel's floor (u) at a distance a in from the Boss's wall."""
+    return TOP_U + TUNNEL_RISE * smoothstep(0.3, 7.0, a)
+
+
 def r_cav(theta):
     """The Black Water cavern's wall (no noise), its distance from LAKE_C at an angle (degrees from east)."""
     t = np.radians(theta)
@@ -343,7 +399,11 @@ class Plan:
         gallery = sd_rrect(E, N, *GALLERY, 2.5)
         throat = sd_chain(E, N, THROAT, THROAT_R)
         cavern = sd_qellipse(E, N, LAKE_C, CAVERN)
-        self.spaces = np.stack([pool, passage, gallery, throat, cavern])
+        chamber = sd_chamber(E, N)
+        thresh = sd_threshold(E, N)
+        self.spaces = np.stack([pool, passage, gallery, throat, cavern, chamber, thresh])
+        high = smin(chamber, thresh, 0.8)          # (up at the crack's level: the threshold and the chamber)
+        self.chamber_sd = chamber
         gpool = sd_rrect(E, N, *GPOOL, 1.2)
         water_l = sd_qellipse(E, N, LAKE_C, WATER)
         ledge = np.maximum(cavern, -water_l)
@@ -353,12 +413,19 @@ class Plan:
                                  sd_circle(E, N, L_ISLET_C, L_ISLET_R), sd_chain(E, N, L_BAR, 0.75)])
         isl = np.minimum(isl + rough * smoothstep(-0.6, 0.0, isl), isl + 0.12)   # (rough shores, never much inside)
         floor = np.minimum.reduce([isl, passage, np.maximum(gallery, -gpool), throat, np.maximum(ledge, ledge + rough),
-                                   foot])
+                                   foot, high + 0.3])
         self.floor_sd = floor
         th, rho = polar(E, N)
         quiet = smoothstep(20, 40, th) * smoothstep(175, 150, th) * smoothstep(6, 9, rho)
         o = smin(smin(smin(smin(pool, passage, 1.2), gallery, 1.5), throat, 1.0), cavern, 1.5)
         o = o + (0.5 * fbm(E * 0.17, N * 0.17, 0.3, 2, seed=3) + 0.15 * fbm(E * 0.6, N * 0.6, 0.7, 2, seed=4)) * (1 - quiet)
+        # The chamber's walls a little irregular (never in: the noise only widens it), but not the Boss's wall, nor
+        # round the threshold's end (just behind the crack's wall).
+        _, along = crack_frame(E, N)
+        calm = np.maximum(smoothstep(BOSS_HALF + 1.5, BOSS_HALF, np.abs(E - BOSS_E)) * smoothstep(84.5, 87.5, N),
+                          smoothstep(CRACK_END + 4.5, CRACK_END + 2.5, along))
+        rough_hi = (0.3 * fbm(E * 0.17, N * 0.17, 0.3, 2, seed=3) + 0.1 * fbm(E * 0.6, N * 0.6, 0.7, 2, seed=4)) * (1 - calm)
+        o = np.minimum(o, np.minimum(high, high + rough_hi))
         o = np.minimum(o, floor - 0.3)
         self.O = o
         gy, gx = np.gradient(o, RES)
@@ -372,6 +439,9 @@ class Plan:
         self.ramp_full = in_ramp(E, N, full=True)
         th_r = np.clip(th, RAMP_T1, RAMP_T0)
         level = TOP + 0.035 * fbm(E * 0.5, N * 0.5, 1.7, 2, seed=5)
+        level = np.where((high < 3.0) & (high < self.spaces[:5].min(axis=0)), TOP_U, level)   # (flat)
+        self.thr_only = (thresh < 0.3) & (chamber > 0.3)
+        self.high_floor = (high < 1.0) & (high < self.spaces[:5].min(axis=0))
         level = np.where(self.ramp_full, ramp_h(ramp_s(th_r)), level)
         shore = 0.47 - 2.0 * np.maximum(floor, 0) - 0.25 * smoothstep(0.0, 0.5, floor) * fbm(E * 1.1, N * 1.1, 0.9, 2, seed=7)
         level = np.where(water, np.maximum(bed, shore), level)
@@ -383,7 +453,8 @@ class Plan:
         tall = np.array(H_TALL)[idx] + 0.7 * fbm(E * 0.12, N * 0.12, 2.1, 2, seed=6)
         tall = tall + np.where(idx == 4, 4.2 * np.exp(-((E - CRACK_E) / 5.0) ** 2) * smoothstep(64, 68, N), 0.0)
         facing = smoothstep(-0.6, -0.05, self.gy)
-        self.hwall = H_LOW + (tall - H_LOW) * facing
+        low = np.array(H_LOW)[idx]
+        self.hwall = low + (tall - low) * facing
         self.C = self.camera_ceiling()
         self.hc = np.minimum(self.hwall, self.C)
         d = np.maximum(o, 0)
@@ -396,15 +467,20 @@ class Plan:
         """How tall anything at each point may stand before it hides a floor (or the middle of the water) north of it
         from the camera (from the south, looking down)."""
         rows, cols = self.O.shape
-        walk = np.where(self.floor & (self.O < -0.7), self.level + 0.25, np.inf)
+        walk = np.where(self.floor & (self.O < -0.7) & ~self.high_floor, self.level + 0.25, np.inf)
         wet = np.where(self.water & (self.O < -2.0), 0.25, np.inf)
+        # The chamber's floor (not the threshold's: it's seen through the crack and over its wall), only where it
+        # limits anything (the walls round the crack, the rock between): elsewhere the cave's as it was.
+        high = np.where(self.floor & (self.O < -0.7) & self.high_floor & ~self.thr_only, self.level + 0.25, np.inf)
         C = np.full(self.O.shape, np.inf)
-        for vals, tan in ((walk, TAN_WALK), (wet, TAN_WATER)):
+        for vals, tan in ((walk, TAN_WALK), (wet, TAN_WATER), (high, TAN_WALK)):
             run = np.full(cols, np.inf)
             out = np.empty(self.O.shape)
             for j in range(rows - 1, -1, -1):
                 run = np.minimum(run + RES * tan, vals[j])
                 out[j] = run
+            if vals is high:
+                out = np.where(out > 16.5, np.inf, out)
             C = np.minimum(C, out)
         C = np.minimum(C, np.minimum(np.roll(C, 1, axis=1), np.roll(C, -1, axis=1)))
         return np.minimum(C, 60.0)
@@ -579,17 +655,26 @@ def wall_columns(plan):
             H = 0.5 * H + 0.25 * (np.roll(H, 1) + np.roll(H, -1))
         H = np.minimum(H, raw + 0.25)
         H = np.maximum(H, base + 0.75)
+        # The crack's wall stands a little over the crack, whatever the chamber behind it would like (the camera).
+        off = np.abs(P[:, 0] - CRACK_FOOT[0])
+        crack_min = TOP_U + CRACK_H + 0.45 - 1.6 * smoothstep(0.7, 2.4, off)
+        H = np.where((space == 4) & (P[:, 1] > 64) & (off < 2.4), np.maximum(H, crack_min), H)
+        # The Boss's wall: smooth, hardly leaning.
+        boss = smoothstep(BOSS_HALF + 0.3, BOSS_HALF - 1.2, np.abs(P[:, 0] - BOSS_E)) * smoothstep(0.45, 0.75, Nv[:, 1]) \
+            * (space == 5) * smoothstep(86.0, 88.0, P[:, 1])
         ref = np.maximum(base, 0.0)
         wob = fbm(P[:, 0] * 0.4, P[:, 1] * 0.4, 5.5, 2, seed=8)
         oh = np.clip(0.065 * (H - ref), 0, 0.42) * (0.55 + 0.45 * np.clip(wob + 0.5, 0, 1))
         q = P - Nv * 0.45
         oh *= smoothstep(H - 1.2, H + 0.4, plan.sample(plan.C, q[:, 0], q[:, 1]))   # (no lean where it would hide a floor)
+        oh *= 1 - 0.6 * boss
         for k in range(len(P)):
             c = Column()
             c.loop, c.k, c.s = li, k, k * spacing
             c.e, c.n = float(P[k, 0]), float(P[k, 1])
             c.N = (float(Nv[k, 0]), float(Nv[k, 1]))
             c.base, c.H, c.oh, c.space, c.ref = float(base[k]), float(H[k]), float(oh[k]), int(space[k]), float(ref[k])
+            c.boss = float(boss[k])
             c.d, c.u, c.zone, c.t, c.nd, c.nu = profile(c.base, c.H, c.oh)
             cols.append(c)
     return cols
@@ -637,6 +722,7 @@ def build_walls(plan, mesh, MT, rng):
         du = (U[same] - b["u"]) / b["su"]
         disp[same] += b["amp"] * np.exp(-(ds * ds + du * du) ** 1.3)
     disp *= np.where(Z == 2, 0.35, 1.0)
+    disp *= 1 - 0.8 * np.array([c.boss for c in cols])[ci]      # (the Boss's wall: smooth)
     # Flatten the wall round every place something sits in it (an eye, a face, the crack).
     for st in sites:
         if st["kind"] not in ("eye", "presence", "crack"):
@@ -682,7 +768,13 @@ def build_walls(plan, mesh, MT, rng):
             tris.append(idx)
     tris = np.array(tris)
     cen = X[tris].mean(axis=1)
-    keep = ~in_crack(cen[:, 0], cen[:, 1], cen[:, 2], margin=0.0)
+    # The crack through the lake's wall (its face: its rolled top stays, over the crack's passage) and on through the
+    # threshold's end wall (as wide as the passage behind the crack); the tunnel's mouth in the Boss's wall.
+    tsp = SP[tris[:, 0]]
+    lake_face = (tsp == 4) & (Z[tris].max(axis=1) <= 1)
+    keep = ~(in_crack(cen[:, 0], cen[:, 1], cen[:, 2]) & (lake_face | (tsp != 4)))
+    keep &= ~(in_crack(cen[:, 0], cen[:, 1], cen[:, 2], wide=True) & (tsp == 6))
+    keep &= ~(in_tunnel(cen[:, 0], cen[:, 1], cen[:, 2]) & (tsp == 5))
     tris = tris[keep]
     cen = cen[keep]
     # Pale streaks, a face wide: down the crests of some folds (like cloth), and along veins wandering through the
@@ -690,6 +782,7 @@ def build_walls(plan, mesh, MT, rng):
     phase = np.floor(S / 1.6 + 0.8 * fbm(BE * 0.13, BN * 0.13, U * 0.11, 2, seed=12))
     marble = fbm(BE * 0.2 + U * 0.05, BN * 0.2, U * 0.14, 3, seed=21)
     crest = phase[tris].min(axis=1) != phase[tris].max(axis=1)
+    crest &= np.array([c.boss for c in cols])[ci][tris].max(axis=1) < 0.2     # (no folds on the Boss's wall)
     seam = (marble[tris].min(axis=1) < 0) & (marble[tris].max(axis=1) > 0)
     m1 = (fbm(cen[:, 0] * 0.3, cen[:, 1] * 0.3, cen[:, 2] * 0.9, 2, seed=23) > 0.22) \
         & (fbm(cen[:, 0] * 0.08, cen[:, 1] * 0.08, 0.3, 1, seed=25) > -0.1)
@@ -702,10 +795,21 @@ def build_walls(plan, mesh, MT, rng):
     return cols, sites
 
 
-def in_crack(e, n, u, margin=0.0):
+def in_crack(e, n, u, wide=False):
+    """In the crack's hole (wide: as wide as its passage's sides behind the hole)."""
     rel = (np.asarray(u) - TOP_U) / CRACK_H
-    w = CRACK_W / 2 * np.power(np.clip(1 - np.clip(rel, 0, 1) ** 1.7, 0, 1), 0.7) + margin
-    return (np.abs(np.asarray(e) - CRACK_E) < w) & (rel > -0.02) & (rel < 1.0) & (np.asarray(n) > 66.0)
+    w = CRACK_W / 2 * np.power(np.clip(1 - np.clip(rel, 0, 1) ** 1.7, 0, 1), 0.7)
+    if wide:
+        w = w + 0.28 * (1 - 0.5 * np.clip(rel, 0, 1)) + 0.04
+    x, a = crack_frame(e, n)
+    return (np.abs(x) < w) & (rel > -0.02) & (rel < 1.0) & (a > -1.5) & (a < CRACK_END + 0.6)
+
+
+def in_tunnel(e, n, u):
+    """In the tunnel's mouth (in the Boss's wall)."""
+    rel = (np.asarray(u) - TOP_U) / TUNNEL_H
+    return (np.abs(np.asarray(e) - BOSS_E) < tunnel_hw(rel)) & (rel > -0.02) & (rel < 1.0) \
+        & (np.abs(np.asarray(n) - BOSS_N) < 1.5)
 
 
 def surface(cols, k, u, frac=0.0):
@@ -748,7 +852,8 @@ def choose_sites(cols, offsets, U, rng):
         return True
 
     # The crack: on the north wall, above the top ledge.
-    k = min((i for i, c in enumerate(cols) if c.n > 64 and c.N[1] > 0.5), key=lambda i: abs(cols[i].e - CRACK_E))
+    k = min((i for i, c in enumerate(cols) if c.space == 4 and c.n > 64 and c.N[1] > 0.5),
+            key=lambda i: abs(cols[i].e - CRACK_E))
     sites.append(dict(kind="crack", col=k, u=TOP_U + CRACK_H / 2, flat=(2.6, 3.6), row=-1))
     taken.append((cols[k].e, cols[k].n, TOP_U + 2, 3.0))
     # Eyes (row-aligned: the game's socket fills the hole round one vertex), and the presence spots.
@@ -809,7 +914,62 @@ def choose_sites(cols, offsets, U, rng):
         c = cols[i]
         sites.append(dict(kind="body", col=i, s=c.s, u=c.ref + rng.uniform(0.8, max(1.0, c.H - c.ref - 1.2)),
                           amp=rng.uniform(0.08, 0.16), ss=rng.uniform(0.3, 0.5), su=rng.uniform(0.5, 0.9)))
+    chamber_sites(cols, sites, taken, free)
     return sites
+
+
+def chamber_sites(cols, sites, taken, free):
+    """The chamber's east and west walls: a few eyes, presence spots, reliefs of the kept (fewer than the gallery's).
+    Never on the Boss's wall. (Their own dice, after everything else's: nothing else moves.)"""
+    rng = random.Random(8231)
+
+    def ok(i, need):
+        c = cols[i]
+        if c.space != 5 or abs(c.N[0]) < 0.55 or c.boss > 0.0 or c.n < 75.5 or c.H - c.ref < need:
+            return False
+        return 3 <= i < len(cols) - 3 and cols[i - 3].loop == c.loop == cols[i + 3].loop
+
+    for kind, count, gap, flat in (("presence", 4, 0.85, (0.55, 0.9)), ("eye", 6, 0.95, (0.62, 0.95))):
+        cand = [i for i in range(len(cols)) if ok(i, 3.0)]
+        rng.shuffle(cand)
+        got = 0
+        for i in cand:
+            if got >= count:
+                break
+            c = cols[i]
+            rows = [r for r in range(len(c.u)) if c.zone[r] == 1 and 0.9 <= c.u[r] - c.ref <= 2.5]
+            r = rng.choice(rows)
+            u = float(c.u[r])
+            if kind == "presence":
+                u = c.ref + rng.uniform(1.1, 2.1)
+            if not free(c.e, c.n, u, gap):
+                continue
+            taken.append((c.e, c.n, u, gap))
+            sites.append(dict(kind=kind, col=i, row=r if kind == "eye" else -1, u=u, flat=flat, space="chamber"))
+            got += 1
+    cand = [i for i in range(len(cols)) if ok(i, 1.6)]
+    got, tries = 0, 0
+    while got < 14 and tries < 2000:
+        tries += 1
+        i = rng.choice(cand)
+        c = cols[i]
+        face = rng.random() < 0.55
+        size = rng.uniform(0.85, 1.35) if face else rng.uniform(0.7, 1.1)
+        if rng.random() < 0.25:
+            size *= 1.4
+        lo, hi = c.ref + 0.35 + size * 0.5, min(c.H - 0.45 - size * 0.75, c.ref + 6.0)
+        if hi <= lo:
+            continue
+        u = rng.uniform(lo, hi)
+        if not free(c.e, c.n, u, size * 0.52):
+            continue
+        taken.append((c.e, c.n, u, size * 0.5))
+        sites.append(dict(kind="face" if face else "hand", col=i, row=-1, u=u, size=size, flat=(size * 0.8, size * 1.25),
+                          space="chamber"))
+        got += 1
+        if face and rng.random() < 0.6 and u - size * 1.3 > c.ref + 0.3:   # the body under it
+            sites.append(dict(kind="body", col=i, s=c.s + rng.uniform(-0.1, 0.1), u=u - size * 1.3, amp=0.12 * size,
+                              ss=size * 0.7, su=size * 0.9))
 
 
 # ---------------------------------------------------------------- the kept: reliefs (faces, hands) as height maps
@@ -1090,8 +1250,12 @@ def build_ground(plan, mesh, MT):
     near = plan.sample(plan.level, E - (d + 0.35) * gx, N - (d + 0.35) * gy)
     h = np.where(O < 0, lev, np.where(O < 0.95, near, R))
     h = np.where(ramp, 0.3, h)
-    # The crack: no ground in its way (a lid of rock goes over its passage; beyond its end, nothing).
-    strip = (np.abs(E - CRACK_E) < 1.7) & (N > 66.0) & (O > -1.2) & (O < CRACK_DEPTH + 3.3)
+    # No ground in the crack's way (its passage has its own floor, to the threshold's), in the tunnel's mouth (its own
+    # floor), nor over the opening at its end (open above, the cleft's walls and lips round it).
+    x, a = crack_frame(E, N)
+    strip = (np.abs(x) < 1.15) & (a > -1.5) & (a < CRACK_END - 0.05) & (O < 0.95)
+    strip |= (np.abs(E - BOSS_E) < 1.45) & (N - BOSS_N > -0.05) & (N - BOSS_N < 1.45) & (O < 0.95)
+    strip |= (np.abs(E - BOSS_E) < CLEFT_HW - 0.05) & (N - BOSS_N > TUNNEL_ROOF + 0.05)   # (its edges on grid lines)
     rows, cols = E.shape
     idx = np.arange(rows * cols).reshape(rows, cols)
     V = np.stack([E.ravel(), N.ravel(), h.ravel()], axis=1)
@@ -1115,9 +1279,16 @@ def build_ground(plan, mesh, MT):
     hmean = hv[T].mean(axis=1)
     cen = V[T].mean(axis=1)
     damp = fbm(cen[:, 0] * 0.35, cen[:, 1] * 0.35, 3.3, 2, seed=31) > 0.25
+    # The chamber: dark wet rock in patches along its east and west sides (no water up here).
+    csd = plan.sample(plan.chamber_sd, cen[:, 0], cen[:, 1])
+    wet_side = (csd < 0) & (csd > -0.75 - 0.6 * fbm(cen[:, 0] * 0.5, cen[:, 1] * 0.5, 7.7, 2, seed=33)) \
+        & (np.abs(cen[:, 0] - BOSS_E) > 4.5) & (cen[:, 1] > 75.5) & (cen[:, 1] < 88.0) \
+        & (fbm(cen[:, 0] * 0.3, cen[:, 1] * 0.3, 2.9, 2, seed=32) > -0.12)
     mats = []
-    for af, an, hm, dp in zip(allfloor, anyfloor, hmean, damp):
-        if af:
+    for af, an, hm, dp, ws in zip(allfloor, anyfloor, hmean, damp, wet_side):
+        if af and ws:
+            mats.append(MT["wet"])
+        elif af:
             mats.append(MT["rock"])
         elif an and hm > -1.0:
             mats.append(MT["wet"])
@@ -1209,16 +1380,15 @@ def build_ramp(cols, plan, mesh, MT):
 
 
 def build_crack(cols, sites, plan, mesh, MT):
-    """The crack's passage: its sides follow the hole in the living wall (a little wider, just behind it), its floor
-    goes on from the top ledge's edge, a lid of rock over it; open at its far end (beyond: nothing)."""
+    """The crack's passage through the lake's wall: its sides follow the hole in the living wall (a little wider, just
+    behind it), its floor goes on from the top ledge's edge into the threshold's; it comes out through the threshold's
+    end wall (lower there: the lake wall's rolled top and a lid of rock go over it)."""
     st = next(s for s in sites if s["kind"] == "crack")
     k = st["col"]
     c = cols[k]
-    nrm = np.array([c.N[0], c.N[1], 0.0])            # into the rock
-    side = np.array([nrm[1], -nrm[0], 0.0])
-    if side[0] < 0:
-        side = -side
-    foot = np.array([c.e, c.n, 0.0])
+    nrm = np.array([CRACK_DIR[0], CRACK_DIR[1], 0.0])     # into the rock
+    side = np.array([CRACK_SIDE[0], CRACK_SIDE[1], 0.0])  # across (east)
+    foot = np.array([CRACK_FOOT[0], CRACK_FOOT[1], 0.0])
     margin = 0.28
     us = list(np.linspace(TOP_U - 0.05, TOP_U + CRACK_H + 0.12, 16))
     half = []
@@ -1229,12 +1399,15 @@ def build_crack(cols, sites, plan, mesh, MT):
     outline = [(-w, u) for w, u in zip(half, us)] + [(w, u) for w, u in reversed(list(zip(half, us))[:-1])]
     outline[len(us) - 1] = (0.0, us[-1])
     lean = {round(u, 5): float(np.dot(surface(cols, k, u) - foot, nrm)) for u in us}
-    depths = [0.0, 0.5, 1.2, 2.0, 2.8, CRACK_DEPTH]
+    end = CRACK_END + 0.15
+    depths = [0.0, 0.5, 1.0, 1.45, end]
+    knee, apex_end = TOP_U + 1.3, TOP_U + 2.4      # (behind the wall its top comes down: under the lid at its end)
 
     def point(x, u, dpt):
-        jag = 0.06 * float(noise3(x * 3 + dpt, u * 2.5, 0.0, seed=51)) if 0 < dpt < CRACK_DEPTH else 0.0
-        p = foot + side * (x * (1 + 0.07 * dpt) + jag) + nrm * (lean[round(u, 5)] + dpt + 0.06)
-        p[2] = u
+        jag = 0.06 * float(noise3(x * 3 + dpt, u * 2.5, 0.0, seed=51)) if 0 < dpt < end else 0.0
+        p = foot + side * (x * (1 + 0.04 * dpt) + jag) + nrm * (lean[round(u, 5)] + dpt + 0.06)
+        apex = us[-1] + (apex_end - us[-1]) * float(smoothstep(1.0, end, dpt))
+        p[2] = u if u <= knee else knee + (u - knee) * (apex - knee) / (us[-1] - knee)
         return p
 
     V, rings = [], []
@@ -1250,37 +1423,38 @@ def build_crack(cols, sites, plan, mesh, MT):
     # Facing in: towards the crack's middle line (and down from its roof).
     cen = V[T].mean(axis=1)
     lat = ((cen - foot) * side).sum(axis=1)
-    want = -np.outer(np.sign(lat), side) + np.outer(cen[:, 2] > TOP_U + CRACK_H * 0.75, [0, 0, -1.0])
+    want = -np.outer(np.sign(lat), side) + np.outer(cen[:, 2] > knee + 0.8, [0, 0, -1.0])
     mesh.patch(V, T, MT["wet"], False, want, per_face=True)
-    # The floor: from the top ledge's back edge on to the far end.
+    # The floor: from the top ledge's back edge on through, then a little under the threshold's floor (no seam to see).
     w0 = CRACK_W / 2 + margin + 0.05
-    xs = np.linspace(-w0, w0, 5)
+    xs = np.linspace(-1.0, 1.0, 5)
     FV = []
-    for x in xs:
+    for x in xs * w0:
         pe = (foot + side * x)[0]
         th = float(np.degrees(np.arccos(np.clip((pe - LAKE_C[0]) / CAVERN[2], -1, 1))))
         e, n = at(th, float(r_cav(th)) + float(ramp_back(th)))
         FV.append((float(e), float(n), TOP_U))
-    for dpt in depths[1:]:
-        for x in xs:
-            p = point(x, us[0], dpt)
-            FV.append((p[0], p[1], TOP_U))
+    rows = [(0.5, w0 * 1.02, TOP_U), (1.0, w0 * 1.04, TOP_U), (1.45, w0 * 1.06, TOP_U), (CRACK_END - 0.3, w0 * 1.07, TOP_U),
+            (end, 1.75, TOP_U - 0.03), (CRACK_END + 0.55, 1.75, TOP_U - 0.12)]
+    for dpt, hw, u in rows:
+        for x in xs * hw:
+            p = foot + side * x + nrm * (dpt + 0.06)
+            FV.append((p[0], p[1], u))
     nx = len(xs)
     FT = []
-    for r in range(len(depths) - 1):
+    for r in range(len(rows)):
         for j in range(nx - 1):
             a, b = r * nx + j, r * nx + j + 1
             FT += [(a, b, b + nx), (a, b + nx, a + nx)]
     mesh.patch(np.array(FV), np.array(FT), MT["rock"], False, (0, 0, 1.0))
-    # The lid: the rock mass's top over the passage (the ground leaves a gap for it).
+    # The lid: rock over the passage's last stretch, between the lake wall's rolled top and the threshold.
     LV, LT = [], []
-    ls = np.linspace(-2.3, 2.3, 12)
-    ds = np.linspace(0.9, CRACK_DEPTH + 4.6, 18)
+    ls = np.linspace(-1.6, 1.6, 9)
+    ds = np.linspace(1.25, CRACK_END + 0.2, 4)
     for dd in ds:
         for x in ls:
             p = foot + side * x + nrm * dd
-            r = float(plan.sample(plan.R, p[0], p[1]))
-            LV.append((p[0], p[1], max(r, TOP_U + CRACK_H + 1.2) - 0.06))
+            LV.append((p[0], p[1], apex_end + 0.1 + 0.04 * float(noise3(x * 2, dd * 2, 0.3, seed=52))))
     nl = len(ls)
     for r in range(len(ds) - 1):
         for j in range(nl - 1):
@@ -1289,7 +1463,123 @@ def build_crack(cols, sites, plan, mesh, MT):
     mesh.patch(np.array(LV), np.array(LT), MT["dark"], False, (0, 0, 1.0))
     mid = foot + nrm * lean[round(us[len(us) // 2], 5)]
     print(f"[hold] crack: middle ({mid[0]:.2f}, {mid[1]:.2f}, {TOP_U + CRACK_H / 2:.2f}), bottom u {TOP_U}, "
-          f"{CRACK_W} m wide, {CRACK_H} m tall, facing ({-nrm[0]:.2f}, {-nrm[1]:.2f}); runs {CRACK_DEPTH} m back")
+          f"{CRACK_W} m wide, {CRACK_H} m tall, facing ({-nrm[0]:.2f}, {-nrm[1]:.2f}); runs {CRACK_END} m back "
+          f"(col {c.e:.2f}, {c.n:.2f})")
+    p0 = foot + nrm * CRACK_END
+    p1 = p0 + nrm * THRESH_LEN
+    print(f"[hold] threshold: from ({p0[0]:.2f}, {p0[1]:.2f}) to ({p1[0]:.2f}, {p1[1]:.2f}) (into the chamber), "
+          f"{2 * THRESH_HW} m wide, floor u {TOP_U}")
+
+
+def build_tunnel(cols, plan, mesh, MT):
+    """The way out: the tunnel from the Boss's wall's foot north under the rock (sides, a round roof), its floor
+    rising; where its roof ends, the opening: a cleft open above and on to the north (rock walls up to the rock mass's
+    top, a lip round it)."""
+    k = min((i for i, c in enumerate(cols) if c.space == 5 and c.N[1] > 0.6), key=lambda i: abs(cols[i].e - BOSS_E))
+    rels = np.linspace(0, 1, 21)
+    W = tunnel_hw(rels) + 0.12 * (1 - 0.5 * rels)
+    us = TOP_U - 0.05 + rels * (TUNNEL_H + 0.17)
+    W[-1] = 0.0
+    lean = {i: float(surface(cols, k, us[i])[1] - boss_foot(cols[k].e)) for i in range(len(us))}
+    outline = [(-W[i], i) for i in range(len(us))] + [(W[i], i) for i in reversed(range(len(us) - 1))]
+    depths = [0.0, 0.6, 1.4, 2.4, 3.4, 4.4, TUNNEL_ROOF]
+
+    def point(x, i, a):
+        jag = 0.07 * float(noise3(x * 2.5 + a, us[i] * 2.0, 1.3, seed=71)) if 0 < a else 0.0
+        e = BOSS_E + x + jag
+        return np.array([e, float(boss_foot(e)) + lean[i] + a + 0.06, us[i] - TOP_U + float(tunnel_floor(a))])
+
+    V, rings = [], []
+    for a in depths:
+        rings.append([len(V) + j for j in range(len(outline))])
+        V += [point(x, i, a) for x, i in outline]
+    T = []
+    for ra, rb in zip(rings, rings[1:]):
+        for j in range(len(ra) - 1):
+            T += [(ra[j], ra[j + 1], rb[j + 1]), (ra[j], rb[j + 1], rb[j])]
+    V = np.array(V)
+    T = np.array(T)
+    cen = V[T].mean(axis=1)
+    lat = cen[:, 0] - BOSS_E
+    want = np.zeros((len(T), 3))
+    want[:, 0] = -np.sign(lat)
+    want[np.abs(lat) < 0.5] = (0, 0, -1.0)
+    mesh.patch(V, T, MT["wet"], False, want, per_face=True)
+    # Where it ends: the opening, a cleft up through the rock mass, on north until the rock mass ends. (Its edges at
+    # the top are the ground's, on its grid lines: the walls meet them.)
+    a_end = TUNNEL_ROOF + 1.0
+    while a_end < GY1 - BOSS_N - 1.0 and max(plan.sample(plan.O, BOSS_E + sx * CLEFT_HW, BOSS_N + a_end)
+                                             for sx in (-1, 1)) < 11.4:
+        a_end += 0.4
+
+    def top(e, n):
+        return float(plan.sample(plan.R, e, n)) + 0.05
+
+    al = np.arange(TUNNEL_ROOF, a_end + 1e-6, 0.4)
+    for sx in (-1, 1):
+        CV, CT = [], []
+        nu = 14
+        for a in al:
+            e0 = BOSS_E + sx * CLEFT_HW
+            t = top(e0, BOSS_N + a)
+            for j in range(nu + 1):
+                f = j / nu
+                u = float(tunnel_floor(a)) - 0.4 + f * (t - float(tunnel_floor(a)) + 0.4)
+                jag = (0.1 + 0.08 * float(noise3(a * 0.9, u * 0.8, sx * 3.1, seed=72))) * math.sin(math.pi * f) ** 0.5
+                CV.append((e0 - sx * jag, BOSS_N + a, u))
+        for r in range(len(al) - 1):
+            for j in range(nu):
+                p0, p1 = r * (nu + 1) + j, (r + 1) * (nu + 1) + j
+                CT += [(p0, p1, p1 + 1), (p0, p1 + 1, p0 + 1)]
+        mesh.patch(np.array(CV), np.array(CT), MT["wet"], False, (-sx, 0.0, 0.0))
+    # Over the tunnel's end: the rock face from its roof up to the top (facing the cleft).
+    xs = np.linspace(-CLEFT_HW, CLEFT_HW, 8)
+    tops_w = W[::-1]
+    EV, ET = [], []
+    nu = 10
+    for x in xs:
+        ub = TOP_U - 0.4 if abs(x) >= W[0] else float(np.interp(abs(x), tops_w, us[::-1]))
+        ub += float(tunnel_floor(TUNNEL_ROOF)) - TOP_U - 0.03
+        e = BOSS_E + x
+        n = BOSS_N + TUNNEL_ROOF
+        t = top(e, n)
+        for j in range(nu + 1):
+            EV.append((e, n, ub + (t - ub) * j / nu))
+    for r in range(len(xs) - 1):
+        for j in range(nu):
+            p0, p1 = r * (nu + 1) + j, (r + 1) * (nu + 1) + j
+            ET += [(p0, p1, p1 + 1), (p0, p1 + 1, p0 + 1)]
+    mesh.patch(np.array(EV), np.array(ET), MT["wet"], False, (0.0, 1.0, 0.0))
+    # The floor: from just in front of the wall (a little under the chamber's floor), up the tunnel, through the cleft
+    # to its end, then a broken edge down.
+    rows = [(-0.45, 1.9, TOP_U - 0.15), (0.05, 1.9, TOP_U)]
+    for a in depths[1:] + list(al[1:]):
+        rows.append((a, (W[0] + 0.05) if a <= TUNNEL_ROOF else CLEFT_HW + 0.05, float(tunnel_floor(a))))
+    rows.append((a_end + 0.05, CLEFT_HW + 0.05, float(tunnel_floor(a_end)) - 1.6))
+    fx = np.linspace(-1, 1, 9)
+    FV = []
+    for a, hw, u in rows:
+        for x in fx * hw:
+            e = BOSS_E + x
+            FV.append((e, float(boss_foot(e)) + lean[0] + a if a < 0.6 else BOSS_N + a, u))
+    FT = []
+    nf = len(fx)
+    for r in range(len(rows) - 1):
+        for j in range(nf - 1):
+            p0 = r * nf + j
+            FT += [(p0, p0 + 1, p0 + 1 + nf), (p0, p0 + 1 + nf, p0 + nf)]
+    fm = [MT["wet"] if r == len(rows) - 2 else MT["rock"] for r in range(len(rows) - 1) for _ in range(2 * (nf - 1))]
+    ex = [(0, 1.0, 0.2) if r == len(rows) - 2 else (0, 0, 1.0) for r in range(len(rows) - 1) for _ in range(2 * (nf - 1))]
+    mesh.patch(np.array(FV), np.array(FT), fm, False, np.array(ex, float), per_face=True)
+    mouth_n = float(surface(cols, k, TOP_U + 1.5)[1])
+    print(f"[hold] Boss's wall: foot line n = {BOSS_N} - (e - {BOSS_E})^2 / {2 * BOSS_BOW:.0f}, e {BOSS_E - BOSS_HALF:.1f} to "
+          f"{BOSS_E + BOSS_HALF:.1f}, facing south; its face at e {BOSS_E}: n {float(surface(cols, k, TOP_U + 0.5)[1]):.2f} "
+          f"(u {TOP_U + 0.5}), {float(surface(cols, k, TOP_U + 4.0)[1]):.2f} (u {TOP_U + 4.0}), "
+          f"{float(surface(cols, k, TOP_U + 7.0)[1]):.2f} (u {TOP_U + 7.0}); top u {cols[k].H:.2f}")
+    print(f"[hold] tunnel: mouth centre ({BOSS_E}, {mouth_n:.2f}), floor u {TOP_U}, {TUNNEL_W} m wide, {TUNNEL_H} m tall; north "
+          f"to n {BOSS_N + TUNNEL_ROOF:.1f} (floor u {float(tunnel_floor(TUNNEL_ROOF)):.2f}), then the opening (open above "
+          f"and north): {2 * CLEFT_HW} m wide, n {BOSS_N + TUNNEL_ROOF:.1f} to {BOSS_N + a_end:.1f}, floor u "
+          f"{float(tunnel_floor(a_end)):.2f}, walls to u {top(BOSS_E, BOSS_N + TUNNEL_ROOF):.1f}")
 
 
 def build_rocks(plan, mesh, MT, rng):
@@ -1371,6 +1661,8 @@ def build_stalactites(cols, plan, mesh, MT, rng):
     last = -99.0
     seg = 6
     for i, c in enumerate(cols):
+        if c.space >= 5:      # (the chamber's: below, on their own dice)
+            continue
         if c.H - c.ref < 4.2 or c.N[1] < -0.3 or c.s - last < rng.uniform(0.9, 2.6):
             continue
         if abs(c.e - CRACK_E) < 2.5 and c.n > 64:
@@ -1381,6 +1673,41 @@ def build_stalactites(cols, plan, mesh, MT, rng):
         length = rng.uniform(0.6, min(2.6, c.H - c.ref - 2.7))
         if length < 0.5:
             continue
+        r = rng.uniform(0.09, 0.22) * (0.6 + 0.25 * length)
+        dd = -c.oh * rng.uniform(0.3, 0.75) + 0.12
+        e, n = c.e + c.N[0] * dd, c.n + c.N[1] * dd
+        if plan.sample(plan.C, e, n) < top:
+            continue
+        last = c.s
+        base = len(V)
+        sway = (rng.uniform(-0.06, 0.06), rng.uniform(-0.06, 0.06))
+        for k in range(3):
+            frac = k / 3
+            rad = r * (1 - frac) ** 1.3
+            for j in range(seg):
+                a = 2 * math.pi * j / seg + k * 0.4
+                V.append((e + rad * math.cos(a) + sway[0] * frac, n + rad * math.sin(a) + sway[1] * frac,
+                          top - length * frac * 0.85))
+        tip = len(V)
+        V.append((e + sway[0], n + sway[1], top - length))
+        for k in range(2):
+            for j in range(seg):
+                a, b = base + k * seg + j, base + k * seg + (j + 1) % seg
+                c2, d2 = base + (k + 1) * seg + (j + 1) % seg, base + (k + 1) * seg + j
+                T += [(a, b, c2), (a, c2, d2)]
+        for j in range(seg):
+            T.append((base + 2 * seg + j, base + 2 * seg + (j + 1) % seg, tip))
+        count += 1
+    # The chamber's east and west walls (never the Boss's wall).
+    rng = random.Random(9173)
+    last = -99.0
+    for i, c in enumerate(cols):
+        if c.space != 5 or abs(c.N[0]) < 0.55 or c.boss > 0 or c.H - c.ref < 4.2 or c.s - last < rng.uniform(1.2, 3.0):
+            continue
+        if rng.random() < 0.4:
+            continue
+        top = c.H - 0.05
+        length = rng.uniform(0.6, min(2.4, c.H - c.ref - 2.7))
         r = rng.uniform(0.09, 0.22) * (0.6 + 0.25 * length)
         dd = -c.oh * rng.uniform(0.3, 0.75) + 0.12
         e, n = c.e + c.N[0] * dd, c.n + c.N[1] * dd
@@ -1707,6 +2034,7 @@ def build(variant):
     build_ground(plan, mesh, MT)
     build_ramp(cols, plan, mesh, MT)
     build_crack(cols, sites, plan, mesh, MT)
+    build_tunnel(cols, plan, mesh, MT)
     build_stalactites(cols, plan, mesh, MT, rng)
     build_rocks(plan, mesh, MT, rng)
     report_spots(cols, sites)

@@ -63,6 +63,14 @@ public static partial class MainSceneBuilder
             kept.transform.SetParent(root, true);
         }
 
+        // At the way out, the chamber where the cave won't let you go: its Boss in the north wall, the way out behind it.
+        var boss = TheHoldBoss(root);
+        var chamberLight = PointLight(root, HoldArena + new Vector3(0f, 4f, 0f), 16f, 5f, Hex("#66708a"));
+        chamberLight.shadows = LightShadows.None;
+        // (and on its wall, from below and in front: the face and the hands read against the dark)
+        var onIt = PointLight(root, HoldBossWall + new Vector3(0f, 2.5f, -5f), 14f, 6f, Hex("#7d88a3"));
+        onIt.shadows = LightShadows.None;
+
         // A few dead lanterns, dropped along the way.
         foreach (var (e, n, yaw, lying) in new[] { (0.8f, 1.0f, 30f, true), (1.2f, 17f, 200f, false), (6.5f, 34f, 110f, true) })
         {
@@ -73,11 +81,14 @@ public static partial class MainSceneBuilder
         }
 
         // Light: next to none but your lantern. The way out: grey day pouring through the crack high in the north wall.
-        var day = PointLight(root, HoldCrack - HoldCrackOut * 1.2f + Vector3.up * 1.8f, 14f, 5f, HoldDaylight); // (just inside the crack)
+        // (the way out is behind the Boss's face: a tunnel up to an opening in the rock, the grey day falling into it)
+        var day = PointLight(root, HoldOpening + new Vector3(0f, 3f, 0f), 14f, 5f, HoldDaylight);
         day.shadows = LightShadows.Soft;
-        LightShaft(root, HoldCrack + HoldCrackOut * 0.6f, 3.5f, 0.9f, brightness: 3f);
-        var beyond = PointLight(root, HoldCrack - HoldCrackOut * 4.5f + Vector3.up * 2f, 10f, 4f, HoldDaylight); // (the day itself, past it)
+        LightShaft(root, HoldOpening, 4f, 1.1f, brightness: 3f);
+        var beyond = PointLight(root, HoldOpening + new Vector3(0f, 4f, 4f), 12f, 4f, HoldDaylight); // (the day itself, past it)
         beyond.shadows = LightShadows.None;
+        // (and through the crack, into the chamber: a faint cold glow, the way on)
+        PointLight(root, HoldCrack - HoldCrackOut * 2f + Vector3.up * 2f, 8f, 1.2f, Hex("#66708a")).shadows = LightShadows.None;
         // Barely: a cold gleam high in the Gallery and the Passage (their walls' shapes, no more), and off the black lake.
         foreach (var (e, n, u, range, power) in new[] { (4f, 37f, 6f, 16f, 1.8f), (2f, 18f, 5f, 12f, 1.2f), (0f, 2f, 5f, 12f, 0.9f) })
             PointLight(root, At(e, n, u), range, power, Hex("#66708a")).shadows = LightShadows.None;
@@ -109,7 +120,7 @@ public static partial class MainSceneBuilder
         groans.volume = 0.5f;
         var wind = new GameObject("The Day Outside (the crack)", typeof(AudioSource)).GetComponent<AudioSource>();
         wind.transform.SetParent(root, true);
-        wind.transform.position = HoldCrack + Vector3.up * 1.5f;
+        wind.transform.position = HoldOpening + Vector3.up * 1.5f;
         wind.clip = Clips("hold_hatch") is var hatchClips && hatchClips.Length > 0 ? hatchClips[0] : null;
         wind.loop = true;
         wind.playOnAwake = true;
@@ -145,6 +156,7 @@ public static partial class MainSceneBuilder
     static readonly Vector3 HoldCrack = new Vector3(-2.06f, 6f, 70.31f);   // the crack's foot (1.5 m wide, 4 m tall), facing...
     static readonly Vector3 HoldCrackOut = new Vector3(-0.33f, 0f, -0.94f); // ...out of the north wall, over the top ledge
     static readonly Vector3 HoldMooring = new Vector3(-6f, 0.5f, 54.3f);
+    static readonly Vector3 HoldOpening = new Vector3(-1f, 7f, 99f);        // the way out: open to the sky, behind the Boss's wall
     static readonly (Vector3 at, Vector3 normal)[] HoldEyeSpots = // (holes in the wall: each must have its socket)
     {
         (new Vector3(-2.04f, 1.93f, 10.4f), new Vector3(0.88f, -0.03f, -0.47f).normalized),
@@ -168,6 +180,10 @@ public static partial class MainSceneBuilder
         (new Vector3(-19.77f, 1.64f, 59.03f), new Vector3(0.99f, -0.03f, -0.16f).normalized),
         (new Vector3(-17.94f, 1.97f, 65.36f), new Vector3(0.9f, -0.01f, -0.45f).normalized),
         (new Vector3(-16.83f, 2.61f, 66.79f), new Vector3(0.75f, -0.03f, -0.66f).normalized),
+        (new Vector3(7.01f, 7.49f, 85.70f), new Vector3(-0.97f, -0.01f, -0.24f).normalized), // (the Boss's chamber)
+        (new Vector3(7.48f, 8.38f, 82.15f), new Vector3(-1.00f, -0.02f, -0.02f).normalized),
+        (new Vector3(-9.41f, 7.54f, 83.42f), new Vector3(1.00f, -0.01f, -0.10f).normalized),
+        (new Vector3(-9.09f, 7.48f, 78.96f), new Vector3(0.94f, 0.01f, 0.35f).normalized),
     };
     static readonly (Vector3 at, Vector3 normal)[] HoldPresenceSpots =
     {
@@ -183,8 +199,92 @@ public static partial class MainSceneBuilder
         (new Vector3(0.37f, 2.44f, 19.22f), new Vector3(0.99f, 0.0f, 0.11f).normalized),
         (new Vector3(4.55f, 1.92f, 20.08f), new Vector3(-0.97f, 0.01f, -0.23f).normalized),
         (new Vector3(0.36f, 2.04f, 24.23f), new Vector3(0.95f, 0.01f, -0.3f).normalized),
+        (new Vector3(-9.16f, 7.20f, 85.19f), new Vector3(0.98f, 0.01f, -0.22f).normalized), // (the Boss's chamber)
+        (new Vector3(-9.44f, 7.65f, 81.03f), new Vector3(1.00f, -0.01f, 0.10f).normalized),
+        (new Vector3(7.07f, 7.24f, 79.81f), new Vector3(-0.97f, 0.01f, 0.26f).normalized),
+        (new Vector3(-8.52f, 7.22f, 88.11f), new Vector3(1.00f, 0.01f, -0.10f).normalized),
     };
     static readonly string[] PresenceKinds = { "face_1", "hand_1", "face_2", "face_3", "hand_2" };
+
+    // The Boss's chamber (hold.py's): its floor's middle and radius; the wall's foot under its face (facing south);
+    // the tunnel's mouth behind it (the way out, blocked till it's beaten).
+    static readonly Vector3 HoldArena = new Vector3(-1f, 6f, 82f);
+    const float HoldArenaRadius = 8.5f;
+    static readonly Vector3 HoldBossWall = new Vector3(-1f, 6f, 90.48f);
+
+    // The Hold, That Would Not Let Go: the face and the arms (one rig, the_hold.py) in the chamber's north wall, its
+    // three parts (each hand, the face) where you strike them, the way out behind it blocked till it's beaten.
+    static TheHoldWall TheHoldBoss(Transform parent)
+    {
+        var go = Place("Characters/the_hold", HoldBossWall, 180f); // (facing south, into the chamber)
+        go.name = "The Hold, That Would Not Let Go";
+        go.transform.SetParent(parent, true);
+        foreach (var c in go.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c);
+        go.AddComponent<NavMeshIgnore>();
+        var anim = go.GetComponentInChildren<Animation>();
+        anim.cullingType = AnimationCullingType.AlwaysAnimate; // (its hands strike where they really are)
+        foreach (var skinned in go.GetComponentsInChildren<SkinnedMeshRenderer>())
+            skinned.updateWhenOffscreen = true;
+        var boss = go.AddComponent<TheHoldWall>();
+        boss.arenaCentre = HoldArena;
+        boss.arenaRadius = HoldArenaRadius;
+        boss.shoulderL = Bone(go, "ShoulderL");
+        boss.shoulderR = Bone(go, "ShoulderR");
+        boss.boneHandL = Bone(go, "HandL");
+        boss.boneHandR = Bone(go, "HandR");
+        boss.boneFace = Bone(go, "Face");
+        // (its fingertips' swipes: the middle finger's nail, out from its last knuckle)
+        boss.trailL = Swoosh(go, "FingerL2c", "TheHoldNail", SouredSwoosh, 0.18f, null, 1f);
+        boss.trailR = Swoosh(go, "FingerR2c", "TheHoldNail", SouredSwoosh, 0.18f, null, 1f);
+        HoldPart Part(string name, float radius)
+        {
+            var part = new GameObject(name, typeof(CharacterController), typeof(Animation));
+            part.transform.SetParent(parent, true);
+            part.transform.position = HoldArena;
+            var controller = part.GetComponent<CharacterController>();
+            controller.center = new Vector3(0f, 1f, 0f);
+            controller.height = 2f;
+            controller.radius = radius;
+            controller.minMoveDistance = 0f;
+            var p = part.AddComponent<HoldPart>();
+            p.maxHealth = 99999f;
+            p.immortal = true;
+            p.passive = true;
+            p.radius = radius;
+            p.knockbackResistance = 1f;
+            p.staggerCapacity = 99999f;
+            p.barHeight = 2.5f;
+            p.obols = 0;
+            return p;
+        }
+        boss.handL = Part("The Hold's Left Hand", 1.1f);
+        boss.handR = Part("The Hold's Right Hand", 1.1f);
+        boss.face = Part("The Hold's Face", 1.5f);
+        // The way out: blocked (an unseen wall at the tunnel's mouth) till it lets go.
+        var block = new GameObject("The Way Out (blocked)").AddComponent<BoxCollider>();
+        block.transform.SetParent(parent, true);
+        block.transform.position = HoldBossWall + new Vector3(0f, 1.5f, 0.6f);
+        block.size = new Vector3(2.8f, 3f, 1f);
+        boss.wayOut = block;
+        boss.music = new[]
+        {
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_the_hold_1.wav"),
+            AssetDatabase.LoadAssetAtPath<AudioClip>(Audio + "Music/music_the_hold_2.wav"),
+        };
+        boss.wakeSound = Clips("the_hold_wake");
+        boss.slamDrawSound = Clips("the_hold_slam_draw");
+        boss.slamSound = Clips("the_hold_slam");
+        boss.sweepSound = Clips("the_hold_sweep");
+        boss.withdrawSound = Clips("the_hold_withdraw");
+        boss.returnSound = Clips("the_hold_return");
+        boss.breathSound = Clips("the_hold_breath");
+        boss.biteSound = Clips("the_hold_bite");
+        boss.hurtSound = Clips("the_hold_hurt");
+        boss.roarSound = Clips("the_hold_roar");
+        boss.deathSound = Clips("the_hold_death");
+        return boss;
+    }
 
     // Where the Kept wait in the walls (the wall's foot, its outward normal), and their groups (each comes out together).
     static readonly (float e, float n, float ne, float nn, int group)[] HoldKeptSpots =

@@ -1358,7 +1358,7 @@ namespace MyGame.Tests
         [Test]
         public void EveryKindOfSoured_AndEveryBoss_HasItsPage()
         {
-            var notTheirOwn = new[] { typeof(Soured), typeof(Scarecrow), typeof(UnpartedHold) }; // (Soured: only ever a kind of it)
+            var notTheirOwn = new[] { typeof(Soured), typeof(Scarecrow), typeof(UnpartedHold), typeof(HoldPart) }; // (Soured: only ever a kind of it)
             var types = typeof(Soured).Assembly.GetTypes().Where(t => !t.IsAbstract && (typeof(Soured).IsAssignableFrom(t) || typeof(IBoss).IsAssignableFrom(t)));
             var missing = new System.Collections.Generic.List<string>();
             foreach (var t in types)

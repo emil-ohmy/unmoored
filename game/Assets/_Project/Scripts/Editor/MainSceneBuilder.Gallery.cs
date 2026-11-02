@@ -48,6 +48,7 @@ public static partial class MainSceneBuilder
         ("keener", "Keener", p => Keener("Keener", p, 0f)),
         ("widow", "The Widow Hale", p => Widow("The Widow Hale", p, 0f)),
         ("kept", "The Kept", p => Kept("The Kept", p, p, 0)),
+        ("the_hold", "The Hold, That Would Not Let Go", null),
         ("the_hour", "The One Who Waits", p => TheHourBoss(p)),
     };
 

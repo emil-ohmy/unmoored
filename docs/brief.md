@@ -206,6 +206,19 @@ Souls' Humanity; not "Shades": a Shade is the ghost you leave where you die): wh
 the Soured families table). The story around it isn't decided yet (why the
 Apprentice wakes there). Its lab: `Lab_Hold` (the feeling and the atmosphere only, for now).
 
+**The Hold's Boss, The Hold, That Would Not Let Go** (the user's direction, 2026-11-02): an easy first Boss, a tutorial in
+what a Boss is (a name plate, a bar, big tells, windows to punish). At the way out, in a round chamber before the
+crack of daylight, the cave itself won't let you go: a great face forms in the chamber's north wall, high up, and two
+enormous hands tear out of the stone either side of it. Rooted in the wall: a fight of patterns.
+- **The hands:** one rises and slams down where you stand (dodge); after a slam it lies stunned on the floor a while:
+  strike it (it hurts the whole). A hand sweeps low across the floor (vault it, or dodge). Wound a hand enough and it
+  withdraws into the wall a while (one less to dodge); with both withdrawn, the face sags down into reach: strike it
+  (great harm), until it heaves itself up and the hands tear out again. One health bar.
+- **Two phases:** first the hands alone; at half the face joins: it draws breath and the cave's breath gusts you back,
+  and it bites down at you if you're close under it; the hands quicker.
+- **Beaten**, it lets go: the face sags to the floor, its mouth opens wide on the way out behind it, and you climb out
+  to the Hub. No Ability (the Hook is the Anchoress's). Its farewell: **"LET GO"** / *It held on as long as it could.*
+
 The **Hub** is the Ferryman's jetty, at the centre of the underworld. It has his hut, the merchant soul, waiting
 Lingerers and one Mooring post. The Areas are spokes that link to each other through shortcuts opened from the far side,
 so you can loop. There's **no fast travel**: rowing and shortcuts are the travel, and each Boss arena opens a shortcut
