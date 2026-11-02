@@ -225,6 +225,17 @@ Lingerers and one Mooring post. The Areas are spokes that link to each other thr
 so you can loop. There's **no fast travel**: rowing and shortcuts are the travel, and each Boss arena opens a shortcut
 back toward the Hub.
 
+Its look and feel (the user's direction, 2026-11-02; Lab_Hub, not yet the level): **a quiet refuge**, the one warm, safe
+place after the Hold's dead dark: melancholic but kind, warm lanterns (warm light is safety), still black water like a
+mirror, mist, a soft dusk. **A small island**: his hut at its north on a little levelled plot, a worn path down to the
+jetty on its south shore and the landing at the jetty's end (his boat, the Mooring post); the merchant soul by the hut.
+**The dead wait in a long queue** along the jetty and the shore to cross, patient, holding their few things (soul.py:
+pale, cool, not yet warmed), watching the Ferryman's apprentice go by, some bowing a little: the story's problem, seen
+the moment you arrive. **You arrive up through a trapdoor in his hut's floor**: the tunnel out of the Hold climbs into
+his home, the first hint that the cave beneath is his. The ways to the Areas lead off into the mist, each marked by its
+lanterns (the Drowned City's teal west, the Orchard's amber east, the Hall's pale gold north); the Far shore's light out
+in the dark to the south-east. Its music: a slow barcarolle on a worn harmonium and a reed, D major (music_hub).
+
 | # | Area | Reached by | Boss | Reward | Introduces |
 |---|---|---|---|---|---|
 | 1 | The Drowned City | open | The Antediluvian Anchoress | Hook | Laden, Clinger |
