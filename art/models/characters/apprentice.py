@@ -472,7 +472,8 @@ def make_actions():
         "HandL": [(3, hand(0.4, 0, -0.22, 0.2, 0.42)), (8, hand(0.4, 0, -0.22, 0.18, 0.4)), (12, hand(0.4, 0, -0.2, -0.05, 0.34))],
         "FootL": [(2, ((20, 0, 0), (0, 0.12, 0.03))), (4, ((30, 0, 0), (0, 0.24, 0.08))), (9, ((20, 0, 0), (0, 0.2, 0.06))), (12, ((0, 0, 0), (0, 0, 0.06)))],
         "FootR": [(3, ((10, 0, 0), (0, 0.1, 0.0))), (8, ((10, 0, 0), (0, 0.06, 0.02))), (12, ((-10, 0, 0), (0, -0.08, 0.04)))],
-    }), motion=[(1, (0, 0, 0)), (2.5, (0, -7.4, 0)), (10, (0, -7.4, 0)), (12, (0, -2, 0))], hang=0.3)
+    }), motion=[(1, (0, 0, 0)), (2.5, (0, -7.4, 0)), (10, (0, -7.4, 0)), (12, (0, -2, 0))], hang=0.3,
+       poles={"R": (0.4, 1, 0.1)})  # (the oar arm's elbow as the run bends it: it hands straight on to running)
 
     # Light1 (0.51 s): the forehand. A snap round to the right (the body first), the left hand onto the oar, cocked over
     # the right shoulder; the body unwinds and the oar whips round after it, level, straight ahead at f5.7 (the hit),

@@ -55,7 +55,8 @@ business and pay their fare to row them across.
 
 - **Pace:** "Middle", between Death's Door's snappiness and Tunic's weight.
 - **Verbs:** move, a short dash (2.8 m) with invincibility from its first frame, shown as ghost images (it can cancel an
-  attack's recovery), a 2-swing light combo and a heavy attack. Attacks go where the stick points.
+  attack's recovery; it eases out into a run if you steer, with no standing about after it, and only another dash
+  waits out its short recovery), a 2-swing light combo and a heavy attack. Attacks go where the stick points.
 - **Block and perfect block:** holding block lets 30% through and costs stamina (empty stamina breaks the guard). A
   block raised within 0.2 s of the blow is a **perfect block**: no damage, and the attacker is always **stunned**, open to
   double-damage **ripostes**. Mashing block earns no perfect window.

@@ -283,6 +283,46 @@ namespace MyGame.Tests
             Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.TheHold), "written in the Ledger");
         }
 
+        // Beaten, its mouth is open on the way out: you walk out through it, up the tunnel behind, to the daylight.
+        [UnityTest]
+        public IEnumerator TheHold_Beaten_YouWalkOutThroughItsMouth()
+        {
+            yield return IntoTheChamber();
+            var boss = Boss;
+            for (float t = 0f; t < 60f && boss.IsAlive; t += Time.deltaTime)
+            {
+                foreach (var part in new[] { boss.handL, boss.handR, boss.face })
+                    if (part.Open)
+                        Strike(part, 200f, apprentice.transform.position);
+                if (Vector3.Distance(apprentice.transform.position, boss.arenaCentre + Vector3.back * 3f) > 2f)
+                    apprentice.Teleport(boss.arenaCentre + Vector3.back * 3f + Vector3.up * 0.05f); // (stood still: the test only strikes)
+                yield return null;
+            }
+            Assert.IsFalse(boss.IsAlive, "beaten");
+            for (float t = 0f; t < 8f && boss.State != TheHoldWall.Mood.Gone; t += Time.deltaTime)
+                yield return null;
+            var input = (ScriptedInput)apprentice.Input;
+            float mouthE = boss.transform.position.x;
+            Vector3 last = apprentice.transform.position;
+            float stuck = 0f;
+            for (float t = 0f; t < 20f && apprentice.transform.position.z < 98f; t += Time.deltaTime)
+            {
+                Vector3 p = apprentice.transform.position;
+                input.Move = new Vector2(Mathf.Clamp((mouthE - p.x) * 0.8f, -0.7f, 0.7f), 1f).normalized; // (up the middle)
+                stuck = (p - last).magnitude < 0.002f ? stuck + Time.deltaTime : 0f;
+                last = p;
+                if (stuck > 1f)
+                {
+                    var from = p + Vector3.up;
+                    string what = Physics.SphereCast(from, 0.3f, Vector3.forward, out var hit, 2f) ? $"{hit.collider.name} at {hit.point}" : "nothing ahead";
+                    Assert.Fail($"stuck at {p}: {what}");
+                }
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Greater(apprentice.transform.position.z, 98f, $"out through its mouth, up to the daylight (got to {apprentice.transform.position})");
+        }
+
         // Its hands and its face can be locked on to while they're out of the wall, not only while they're in reach; a
         // hand withdrawn into the wall lets the lock go on to another part.
         [UnityTest]

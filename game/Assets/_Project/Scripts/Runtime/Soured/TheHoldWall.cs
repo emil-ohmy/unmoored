@@ -484,6 +484,9 @@ namespace MyGame
             yield return new WaitForSeconds(5f);
             if (wayOut != null)
                 wayOut.enabled = false; // (its mouth open on the way out)
+            foreach (var part in new[] { handL, handR, face })
+                if (part != null)
+                    part.gameObject.SetActive(false); // (where its hands and face were struck: gone, out of the way)
             BossFight.End(this);
             Frame(false);
             State = Mood.Gone;

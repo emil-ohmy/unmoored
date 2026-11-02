@@ -1353,6 +1353,57 @@ namespace MyGame.Tests
             Assert.LessOrEqual(hud.Menu.ShownLabels.Count, 8);
         }
 
+        // A dash steered hands straight on to a run: it never stops (full speed, easing down to a run's), the run's
+        // there the moment it ends, and it goes as far as it always did. Unsteered (a backstep) it comes to rest and
+        // settles onto the oar; another dash waits out its recovery.
+        [UnityTest]
+        public IEnumerator ADash_HandsStraightOnToARun_OrSettlesToAStop()
+        {
+            Vector3 clear = Vector3.zero;
+            foreach (var d in new[] { Vector3.right, Vector3.left, Vector3.forward, Vector3.back })
+                if (!Physics.SphereCast(apprentice.transform.position + Vector3.up, 0.4f, d, out _, 9f))
+                { clear = d; break; }
+            Assert.AreNotEqual(Vector3.zero, clear, "room to dash");
+            var stick = new Vector2(clear.x, clear.z);
+            input.Move = stick;
+            yield return new WaitForSeconds(0.3f);
+            Vector3 from = apprentice.transform.position;
+            input.PressDash();
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
+            float slowest = float.MaxValue, freeAt = -1f, t = 0f;
+            Vector3 last = apprentice.transform.position;
+            for (; t < apprentice.dashDuration + 0.15f; t += Time.deltaTime)
+            {
+                yield return null;
+                Vector3 p = apprentice.transform.position;
+                slowest = Mathf.Min(slowest, (p - last).magnitude / Time.deltaTime);
+                last = p;
+                if (freeAt < 0f && apprentice.CurrentState == Apprentice.State.Free)
+                    freeAt = t;
+            }
+            Assert.Greater(slowest, apprentice.moveSpeed * 0.9f, "never stopping: down to a run's speed, no slower");
+            Assert.GreaterOrEqual(freeAt, 0f, "running again");
+            Assert.Less(freeAt, apprentice.dashDuration + 0.04f, "the moment the dash ends: no standing about");
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(0.5f);
+
+            // Unsteered: straight on the way it faces, coming to rest.
+            input.PressDash();
+            yield return null;
+            Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
+            from = apprentice.transform.position;
+            yield return new WaitForSeconds(apprentice.dashDuration + 0.02f);
+            Assert.AreEqual(apprentice.dashDistance, Vector3.Distance(from, apprentice.transform.position), 0.35f, "as far as a dash goes");
+            Vector3 stopped = apprentice.transform.position;
+            input.PressDash(); // (another, at once: it waits out the recovery)
+            yield return null;
+            yield return null;
+            Assert.Less(Vector3.Distance(stopped, apprentice.transform.position), 0.02f, "at rest");
+            Assert.AreEqual(Apprentice.State.Dashing, apprentice.CurrentState);
+            Assert.Greater(apprentice.StateTime, apprentice.dashDuration, "still the first: another waits out its recovery");
+        }
+
         // Every kind of Soured, and every Boss and miniboss, has its page in the Ledger: all but the few that are part of
         // another (Hold and Fast are the Unparted) or have no soul (a scarecrow).
         [Test]
