@@ -17,10 +17,10 @@ public static partial class MainSceneBuilder
     // not the Hall's grey photograph, but a place the life went out of), the grain heavy, the edges closing in.
     static readonly AreaNight HoldNight = new AreaNight
     {
-        volume = "HoldVolume", moon = Hex("#7c8aa0"), moonIntensity = 0.16f, moonAngles = new Vector3(70f, -20f, 0f), shadowStrength = 0.6f,
-        sky = Hex("#1c2230"), equator = Hex("#12151c"), ground = Hex("#07080a"),
-        fog = Hex("#06070a"), fogStart = 9f, fogEnd = 30f,
-        saturation = -32f, contrast = 18f, exposure = 0.1f, vignette = 0.48f, grain = 0.45f, filter = Hex("#e6edf6"),
+        volume = "HoldVolume", moon = Hex("#7c8aa0"), moonIntensity = 0.26f, moonAngles = new Vector3(70f, -20f, 0f), shadowStrength = 0.6f,
+        sky = Hex("#2a3142"), equator = Hex("#1b1f28"), ground = Hex("#0b0c0f"),
+        fog = Hex("#080a0d"), fogStart = 12f, fogEnd = 36f,
+        saturation = -32f, contrast = 18f, exposure = 0.35f, vignette = 0.48f, grain = 0.45f, filter = Hex("#e6edf6"),
     };
     static readonly Color HoldDaylight = Hex("#b9c3cf"); // (the grey of the day, far above)
 
@@ -71,7 +71,7 @@ public static partial class MainSceneBuilder
         var beyond = PointLight(root, HoldCrack - HoldCrackOut * 4.5f + Vector3.up * 2f, 10f, 4f, HoldDaylight); // (the day itself, past it)
         beyond.shadows = LightShadows.None;
         // Barely: a cold gleam high in the Gallery and the Passage (their walls' shapes, no more), and off the black lake.
-        foreach (var (e, n, u, range, power) in new[] { (4f, 37f, 6f, 15f, 0.9f), (2f, 18f, 5f, 10f, 0.5f) })
+        foreach (var (e, n, u, range, power) in new[] { (4f, 37f, 6f, 16f, 1.8f), (2f, 18f, 5f, 12f, 1.2f), (0f, 2f, 5f, 12f, 0.9f) })
             PointLight(root, At(e, n, u), range, power, Hex("#66708a")).shadows = LightShadows.None;
         var lake = PointLight(root, At(-6f, 56f, 4f), 16f, 0.7f, Hex("#5f6f86"));
         lake.shadows = LightShadows.None;
@@ -123,8 +123,8 @@ public static partial class MainSceneBuilder
         entrance.areaName = "The Hold";
         var apprentice = Apprentice(start.position);
         var bow = apprentice.GetComponent<BowLantern>();
-        bow.minRange = 6.5f;      // (down here, even your first light reaches a little further: the dark is all there is)
-        bow.minIntensity = 2.6f;
+        bow.minRange = 7.5f;      // (down here, even your first light reaches a little further: the dark is all there is)
+        bow.minIntensity = 3f;
         apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
         var readout = new GameObject("Lab Readout").AddComponent<LabReadout>();
         readout.font = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
