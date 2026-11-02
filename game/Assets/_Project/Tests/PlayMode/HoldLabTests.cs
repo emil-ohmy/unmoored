@@ -39,7 +39,7 @@ namespace MyGame.Tests
             Assert.AreEqual(0.5f, apprentice.transform.position.y, 0.15f, "stood on the stone, not sunk");
             Assert.Less(Vector3.Distance(apprentice.transform.position, At(0f, 0f)), 0.5f);
             Assert.IsTrue(apprentice.IsAlive);
-            Assert.GreaterOrEqual(UnityEngine.Object.FindObjectsByType<Watcher>(FindObjectsSortMode.None).Length, 6, "the Shades' eyes in the dark");
+            Assert.GreaterOrEqual(UnityEngine.Object.FindObjectsByType<Watcher>(FindObjectsSortMode.None).Length, 6, "the Kept's eyes in the dark");
             Assert.AreEqual(21, UnityEngine.Object.FindObjectsByType<WallEye>(FindObjectsSortMode.None).Length, "an eye in every socket of the walls");
         }
 
@@ -119,6 +119,70 @@ namespace MyGame.Tests
         }
 
         static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z).normalized;
+
+        Kept[] Group(int group) => UnityEngine.Object.FindObjectsByType<Kept>(FindObjectsSortMode.None).Where(x => x.group == group).ToArray();
+
+        static HitResult Strike(Kept s, Vector3 from) => s.TakeHit(new Hit { Damage = 20f, Stagger = 20f, From = from, Knockback = Vector3.zero });
+
+        // The Kept wait in the walls (unseen, untouchable) till you pass; then they tear free together and come.
+        [UnityTest]
+        public IEnumerator TheKept_WaitInTheWalls_AndTearFreeAsYouPass()
+        {
+            var pair = Group(1);
+            Assert.AreEqual(2, pair.Length, "a pair in the Passage");
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(pair.All(x => !x.Emerged && !x.Targetable), "waiting in the stone");
+            apprentice.Teleport(At(2.4f, 18.4f) + Vector3.up * 0.05f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(pair.All(x => x.Emerged), "torn free as you came");
+            yield return new WaitForSeconds(2.6f);
+            Assert.IsTrue(pair.All(x => x.Targetable), "out, and can be struck");
+            Assert.IsTrue(pair.All(x => x.CurrentState != Soured.State.Idle), "coming for you");
+            Assert.IsFalse(Group(2).Any(x => x.Emerged), "the Gallery's still in their wall");
+        }
+
+        // Stood still, one reaches you: the long arm raised, the swipe.
+        [UnityTest]
+        public IEnumerator OneOfTheKept_Swipes()
+        {
+            apprentice.Teleport(At(2.4f, 18.4f) + Vector3.up * 0.05f);
+            for (float t = 0f; t < 10f && apprentice.Health >= apprentice.maxHealth; t += Time.deltaTime)
+                yield return null;
+            Assert.Less(apprentice.Health, apprentice.maxHealth, "clawed");
+        }
+
+        // Two blows and it's gone back into the stone; a face presses out of the wall nearby.
+        [UnityTest]
+        public IEnumerator TwoBlows_TakeItBack_AndAFacePressesOutNearby()
+        {
+            apprentice.Teleport(At(2.4f, 18.4f) + Vector3.up * 0.05f);
+            var shade = Group(1)[0];
+            for (float t = 0f; t < 4f && !shade.Targetable; t += Time.deltaTime)
+                yield return null;
+            var near = UnityEngine.Object.FindObjectsByType<WallPresence>(FindObjectsSortMode.None)
+                .OrderBy(p => Vector3.Distance(p.transform.position, shade.transform.position)).First();
+            int before = near.Presses;
+            Strike(shade, apprentice.transform.position);
+            Strike(shade, apprentice.transform.position);
+            Assert.IsFalse(shade.IsAlive, "two blows");
+            yield return new WaitForSeconds(shade.deathDuration + 0.5f);
+            Assert.Greater(near.Presses, before, "a face pressed out of the wall");
+            Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.TheKept), "written in the Ledger");
+        }
+
+        // At a Rest they're back in the walls, waiting again.
+        [UnityTest]
+        public IEnumerator AtARest_TheKeptAreBackInTheWalls()
+        {
+            apprentice.Teleport(At(2.4f, 18.4f) + Vector3.up * 0.05f);
+            yield return new WaitForSeconds(3f);
+            Assert.IsTrue(Group(1).All(x => x.Emerged));
+            apprentice.Teleport(At(-6f, 53.5f) + Vector3.up * 0.05f); // (resting at the Mooring post, far from them)
+            yield return null;
+            WorldState.Instance.ReformAllSoured();
+            yield return null;
+            Assert.IsTrue(Group(1).All(x => !x.Emerged && !x.Targetable), "back in the stone");
+        }
 
         [UnityTest]
         public IEnumerator Drips_FallOutOfTheDark()

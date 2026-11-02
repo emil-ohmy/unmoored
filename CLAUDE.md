@@ -47,8 +47,8 @@ game/Assets/_Project/
   Scenes/Lab_Hold.unity           the Hold's lab (Build Lab (The Hold)): the game's opening, before the Hub (and, unknown to
                                   the player, the Ferryman's hold beneath it): a cave whose walls are made of the kept: they
                                   breathe ("..._Breathe" materials, the Toon shader's _Breathe: LivingWalls), faces and hands
-                                  press out (WallPresence), eyes in them open and follow you (WallEye); black water, the Shades'
-                                  eyes in the dark (Watcher), a crack of daylight at the way out. Atmosphere only
+                                  press out (WallPresence), eyes in them open and follow you (WallEye); black water, the Kept's
+                                  eyes in the dark (Watcher), the Kept tearing free of the walls (Kept), a crack of daylight at the way out. Atmosphere only
   Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in
                                   art/models/characters on a plinth; its clips as made, its attacks as a fight times them
                                   (read from the creature as the builder makes it), everyone at once; slow motion, pause,

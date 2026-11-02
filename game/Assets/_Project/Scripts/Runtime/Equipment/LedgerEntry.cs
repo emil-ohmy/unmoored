@@ -29,7 +29,11 @@ namespace MyGame
 
         public string KindLine => (Kind == Rank.Soured ? "Soured" : Kind == Rank.Miniboss ? "Miniboss" : "Boss") + "  ·  " + Area;
 
-        const string DrownedCity = "The Drowned City", Orchard = "The Orchard of Last Autumn", LastHour = "The Hall of the Last Hour";
+        const string Hold = "The Hold", DrownedCity = "The Drowned City", Orchard = "The Orchard of Last Autumn", LastHour = "The Hall of the Last Hour";
+
+        public static readonly LedgerEntry TheKept = new LedgerEntry("kept", "The Kept", Rank.Soured, Hold, "kept",
+            "What the walls let go of: small, hunched, black as wet tar, two pale eyes. Whoever they were, they've been kept so long that this is all that's left.",
+            "Watch the long arm rise, then step from the swipe or block it. They're frail, but there's never only one.");
 
         public static readonly LedgerEntry Laden = new LedgerEntry("laden", "The Laden", Rank.Soured, DrownedCity, "laden",
             "Each carries all it ever owned, roped in a heap on its back. Come close and it lifts the heap like a shield: it would sooner be crushed under it than set it down.",
@@ -95,7 +99,7 @@ namespace MyGame
             "The Hall's last hour, the one its mourners stopped the clocks to keep from striking, given a body: a robe, a dial for a face, long arms ending in a hammer and a blade, hung on cables in the room behind the great dial. It has waited there ever since for its time to come.",
             "Found as the Hall was left, stopped, it's a husk that a few blows bring down, and the hour never comes. Set the Hall going first and it fights in quarters, adding something at each. Hurt it too fast and it winds itself back: strike it while it winds.");
 
-        public static readonly LedgerEntry[] All = { Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound, Keener, WidowHale, OneWhoWaits };
+        public static readonly LedgerEntry[] All = { TheKept, Laden, LadenArcher, Clinger, Drowned, Unparted, Anchoress, Moths, Gleaners, Threshers, Watchman, FatherMoth, Punctual, Wound, Keener, WidowHale, OneWhoWaits };
 
         public static LedgerEntry ById(string id) => System.Array.Find(All, e => e.Id == id);
 
@@ -107,6 +111,7 @@ namespace MyGame
             MyGame.UnpartedHold _ => null,
             MyGame.Clinger c when c.mount != null => null, // (Fast, on Hold's back: the Unparted)
             MyGame.Scarecrow _ => null,
+            MyGame.Kept _ => TheKept,
             MyGame.LadenArcher _ => LadenArcher,
             MyGame.Laden _ => Laden,
             MyGame.Clinger _ => Clinger,

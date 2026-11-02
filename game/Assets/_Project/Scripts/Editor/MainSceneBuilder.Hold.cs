@@ -6,7 +6,7 @@ using UnityEngine;
 // were kept there (hold.py). They breathe (LivingWalls: every "..._Breathe" surface swells and sinks in time with the
 // sound of it, ripples running in towards you); faces and hands press out of the stone and sink back (WallPresence);
 // eyes in the walls open as you come and follow you (WallEye). Dark, eerie, desolate, dead: your lantern nearly the
-// only light, black still water, mist, ash, drips, the Shades' eyes watching from the dark. Its spaces (a lab to play
+// only light, black still water, mist, ash, drips, the Kept's eyes watching from the dark. Its spaces (a lab to play
 // in, not the level): the Pool where you wake, the Breathing Passage, the Gallery of the Kept, the Black Water (the
 // Mooring islet), and the Way Out: a climb to a crack of grey daylight.
 public static partial class MainSceneBuilder
@@ -55,6 +55,14 @@ public static partial class MainSceneBuilder
         foreach (var (at, normal) in HoldPresenceSpots)
             PresenceAt(root, at, normal, PresenceKinds[kind++ % PresenceKinds.Length]);
 
+        // The Kept: waiting in the walls at their places, torn free as you pass (in twos and threes).
+        foreach (var (e, n, ne, nn, group) in HoldKeptSpots)
+        {
+            Vector3 wall = At(e, n), outward = new Vector3(ne, 0f, nn).normalized;
+            var kept = Kept("The Kept", wall + outward * 1.1f, wall + outward * 0.2f, group); // (its back to the wall's face, drawn 0.9 m out: kept.py's Emerge)
+            kept.transform.SetParent(root, true);
+        }
+
         // A few dead lanterns, dropped along the way.
         foreach (var (e, n, yaw, lying) in new[] { (0.8f, 1.0f, 30f, true), (1.2f, 17f, 200f, false), (6.5f, 34f, 110f, true) })
         {
@@ -87,9 +95,9 @@ public static partial class MainSceneBuilder
         drips.from = 7f;
         drips.dripSound = Clips("hold_drip");
 
-        // The Shades: pairs of eyes in the dark of the pools and the lake, watching, shrinking back from the lantern.
+        // Eyes in the dark of the pools and the lake (the Kept, loose out there), watching, shrinking back from the lantern.
         foreach (var (e, n, u) in new[] { (-5f, 2f, 0.7f), (5f, 4f, 0.9f), (-3f, 52f, 0.6f), (-11f, 58f, 0.8f), (-8f, 61f, 0.7f), (8f, 40f, 0.9f) })
-            ShadeEyes(root, At(e, n, u));
+            KeptEyes(root, At(e, n, u));
 
         // Sounds: the rock groaning far off, now and then; the day outside the crack.
         var groans = new GameObject("The Rock Settling").AddComponent<AmbientOneShots>();
@@ -177,6 +185,61 @@ public static partial class MainSceneBuilder
         (new Vector3(0.36f, 2.04f, 24.23f), new Vector3(0.95f, 0.01f, -0.3f).normalized),
     };
     static readonly string[] PresenceKinds = { "face_1", "hand_1", "face_2", "face_3", "hand_2" };
+
+    // Where the Kept wait in the walls (the wall's foot, its outward normal), and their groups (each comes out together).
+    static readonly (float e, float n, float ne, float nn, int group)[] HoldKeptSpots =
+    {
+        (0.27f, 16.83f, 0.99f, -0.10f, 1), (4.55f, 20.08f, -0.97f, -0.23f, 1),                                  // the Passage: a pair
+        (-2.29f, 33.48f, 1f, 0f, 2), (9.71f, 32.90f, -1f, -0.08f, 2), (-2.30f, 37.69f, 1f, 0f, 2),            // the Gallery: three
+        (6.81f, 56.68f, -1f, 0.09f, 3), (6.55f, 59.98f, -0.98f, -0.18f, 3),                                     // the lake's east ledge: a pair
+    };
+
+    // One of the Kept (the Hold's): standing `outOfWall` once torn free, waiting `inWall` till then; turned out of the wall.
+    static Kept Kept(string name, Vector3 outOfWall, Vector3 inWall, int group)
+    {
+        Vector3 facing = new Vector3(outOfWall.x - inWall.x, 0f, outOfWall.z - inWall.z);
+        var go = Place("Characters/kept", outOfWall, facing.sqrMagnitude > 0.001f ? Quaternion.LookRotation(facing).eulerAngles.y : 0f);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 0.6f, 0f);
+        controller.height = 1.2f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var s = go.AddComponent<Kept>();
+        s.inWall = inWall;
+        s.group = group;
+        s.maxHealth = 34f;          // (two blows of the oar)
+        s.radius = 0.4f;
+        s.staggerCapacity = 30f;
+        s.staggerDuration = 0.7f;
+        s.aggroRadius = 12f;
+        s.viewHalfAngle = 180f;
+        s.noticeCloseRadius = 4f;
+        s.chaseSpeed = 1.6f;        // (a shuffle: you can walk away from one)
+        s.turnSpeed = 220f;
+        s.leashRadius = 14f;
+        s.giveUpRange = 16f;
+        s.obols = 6;
+        s.eyeHeight = 1.0f;
+        s.barHeight = 1.5f;
+        s.deathDuration = 1.5f;
+        s.dissolveDuration = 0.8f;
+        s.fareMotes = 10;
+        s.attackRange = 1.5f;
+        s.primary = new SouredAttack
+        {
+            name = "Swipe", windupClip = "Windup", strikeClip = "Swipe", recoverClip = "Recover",
+            telegraph = 0.9f, strike = 0.35f, recover = 0.8f, impactAt = 0.45f,
+            lunge = 0.4f, maxLunge = 1.0f, trackUntil = 0.7f, damage = 10f, reach = 1.6f, arc = 70f, knockback = 3f,
+            windupSound = Clips("kept_windup"), swingSound = Clips("kept_swipe"),
+        };
+        s.emergeSound = Clips("kept_emerge");
+        s.stepSound = Clips("kept_step");
+        s.hurtSound = Clips("kept_hurt");
+        s.deathSound = Clips("kept_death");
+        Swoosh(go, "HandR", "KeptClaw", SouredSwoosh, 0.14f, "KeptPalm"); // (its claws' swipe)
+        return s;
+    }
 
     // An eye in the living wall at `at`, looking out along `normal`: its socket, its ball and its lids (hold.py's eye_*),
     // turned so their front faces out (a static model's front is its back: see CLAUDE.md).
@@ -406,13 +469,13 @@ public static partial class MainSceneBuilder
         go.AddComponent<NavMeshIgnore>();
     }
 
-    // A pair of pale eyes in the dark (a Shade, only watching).
-    static void ShadeEyes(Transform parent, Vector3 at)
+    // A pair of pale eyes in the dark (one of the Kept, loose, only watching).
+    static void KeptEyes(Transform parent, Vector3 at)
     {
         var go = new GameObject("Eyes in the Dark").AddComponent<Watcher>();
         go.transform.SetParent(parent, true);
         go.transform.position = at;
-        var eye = GeneratedMaterial("M_ShadeEye", "MyGame/Toon");
+        var eye = GeneratedMaterial("M_KeptEye", "MyGame/Toon");
         eye.SetColor("_BaseColor", new Color(0.86f, 0.88f, 0.84f));
         eye.EnableKeyword("_EMISSION");
         eye.SetColor("_EmissionColor", new Color(0.86f, 0.88f, 0.84f) * 2.2f);

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyGame
 {
-    // Eyes in the dark (the Hold's Shades, for now only watching): two small pale lights out among the pilings, low,
+    // Eyes in the dark (the Kept, loose in the Hold's dark, only watching): two small pale lights out among the pilings, low,
     // blinking now and then, turned towards the Apprentice. When the lantern comes near they shrink back into the dark
     // with a whisper and are gone; later, when the light has passed on, they're back (a little further off, or not).
     public sealed class Watcher : MonoBehaviour

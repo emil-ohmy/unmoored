@@ -47,6 +47,17 @@ namespace MyGame
             Place(Out);
         }
 
+        // Pressed out now (a Shade taken back into the stone near it: a face, a moment after), unless it already is.
+        public void PressNow()
+        {
+            if (Time.time - began < rise + hold + sink)
+                return;
+            began = Time.time;
+            next = Time.time + rise + hold + sink + Random.Range(every.x, every.y);
+            Presses++;
+            Sfx.Instance?.Attack(pressSound, transform.position, 0.9f, "hold_stone_press");
+        }
+
         void Place(float u)
         {
             if (body != null)

@@ -174,6 +174,11 @@ _Avoid_: Tell, warning, indicator
 The ghost of the Apprentice left where they died, holding the Obols they carried.
 _Avoid_: Corpse, ghost, bloodstain, echo
 
+**The Kept**:
+The Hold's enemies: what its living walls (made of the souls that were kept there) let go of; small, hunched, black as
+wet tar, two pale eyes. One of them is "one of the Kept".
+_Avoid_: Shades (a Shade is the Apprentice's ghost), Humanity
+
 **Boss**:
 The unique, tough enemy at the climax of an Area.
 
