@@ -30,6 +30,7 @@ Shader "MyGame/Toon"
         _DissolveScale("Dissolve Noise Scale", Float) = 7
         _Cutaway("Cutaway (opens between camera and Apprentice)", Float) = 0
         _InTime("In time (never stilled: the Apprentice's)", Float) = 0
+        _Breathe("Breathes (the Hold's living walls: how much)", Float) = 0
     }
 
     SubShader
@@ -57,7 +58,28 @@ Shader "MyGame/Toon"
             float _DissolveScale;
             half _Cutaway;
             half _InTime;
+            half _Breathe;
         CBUFFER_END
+
+        // The Hold's living walls (_Breathe: set on import for materials named "..._Breathe"): their surface moves along
+        // its normal, a few centimetres, in every pass (so outline, shadow and depth move with it): the cave's slow
+        // breath (_WallBreath, -1..1, set by LivingWalls in time with its sound), ripples running in towards the
+        // Apprentice (_WallFocus: xyz where they are, w the ripples' phase), and a slow uneven stir. Elsewhere it's 0.
+        float _WallBreath;
+        float4 _WallFocus;
+
+        float3 Breathed(float3 positionOS, float3 normalOS)
+        {
+            if (_Breathe <= 0.0)
+                return positionOS;
+            float3 p = TransformObjectToWorld(positionOS);
+            float t = _Time.y;
+            float stir = sin(p.x * 0.9 + p.y * 0.6 + t * 0.35) * sin(p.z * 0.8 - p.y * 0.5 + t * 0.27);
+            float breath = _WallBreath * (0.055 + 0.03 * stir);
+            float d = distance(p.xz, _WallFocus.xz);
+            float ripple = sin(d * 1.3 + _WallFocus.w) * 0.025 * saturate(1.0 - d / 18.0);
+            return positionOS + normalize(normalOS) * _Breathe * (breath + ripple + stir * 0.015);
+        }
 
         // The Hall of the Last Hour with its time stopped (HallTime): what isn't in time is drained to grey, all of its
         // shading (its colour, the light on it, the fog), only its glow keeping its colour (the Soured's eyes green, a
@@ -187,7 +209,7 @@ Shader "MyGame/Toon"
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                VertexPositionInputs positions = GetVertexPositionInputs(input.positionOS.xyz);
+                VertexPositionInputs positions = GetVertexPositionInputs(Breathed(input.positionOS.xyz, input.normalOS));
                 output.positionCS = positions.positionCS;
                 output.positionWS = positions.positionWS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
@@ -246,7 +268,9 @@ Shader "MyGame/Toon"
             #endif
 
                 // Its glow (and a dissolve's edge) kept apart: time stopped drains the rest, fog and all, to grey.
-                half3 glow = lerp(_EmissionColor.rgb, _DissolveEdgeColor.rgb, edge);
+                // (a living wall's glow swells as it draws breath and fades as it lets it go)
+                half3 emission = _EmissionColor.rgb * (_Breathe > 0.0 ? 0.55 + 0.45 * _WallBreath : 1.0);
+                half3 glow = lerp(emission, _DissolveEdgeColor.rgb, edge);
                 color *= 1.0 - edge;
                 half3 bare = MixFog(color, input.fogFactor);
                 half3 glowing = MixFog(color + glow, input.fogFactor);
@@ -270,6 +294,7 @@ Shader "MyGame/Toon"
 
             struct Attributes
             {
+                float3 normalOS : NORMAL;
                 float4 positionOS : POSITION;
                 float4 tangentOS : TANGENT; // smoothed normal, baked on import
                 UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -286,8 +311,9 @@ Shader "MyGame/Toon"
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
-                float4 positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 breathed = Breathed(input.positionOS.xyz, input.normalOS);
+                output.positionWS = TransformObjectToWorld(breathed);
+                float4 positionCS = TransformObjectToHClip(breathed);
                 float3 smoothNormal = input.tangentOS.xyz;
                 if (dot(smoothNormal, smoothNormal) > 1e-6)
                 {
@@ -347,7 +373,7 @@ Shader "MyGame/Toon"
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 positionWS = TransformObjectToWorld(Breathed(input.positionOS.xyz, input.normalOS));
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
             #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                 float3 lightDirection = normalize(_LightPosition - positionWS);
@@ -387,6 +413,7 @@ Shader "MyGame/Toon"
 
             struct Attributes
             {
+                float3 normalOS : NORMAL;
                 float4 positionOS : POSITION;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -401,7 +428,7 @@ Shader "MyGame/Toon"
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                output.positionWS = TransformObjectToWorld(Breathed(input.positionOS.xyz, input.normalOS));
                 output.positionCS = TransformWorldToHClip(output.positionWS);
                 return output;
             }
@@ -444,7 +471,7 @@ Shader "MyGame/Toon"
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                output.positionWS = TransformObjectToWorld(Breathed(input.positionOS.xyz, input.normalOS));
                 output.positionCS = TransformWorldToHClip(output.positionWS);
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 return output;

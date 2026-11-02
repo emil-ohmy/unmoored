@@ -196,12 +196,14 @@ business and pay their fare to row them across.
 **The Hold** (working name; the user's direction, 2026-11-01): the game begins here, before the Hub, and it's the
 tutorial. Unknown to the player, it's where the final Boss is: the Ferryman's hold beneath the Hub, where he keeps
 what he's taken (the "Beneath the Hub" of the table below). You climb out of it up into the Hub, it's forgotten, and
-you return to it at the end, when the water drains. Dark, eerie, desolate, dead: a flooded undercroft under the great
-jetty, a forest of pilings in black water rising into the dark, old drowned foundations, heaps of kept things never
-explained (unlit lanterns, bundles in chains, stacked boats), a vast basin with a colossal capstan whose chains rise
-into the dark; the lantern nearly the only light, grey daylight through cracks far above, no music. Its only
-creatures are **Shades** (like Dark Souls' Humanity): small black shapes with two pale eyes. For now they only watch
-from the dark and shrink back from the lantern; as enemies, later. The story around it isn't decided yet (why the
+you return to it at the end, when the water drains. Dark, eerie, desolate, dead, and surreal (the user's direction,
+2026-11-02: a cave, not the drowned undercroft first tried): **a cave whose walls are made of the souls that were kept
+there**, so many for so long that they became the place. The walls breathe, slowly swelling and sinking; ripples run
+along them towards you; faces and hands press out of the stone and sink back; eyes set in the walls open as you come
+and follow you, and close behind you. Black still water in pools and a lake (the water that drains at the end); the
+lantern nearly the only light; at the way out, a crack of grey daylight. Its only creatures are **Shades** (like Dark
+Souls' Humanity): small black shapes with two pale eyes (perhaps what peels off the walls). For now they only watch from
+the dark and shrink back from the lantern; as enemies, later. The story around it isn't decided yet (why the
 Apprentice wakes there). Its lab: `Lab_Hold` (the feeling and the atmosphere only, for now).
 
 The **Hub** is the Ferryman's jetty, at the centre of the underworld. It has his hut, the merchant soul, waiting

@@ -2,13 +2,13 @@ using MyGame;
 using UnityEditor;
 using UnityEngine;
 
-// The Hold's lab (the game's opening, before the Hub; docs/brief.md): a flooded undercroft far beneath a great jetty,
-// a forest of pilings in black water, where something has kept what it's taken a very long time (hold.py). Dark,
-// eerie, desolate, dead: the Apprentice's lantern nearly the only light, thin shafts of grey daylight through cracks
-// far above, drips out of the dark, a low mist on the water, ash drifting down; and eyes in the dark (the Shades,
-// only watching for now) that shrink back from the lantern. Its route: where you wake, the Boardwalk, the
-// Foundations, the Pens, the Mooring islet, the Basin's edge (the capstan in its middle, its chains up into the dark),
-// the Climb up to the hatch and the grey light (the way out, to the Hub).
+// The Hold's lab (the game's opening, before the Hub; docs/brief.md): a cave whose walls are made of the souls that
+// were kept there (hold.py). They breathe (LivingWalls: every "..._Breathe" surface swells and sinks in time with the
+// sound of it, ripples running in towards you); faces and hands press out of the stone and sink back (WallPresence);
+// eyes in the walls open as you come and follow you (WallEye). Dark, eerie, desolate, dead: your lantern nearly the
+// only light, black still water, mist, ash, drips, the Shades' eyes watching from the dark. Its spaces (a lab to play
+// in, not the level): the Pool where you wake, the Breathing Passage, the Gallery of the Kept, the Black Water (the
+// Mooring islet), and the Way Out: a climb to a crack of grey daylight.
 public static partial class MainSceneBuilder
 {
     const string HoldLabPath = "Assets/_Project/Scenes/Lab_Hold.unity";
@@ -42,76 +42,79 @@ public static partial class MainSceneBuilder
         hold.transform.SetParent(root, true);
         Vector3 At(float e, float n, float u = 0.5f) => new Vector3(e, u, n);
 
-        // A few of the heaped lanterns loose along the way, as if dropped.
-        foreach (var (e, n, yaw, lying, floor) in new[] { (0.6f, 1.2f, 30f, true, 0.5f), (0.7f, 9.5f, 200f, false, 0.44f), (7.4f, 21.5f, 110f, true, 0.5f), (-3.4f, 41.0f, 300f, false, 0.3f) })
+        // The walls breathe (every "..._Breathe" surface, in time with the sound of it), ripples running in towards you.
+        var living = new GameObject("The Living Walls").AddComponent<LivingWalls>();
+        living.transform.SetParent(root, true);
+        living.inSound = Clips("hold_breath_in");
+        living.outSound = Clips("hold_breath_out");
+
+        // Eyes in the walls (they open as you come and follow you), and the kept pressing out of the stone.
+        foreach (var (at, normal) in HoldEyeSpots)
+            WallEyeAt(root, at, normal);
+        int kind = 0;
+        foreach (var (at, normal) in HoldPresenceSpots)
+            PresenceAt(root, at, normal, PresenceKinds[kind++ % PresenceKinds.Length]);
+
+        // A few dead lanterns, dropped along the way.
+        foreach (var (e, n, yaw, lying) in new[] { (0.8f, 1.0f, 30f, true), (1.2f, 17f, 200f, false), (6.5f, 34f, 110f, true) })
         {
-            var lantern = Place("Environment/hold_lantern_dead", At(e, n, floor + (lying ? 0.085f : 0f)), yaw);
+            var lantern = Place("Environment/hold_lantern_dead", At(e, n, 0.5f + (lying ? 0.085f : 0f)), yaw);
             lantern.transform.SetParent(root, true);
             if (lying) // (on its side)
                 lantern.transform.rotation = Quaternion.AngleAxis(84f, Quaternion.Euler(0f, yaw, 0f) * Vector3.right) * lantern.transform.rotation;
         }
 
-        // Grey daylight through cracks far above: thin shafts falling on the route (a pool where each lands, dust in it).
-        foreach (var (e, n, u, tall) in new[] { (0.0f, 0.3f, 0.5f, 13f), (0.0f, 6.0f, 0.5f, 13f), (-0.6f, 12.4f, 0.5f, 12f), (7.0f, 19.8f, 0.5f, 13f),
-                                                (8.6f, 24.5f, 0.5f, 12f), (5.0f, 29.5f, 0.5f, 14f), (-1.0f, 35.0f, 0.5f, 12f), (-6.4f, 43.7f, 0.3f, 13f), (-8.6f, 51.0f, 0.3f, 12f) })
-            LightShaft(root, At(e, n, u), Mathf.Min(tall, 9f), 0.4f);
+        // Light: next to none but your lantern. The way out: grey day pouring through the crack high in the north wall.
+        var day = PointLight(root, HoldCrack - HoldCrackOut * 1.2f + Vector3.up * 1.8f, 14f, 5f, HoldDaylight); // (just inside the crack)
+        day.shadows = LightShadows.Soft;
+        LightShaft(root, HoldCrack + HoldCrackOut * 0.6f, 3.5f, 0.9f, brightness: 3f);
+        var beyond = PointLight(root, HoldCrack - HoldCrackOut * 4.5f + Vector3.up * 2f, 10f, 4f, HoldDaylight); // (the day itself, past it)
+        beyond.shadows = LightShadows.None;
+        // Barely: a cold gleam high in the Gallery and the Passage (their walls' shapes, no more), and off the black lake.
+        foreach (var (e, n, u, range, power) in new[] { (4f, 37f, 6f, 15f, 0.9f), (2f, 18f, 5f, 10f, 0.5f) })
+            PointLight(root, At(e, n, u), range, power, Hex("#66708a")).shadows = LightShadows.None;
+        var lake = PointLight(root, At(-6f, 56f, 4f), 16f, 0.7f, Hex("#5f6f86"));
+        lake.shadows = LightShadows.None;
 
-        // Its light besides: next to none. A cold glow far off over the basin (the capstan's dark shape against it),
-        // the grey of the day falling down the hatch at the Climb's top, and your lantern.
-        var basinGlow = PointLight(root, At(8f, 52f, 9f), 26f, 0.9f, Hex("#5d6c80"));
-        basinGlow.shadows = LightShadows.None;
-        // The way out: the day pouring down through the hatch onto the top landing (the brightest thing in the Hold).
-        var hatch = PointLight(root, At(-9f, 62.8f, 11.8f), 12f, 6f, HoldDaylight);
-        hatch.shadows = LightShadows.Soft;
-        LightShaft(root, At(-9f, 62.8f, 10f), 2.6f, 1.1f, brightness: 3.5f);
-        // Behind the capstan, a cold glow on the water: its dark shape against it, seen from the ledge.
-        var behind = PointLight(root, At(9f, 61f, 2.5f), 15f, 1.6f, Hex("#6d7f99"));
-        behind.shadows = LightShadows.None;
-
-        // The air: a low mist on the black water, ash (or dust: something) drifting down out of the dark, drips.
-        HoldMist(root, At(2f, 28f, 0.15f), new Vector3(60f, 0.3f, 90f));
-        HoldAsh(root, At(2f, 28f, 9f), new Vector3(46f, 1f, 80f));
+        // The air: mist on the black water, ash drifting down out of the dark, drips.
+        HoldMist(root, At(-2f, 40f, 0.15f), new Vector3(40f, 0.3f, 80f));
+        HoldAsh(root, At(-2f, 40f, 9f), new Vector3(36f, 1f, 80f));
         var drips = new GameObject("Drips").AddComponent<Drips>();
         drips.transform.SetParent(root, true);
-        drips.transform.position = At(2f, 28f, 0f);
-        drips.size = new Vector3(46f, 0f, 80f);
-        drips.everySecond = 0.35f;
-        drips.from = 9f;
+        drips.transform.position = At(-2f, 40f, 0f);
+        drips.size = new Vector3(40f, 0f, 84f);
+        drips.everySecond = 0.4f;
+        drips.from = 7f;
         drips.dripSound = Clips("hold_drip");
 
-        // The Shades' eyes in the dark, out among the pilings off the route, watching.
-        foreach (var (e, n, u) in new[] { (-8.5f, 3.5f, 0.9f), (8.5f, 6.5f, 1.4f), (15.5f, 17.5f, 0.8f), (15.5f, 26.5f, 1.2f), (-4.5f, 26.5f, 0.7f), (-9.5f, 33.5f, 1.6f),
-                                          (15.5f, 35.5f, 1.1f), (-15.5f, 44.5f, 0.9f), (-21.5f, 56.5f, 0.8f), (-2.5f, 66.5f, 1.3f), (-20.5f, 67.5f, 1.0f), (-11.5f, 69.5f, 1.8f),
-                                          // (and nearer, at every stop: just beyond where they shrink back, in sight as you come)
-                                          (-4.5f, 4.5f, 0.8f), (5.0f, 2.0f, 1.2f), (-4.8f, 10.0f, 0.9f), (4.6f, 13.0f, 1.4f), (3.0f, 23.0f, 1.0f),
-                                          (-2.5f, 28.0f, 0.9f), (13.5f, 31.0f, 1.2f), (-5.5f, 32.0f, 1.0f), (3.5f, 38.5f, 0.7f), (-10.6f, 41.3f, 0.9f),
-                                          (-1.5f, 46.5f, 0.6f), (-13.5f, 52.5f, 1.0f), (-4.5f, 59.0f, 0.8f) })
+        // The Shades: pairs of eyes in the dark of the pools and the lake, watching, shrinking back from the lantern.
+        foreach (var (e, n, u) in new[] { (-5f, 2f, 0.7f), (5f, 4f, 0.9f), (-3f, 52f, 0.6f), (-11f, 58f, 0.8f), (-8f, 61f, 0.7f), (8f, 40f, 0.9f) })
             ShadeEyes(root, At(e, n, u));
 
-        // Sounds: the jetty creaking far above, now and then; the day at the hatch.
-        var creak = new GameObject("The Jetty Overhead").AddComponent<AmbientOneShots>();
-        creak.transform.SetParent(root, true);
-        creak.transform.position = At(2f, 28f, 12f);
-        creak.clips = Clips("hold_creak");
-        creak.every = new Vector2(9f, 22f);
-        creak.spread = 30f;
-        creak.volume = 0.55f;
-        var day = new GameObject("The Day Above (the hatch)", typeof(AudioSource)).GetComponent<AudioSource>();
-        day.transform.SetParent(root, true);
-        day.transform.position = At(-9f, 62.8f, 11.5f);
-        day.clip = Clips("hold_hatch") is var hatchClips && hatchClips.Length > 0 ? hatchClips[0] : null;
-        day.loop = true;
-        day.playOnAwake = true;
-        day.spatialBlend = 1f;
-        day.rolloffMode = AudioRolloffMode.Linear;
-        day.minDistance = 3f;
-        day.maxDistance = 22f;
-        day.volume = 0.45f; // (louder than the bed, as made: it only rises as you near the hatch)
-        day.dopplerLevel = 0f;
+        // Sounds: the rock groaning far off, now and then; the day outside the crack.
+        var groans = new GameObject("The Rock Settling").AddComponent<AmbientOneShots>();
+        groans.transform.SetParent(root, true);
+        groans.transform.position = At(-2f, 40f, 6f);
+        groans.clips = Clips("hold_creak");
+        groans.every = new Vector2(12f, 26f);
+        groans.spread = 30f;
+        groans.volume = 0.5f;
+        var wind = new GameObject("The Day Outside (the crack)", typeof(AudioSource)).GetComponent<AudioSource>();
+        wind.transform.SetParent(root, true);
+        wind.transform.position = HoldCrack + Vector3.up * 1.5f;
+        wind.clip = Clips("hold_hatch") is var hatchClips && hatchClips.Length > 0 ? hatchClips[0] : null;
+        wind.loop = true;
+        wind.playOnAwake = true;
+        wind.spatialBlend = 1f;
+        wind.rolloffMode = AudioRolloffMode.Linear;
+        wind.minDistance = 3f;
+        wind.maxDistance = 22f;
+        wind.volume = 0.45f;
+        wind.dopplerLevel = 0f;
 
-        // The lab's posts on the Mooring islet; where you wake.
-        MooringPostAt(At(-1f, 35.5f), 180f);
-        var tester = TesterPostAt(At(0.6f, 34.2f), 225f);
+        // The lab's posts on the lake's islet; where you wake (the islet in the Pool).
+        MooringPostAt(HoldMooring, 180f);
+        var tester = TesterPostAt(HoldMooring + new Vector3(1.5f, 0f, -1.2f), 225f);
         tester.spawner = LabTemplates();
         var start = new GameObject("Start Point").transform;
         start.position = At(0f, 0f);
@@ -128,6 +131,98 @@ public static partial class MainSceneBuilder
         tester.readout = readout;
 
         FinishScene(scene, HoldLabPath, start, apprentice, "music_hold");
+    }
+
+    // (hold.py's: where things are in the cave)
+    static readonly Vector3 HoldCrack = new Vector3(-2.06f, 6f, 70.31f);   // the crack's foot (1.5 m wide, 4 m tall), facing...
+    static readonly Vector3 HoldCrackOut = new Vector3(-0.33f, 0f, -0.94f); // ...out of the north wall, over the top ledge
+    static readonly Vector3 HoldMooring = new Vector3(-6f, 0.5f, 54.3f);
+    static readonly (Vector3 at, Vector3 normal)[] HoldEyeSpots = // (holes in the wall: each must have its socket)
+    {
+        (new Vector3(-2.04f, 1.93f, 10.4f), new Vector3(0.88f, -0.03f, -0.47f).normalized),
+        (new Vector3(2.49f, 1.95f, 10.29f), new Vector3(-0.93f, 0.0f, -0.36f).normalized),
+        (new Vector3(-1.61f, 2.9f, 12.74f), new Vector3(0.94f, -0.08f, -0.33f).normalized),
+        (new Vector3(4.35f, 2.02f, 16.52f), new Vector3(-0.97f, -0.01f, 0.22f).normalized),
+        (new Vector3(4.64f, 2.93f, 18.3f), new Vector3(-0.98f, 0.0f, 0.2f).normalized),
+        (new Vector3(0.05f, 2.04f, 20.99f), new Vector3(0.99f, 0.0f, 0.15f).normalized),
+        (new Vector3(10.26f, 2.94f, 30.37f), new Vector3(-1.0f, -0.03f, 0.03f).normalized),
+        (new Vector3(-2.33f, 2.57f, 30.48f), new Vector3(1.0f, -0.03f, 0.06f).normalized),
+        (new Vector3(9.61f, 1.74f, 34.7f), new Vector3(-1.0f, -0.01f, 0.0f).normalized),
+        (new Vector3(9.68f, 1.75f, 37.09f), new Vector3(-1.0f, -0.03f, 0.09f).normalized),
+        (new Vector3(10.09f, 1.13f, 40.05f), new Vector3(-1.0f, 0.0f, 0.06f).normalized),
+        (new Vector3(-2.31f, 2.03f, 40.99f), new Vector3(1.0f, -0.01f, 0.0f).normalized),
+        (new Vector3(-2.26f, 2.31f, 43.98f), new Vector3(0.99f, -0.02f, -0.14f).normalized),
+        (new Vector3(-0.38f, 1.41f, 46.16f), new Vector3(0.32f, 0.0f, -0.95f).normalized),
+        (new Vector3(6.81f, 2.93f, 56.68f), new Vector3(-1.0f, -0.04f, 0.09f).normalized),
+        (new Vector3(6.55f, 2.28f, 59.98f), new Vector3(-0.98f, -0.02f, -0.18f).normalized),
+        (new Vector3(3.52f, 1.4f, 66.41f), new Vector3(-0.77f, 0.02f, -0.64f).normalized),
+        (new Vector3(1.6f, 1.72f, 68.31f), new Vector3(-0.61f, 0.01f, -0.79f).normalized),
+        (new Vector3(-19.77f, 1.64f, 59.03f), new Vector3(0.99f, -0.03f, -0.16f).normalized),
+        (new Vector3(-17.94f, 1.97f, 65.36f), new Vector3(0.9f, -0.01f, -0.45f).normalized),
+        (new Vector3(-16.83f, 2.61f, 66.79f), new Vector3(0.75f, -0.03f, -0.66f).normalized),
+    };
+    static readonly (Vector3 at, Vector3 normal)[] HoldPresenceSpots =
+    {
+        (new Vector3(9.71f, 1.25f, 32.9f), new Vector3(-1.0f, -0.01f, -0.08f).normalized),
+        (new Vector3(-2.29f, 1.85f, 33.48f), new Vector3(1.0f, 0.0f, 0.0f).normalized),
+        (new Vector3(-2.28f, 2.51f, 35.59f), new Vector3(1.0f, -0.02f, 0.0f).normalized),
+        (new Vector3(-2.3f, 1.65f, 37.69f), new Vector3(1.0f, 0.0f, 0.0f).normalized),
+        (new Vector3(10.21f, 1.59f, 43.02f), new Vector3(-0.98f, 0.0f, 0.2f).normalized),
+        (new Vector3(9.27f, 2.01f, 45.73f), new Vector3(-0.62f, -0.01f, -0.78f).normalized),
+        (new Vector3(4.87f, 1.81f, 46.32f), new Vector3(0.01f, -0.03f, -1.0f).normalized),
+        (new Vector3(-0.45f, 2.5f, 14.85f), new Vector3(0.89f, -0.05f, -0.45f).normalized),
+        (new Vector3(0.27f, 1.79f, 16.83f), new Vector3(0.99f, 0.01f, -0.1f).normalized),
+        (new Vector3(0.37f, 2.44f, 19.22f), new Vector3(0.99f, 0.0f, 0.11f).normalized),
+        (new Vector3(4.55f, 1.92f, 20.08f), new Vector3(-0.97f, 0.01f, -0.23f).normalized),
+        (new Vector3(0.36f, 2.04f, 24.23f), new Vector3(0.95f, 0.01f, -0.3f).normalized),
+    };
+    static readonly string[] PresenceKinds = { "face_1", "hand_1", "face_2", "face_3", "hand_2" };
+
+    // An eye in the living wall at `at`, looking out along `normal`: its socket, its ball and its lids (hold.py's eye_*),
+    // turned so their front faces out (a static model's front is its back: see CLAUDE.md).
+    static void WallEyeAt(Transform parent, Vector3 at, Vector3 normal)
+    {
+        // Turned up towards the camera (it looks down from above: an eye looking straight out is hidden under its own
+        // upper lip), and big enough to read from there.
+        normal = (new Vector3(normal.x, 0f, normal.z).normalized * Mathf.Cos(35f * Mathf.Deg2Rad) + Vector3.up * Mathf.Sin(35f * Mathf.Deg2Rad)).normalized;
+        var eye = new GameObject("Eye in the Wall").AddComponent<WallEye>();
+        eye.transform.SetParent(parent, true);
+        eye.transform.SetPositionAndRotation(at, Quaternion.LookRotation(normal, Vector3.up));
+        Transform Part(string variant)
+        {
+            var go = Place("Environment/hold_" + variant, at, 0f);
+            go.transform.rotation = Quaternion.LookRotation(-normal, Vector3.up);
+            go.transform.SetParent(eye.transform, true);
+            foreach (var c in go.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (it's in the wall: the wall's collider is what's there)
+            go.AddComponent<NavMeshIgnore>();
+            return go.transform;
+        }
+        Part("eye_socket");
+        eye.ball = Part("eye_ball");
+        eye.lidTop = Part("eye_lid_top");
+        eye.lidBottom = Part("eye_lid_bottom");
+        eye.open = 68f;        // (hold.py's: the top lid's front edge rises 68°, the bottom's drops 52°)
+        eye.openBottom = 52f;
+        eye.transform.localScale = Vector3.one * 1.6f;
+        eye.openSound = Clips("hold_eye_open");
+        eye.closeSound = Clips("hold_eye_close");
+    }
+
+    // A face or a hand of the kept, in the living wall at `at`, pressing out along `normal` now and then.
+    static void PresenceAt(Transform parent, Vector3 at, Vector3 normal, string variant)
+    {
+        var presence = new GameObject("The Kept (" + variant + ")").AddComponent<WallPresence>();
+        presence.transform.SetParent(parent, true);
+        presence.transform.SetPositionAndRotation(at, Quaternion.LookRotation(normal, Vector3.up));
+        var body = Place("Environment/hold_" + variant, at, 0f);
+        body.transform.rotation = Quaternion.LookRotation(-normal, Vector3.up);
+        body.transform.SetParent(presence.transform, true);
+        foreach (var c in body.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c);
+        body.AddComponent<NavMeshIgnore>();
+        presence.body = body.transform;
+        presence.pressSound = Clips("hold_stone_press");
     }
 
     // A shaft of grey daylight falling from a crack `tall` above `floor`: crossed soft planes (bright where they come
