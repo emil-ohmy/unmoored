@@ -49,6 +49,7 @@ public static partial class MainSceneBuilder
         BuildOrchardLab();
         BuildLastHourLab();
         BuildTheHourLab();
+        BuildHoldLab();
         BuildGallery();
         BuildBossArena();
         BuildTitle();

@@ -97,6 +97,12 @@ public class ModelImportRules : AssetPostprocessor
             material.SetVector("_EmissionColor", colour * GlowIntensity);
             material.SetFloat("_OutlineWidth", 0f);
         }
+        if (description.materialName.EndsWith("_Breathe"))
+            material.SetFloat("_Breathe", 1f); // (the Hold's living walls: they move with its breath; LivingWalls)
+        if (description.materialName == "HoldKept_Breathe")
+            material.SetVector("_EmissionColor", colour * 0.6f); // (the kept glow faintly in the dark: faces, hands, lids, swelling with each breath)
+        if (description.materialName == "HoldEyeWhite")
+            material.SetVector("_EmissionColor", colour * 0.3f); // (a wet glint: an open eye reads in the dark)
     }
 
     void OnPostprocessModel(GameObject root)

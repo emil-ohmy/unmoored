@@ -55,7 +55,8 @@ business and pay their fare to row them across.
 
 - **Pace:** "Middle", between Death's Door's snappiness and Tunic's weight.
 - **Verbs:** move, a short dash (2.8 m) with invincibility from its first frame, shown as ghost images (it can cancel an
-  attack's recovery), a 2-swing light combo and a heavy attack. Attacks go where the stick points.
+  attack's recovery; it eases out into a run if you steer, with no standing about after it, and only another dash
+  waits out its short recovery), a 2-swing light combo and a heavy attack. Attacks go where the stick points.
 - **Block and perfect block:** holding block lets 30% through and costs stamina (empty stamina breaks the guard). A
   block raised within 0.2 s of the blow is a **perfect block**: no damage, and the attacker is always **stunned**, open to
   double-damage **ripostes**. Mashing block earns no perfect window.
@@ -192,6 +193,32 @@ business and pay their fare to row them across.
 - **Defeat only scatters the Soured.** The Ferryman's hoard pulls them back. When he falls, all are released.
 
 ## World
+
+**The Hold** (working name; the user's direction, 2026-11-01): the game begins here, before the Hub, and it's the
+tutorial. Unknown to the player, it's where the final Boss is: the Ferryman's hold beneath the Hub, where he keeps
+what he's taken (the "Beneath the Hub" of the table below). You climb out of it up into the Hub, it's forgotten, and
+you return to it at the end, when the water drains. Dark, eerie, desolate, dead, and surreal (the user's direction,
+2026-11-02: a cave, not the drowned undercroft first tried): **a cave whose walls are made of the souls that were kept
+there**, so many for so long that they became the place. The walls breathe, slowly swelling and sinking; ripples run
+along them towards you; faces and hands press out of the stone and sink back; eyes set in the walls open as you come
+and follow you, and close behind you. Black still water in pools and a lake (the water that drains at the end); the
+lantern nearly the only light; at the way out, a crack of grey daylight. Its only creatures are **the Kept** (like Dark
+Souls' Humanity; not "Shades": a Shade is the ghost you leave where you die): what the living walls let go of (see
+the Soured families table). The story around it isn't decided yet (why the
+Apprentice wakes there). Its lab: `Lab_Hold` (the feeling and the atmosphere only, for now).
+
+**The Hold's Boss, The Hold, That Would Not Let Go** (the user's direction, 2026-11-02): an easy first Boss, a tutorial in
+what a Boss is (a name plate, a bar, big tells, windows to punish). At the way out, in a round chamber before the
+crack of daylight, the cave itself won't let you go: a great face forms in the chamber's north wall, high up, and two
+enormous hands tear out of the stone either side of it. Rooted in the wall: a fight of patterns.
+- **The hands:** one rises and slams down where you stand (dodge); after a slam it lies stunned on the floor a while:
+  strike it (it hurts the whole). A hand sweeps low across the floor (vault it, or dodge). Wound a hand enough and it
+  withdraws into the wall a while (one less to dodge); with both withdrawn, the face sags down into reach: strike it
+  (great harm), until it heaves itself up and the hands tear out again. One health bar.
+- **Two phases:** first the hands alone; at half the face joins: it draws breath and the cave's breath gusts you back,
+  and it bites down at you if you're close under it; the hands quicker.
+- **Beaten**, it lets go: the face sags to the floor, its mouth opens wide on the way out behind it, and you climb out
+  to the Hub. No Ability (the Hook is the Anchoress's). Its farewell: **"LET GO"** / *It held on as long as it could.*
 
 The **Hub** is the Ferryman's jetty, at the centre of the underworld. It has his hut, the merchant soul, waiting
 Lingerers and one Mooring post. The Areas are spokes that link to each other through shortcuts opened from the far side,
@@ -365,6 +392,7 @@ Each couldn't let go of something. Weaknesses are advantages, never requirements
 | Moths | memories | A flock of one-hit wisps drawn to light: they circle their lantern, then come to yours, circling you just out of reach and sending one in at a time. It stalls, flaring (the tell), then dives straight through; a perfect block breaks it | The heavy attack (it sweeps through all it reaches) and fire (one alight sets the next alight) |
 | Gleaners | the harvest | Farmhands who went on gleaning, walking the rows at night with lanterns on long poles. They keep their distance (backing off, skipping lightly away from the oar, but never while winding up) and fling fire from the lantern: the pole drawn back over the head, the lantern flaring (the tell), then one slow ball of flame. Turned back with a perfect block, its own fire burns one up at once. In the Orchard, where you learn to turn fire back before the Watchman | Their own fire, turned back (the Hook brings one close; pitch and tar burn it well) |
 | Threshers | the work | The orchard's old threshing machines, iron and oak, their drivers grown into the seats. A heavy: it lines up on you (boiler hissing, steam from the stack, the flail reel spinning up: the tell), then charges straight, barely turning: only with a clear run at you (with something between, it drives round, slowly, for one). Sidestepped, it runs into whatever's solid (a tree, a wall, a stook) and stalls a while, steaming, open; then it backs off it. The oar glances off its front; from behind (and stalled, from anywhere) it reaches the driver. Up close, flails sweep in front and steam bursts behind. Fire doesn't burn iron: it stokes the boiler, and it charges faster | Running it into something; the Hook (it wrenches the drive chain off: stalled) |
+| The Kept | everything (worn down to nothing) | Only in the Hold, the tutorial (the user's direction, 2026-11-02): what the cave's living walls let go of. A small hunched figure, child-sized, black and soft-edged like wet tar, two pale eyes, long thin arms that nearly drag; it walks bent over, unsteady. As you pass set places in the walls, one tears free of the stone and comes after you, in twos and threes; frail (two blows). One blow: a clawing swipe, the long arm raised slowly first (the tell): the first thing you learn to block or step from. Nothing to do with the lantern. Beaten, it sinks back into the stone, and a face presses out of the wall nearby a moment after: taken back, never released (until the end) | Nothing: they're the first lesson |
 | Drowned | life | Waits under the water (only bubbles show), out of reach. Seeing you, it rises and spits poison, then sinks and spits again. A perfect block turns the spit back, and a Drowned struck by its own spit dies outright. Hide from it and it comes to the shore to look for you, open to the oar | Hook: caught while it's up, it's hauled out onto the ground, stranded, and crawls back |
 
 ## Art direction

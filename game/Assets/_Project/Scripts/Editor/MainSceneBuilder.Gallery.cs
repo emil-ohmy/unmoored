@@ -47,6 +47,8 @@ public static partial class MainSceneBuilder
         ("wound", "Wound", p => Wound("Wound", p, 0f)),
         ("keener", "Keener", p => Keener("Keener", p, 0f)),
         ("widow", "The Widow Hale", p => Widow("The Widow Hale", p, 0f)),
+        ("kept", "The Kept", p => Kept("The Kept", p, p, 0)),
+        ("the_hold", "The Hold, That Would Not Let Go", p => TheHoldBoss(new GameObject("(the Hold's)").transform, p)),
         ("the_hour", "The One Who Waits", p => TheHourBoss(p)),
     };
 
@@ -153,8 +155,8 @@ public static partial class MainSceneBuilder
     // A swipe trail the creature carries in the world, on the exhibit: the same two points on the same bone.
     sealed class GallerySwipeOf
     {
-        public string bone;
-        public Vector3 tip, inner;      // (in the bone's space)
+        public string bone, innerBone;  // (the Hold's swipe: from its fingertip back down its forearm)
+        public Vector3 tip, inner;      // (each in its bone's space)
         public Material material;
         public Color colour;
         public float lifetime;
@@ -169,20 +171,50 @@ public static partial class MainSceneBuilder
             Debug.LogWarning($"[Gallery] {go.name}: no {made.bone} bone for its swipe");
             return;
         }
-        Transform Point(string name, Vector3 at)
+        var innerBone = go.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == (made.innerBone ?? made.bone)) ?? bone;
+        Transform Point(string name, Vector3 at, Transform on)
         {
             var point = new GameObject(name).transform;
-            point.SetParent(bone, false);
+            point.SetParent(on, false);
             point.localPosition = at;
             return point;
         }
         var trail = go.AddComponent<SwingTrail>();
-        trail.tip = Point("Swing Tip", made.tip);
-        trail.inner = Point("Swing Inner", made.inner);
+        trail.tip = Point("Swing Tip", made.tip, bone);
+        trail.inner = Point("Swing Inner", made.inner, innerBone);
         trail.material = made.material;
         trail.colour = made.colour;
         trail.lifetime = made.lifetime;
         trail.attacks = made.attacks;
+    }
+
+    // The Hold's blows (it isn't a Soured: its attacks are its own, timed as it times them): each hand's slam and
+    // sweep, the face's breath and bite.
+    static IEnumerable<GalleryExhibit.Attack> HoldGalleryAttacks(TheHoldWall h)
+    {
+        foreach (var (side, name) in new[] { ("L", "left"), ("R", "right") })
+        {
+            yield return new GalleryExhibit.Attack
+            {
+                name = $"Slam ({name})", attack = "Slam" + side, windup = "SlamDraw" + side, strike = "Slam" + side, recover = "SlamRecover" + side,
+                telegraph = h.slamDraw, strikeTime = h.slamTime, recoverTime = h.slamRecover,
+            };
+            yield return new GalleryExhibit.Attack
+            {
+                name = $"Sweep ({name})", attack = "Sweep" + side, windup = "SweepDraw" + side, strike = "Sweep" + side, recover = "SweepRecover" + side,
+                telegraph = h.sweepDraw, strikeTime = h.sweepTime, recoverTime = h.sweepRecover,
+            };
+        }
+        yield return new GalleryExhibit.Attack
+        {
+            name = "Breath", attack = "Breath", windup = "BreathDraw", strike = "Breath", recover = "BreathRecover",
+            telegraph = h.breathDraw, strikeTime = h.breathTime, recoverTime = h.breathRecover,
+        };
+        yield return new GalleryExhibit.Attack
+        {
+            name = "Bite", attack = "Bite", windup = "BiteDraw", strike = "Bite", recover = "BiteRecover",
+            telegraph = h.biteDraw, strikeTime = h.biteTime, recoverTime = h.biteRecover,
+        };
     }
 
     static void BuildGallery()
@@ -228,11 +260,14 @@ public static partial class MainSceneBuilder
                                     telegraph = a.telegraph, strikeTime = a.strike, recoverTime = a.recover,
                                     attack = a.name, ranged = a.ranged,
                                 });
+                    if (made is TheHoldWall hold)
+                        attacks.AddRange(HoldGalleryAttacks(hold));
                     foreach (var trail in made.GetComponentsInChildren<SwingTrail>(true))
                         if (trail.tip != null && trail.inner != null)
                             swipes.Add(new GallerySwipeOf
                             {
-                                bone = trail.tip.parent.name, tip = trail.tip.localPosition, inner = trail.inner.localPosition,
+                                bone = trail.tip.parent.name, innerBone = trail.inner.parent.name,
+                                tip = trail.tip.localPosition, inner = trail.inner.localPosition,
                                 material = trail.material, colour = trail.colour, lifetime = trail.lifetime, attacks = trail.attacks,
                             });
                 }

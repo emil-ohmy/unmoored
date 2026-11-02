@@ -196,6 +196,21 @@ namespace MyGame
             flash.Emit(new ParticleSystem.EmitParams { startSize = 0.7f, startLifetime = 0.4f, startColor = new Color(0.6f, 0.75f, 0.9f, 0.35f), applyShapeToPosition = false }, 1);
         }
 
+        // A drop falling into still water (the Hold): a few tiny beads and a faint ring.
+        public void Drip(Vector3 position)
+        {
+            sparks.transform.SetPositionAndRotation(position, Quaternion.LookRotation(Vector3.up));
+            for (int i = 0; i < 3; i++)
+                sparks.Emit(new ParticleSystem.EmitParams
+                {
+                    startColor = new Color(0.6f, 0.66f, 0.72f, 0.6f),
+                    startSize = Random.Range(0.025f, 0.05f),
+                    startLifetime = Random.Range(0.15f, 0.3f),
+                }, 1);
+            flash.transform.position = position;
+            flash.Emit(new ParticleSystem.EmitParams { startSize = 0.35f, startLifetime = 0.6f, startColor = new Color(0.55f, 0.62f, 0.7f, 0.2f), applyShapeToPosition = false }, 1);
+        }
+
         public int LiveWisps => wisps != null ? wisps.particleCount : 0;
 
         // A lick of flame (burning pitch, a Soured alight, a tarred oar): bright, rising fast, dwindling to nothing.

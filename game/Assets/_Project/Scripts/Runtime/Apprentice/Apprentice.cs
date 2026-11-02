@@ -22,7 +22,8 @@ namespace MyGame
         public float dashDistance = 2.8f; // short enough that the Laden can track an early dash: dodging is timing (play-test)
         public float iFrameStart = 0f; // from the first frame: a dash pressed just before the blow must work (play-test)
         public float iFrameEnd = 0.28f;
-        public float dashRecovery = 0.12f;
+        public float dashRecovery = 0.12f; // (standing still after it, only if you don't steer or strike: a second dash waits it out)
+        [Range(0f, 1f)] public float dashEaseFrom = 0.55f; // of its time at full speed; then it eases down (to a run if you steer)
         public float dashStaminaCost = 20f;
 
         [Header("Stamina")]
@@ -232,6 +233,7 @@ namespace MyGame
         float verticalVelocity;
         Vector3 knockback;
         Vector3 dashDirection;
+        float dashPeak, dashEnd;
         bool isHeavy;
         int comboStep;
         bool hitLanded;
@@ -400,9 +402,30 @@ namespace MyGame
 
                 case State.Dashing:
                     if (stateTime < dashDuration)
-                        planar = dashDirection * (dashDistance / dashDuration);
-                    if (stateTime >= dashDuration + dashRecovery)
-                        ToFreeAndConsume();
+                    {
+                        // Full speed, then easing down: to a run if you're steering (it hands straight on to running),
+                        // else to a stop. (The same distance either way.)
+                        float u = stateTime / dashDuration;
+                        float ease = u <= dashEaseFrom ? 0f : Mathf.SmoothStep(0f, 1f, (u - dashEaseFrom) / (1f - dashEaseFrom));
+                        planar = dashDirection * Mathf.Lerp(dashPeak, dashEnd, ease);
+                    }
+                    else
+                    {
+                        // Its recovery: steering or striking ends it at once (only another dash waits it out); stood
+                        // still, settling onto the oar over it (not snapped onto it).
+                        bool steering = MoveDirection().sqrMagnitude > 0.001f;
+                        if (!steering)
+                            clips.Loop("Idle", 0.3f);
+                        if (stateTime >= dashDuration + dashRecovery)
+                            ToFreeAndConsume();
+                        else if (steering || HasBuffered(Act.Light) || HasBuffered(Act.Heavy) || HasBuffered(Act.Vault))
+                        {
+                            Enter(State.Free);
+                            TryConsumeBuffer();
+                            if (CurrentState == State.Free) // (on the move this very frame, as a run would be)
+                                planar = MoveDirection() * moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f) * SlowFactor;
+                        }
+                    }
                     break;
 
                 case State.Attacking:
@@ -911,7 +934,7 @@ namespace MyGame
             {
                 if (!LockTarget.Lockable || !LockTarget.isActiveAndEnabled)
                     SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
-                else if (ToLockTarget().magnitude > lockBreakRange || OffScreenTooLong())
+                else if (ToLockTarget().magnitude > lockBreakRange + LockTarget.LockReachExtra || OffScreenTooLong())
                     SetLockTarget(null);
             }
         }
@@ -959,7 +982,7 @@ namespace MyGame
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
-                if (to.magnitude > lockRange)
+                if (to.magnitude > lockRange + s.LockReachExtra)
                     continue;
                 float score = to.magnitude + Vector3.Angle(heading, to) / 45f;
                 if (score < bestScore)
@@ -983,7 +1006,7 @@ namespace MyGame
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
-                if (to.magnitude > lockRange)
+                if (to.magnitude > lockRange + s.LockReachExtra)
                     continue;
                 float angle = Vector3.SignedAngle(current, to, Vector3.up) * direction;
                 if (angle > 0f && angle < bestAngle)
@@ -1032,6 +1055,10 @@ namespace MyGame
                     else
                         dashDirection = LockTarget != null ? -ToLockTarget().normalized : transform.forward; // locked: backstep
                     transform.rotation = Quaternion.LookRotation(dashDirection);
+                    // Its speed: full, then down to a run (steering) or a stop over its last part; the same distance.
+                    dashEnd = move.sqrMagnitude > 0.001f ? moveSpeed * (LockTarget != null ? lockedMoveSpeedFactor : 1f) * SlowFactor : 0f;
+                    float held = dashEaseFrom + (1f - dashEaseFrom) * 0.5f; // (the share of its time at full speed, counting the ease's half)
+                    dashPeak = Mathf.Max(dashEnd, (dashDistance / dashDuration - (1f - held) * dashEnd) / held);
                     Enter(State.Dashing);
                     Sfx.Instance?.Dash(transform.position);
                     clips.PlayOnce("Dash", dashDuration);

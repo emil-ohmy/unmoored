@@ -158,6 +158,8 @@ namespace MyGame
 
         // Whether lock-on can choose it (a scarecrow never; the Watchman only while he's fighting you).
         public virtual bool Lockable => Targetable;
+        // How much further than the usual lock-on range it can be chosen and held from (a great Boss's parts, far up a wall).
+        public virtual float LockReachExtra => 0f;
 
         // Held up by the water (a Drowned) or the air (a Moth): no gravity, no feeling for footing; it keeps the height
         // it's given.
