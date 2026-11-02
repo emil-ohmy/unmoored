@@ -9,7 +9,10 @@ namespace MyGame
     public sealed class HoldPart : Soured
     {
         public bool Open { get; set; }
+        public bool Out { get; set; } // out of the wall while it fights (a hand not withdrawn): lock-on can choose it
         public override bool Targetable => base.Targetable && Open;
+        public override bool Lockable => IsAlive && (Out || Open);
+        public override float LockReachExtra => 5f; // (its place on the floor is under it, by the wall: from across its chamber)
         public override bool OutOfReach => !Open;
         protected override bool Floats => true;
 
@@ -18,7 +21,7 @@ namespace MyGame
         public override void Reform()
         {
             base.Reform();
-            Open = false;
+            Open = Out = false;
             Reformed?.Invoke();
         }
 

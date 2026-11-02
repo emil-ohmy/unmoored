@@ -202,6 +202,12 @@ namespace MyGame
                 FarewellLine.Show(farewellLine);
                 farewellLine = null;
             }
+            if (writtenAfterFarewell != null && UiKit.Now - writtenAt >= WrittenAfterFarewell)
+            {
+                LastWritten = writtenAfterFarewell;
+                foundHint.Show(LastWritten);
+                writtenAfterFarewell = null;
+            }
             Farewell.Tick();
             FarewellLine.Tick();
         }
@@ -239,15 +245,27 @@ namespace MyGame
                                    .Replace("{vault}", usingGamepad ? "RT" : "Shift"));
         }
 
-        // A kind of Soured met (scattered) for the first time: a quiet line (a Boss's is its farewell).
+        // A kind of Soured met (scattered) for the first time: a quiet line. A Boss's too, once its farewell has had
+        // its moment.
         void OnWritten(LedgerEntry entry)
         {
-            if (entry.Kind != LedgerEntry.Rank.Soured)
-                return;
             string name = entry.Name.StartsWith("The ") ? "the " + entry.Name.Substring(4) : entry.Name;
-            LastWritten = $"Written in the Ledger: {name}";
-            foundHint.Show(LastWritten);
+            string line = $"Written in the Ledger: {name}";
+            if (entry.Kind == LedgerEntry.Rank.Soured)
+            {
+                LastWritten = line;
+                foundHint.Show(line);
+            }
+            else
+            {
+                writtenAfterFarewell = line;
+                writtenAt = UiKit.Now;
+            }
         }
+
+        string writtenAfterFarewell;
+        float writtenAt;
+        const float WrittenAfterFarewell = 6f; // (the farewell up, its line beneath, then this)
 
         public string LastWritten { get; private set; } // (tests)
 

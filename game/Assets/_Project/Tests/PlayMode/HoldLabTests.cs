@@ -189,7 +189,7 @@ namespace MyGame.Tests
         {
             var drips = UnityEngine.Object.FindAnyObjectByType<Drips>();
             Assert.IsNotNull(drips);
-            yield return new WaitForSeconds(4f);
+            yield return new WaitForSeconds(8f); // (they fall at random: long enough to be sure of a few)
             Assert.Greater(drips.Fallen, 3, "drops falling, near you");
         }
 
@@ -283,6 +283,119 @@ namespace MyGame.Tests
             Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.TheHold), "written in the Ledger");
         }
 
+        // Its hands and its face can be locked on to while they're out of the wall, not only while they're in reach; a
+        // hand withdrawn into the wall lets the lock go on to another part.
+        [UnityTest]
+        public IEnumerator TheHold_ItsHandsAndFace_CanBeLockedOn()
+        {
+            yield return IntoTheChamber();
+            var boss = Boss;
+            var input = (ScriptedInput)apprentice.Input;
+            input.PressLock();
+            yield return null;
+            yield return null;
+            Assert.IsInstanceOf<HoldPart>(apprentice.LockTarget, "locked on to one of its parts");
+            Assert.IsFalse(((HoldPart)apprentice.LockTarget).Open, "(not only one lying stunned)");
+            var first = apprentice.LockTarget;
+            input.Switch(1);
+            yield return null;
+            yield return null;
+            if (apprentice.LockTarget == first)
+            {
+                input.Switch(-1);
+                yield return null;
+                yield return null;
+            }
+            Assert.IsInstanceOf<HoldPart>(apprentice.LockTarget, "on to the next");
+            Assert.AreNotEqual(first, apprentice.LockTarget, "another part");
+            // Both hands driven back into the wall: the lock moves on, to the face.
+            for (float t = 0f; t < 45f && !(boss.Withdrawn(true) && boss.Withdrawn(false)); t += Time.deltaTime)
+            {
+                if (boss.handL.Open) Strike(boss.handL, boss.handWound, apprentice.transform.position);
+                if (boss.handR.Open) Strike(boss.handR, boss.handWound, apprentice.transform.position);
+                yield return null;
+            }
+            Assert.IsTrue(boss.Withdrawn(true) && boss.Withdrawn(false), "both hands back in the wall");
+            Assert.IsFalse(boss.handL.Lockable || boss.handR.Lockable, "nothing to lock on to there");
+            Assert.AreEqual(boss.face, apprentice.LockTarget, "the lock gone on to the face");
+        }
+
+        // Every swing of its hands (a slam, a sweep) draws a swipe from its fingertips (CLAUDE.md: every blow in reach).
+        [UnityTest]
+        public IEnumerator TheHold_EverySlamAndSweep_DrawsItsSwipe()
+        {
+            yield return IntoTheChamber();
+            var boss = Boss;
+            int slams = boss.Slams, sweeps = boss.Sweeps, drawn = 0, blows = 0;
+            for (float t = 0f; t < 40f && (boss.Slams - slams < 2 || boss.Sweeps - sweeps < 1); t += Time.deltaTime)
+            {
+                int now = boss.Slams + boss.Sweeps - slams - sweeps;
+                if (now != blows)
+                {
+                    blows = now; // (just struck: its swipe still fading behind it)
+                    if (boss.SwipeSamples >= 2) drawn++;
+                }
+                yield return null;
+            }
+            Assert.GreaterOrEqual(boss.Slams - slams, 2, "it slammed");
+            Assert.GreaterOrEqual(boss.Sweeps - sweeps, 1, "it swept");
+            Assert.AreEqual(blows, drawn, "a swipe through every one");
+        }
+
+        // The fight as it's played: locked on, the oar's light blows on whatever lies in reach, till it lets go; then it's
+        // in the Ledger. (Its length: the first Boss is quick to beat.)
+        [UnityTest]
+        public IEnumerator TheHold_FoughtWithTheOar_IsBeaten_AndWrittenInTheLedger()
+        {
+            yield return IntoTheChamber();
+            var boss = Boss;
+            var input = (ScriptedInput)apprentice.Input;
+            float began = Time.time, nextSwing = 0f;
+            int swings = 0;
+            Vector3 waitAt = boss.arenaCentre + Vector3.back * 3f;
+            while (boss.IsAlive && Time.time - began < 240f)
+            {
+                var open = boss.handL.Open ? boss.handL : boss.handR.Open ? boss.handR : boss.face.Open ? boss.face : null;
+                Vector3 goal = open != null ? open.transform.position : waitAt;
+                Vector3 to = goal - apprentice.transform.position;
+                to.y = 0f;
+                if (open != null && to.magnitude < 1.8f)
+                {
+                    input.Move = new Vector2(to.x, to.z).normalized * 0.2f;
+                    if (Time.time >= nextSwing)
+                    {
+                        input.PressLight();
+                        swings++;
+                        nextSwing = Time.time + 0.4f;
+                    }
+                }
+                else
+                    input.Move = to.magnitude > 0.5f ? new Vector2(to.x, to.z).normalized : Vector2.zero;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Debug.Log($"[the hold] beaten in {Time.time - began:0.0} s, {swings} swings");
+            Assert.IsFalse(boss.IsAlive, $"beaten (at {boss.HealthFraction:P0} after {Time.time - began:0} s)");
+            Assert.Less(Time.time - began, 150f, "a quick fight: the first Boss");
+            yield return new WaitForSeconds(6.5f);
+            Assert.AreEqual(TheHoldWall.Mood.Gone, boss.State);
+            Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.TheHold), "written in the Ledger");
+            yield return null;
+            Assert.AreEqual("Written in the Ledger: the Hold, That Would Not Let Go", UnityEngine.Object.FindAnyObjectByType<Hud>().LastWritten,
+                "said so, after its farewell");
+            // Its page, in the Ledger (the Kept's too, if any were scattered on the way: none here).
+            var screen = UnityEngine.Object.FindAnyObjectByType<CharacterScreen>();
+            screen.Toggle(true);
+            while (screen.Current != CharacterScreen.Tab.Ledger)
+                screen.Turn(1);
+            yield return null;
+            CollectionAssert.Contains(screen.LedgerRows, LedgerEntry.TheHold.Name);
+            StringAssert.Contains(LedgerEntry.TheHold.Description, screen.LedgerDetail);
+            StringAssert.Contains("Beaten.", screen.LedgerDetail);
+            Assert.IsNotNull(screen.ShownModel, "it, turning");
+            screen.Toggle(false);
+        }
+
         // (SHOTS=dir) The fight from the game camera: waking, the hands, a slam and the stunned hand, the face sagged.
         [UnityTest]
         public IEnumerator Capture_TheHoldFight()
@@ -317,8 +430,15 @@ namespace MyGame.Tests
             for (float t = 0f; t < 15f && boss.Slams == slams; t += Time.deltaTime)
                 yield return null;
             Shot("3-slam");
+            for (float t = 0f; t < 20f && !boss.trails.Any(w => w.Emitting && (w.For("SlamL") || w.For("SlamR")) && w.Samples >= 9); t += Time.deltaTime)
+                yield return null;
+            Shot("3b-slamming");
             yield return new WaitForSeconds(0.5f);
             Shot("4-stunned");
+            int sweeps = boss.Sweeps;
+            for (float t = 0f; t < 40f && !boss.trails.Any(w => w.Emitting && (w.For("SweepL") || w.For("SweepR")) && w.Samples >= 12); t += Time.deltaTime)
+                yield return null;
+            Shot("4b-sweep");
             for (float t = 0f; t < 45f && !(boss.Withdrawn(true) && boss.Withdrawn(false)); t += Time.deltaTime)
             {
                 if (boss.handL.Open) Strike(boss.handL, boss.handWound, apprentice.transform.position);

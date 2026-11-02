@@ -82,6 +82,8 @@ namespace MyGame.Tests
             "Father Moth: Beat",            // (a gust of leaves off his wings: no blow)
             "The One Who Waits: Grind",     // (the gears grinding all round its base: their own sparks)
             "The One Who Waits: Stop",      // (a spell: the slam that follows it, StopSlam, swipes)
+            "The Hold, That Would Not Let Go: Breath", // (the cave's breath: a gust, no blow)
+            "The Hold, That Would Not Let Go: Bite",   // (its great mouth shutting where you stand: no swing)
         };
 
         [UnityTest]

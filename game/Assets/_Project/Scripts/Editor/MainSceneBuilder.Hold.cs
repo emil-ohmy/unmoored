@@ -214,9 +214,11 @@ public static partial class MainSceneBuilder
 
     // The Hold, That Would Not Let Go: the face and the arms (one rig, the_hold.py) in the chamber's north wall, its
     // three parts (each hand, the face) where you strike them, the way out behind it blocked till it's beaten.
-    static TheHoldWall TheHoldBoss(Transform parent)
+    // (`wall`: where it stands; the Hold's chamber's north wall unless built elsewhere, as for the gallery)
+    static TheHoldWall TheHoldBoss(Transform parent, Vector3? wall = null)
     {
-        var go = Place("Characters/the_hold", HoldBossWall, 180f); // (facing south, into the chamber)
+        Vector3 shift = (wall ?? HoldBossWall) - HoldBossWall;
+        var go = Place("Characters/the_hold", HoldBossWall + shift, 180f); // (facing south, into the chamber)
         go.name = "The Hold, That Would Not Let Go";
         go.transform.SetParent(parent, true);
         foreach (var c in go.GetComponentsInChildren<Collider>())
@@ -227,21 +229,46 @@ public static partial class MainSceneBuilder
         foreach (var skinned in go.GetComponentsInChildren<SkinnedMeshRenderer>())
             skinned.updateWhenOffscreen = true;
         var boss = go.AddComponent<TheHoldWall>();
-        boss.arenaCentre = HoldArena;
+        boss.arenaCentre = HoldArena + shift;
         boss.arenaRadius = HoldArenaRadius;
         boss.shoulderL = Bone(go, "ShoulderL");
         boss.shoulderR = Bone(go, "ShoulderR");
         boss.boneHandL = Bone(go, "HandL");
         boss.boneHandR = Bone(go, "HandR");
         boss.boneFace = Bone(go, "Face");
-        // (its fingertips' swipes: the middle finger's nail, out from its last knuckle)
-        boss.trailL = Swoosh(go, "FingerL2c", "TheHoldNail", SouredSwoosh, 0.18f, null, 1f);
-        boss.trailR = Swoosh(go, "FingerR2c", "TheHoldNail", SouredSwoosh, 0.18f, null, 1f);
+        // Its hands' swipes, the whole hand smeared (a great hand needs a great swipe: a fingertip's alone is a hairline
+        // from the game camera). A sweep: from the middle finger's nail back down the forearm, flat along the floor. A
+        // slam comes straight down, so that would be seen edge-on from above: across the hand instead, the little finger's
+        // nail to the thumb's, a broad band down its path.
+        Vector3 NailTip(string bone)
+        {
+            var probe = Swoosh(go, bone, "TheHoldNail", SouredSwoosh, 0.1f);
+            Vector3 at = probe.tip.position;
+            Object.DestroyImmediate(probe.tip.gameObject);
+            Object.DestroyImmediate(probe.inner.gameObject);
+            Object.DestroyImmediate(probe);
+            return at;
+        }
+        var trails = new System.Collections.Generic.List<SwingTrail>();
+        foreach (var side in new[] { "L", "R" })
+        {
+            var sweep = Swoosh(go, $"Finger{side}2c", "TheHoldNail", SouredSwoosh, 0.22f, null, 1f, "Sweep" + side);
+            Transform fore = Bone(go, "Fore" + side), hand = Bone(go, "Hand" + side);
+            sweep.inner.SetParent(fore, true);
+            sweep.inner.position = Vector3.Lerp(hand.position, fore.position, 0.35f);
+            var slam = Swoosh(go, $"Finger{side}4c", "TheHoldNail", SouredSwoosh, 0.25f, null, 0f, "Slam" + side);
+            var thumb = Bone(go, $"Thumb{side}b");
+            slam.inner.SetParent(thumb, true);
+            slam.inner.position = NailTip($"Thumb{side}b");
+            trails.Add(sweep);
+            trails.Add(slam);
+        }
+        boss.trails = trails.ToArray();
         HoldPart Part(string name, float radius)
         {
             var part = new GameObject(name, typeof(CharacterController), typeof(Animation));
             part.transform.SetParent(parent, true);
-            part.transform.position = HoldArena;
+            part.transform.position = HoldArena + shift;
             var controller = part.GetComponent<CharacterController>();
             controller.center = new Vector3(0f, 1f, 0f);
             controller.height = 2f;
@@ -264,7 +291,7 @@ public static partial class MainSceneBuilder
         // The way out: blocked (an unseen wall at the tunnel's mouth) till it lets go.
         var block = new GameObject("The Way Out (blocked)").AddComponent<BoxCollider>();
         block.transform.SetParent(parent, true);
-        block.transform.position = HoldBossWall + new Vector3(0f, 1.5f, 0.6f);
+        block.transform.position = HoldBossWall + shift + new Vector3(0f, 1.5f, 0.6f);
         block.size = new Vector3(2.8f, 3f, 1f);
         boss.wayOut = block;
         boss.music = new[]

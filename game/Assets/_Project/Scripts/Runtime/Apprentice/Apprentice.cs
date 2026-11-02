@@ -911,7 +911,7 @@ namespace MyGame
             {
                 if (!LockTarget.Lockable || !LockTarget.isActiveAndEnabled)
                     SetLockTarget(BestTarget(LockTarget)); // it scattered: move on to the next one nearby, if any
-                else if (ToLockTarget().magnitude > lockBreakRange || OffScreenTooLong())
+                else if (ToLockTarget().magnitude > lockBreakRange + LockTarget.LockReachExtra || OffScreenTooLong())
                     SetLockTarget(null);
             }
         }
@@ -959,7 +959,7 @@ namespace MyGame
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
-                if (to.magnitude > lockRange)
+                if (to.magnitude > lockRange + s.LockReachExtra)
                     continue;
                 float score = to.magnitude + Vector3.Angle(heading, to) / 45f;
                 if (score < bestScore)
@@ -983,7 +983,7 @@ namespace MyGame
                     continue;
                 Vector3 to = s.transform.position - transform.position;
                 to.y = 0f;
-                if (to.magnitude > lockRange)
+                if (to.magnitude > lockRange + s.LockReachExtra)
                     continue;
                 float angle = Vector3.SignedAngle(current, to, Vector3.up) * direction;
                 if (angle > 0f && angle < bestAngle)

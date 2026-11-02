@@ -86,9 +86,17 @@ game/Assets/_Project/
   and side, films and sheets in builds/film-<name>/), then in the game: Lab_Gallery's Chain mode, its seam report
   (`REPORT=dir`) and its in-game film (`FILM=dir FILM_CREATURE=<title>`, AnimationGalleryTests). Wind-ups ease in over
   `Soured.WindupFade` (0.15 s); other one-offs over 0.05 s, loops over 0.15 s. Keyed turns go the short way: a bone
-  keyed 280° then -58° spins 338° back round between them (key 302°). Every blow in reach draws a swipe: `Swoosh` in
-  its factory (the bone, the material at the weapon's tip, the attacks it smears), shown in the gallery too;
-  `EveryBlowInReach_DrawsItsSwipe` lists the few blows that aren't swings.
+  keyed 280° then -58° spins 338° back round between them (key 302°). **Every blow in reach ALWAYS draws a
+  swipe**, on every creature and Boss, from the first build, without being asked: `Swoosh` in its factory (the bone,
+  the material at the weapon's tip, the attacks it smears), shown in the gallery too; `EveryBlowInReach_DrawsItsSwipe`
+  lists the few blows that aren't swings. A Boss that isn't a Soured (the Hold) lists its blows for the gallery
+  (`HoldGalleryAttacks`) so that test covers it. Look at the swipe from the game camera before calling it done: one
+  seen edge-on (a blow coming straight down, seen from above) or a fingertip's on a great hand is a hairline; span it
+  across the path the blow sweeps (the Hold: across the hand for a slam, fingertip to forearm for a sweep).
+- A new creature or Boss is done only when: every blow swipes (above); it has its Ledger page (`LedgerEntry`: the
+  entry, `All`, `For`; `EveryKindOfSoured_AndEveryBoss_HasItsPage`) and a test that scatters or beats it as it's
+  played and finds it written in; whatever you strike on it can be locked on to (a Boss's parts too, not only while
+  they're in reach: `Lockable`, `LockReachExtra`); and its numbers suit where it stands (the first Boss is quick).
 - Sounds are code too: `art/audio/<name>.py` defines render(variant, rng) (+ VARIANTS, LOOP). The list of every
   sound and its source (synth / AI / library) is `art/audio/sounds.md`. Claude can't listen: check shape with a
   spectrogram (`ffmpeg ... showspectrumpic`) and look for clicks (layers cut before they decay), then the user

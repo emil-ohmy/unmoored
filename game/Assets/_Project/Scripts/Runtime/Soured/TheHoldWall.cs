@@ -32,14 +32,14 @@ namespace MyGame
         public Vector3 arenaCentre;
         public float arenaRadius = 8.5f;
         public Collider wayOut;               // the tunnel behind its face, blocked till it's beaten
-        public SwingTrail trailL, trailR;     // (its fingertips' swipes, drawn through each slam and sweep)
+        public SwingTrail[] trails;           // its hands' swipes, each for its own blows (SlamL, SweepR...)
 
         [Header("Its numbers (first Boss: forgiving)")]
-        public float maxHealth = 600f;
-        public float handWound = 110f;        // a hand struck this much: it withdraws
+        public float maxHealth = 320f;        // (about two dozen blows of the oar: half of them doubled on the face)
+        public float handWound = 56f;         // a hand struck this much (four blows: one stun's worth): it withdraws
         public float withdrawnFor = 12f;
-        public float stunnedFor = 2.6f;
-        public float saggedFor = 6f;
+        public float stunnedFor = 3f;
+        public float saggedFor = 5f;
         public float faceVulnerability = 2f;
         public float slamDraw = 1.2f, slamTime = 0.4f, slamRecover = 1.0f, slamImpactAt = 0.55f;
         public float sweepDraw = 0.9f, sweepTime = 0.6f, sweepRecover = 0.8f;
@@ -48,6 +48,7 @@ namespace MyGame
         public float restBetween = 1.4f;      // between one attack and the next (phase two: less)
         public float lateQuicker = 0.75f;     // phase two: tells and rests this much as long
         public float slamDamage = 22f, slamRadius = 1.9f, sweepDamage = 14f, biteDamage = 26f, breathPush = 9f;
+        public float inFront = 2f;            // its parts' places on the floor at least this far out from the wall
         public float aimLimit = 55f;          // how far an arm turns at the shoulder to aim a slam
         public float pullBack = 1.6f;        // the camera drawn back while it fights (its face is high in the wall)...
         public float lean = 0.58f;             // ...and leaning towards the wall (the floor before it), to have its face in view
@@ -74,6 +75,7 @@ namespace MyGame
         public bool Stunned(bool left) => (left ? handL : handR).Open;
         public bool Sagged => face != null && face.Open;
         public int Slams { get; private set; }  // (tests)
+        public int Sweeps { get; private set; } // (tests)
 
         static readonly HashSet<string> FaceClips = new HashSet<string>
             { "BreathDraw", "Breath", "BreathRecover", "BiteDraw", "Bite", "BiteRecover", "Sag", "Sagged", "Rise" };
@@ -189,10 +191,22 @@ namespace MyGame
                 shoulderL.rotation = Quaternion.AngleAxis(aimL, Vector3.up) * shoulderL.rotation;
             if (shoulderR != null)
                 shoulderR.rotation = Quaternion.AngleAxis(aimR, Vector3.up) * shoulderR.rotation;
-            float floor = arenaCentre.y;
-            if (handL != null && boneHandL != null) handL.Follow(new Vector3(boneHandL.position.x, floor, boneHandL.position.z));
-            if (handR != null && boneHandR != null) handR.Follow(new Vector3(boneHandR.position.x, floor, boneHandR.position.z));
-            if (face != null && boneFace != null) face.Follow(new Vector3(boneFace.position.x, floor, boneFace.position.z));
+            // Lock-on can choose a hand while it's out of the wall, the face while it fights (struck only when in reach).
+            bool fighting = State == Mood.Fighting;
+            if (handL != null) handL.Out = fighting && withdrawnL <= Time.time && !withdrawingL;
+            if (handR != null) handR.Out = fighting && withdrawnR <= Time.time && !withdrawingR;
+            if (face != null) face.Out = fighting;
+            if (handL != null && boneHandL != null) handL.Follow(OnFloor(boneHandL.position));
+            if (handR != null && boneHandR != null) handR.Follow(OnFloor(boneHandR.position));
+            if (face != null && boneFace != null) face.Follow(OnFloor(boneFace.position));
+        }
+
+        // A part's place: on the floor under its bone, but never back in the wall (where lock-on and the camera would lose it).
+        Vector3 OnFloor(Vector3 bone)
+        {
+            Vector3 p = new Vector3(bone.x, arenaCentre.y, bone.z), out_ = Flat(transform.forward).normalized;
+            float d = Vector3.Dot(p - transform.position, out_);
+            return d < inFront ? p + out_ * (inFront - d) : p;
         }
 
         bool In(Vector3 p, float more = 0f) => Flat(p - arenaCentre).magnitude < arenaRadius + more && Mathf.Abs(p.y - arenaCentre.y) < 2.5f;
@@ -259,9 +273,9 @@ namespace MyGame
                 yield return null;
             }
             Layer("Slam" + side, layer, duration: slamTime, fade: 0.05f);
-            Trail(left, true);
+            Trail("Slam" + side, true);
             yield return new WaitForSeconds(slamTime * slamImpactAt);
-            Trail(left, false);
+            Trail("Slam" + side, false);
             // Down: where the hand lands, a blow (a dodge slips it; a block takes it, heavily).
             Vector3 at = Flat((left ? boneHandL : boneHandR).position) + Vector3.up * arenaCentre.y;
             Slams++;
@@ -297,7 +311,7 @@ namespace MyGame
             yield return new WaitForSeconds(sweepDraw * Quick);
             Layer("Sweep" + side, layer, duration: sweepTime, fade: 0.05f);
             Sfx.Instance?.Attack(sweepSound, (left ? boneHandL : boneHandR).position, 1f, "the_hold_sweep");
-            Trail(left, true);
+            Trail("Sweep" + side, true);
             // Low along the floor: wherever the hand passes you (not over you in the air), a blow.
             bool struck = false;
             for (float t = 0f; t < sweepTime; t += Time.deltaTime)
@@ -311,7 +325,8 @@ namespace MyGame
                 }
                 yield return null;
             }
-            Trail(left, false);
+            Trail("Sweep" + side, false);
+            Sweeps++;
             Layer("SweepRecover" + side, layer, duration: sweepRecover, fade: 0.1f);
             yield return new WaitForSeconds(sweepRecover);
             Release(layer);
@@ -326,10 +341,11 @@ namespace MyGame
             yield return new WaitForSeconds(breathDraw * Quick);
             Layer("Breath", 1, duration: breathTime, fade: 0.05f);
             Sfx.Instance?.Attack(breathSound, boneFace.position, 1f, "the_hold_breath");
-            // The cave's breath: a gust pushing you back across the chamber (no harm: it's the push that matters).
+            // The cave's breath: a gust pushing you back across the chamber (no harm: it's the push that matters), as far
+            // as its far side (never out of it).
             for (float t = 0f; t < breathTime * 0.8f; t += Time.deltaTime)
             {
-                if (target.IsAlive && In(target.transform.position, 2f) && !target.Airborne)
+                if (target.IsAlive && In(target.transform.position, -1.5f) && !target.Airborne)
                     target.Wade(0.55f, Flat(target.transform.position - transform.position).normalized * breathPush); // (slowed, and pushed back)
                 yield return null;
             }
@@ -497,12 +513,14 @@ namespace MyGame
 
         void SetBusy(bool left, bool on) { if (left) busyL = on; else busyR = on; }
 
-        void Trail(bool left, bool on)
+        void Trail(string attack, bool on)
         {
-            var trail = left ? trailL : trailR;
-            if (trail != null)
-                trail.Emitting = on;
+            foreach (var trail in trails ?? new SwingTrail[0])
+                if (trail != null && trail.For(attack))
+                    trail.Emitting = on;
         }
+
+        public int SwipeSamples { get { int n = 0; foreach (var t in trails ?? new SwingTrail[0]) n += t.Samples; return n; } } // (tests)
 
         void Rest() => nextAttack = Mathf.Min(nextAttack, Time.time) + restBetween * Quick + Random.Range(0f, 0.6f);
 
