@@ -53,6 +53,11 @@ game/Assets/_Project/
                                   (you come up through the trapdoor in its floor; its roof fades inside: Storeys), the path
                                   down to the jetty and its landing (his boat, the Mooring post), the merchant soul, the
                                   Areas' way markers, the Far shore. Atmosphere only
+  Scenes/Lab_HoldLayout.unity     the Hold as the user drew it in Figma (Build Lab (The Hold, as drawn)): a blockout built from
+                                  Levels/the_hold.json (MainSceneBuilder.HoldLayout: floors, breathing rock walls, the markers'
+                                  set pieces on the nearest wall face, the tutorial's floor messages: FloorMessage)
+  Levels/<area>.json              level layouts exported from the Figma level-design file (ground rectangles, markers, notes, in
+                                  metres): read the frame with the Figma tools, write it here, rebuild the lab
   Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in
                                   art/models/characters on a plinth; its clips as made, its attacks as a fight times them
                                   (read from the creature as the builder makes it), everyone at once; slow motion, pause,

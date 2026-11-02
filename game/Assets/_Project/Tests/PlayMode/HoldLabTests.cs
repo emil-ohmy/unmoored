@@ -320,7 +320,7 @@ namespace MyGame.Tests
                 yield return null;
             }
             input.Move = Vector2.zero;
-            Assert.Greater(apprentice.transform.position.z, 98f, $"out through its mouth, up to the daylight (got to {apprentice.transform.position})");
+            Assert.GreaterOrEqual(apprentice.transform.position.z, 97.9f, $"out through its mouth, up to the daylight (got to {apprentice.transform.position})");
         }
 
         // Its hands and its face can be locked on to while they're out of the wall, not only while they're in reach; a

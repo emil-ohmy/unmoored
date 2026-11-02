@@ -1,0 +1,48 @@
+{
+  "source": "Figma: The Ferryman's Apprentice: Level Design (MysuLAJcAzztDJRDTszuD0), page Area template, frame 3:83 'Area: NAME (duplicate me)'",
+  "units": "metres; e east, n north (Figma's y down is south); from the frame's top-left corner",
+  "width": 140,
+  "height": 178,
+  "ground": [
+    {"kind": "Ground +0.5 (shore, quay)", "e0": 56, "e1": 78, "n0": -156, "n1": -89},
+    {"kind": "Ground +0.5 (shore, quay)", "e0": 67.3, "e1": 78, "n0": -105, "n1": -38},
+    {"kind": "Ground +0.5 (shore, quay)", "e0": 62.5, "e1": 71.5, "n0": -171, "n1": -146},
+    {"kind": "Ground +4.8 (two storeys up)", "e0": 71.5, "e1": 79.5, "n0": -171, "n1": -156},
+    {"kind": "Ground +4.8 (two storeys up)", "e0": 78, "e1": 86, "n0": -156, "n1": -33},
+    {"kind": "Ground +4.8 (two storeys up)", "e0": 54.5, "e1": 62.5, "n0": -171, "n1": -156},
+    {"kind": "Ground +4.8 (two storeys up)", "e0": 48, "e1": 56, "n0": -156, "n1": -76},
+    {"kind": "Ground +4.8 (two storeys up)", "e0": 55, "e1": 67.3, "n0": -89, "n1": -30},
+    {"kind": "Ground +4.8 (two storeys up)", "e0": 54.6, "e1": 80, "n0": -175, "n1": -170.7}
+  ],
+  "markers": [
+    {"code": "LT", "label": "", "e": 75.5, "n": -45.5},
+    {"code": "KP", "label": "", "e": 61.5, "n": -106.5},
+    {"code": "KP", "label": "", "e": 73.5, "n": -103.5},
+    {"code": "KP", "label": "", "e": 65.8, "n": -134},
+    {"code": "EYE", "label": "", "e": 53, "n": -149.5},
+    {"code": "EYE", "label": "", "e": 81.5, "n": -125.5},
+    {"code": "EYE", "label": "", "e": 76, "n": -160},
+    {"code": "EYE", "label": "", "e": 60, "n": -167.5},
+    {"code": "EYE", "label": "", "e": 50.5, "n": -111.5},
+    {"code": "EYE", "label": "", "e": 60.5, "n": -81.5},
+    {"code": "HAND", "label": "", "e": 54.6, "n": -137.5},
+    {"code": "HAND", "label": "", "e": 79.5, "n": -137.5},
+    {"code": "HAND", "label": "", "e": 54.5, "n": -123.5},
+    {"code": "HAND", "label": "", "e": 54.2, "n": -91.5},
+    {"code": "HAND", "label": "", "e": 81, "n": -68.5},
+    {"code": "DRIP", "label": "", "e": 82.2, "n": -102.6},
+    {"code": "DRIP", "label": "", "e": 80.7, "n": -89},
+    {"code": "DRIP", "label": "", "e": 53.5, "n": -102.5},
+    {"code": "DRIP", "label": "", "e": 79.5, "n": -114.5},
+    {"code": "FACE", "label": "", "e": 60.5, "n": -158.8},
+    {"code": "FACE", "label": "", "e": 65.5, "n": -86.5},
+    {"code": "FACE", "label": "", "e": 64.5, "n": -66.5},
+    {"code": "FACE", "label": "", "e": 65, "n": -39.5}
+  ],
+  "notes": [
+    {"text": "We begin here", "e0": 56, "e1": 80.2, "n0": -171.3, "n1": -166.2},
+    {"text": "Tutorial-message post dodge, attack.", "e0": 62, "e1": 89, "n0": -168.3, "n1": -153},
+    {"text": "Tutorial-Healing", "e0": 60.4, "e1": 87.4, "n0": -85.9, "n1": -75.7},
+    {"text": "Tutorial - lanterns", "e0": 65.7, "e1": 92.7, "n0": -52, "n1": -41.8}
+  ]
+}

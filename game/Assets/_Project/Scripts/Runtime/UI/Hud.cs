@@ -241,9 +241,16 @@ namespace MyGame
             LanternBanner.Dismiss();
             FoundBanner.Show(title);
             if (!string.IsNullOrEmpty(hint))
-                foundHint.Show(hint.Replace("{hook}", usingGamepad ? "RB" : "F").Replace("{heavy}", usingGamepad ? "Y" : "K")
-                                   .Replace("{vault}", usingGamepad ? "RT" : "Shift"));
+                foundHint.Show(Controls(hint));
         }
+
+        // A hint's controls, for the device in use: {dodge} is B or Space, and so on (GameInput's bindings).
+        public string Controls(string hint) => hint
+            .Replace("{hook}", usingGamepad ? "RB" : "F").Replace("{heavy}", usingGamepad ? "Y" : "K")
+            .Replace("{vault}", usingGamepad ? "RT" : "Shift").Replace("{dodge}", usingGamepad ? "B" : "Space")
+            .Replace("{light}", usingGamepad ? "X" : "J").Replace("{heal}", usingGamepad ? "LB" : "Q")
+            .Replace("{interact}", usingGamepad ? "A" : "E").Replace("{block}", usingGamepad ? "LT" : "L")
+            .Replace("{lock}", usingGamepad ? "R3" : "Tab");
 
         // A kind of Soured met (scattered) for the first time: a quiet line. A Boss's too, once its farewell has had
         // its moment.

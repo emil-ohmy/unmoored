@@ -51,6 +51,7 @@ public static partial class MainSceneBuilder
         BuildTheHourLab();
         BuildHoldLab();
         BuildHubLab();
+        BuildHoldLayoutLab();
         BuildGallery();
         BuildBossArena();
         BuildTitle();
