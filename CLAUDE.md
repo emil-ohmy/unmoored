@@ -21,6 +21,9 @@ tools/
   audio/synth.py                  sound synthesis kit (noise, sweeps, filters, envelopes, loops)
   record-demo.sh [project]        scripted demo session -> builds/recordings/demo.mp4 (frames + offline audio mix)
   audio/mix_recording.py          rebuilds a recording's audio from its sound-event log
+  level-editor.sh [level]         the level editor in the browser (tools/level-editor/: a grid in metres, floors as paths,
+                                  rects and rounds, every set piece as a sticker); its little server saves straight into
+                                  game/Assets/_Project/Levels/<level>.json (format "level/2")
   unity.sh                        open | import | build-mac | build-webgl | test
 game/Assets/_Project/
   Art/Models/                     generated FBX (never edit; rebuild from art/models)
