@@ -1,13 +1,19 @@
-"""The Hold as the user drew it: hold.py's living cave grown round the floor plan of their Figma drawing
-(game/Assets/_Project/Levels/the_hold.json; its ground pieces at +0.5 are where it's open, everything else is the rock),
-not taken literally: the outline wanders and rounds its corners, the walls lean and fold like cloth, pale veins run
-through them, the kept press out of them in relief, the rock mass's tops lie dark behind. At the drawing's `scale`
-(the drawing is a sketch: 0.6 of its metres), its `origin` (where "We begin here" is) at the model's origin.
+"""The Hold, the level: hold.py's living cave grown round the floors of a level drawn in the level editor
+(game/Assets/_Project/Levels/the_hold_spiral.json, format "level/2": floors as paths, rounds and rectangles, in metres;
+everything that isn't floor is the rock), not taken literally: the outline wanders, the walls lean and fold like cloth,
+pale veins run through them, the kept press out of them in relief, the rock mass's tops lie dark behind.
 
 It borrows hold.py's machinery (its fields' maths, its living walls, its reliefs, its materials, the camera's ceiling:
-walls are low only where they'd hide a floor north of them), with this drawing's plan instead of hold.py's own, and
-none of its crack, ramp or tunnel. Where the markers' pieces went (each eye's socket hole, each face's and hand's
-spot, the wall each of the Kept tears out of) it writes to Levels/the_hold.spots.json for the scene builder."""
+walls are low only where they'd hide a floor north of them, its Boss's chamber and the tunnel out behind the Boss's
+face), with this level's plan instead of hold.py's own:
+- the round floor the Hold (HOLD) stands in is its chamber: squared off on the north into the Boss's broad smooth wall,
+  the tunnel's mouth in it behind the face, the tunnel short (the level's way runs north of it), then a cleft open to
+  the sky (the way out: the grey day);
+- where a door of eyes (EYED) stands, the wall is flat and upright (a built wall: the door's model stands against it);
+- no crack, ramp, lake or stalactites (hold.py's own places).
+Where the markers' pieces went (each eye's socket hole, each face's and hand's spot, the wall each of the Kept tears out
+of, the Boss's wall, the way out, each door's wall, the way across each gate) it writes to
+Levels/the_hold_spiral.spots.json for the scene builder."""
 import json
 import math
 import os
@@ -17,50 +23,103 @@ import runpy
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LEVEL = os.path.normpath(os.path.join(HERE, "..", "..", "..", "game", "Assets", "_Project", "Levels", "the_hold.json"))
+LEVEL = os.path.normpath(os.path.join(HERE, "..", "..", "..", "game", "Assets", "_Project", "Levels", "the_hold_spiral.json"))
 SPOTS = LEVEL.replace(".json", ".spots.json")
+
+TUNNEL_ROOF = 3.5      # the tunnel behind the Boss's face: how far it runs in under the rock (hold.py's is 5.5)
+CLEFT_LEN = 2.2        # then the cleft open above, this long, ending in a rock face
+DOOR_HALF = 3.4        # a door of eyes' flat wall: half its width
 
 
 def lib():
-    """hold.py's functions, and the globals they read (to point at this drawing)."""
+    """hold.py's functions, and the globals they read (to point at this level)."""
     h = runpy.run_path(os.path.join(HERE, "hold.py"), init_globals={"kit": kit}, run_name="hold_lib")
     return h, h["build_walls"].__globals__
 
 
-def drawing():
+def level():
+    """The level's walkable floors (its +0.5 ground: the cave's floor), its markers, at its scale."""
     with open(LEVEL) as f:
         d = json.load(f)
-    s, oe, on = d.get("scale", 1.0), d["originE"], d["originN"]
-    floors = [((g["e0"] - oe) * s, (g["e1"] - oe) * s, (g["n0"] - on) * s, (g["n1"] - on) * s)
-              for g in d["ground"] if "+0.5" in g["kind"]]
-    marks = [dict(code=m["code"], e=(m["e"] - oe) * s, n=(m["n"] - on) * s) for m in d["markers"]]
+    s = d.get("scale", 1.0) or 1.0
+    floors = []
+    for f in d["floors"]:
+        if not 0.0 < f.get("top", 0.5) < 3.0:
+            continue
+        g = dict(f)
+        if f["type"] == "path":
+            g["points"] = [(p[0] * s, p[1] * s) for p in f["points"]]
+            g["width"] = f["width"] * s
+        elif f["type"] == "circle":
+            g["e"], g["n"], g["r"] = f["e"] * s, f["n"] * s, f["r"] * s
+        else:
+            g["e"], g["n"], g["w"], g["h"] = f["e"] * s, f["n"] * s, f["w"] * s, f["h"] * s
+        floors.append(g)
+    marks = [dict(code=m["code"], e=m["e"] * s, n=m["n"] * s, label=m.get("label", "")) for m in d["markers"]]
     return d, floors, marks
 
 
-class DrawnPlan:
-    """The fields hold.py's walls and ground read (Plan's), for the drawing: open where its floors are (their union,
-    rounded, its edge wandering), the walls tall on the far sides and low on the near (south) ones, the camera's
-    ceiling, the rock mass's tops."""
+def sd_floor(H, E, N, f):
+    if f["type"] == "path":
+        return H["sd_chain"](E, N, f["points"], f["width"] / 2)
+    if f["type"] == "circle":
+        return H["sd_circle"](E, N, (f["e"], f["n"]), f["r"])
+    a = math.radians(f.get("rot", 0) or 0)
+    x = (E - f["e"]) * math.cos(a) + (N - f["n"]) * math.sin(a)
+    y = -(E - f["e"]) * math.sin(a) + (N - f["n"]) * math.cos(a)
+    return H["sd_rrect"](x, y, -f["w"] / 2, f["w"] / 2, -f["h"] / 2, f["h"] / 2, min(0.8, f["w"] / 2, f["h"] / 2))
 
-    def __init__(self, H, NS, floors):
+
+def extent(f):
+    if f["type"] == "path":
+        es, ns = [p[0] for p in f["points"]], [p[1] for p in f["points"]]
+        w = f["width"] / 2
+        return min(es) - w, max(es) + w, min(ns) - w, max(ns) + w
+    if f["type"] == "circle":
+        return f["e"] - f["r"], f["e"] + f["r"], f["n"] - f["r"], f["n"] + f["r"]
+    r = math.hypot(f["w"], f["h"]) / 2
+    return f["e"] - r, f["e"] + r, f["n"] - r, f["n"] + r
+
+
+class DrawnPlan:
+    """The fields hold.py's walls and ground read (Plan's), for the level: open where its floors are (their union,
+    rounded, its edge wandering, but not along the Boss's wall nor a door's), the walls tall on the far sides and low
+    on the near (south) ones, the camera's ceiling, the rock mass's tops."""
+
+    def __init__(self, H, NS, floors, chamber, doors):
         RES = NS["RES"]
-        e0 = min(f[0] for f in floors) - 7.0
-        e1 = max(f[1] for f in floors) + 7.0
-        n0 = min(f[2] for f in floors) - 7.0
-        n1 = max(f[3] for f in floors) + 7.0
+        ext = [extent(f) for f in floors]
+        e0, e1 = min(x[0] for x in ext) - 7.0, max(x[1] for x in ext) + 7.0
+        n0, n1 = min(x[2] for x in ext) - 7.0, max(x[3] for x in ext) + 7.0
         NS["GX0"], NS["GX1"], NS["GY0"], NS["GY1"] = e0, e1, n0, n1
         self.es = np.arange(e0, e1 + 1e-9, RES)
         self.ns = np.arange(n0, n1 + 1e-9, RES)
         E, N = np.meshgrid(self.es, self.ns)
         self.E, self.N = E, N
         fbm, smin, smoothstep = H["fbm"], H["smin"], H["smoothstep"]
-        sd = [H["sd_rrect"](E, N, a, b, c, d, 1.6) for a, b, c, d in floors]
-        o = sd[0]
-        for x in sd[1:]:
-            o = smin(o, x, 1.8)
-        self.spaces = np.stack([o])
-        # Its edge wandering (never into the way much: the noise mostly widens it).
-        o = o + 0.5 * fbm(E * 0.17, N * 0.17, 0.3, 2, seed=3) + 0.15 * fbm(E * 0.6, N * 0.6, 0.7, 2, seed=4)
+        rest = None
+        for f in floors:
+            if f is chamber:
+                continue
+            x = sd_floor(H, E, N, f)
+            rest = x if rest is None else smin(rest, x, 1.8)
+        ch = H["sd_chamber"](E, N) if chamber is not None else np.full(E.shape, 99.0)
+        self.chamber_sd = ch
+        big = np.full(E.shape, 99.0)
+        # (hold.py's spaces: the walls' columns take the nearest; the chamber is its sixth, as in hold.py)
+        self.spaces = np.stack([rest, big, big, big, big, ch])
+        o = smin(rest, ch, 1.2)
+        # Its edge wandering (never into the way much: the noise mostly widens it), but calm along the Boss's wall and
+        # each door's (smooth, upright: built, or the Boss's own).
+        calm = np.zeros(E.shape)
+        if chamber is not None:
+            be, bn, bh = NS["BOSS_E"], NS["BOSS_N"], NS["BOSS_HALF"]
+            calm = np.maximum(calm, smoothstep(bh + 1.5, bh, np.abs(E - be)) * smoothstep(bn - 5.5, bn - 2.5, N)
+                              * smoothstep(bn + 5.0, bn + 3.0, N))
+        for de, dn in doors:
+            calm = np.maximum(calm, smoothstep(DOOR_HALF + 2.0, DOOR_HALF + 0.5, np.hypot(E - de, N - dn)))
+        noise = 0.5 * fbm(E * 0.17, N * 0.17, 0.3, 2, seed=3) + 0.15 * fbm(E * 0.6, N * 0.6, 0.7, 2, seed=4)
+        o = o + noise * (1 - calm)
         self.floor_sd = o
         self.O = o
         gy, gx = np.gradient(o, RES)
@@ -75,6 +134,7 @@ class DrawnPlan:
         self.ramp = np.zeros(o.shape, bool)
         self.ramp_full = self.ramp
         tall = 6.4 + 0.8 * fbm(E * 0.12, N * 0.12, 2.1, 2, seed=6)
+        tall = tall + (12.0 - tall) * smoothstep(2.5, 0.5, ch)   # (the chamber's: as tall as the camera allows)
         facing = smoothstep(-0.6, -0.05, self.gy)
         self.hwall = 1.3 + (tall - 1.3) * facing
         self.C = H["Plan"].camera_ceiling(self)
@@ -84,7 +144,11 @@ class DrawnPlan:
         rise = H["blur"](self.hwall, 6) + 0.3 * np.clip(d - 1.0, 0, 10)
         lump = 0.45 * fbm(E * 0.45, N * 0.45, 4.4, 3, seed=9) * smoothstep(1.2, 2.5, d)
         self.R = np.maximum(np.minimum(rise + lump, safe) - 0.15, 0.6)
-        self.chamber_sd = np.full(o.shape, 99.0)
+        if chamber is not None:
+            # Over the tunnel behind the Boss's face, the rock stands over its roof (the camera's ceiling allows it).
+            be, bn = NS["BOSS_E"], NS["BOSS_N"]
+            over = (np.abs(E - be) < 2.4) & (N > bn - 0.5) & (N < bn + TUNNEL_ROOF + 0.2)
+            self.R = np.where(over, np.maximum(self.R, TOP + 1.0 + NS["TUNNEL_H"] + 0.9), self.R)
 
     def sample(self, grid, e, n):
         return H_PLAN_SAMPLE(self, grid, e, n)
@@ -102,9 +166,9 @@ def nearest(cols, e, n, pred):
 
 
 def make_sites(marks):
-    """hold.py's choose_sites, for the drawing: the markers' eyes and presences on the wall nearest each, the kept in
-    relief along every wall that's tall enough (not the low south ones), bodies swelling under the stone; no crack (a
-    placeholder hold.py's walls expect, out of the way)."""
+    """hold.py's choose_sites, for the level: the markers' eyes and presences on the wall nearest each, the kept in
+    relief along every wall that's tall enough (not the low south ones, nor the Boss's wall or a door's), bodies
+    swelling under the stone; no crack (a placeholder hold.py's walls expect, out of the way)."""
 
     def choose(cols, offsets, U, rng):
         sites = [dict(kind="crack", col=0, u=-100.0, flat=(0.001, 0.002), row=-1, space="drawn")]
@@ -114,7 +178,8 @@ def make_sites(marks):
             return all((e - a) ** 2 + (n - b) ** 2 + (u - c) ** 2 > (r + rr) ** 2 for a, b, c, rr in taken)
 
         def tall(i, c, need=3.0):
-            return c.H - c.ref >= need and 2 < i < len(cols) - 3 and cols[i - 2].loop == c.loop == cols[i + 2].loop
+            return c.H - c.ref >= need and 2 < i < len(cols) - 3 and cols[i - 2].loop == c.loop == cols[i + 2].loop \
+                and c.boss < 0.05
 
         for idx, m in enumerate(marks):
             if m["code"] not in ("EYE", "FACE", "HAND"):
@@ -176,8 +241,30 @@ def make_sites(marks):
     return choose
 
 
-def build_ground(H, plan, mesh, MT):
-    """hold.py's ground (the floors, the rock mass behind the walls), without its crack, tunnel or ramp."""
+def flat_walls(H, NS, original, doors):
+    """hold.py's wall_columns, then the Boss's wall smooth and hardly leaning (as hold.py makes its own, here wherever
+    the Boss stands), and each door's wall flat and upright."""
+    smoothstep, profile = H["smoothstep"], H["profile"]
+
+    def columns(plan):
+        cols = original(plan)
+        be, bn, bh = NS["BOSS_E"], NS["BOSS_N"], NS["BOSS_HALF"]
+        for c in cols:
+            boss = smoothstep(bh + 0.3, bh - 1.2, abs(c.e - be)) * smoothstep(0.45, 0.75, c.N[1]) * (c.space == 5) \
+                * smoothstep(bn - 4.5, bn - 2.5, c.n)
+            door = max([smoothstep(DOOR_HALF + 0.6, DOOR_HALF - 0.4, math.hypot(c.e - de, c.n - dn)) for de, dn in doors] + [0.0])
+            c.boss = float(max(boss, door))
+            if c.boss > 0:
+                c.oh *= (1 - 0.6 * boss) * (1 - door)
+                c.d, c.u, c.zone, c.t, c.nd, c.nu = profile(c.base, c.H, c.oh)
+        return cols
+
+    return columns
+
+
+def build_ground(H, NS, plan, mesh, MT, chamber):
+    """hold.py's ground (the floors, the rock mass behind the walls), without its crack or ramp; none in the Boss's
+    tunnel's mouth (the tunnel has its own floor) nor over the cleft at its end (open above)."""
     fbm = H["fbm"]
     step = 2
     E, N = plan.E[::step, ::step], plan.N[::step, ::step]
@@ -189,11 +276,19 @@ def build_ground(H, plan, mesh, MT):
     d = np.maximum(O, 0)
     near = plan.sample(plan.level, E - (d + 0.35) * gx, N - (d + 0.35) * gy)
     h = np.where(O < 0, lev, np.where(O < 0.95, near, R))
+    strip = np.zeros(E.shape, bool)
+    if chamber is not None:
+        be, bn, cl = NS["BOSS_E"], NS["BOSS_N"], NS["CLEFT_HW"]
+        strip |= (np.abs(E - be) < 1.45) & (N - bn > -0.05) & (N - bn < 1.45) & (O < 0.95)
+        strip |= (np.abs(E - be) < cl - 0.05) & (N - bn > TUNNEL_ROOF + 0.05) & (N - bn < TUNNEL_ROOF + CLEFT_LEN + 0.05)
     rows, cols = E.shape
     idx = np.arange(rows * cols).reshape(rows, cols)
     V = np.stack([E.ravel(), N.ravel(), h.ravel()], axis=1)
     a, b = idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel()
     c, dd = idx[1:, 1:].ravel(), idx[1:, :-1].ravel()
+    vv = strip.ravel()
+    keep = ~(vv[a] | vv[b] | vv[c] | vv[dd])
+    a, b, c, dd = a[keep], b[keep], c[keep], dd[keep]
     hv = h.ravel()
     diag = np.abs(hv[a] - hv[c]) <= np.abs(hv[b] - hv[dd])
     T1 = np.where(diag[:, None], np.stack([a, b, c], 1), np.stack([a, b, dd], 1))
@@ -205,36 +300,158 @@ def build_ground(H, plan, mesh, MT):
     # (wet rock only at the walls' feet: patches of it out on the floor come out stepped on this grid)
     mats = [MT["rock"] if af else MT["wet"] if an else MT["dark"] for af, an in zip(allfloor, anyfloor)]
     smooth = [m is MT["dark"] for m in mats]
-    mesh.patch(V, T, mats, smooth, (0, 0, 1.0))
+    used = np.unique(T)
+    remap = np.full(len(V), -1)
+    remap[used] = np.arange(len(used))
+    mesh.patch(V[used], remap[T], mats, smooth, (0, 0, 1.0))
     print(f"[hold_drawn] ground: {len(T)} tris")
 
 
-def spots(H, cols, sites, marks):
+def build_tunnel(H, NS, cols, plan, mesh, MT):
+    """hold.py's tunnel behind the Boss's face, shorter (the level's way runs north of the chamber), its cleft ending
+    in a rock face (hold.py's runs on to where its rock ends)."""
+    bn = NS["BOSS_N"]
+    gy1 = NS["GY1"]
+    NS["GY1"] = bn + 1.0 + TUNNEL_ROOF + CLEFT_LEN   # (hold.py's cleft runs on till this)
+    H["build_tunnel"](cols, plan, mesh, MT)
+    NS["GY1"] = gy1
+    a_end = TUNNEL_ROOF + CLEFT_LEN
+    be, cl, floor = NS["BOSS_E"], NS["CLEFT_HW"], H["tunnel_floor"]
+    xs = np.linspace(-cl - 0.25, cl + 0.25, 9)
+    V, T, nu = [], [], 10
+    for x in xs:
+        e, n = be + x, bn + a_end + 0.02
+        u0 = float(floor(a_end)) - 1.7
+        top = float(plan.sample(plan.R, e, n)) + 0.1
+        for j in range(nu + 1):
+            V.append((e, n, u0 + (top - u0) * j / nu))
+    for r in range(len(xs) - 1):
+        for j in range(nu):
+            p0, p1 = r * (nu + 1) + j, (r + 1) * (nu + 1) + j
+            T += [(p0, p1, p1 + 1), (p0, p1 + 1, p0 + 1)]
+    mesh.patch(np.array(V), np.array(T), MT["wet"], False, (0.0, -1.0, 0.0))
+    return a_end
+
+
+def chord(plan, e, n, reach=9.0):
+    """The narrowest way across the floor through (e, n): its two ends (where the floor ends each side)."""
+    best = None
+    for k in range(36):
+        a = math.pi * k / 36
+        de, dn = math.cos(a), math.sin(a)
+        ends = []
+        for sgn in (1, -1):
+            t = 0.0
+            while t < reach and float(plan.sample(plan.O, e + sgn * t * de, n + sgn * t * dn)) < 0.0:
+                t += 0.1
+            ends.append((e + sgn * t * de, n + sgn * t * dn))
+        w = math.hypot(ends[0][0] - ends[1][0], ends[0][1] - ends[1][1])
+        if best is None or w < best[0]:
+            best = (w, ends)
+    return best[1]
+
+
+def spots(H, NS, cols, sites, marks, plan, chamber, a_end, floors):
     """Where each marker's piece went: the eyes' holes and presences' spots (as hold.py reports them), the wall each of
-    the Kept tears out of (the wall foot nearest its spot, and the way out of it)."""
-    frame_at = H["frame_at"]
-    out = dict(eyes=[], presences=[], kept=[])
+    the Kept tears out of (the wall foot nearest its spot, and the way out of it), the Boss's wall and the way out
+    behind it, each door's wall, the way across each gate (the arena's, a shortcut's); where a cold gleam hangs over
+    the floors (every 12 m along each way, one over each round or rectangle), and the level's extent."""
+    frame_at, surface = H["frame_at"], H["surface"]
+    r3 = lambda v: [round(float(x), 3) for x in v]
+    out = dict(eyes=[], presences=[], kept=[], doors=[], gates=[])
     for st in sites:
         if st["kind"] == "eye":
             k = st["col"]
             p = cols[k].X[st["row"]]
             _, nrm = frame_at(cols, k, float(cols[k].u[st["row"]]))
             p = p - 0.05 * nrm
-            out["eyes"].append(dict(at=[round(float(x), 3) for x in p], normal=[round(float(x), 3) for x in nrm]))
+            out["eyes"].append(dict(at=r3(p), normal=r3(nrm)))
         elif st["kind"] == "presence":
             p, nrm = frame_at(cols, st["col"], st["u"])
-            out["presences"].append(dict(what=st["what"], at=[round(float(x), 3) for x in p],
-                                         normal=[round(float(x), 3) for x in nrm]))
+            out["presences"].append(dict(what=st["what"], at=r3(p), normal=r3(nrm)))
     for m in marks:
-        if m["code"] != "KP":
+        if m["code"] == "KP":
+            i = nearest(cols, m["e"], m["n"], lambda i, c: c.boss < 0.05)
+            c = cols[i]
+            out["kept"].append(dict(spot=r3((m["e"], m["n"])), foot=r3((c.e, c.n, c.ref)), out=r3((-c.N[0], -c.N[1]))))
+        elif m["code"] == "EYED":
+            i = nearest(cols, m["e"], m["n"], lambda i, c: True)
+            c = cols[i]
+            out["doors"].append(dict(foot=r3((c.e, c.n, c.ref)), out=r3((-c.N[0], -c.N[1]))))
+        elif m["code"] in ("AG", "SG"):
+            a, b = chord(plan, m["e"], m["n"])
+            out["gates"].append(dict(code=m["code"], spot=r3((m["e"], m["n"])), a=r3(a), b=r3(b)))
+    gleams = []
+    for f in floors:
+        if f is chamber:
             continue
-        i = nearest(cols, m["e"], m["n"], lambda i, c: True)
-        c = cols[i]
-        out["kept"].append(dict(spot=[round(m["e"], 3), round(m["n"], 3)], foot=[round(c.e, 3), round(c.n, 3), round(c.ref, 3)],
-                                out=[round(-c.N[0], 3), round(-c.N[1], 3)]))
+        if f["type"] == "path":
+            pts = np.array(f["points"], float)
+            seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
+            cum = np.concatenate([[0.0], np.cumsum(seg)])
+            for t in np.arange(min(5.0, cum[-1] / 2), cum[-1], 12.0):
+                gleams.append(r3((np.interp(t, cum, pts[:, 0]), np.interp(t, cum, pts[:, 1]))))
+        else:
+            gleams.append(r3((f["e"], f["n"])))
+    out["gleams"] = [v for g in gleams for v in g]   # (flat: e, n, e, n... for Unity's JSON)
+    x = [extent(f) for f in floors]
+    out["extent"] = r3((min(v[0] for v in x), max(v[1] for v in x), min(v[2] for v in x), max(v[3] for v in x)))
+    if chamber is not None:
+        be, bn, top = NS["BOSS_E"], NS["BOSS_N"], NS["TOP"]
+        k = min((i for i, c in enumerate(cols) if c.space == 5 and c.N[1] > 0.6), key=lambda i: abs(cols[i].e - be))
+        wall_n = float(surface(cols, k, top + 0.5)[1])
+        mid = (TUNNEL_ROOF + a_end) / 2
+        out["boss"] = dict(wall=r3((be, wall_n, top)), chamber=r3((chamber["e"], chamber["n"], chamber["r"])),
+                           way_out=r3((be, bn + mid, float(H["tunnel_floor"](mid)))))
+        print(f"[hold_drawn] the Boss's wall: its face at ({be:.2f}, {wall_n:.2f}); the way out at n {bn + mid:.2f}")
     with open(SPOTS, "w") as f:
         json.dump(out, f, indent=1)
-    print(f"[hold_drawn] spots: {len(out['eyes'])} eyes, {len(out['presences'])} presences, {len(out['kept'])} Kept -> {SPOTS}")
+    print(f"[hold_drawn] spots: {len(out['eyes'])} eyes, {len(out['presences'])} presences, {len(out['kept'])} Kept, "
+          f"{len(out['doors'])} doors, {len(out['gates'])} gates -> {SPOTS}")
+
+
+def build_seal(H, MT, a, b, rng):
+    """The arena's seal (the scene builder sinks it in the floor till the Hold wakes with you inside, HoldSeal): one low
+    ridge of the living stone right across the way in (from a to b, its ends run on into the walls), lumpy, folded,
+    the kept pressing up under it (a back, a shoulder, a head), as the walls' bodies do. Its own object, HoldSeal."""
+    fbm, smoothstep = H["fbm"], H["smoothstep"]
+    a, b = np.array(a, float), np.array(b, float)
+    along = (b - a) / np.linalg.norm(b - a)
+    side = np.array([-along[1], along[0]])
+    L = float(np.linalg.norm(b - a)) + 2.4
+    start = a - along * 1.2
+    bodies = [(rng.uniform(0.15, 0.85) * L, rng.uniform(0.1, 0.95), rng.uniform(0.35, 0.6), rng.uniform(0.1, 0.18))
+              for _ in range(int(L / 1.3))]   # (along, round its section 0..1, size, how far out)
+    ss = np.linspace(0, L, int(L / 0.12) + 1)
+    ts = np.linspace(0, 1, 31)
+    top = 0.5   # (the floor)
+    V = []
+    for s_ in ss:
+        for t in ts:
+            ang = math.pi * t
+            r = 1.0 + 0.12 * float(fbm(s_ * 0.9, t * 2.0, 1.7, 2, seed=61)) + 0.035 * float(fbm(s_ * 4.0, t * 7.0, 2.9, 1, seed=62))
+            for bs, bt, bz, bo in bodies:
+                d2 = ((s_ - bs) / bz) ** 2 + ((t - bt) / (bz * 0.5)) ** 2
+                r += bo * math.exp(-d2 ** 1.3)
+            fold = 0.04 * (1 - abs(math.sin(math.pi * (s_ / 0.9 + 0.6 * float(fbm(s_ * 0.3, 0.0, 3.1, 1, seed=63)))))) ** 3
+            r += fold
+            x = -0.85 * math.cos(ang) * r
+            u = top - 0.45 + 1.75 * math.sin(ang) ** 0.75 * r
+            p = start + along * s_ + side * x
+            V.append((p[0], p[1], u))
+    V = np.array(V)
+    nt = len(ts)
+    T = []
+    for i in range(len(ss) - 1):
+        for j in range(nt - 1):
+            p, q = i * nt + j, (i + 1) * nt + j
+            T += [(p, p + 1, q + 1), (p, q + 1, q)]
+    centre = np.array([*((a + b) / 2), top - 0.6])
+    mesh = H["Mesh"]()
+    mesh.patch(V, np.array(T), MT["wall"], True, V - centre)
+    ob = mesh.build("HoldSeal")
+    print(f"[hold_drawn] the arena's seal: a ridge {L:.1f} m long across the way in, {len(bodies)} of the kept under it")
+    return ob
 
 
 H_PLAN_SAMPLE = None
@@ -244,24 +461,44 @@ def build():
     global H_PLAN_SAMPLE
     H, NS = lib()
     H_PLAN_SAMPLE = H["Plan"].sample
-    d, floors, marks = drawing()
-    plan = DrawnPlan(H, NS, floors)
-    # (hold.py's special places: none here)
+    d, floors, marks = level()
+    # The chamber: the round floor the Hold stands in (its Boss's wall the north side of it).
+    hold = next((m for m in marks if m["code"] == "HOLD"), None)
+    chamber = None
+    if hold is not None:
+        rounds = [f for f in floors if f["type"] == "circle"]
+        chamber = min(rounds, key=lambda f: math.hypot(f["e"] - hold["e"], f["n"] - hold["n"]) - f["r"])
+        NS["CHAMBER_C"], NS["CHAMBER_R"] = (chamber["e"], chamber["n"]), chamber["r"]
+        NS["BOSS_E"], NS["BOSS_N"] = hold["e"], chamber["n"] + chamber["r"]
+        NS["BOSS_HALF"] = min(7.5, 0.8 * chamber["r"])
+    else:
+        NS["BOSS_E"], NS["BOSS_N"], NS["BOSS_HALF"] = 1e5, 1e5, 1.0
+    NS["TOP_U"] = NS["TOP"]             # (the chamber's floor: the cave's, not hold.py's ledge)
+    NS["TUNNEL_ROOF"] = TUNNEL_ROOF
+    doors = [(m["e"], m["n"]) for m in marks if m["code"] == "EYED"]
+    plan = DrawnPlan(H, NS, floors, chamber, doors)
+    # (hold.py's other places: none here)
     NS["in_crack"] = lambda e, n, u, wide=False: np.zeros(np.shape(e), bool)
-    NS["in_tunnel"] = lambda e, n, u: np.zeros(np.shape(e), bool)
-    NS["CRACK_E"], NS["CRACK_FOOT"], NS["BOSS_E"] = 1e5, (1e5, 1e5), 1e5
+    NS["CRACK_E"], NS["CRACK_FOOT"] = 1e5, (1e5, 1e5)
     NS["choose_sites"] = make_sites(marks)
+    NS["wall_columns"] = flat_walls(H, NS, H["wall_columns"], doors)
     MT = H["materials"]()
     rng = random.Random(2611)
     mesh = H["Mesh"]()
     cols, sites = H["build_walls"](plan, mesh, MT, rng)
     H["place_reliefs"](cols, sites, mesh, MT, rng)
-    build_ground(H, plan, mesh, MT)
+    build_ground(H, NS, plan, mesh, MT, chamber)
+    a_end = build_tunnel(H, NS, cols, plan, mesh, MT) if chamber is not None else 0.0
     # (no stalactites: hold.py places them for its own cave; here they'd hang over the way)
-    spots(H, cols, sites, marks)
+    spots(H, NS, cols, sites, marks, plan, chamber, a_end, floors)
     ob = mesh.build("HoldDrawn")
     print(f"[hold_drawn] faces {len(ob.data.polygons)}, verts {len(ob.data.vertices)}")
-    return split_tiles(ob, 10.0)
+    seals = []
+    for m in marks:
+        if m["code"] == "AG" and chamber is not None:
+            ea, eb = chord(plan, m["e"], m["n"])
+            seals.append(build_seal(H, MT, ea, eb, random.Random(4401)))
+    return split_tiles(ob, 10.0) + seals
 
 
 def split_tiles(ob, size):

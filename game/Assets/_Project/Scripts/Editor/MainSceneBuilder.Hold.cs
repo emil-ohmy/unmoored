@@ -370,11 +370,12 @@ public static partial class MainSceneBuilder
 
     // An eye in the living wall at `at`, looking out along `normal`: its socket, its ball and its lids (hold.py's eye_*),
     // turned so their front faces out (a static model's front is its back: see CLAUDE.md).
-    static void WallEyeAt(Transform parent, Vector3 at, Vector3 normal)
+    // (`scale` over the parts as made; `tilt`: how far it's turned up)
+    static WallEye WallEyeAt(Transform parent, Vector3 at, Vector3 normal, float scale = 1.6f, float tilt = 35f)
     {
         // Turned up towards the camera (it looks down from above: an eye looking straight out is hidden under its own
         // upper lip), and big enough to read from there.
-        normal = (new Vector3(normal.x, 0f, normal.z).normalized * Mathf.Cos(35f * Mathf.Deg2Rad) + Vector3.up * Mathf.Sin(35f * Mathf.Deg2Rad)).normalized;
+        normal = (new Vector3(normal.x, 0f, normal.z).normalized * Mathf.Cos(tilt * Mathf.Deg2Rad) + Vector3.up * Mathf.Sin(tilt * Mathf.Deg2Rad)).normalized;
         var eye = new GameObject("Eye in the Wall").AddComponent<WallEye>();
         eye.transform.SetParent(parent, true);
         eye.transform.SetPositionAndRotation(at, Quaternion.LookRotation(normal, Vector3.up));
@@ -394,9 +395,10 @@ public static partial class MainSceneBuilder
         eye.lidBottom = Part("eye_lid_bottom");
         eye.open = 68f;        // (hold.py's: the top lid's front edge rises 68°, the bottom's drops 52°)
         eye.openBottom = 52f;
-        eye.transform.localScale = Vector3.one * 1.6f;
+        eye.transform.localScale = Vector3.one * scale;
         eye.openSound = Clips("hold_eye_open");
         eye.closeSound = Clips("hold_eye_close");
+        return eye;
     }
 
     // A face or a hand of the kept, in the living wall at `at`, pressing out along `normal` now and then.

@@ -161,6 +161,8 @@ namespace MyGame.Tests
                 yield return null;
             var near = UnityEngine.Object.FindObjectsByType<WallPresence>(FindObjectsSortMode.None)
                 .OrderBy(p => Vector3.Distance(p.transform.position, shade.transform.position)).First();
+            for (float t = 0f; t < 8f && near.Out > 0f; t += Time.deltaTime)
+                yield return null; // (back in the wall first: pressed out on its own just now, it wouldn't press again)
             int before = near.Presses;
             Strike(shade, apprentice.transform.position);
             Strike(shade, apprentice.transform.position);

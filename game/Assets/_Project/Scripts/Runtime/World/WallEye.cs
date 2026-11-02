@@ -23,6 +23,10 @@ namespace MyGame
         Quaternion topRest, bottomRest, ballRest;
         float openness, delay, blinkAt, blinkUntil;
         bool wanted;
+        float stareUntil;
+
+        // Wide open and fixed on them for a while, unblinking (the door of eyes, tried).
+        public void Stare(float seconds) { stareUntil = Time.time + seconds; blinkAt = Mathf.Max(blinkAt, stareUntil); }
 
         void Start()
         {
@@ -41,7 +45,7 @@ namespace MyGame
             Vector3 to = apprentice.position + Vector3.up * 0.8f - transform.position;
             float d = new Vector3(to.x, 0f, to.z).magnitude;
             bool facing = Vector3.Dot(transform.forward, to) > 0f; // (its side of the wall)
-            bool want = facing && (wanted ? d < shutBeyond : d < openWithin);
+            bool want = facing && (wanted ? d < shutBeyond : d < openWithin) || Time.time < stareUntil;
             if (want != wanted)
             {
                 wanted = want;

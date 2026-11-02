@@ -18,7 +18,7 @@
      9.4
     ],
     [
-     -30.0,
+     -30,
      3.2
     ],
     [
@@ -30,12 +30,12 @@
      -9.1
     ],
     [
-     -25.0,
+     -25,
      -14.4
     ],
     [
      -21.1,
-     -19.0
+     -19
     ],
     [
      -16.5,
@@ -50,7 +50,7 @@
      -26.6
     ],
     [
-     0.0,
+     0,
      -26.8
     ],
     [
@@ -62,7 +62,7 @@
      -23.7
     ],
     [
-     15.0,
+     15,
      -20.6
     ],
     [
@@ -74,7 +74,7 @@
      -12.3
     ],
     [
-     23.0,
+     23,
      -7.5
     ],
     [
@@ -110,7 +110,7 @@
      20.3
     ],
     [
-     0.0,
+     0,
      20.4
     ],
     [
@@ -134,7 +134,7 @@
      9.1
     ],
     [
-     -17.0,
+     -17,
      5.5
     ],
     [
@@ -150,7 +150,7 @@
      -5.1
     ],
     [
-     -14.0,
+     -14,
      -8.1
     ],
     [
@@ -158,28 +158,28 @@
      -10.5
     ],
     [
-     -9.0,
+     -9,
      -12.4
     ],
     [
-     -6.0,
+     -6,
      -13.6
     ],
     [
-     -3.0,
+     -3,
      -14.1
     ],
     [
-     -0.0,
-     -14.0
+     0,
+     -14
     ],
     [
-     0.0,
-     -11.0
+     0,
+     -11
     ],
     [
-     0.0,
-     -8.0
+     0,
+     -8
     ]
    ],
    "note": "The way: a turn and a third, winding inward"
@@ -187,8 +187,8 @@
   {
    "type": "circle",
    "top": 0.5,
-   "e": 0.0,
-   "n": 0.0,
+   "e": 0,
+   "n": 0,
    "r": 9.5,
    "note": "Its chamber: the Hold, That Would Not Let Go"
   },
@@ -202,16 +202,16 @@
      20.1
     ],
     [
-     -3.0,
+     -3,
      25.5
     ],
     [
-     -6.0,
+     -6,
      29.5
     ],
     [
      -8.5,
-     32.0
+     32
     ]
    ],
    "note": "The optional way: narrow, easy to miss"
@@ -219,19 +219,19 @@
   {
    "type": "circle",
    "top": 0.5,
-   "e": -10.5,
+   "e": -11.5,
    "n": 34.5,
    "r": 4.5,
-   "note": "The grotto"
+   "note": "Lets create a large door consisting of giant eyes here. Its a new object, it hints of a future path. When you try interacting with it, it just says \"...\""
   },
   {
    "type": "path",
    "top": 0.5,
-   "width": 3.0,
+   "width": 3,
    "points": [
     [
      -1.7,
-     -12.0
+     -12
     ],
     [
      -4.1,
@@ -239,6 +239,15 @@
     ]
    ],
    "note": "The shortcut: one way, opened from the antechamber"
+  },
+  {
+   "type": "rect",
+   "top": 0.5,
+   "e": -11.25,
+   "n": 37.25,
+   "w": 9.5,
+   "h": 4.5,
+   "rot": 0
   }
  ],
  "markers": [
@@ -258,7 +267,7 @@
    "code": "KP",
    "label": "One of the Kept, alone: the first lesson",
    "e": -27.5,
-   "n": -10.0
+   "n": -10
   },
   {
    "code": "MP",
@@ -274,7 +283,7 @@
   },
   {
    "code": "KP",
-   "label": "Kept \u00d72, together",
+   "label": "Kept ×2, together",
    "e": 18.6,
    "n": -16.8
   },
@@ -288,7 +297,7 @@
    "code": "MSG",
    "label": "Be wary of dying / {heal} to heal. You won't have many. You'll want more. Everyone does.",
    "e": 23.3,
-   "n": 2.0
+   "n": 2
   },
   {
    "code": "MSG",
@@ -311,12 +320,12 @@
   {
    "code": "OB",
    "label": "Obols",
-   "e": -13.0,
+   "e": -13,
    "n": 36.3
   },
   {
    "code": "KP",
-   "label": "Kept \u00d72, the last of them",
+   "label": "Kept ×2, the last of them",
    "e": -16.8,
    "n": 6.1
   },
@@ -329,7 +338,7 @@
   {
    "code": "MSG",
    "label": "Boss ahead / Obviously.",
-   "e": -8.0,
+   "e": -8,
    "n": -12.8
   },
   {
@@ -341,20 +350,20 @@
   {
    "code": "AG",
    "label": "Its arena: sealed while it fights",
-   "e": 0.0,
+   "e": 0,
    "n": -9.6
   },
   {
    "code": "HOLD",
    "label": "The Hold, That Would Not Let Go",
-   "e": 0.0,
+   "e": 0,
    "n": 5.5
   },
   {
    "code": "EYE",
    "label": "",
    "e": -34.4,
-   "n": 3.0
+   "n": 3
   },
   {
    "code": "EYE",
@@ -371,7 +380,7 @@
   {
    "code": "EYE",
    "label": "",
-   "e": 19.0,
+   "e": 19,
    "n": -5.1
   },
   {
@@ -431,7 +440,7 @@
   {
    "code": "FACE",
    "label": "",
-   "e": -15.0,
+   "e": -15,
    "n": 17.9
   },
   {
@@ -449,7 +458,7 @@
   {
    "code": "HAND",
    "label": "",
-   "e": 28.0,
+   "e": 28,
    "n": -2.5
   },
   {
@@ -462,7 +471,7 @@
    "code": "HAND",
    "label": "",
    "e": -21.6,
-   "n": 0.0
+   "n": 0
   },
   {
    "code": "HAND",
@@ -473,34 +482,40 @@
   {
    "code": "DRIP",
    "label": "Drips all through it",
-   "e": 6.0,
-   "n": 18.0
+   "e": 6,
+   "n": 18
+  },
+  {
+   "code": "EYED",
+   "label": "",
+   "e": -10.5,
+   "n": 39
   }
  ],
  "notes": [
   {
    "text": "The outer way: the walls breathe;\neyes open as you pass",
-   "e": -46.0,
-   "n": 4.0
+   "e": -46,
+   "n": 4
   },
   {
    "text": "The optional way:\na grotto, a Warm Stone",
-   "e": -24.0,
-   "n": 38.0
+   "e": -24,
+   "n": 38
   },
   {
    "text": "The antechamber: the last message,\nthen the Boss",
-   "e": 8.0,
+   "e": 8,
    "n": -12.5
   },
   {
    "text": "One way back to the post\n(a shortcut, opened from inside)",
-   "e": -21.0,
+   "e": -21,
    "n": -19.5
   },
   {
    "text": "The way out: behind its face, up to the Hub",
-   "e": -14.0,
+   "e": -14,
    "n": 11.5
   }
  ]

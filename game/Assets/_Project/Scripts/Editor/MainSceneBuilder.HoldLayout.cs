@@ -5,35 +5,40 @@ using MyGame;
 using UnityEditor;
 using UnityEngine;
 
-// The Hold as the user drew it (the Figma level-design file, exported to Levels/the_hold.json; CLAUDE.md), taken as a
-// sketch: hold_drawn.py grows hold.py's living cave round its floors (at the drawing's scale, its corners rounded, its
-// walls leaning, folding, breathing, the kept pressing out of them) and says where it put the markers' pieces
-// (Levels/the_hold.spots.json): the eyes in their sockets' holes, the faces and hands pressing out, the wall each of the
-// Kept tears out of as you pass its spot. Drips all through it; the lantern a Mooring post; its notes the start ("We
-// begin here") and the tutorial's messages on the floor.
+// The Hold, the level (the game's first), as the user laid it out in the level editor (Levels/the_hold_spiral.json:
+// tools/level-editor.sh; CLAUDE.md): one winding way spiralling in to the Boss's chamber at its middle, a side way to a
+// grotto (a Warm Stone, and the door of eyes: shut, for later), a Mooring post on the way and a shortcut back to it from
+// the antechamber, the tutorial's messages on the floor. hold_drawn.py grows hold.py's living cave round its floors (the
+// walls leaning, folding, breathing, the kept pressing out of them; the Boss's wall, the tunnel out behind its face, a
+// door's wall built and flat) and says where it put the set pieces (Levels/the_hold_spiral.spots.json): the eyes in their
+// sockets' holes, the faces and hands pressing out, the wall each of the Kept tears out of, the Boss's wall, the way out,
+// the door's wall, the way across each gate. The rest stands where its marker is.
 public static partial class MainSceneBuilder
 {
     const string HoldLayoutLabPath = "Assets/_Project/Scenes/Lab_HoldLayout.unity";
-    const string HoldLayoutData = "Assets/_Project/Levels/the_hold.json";
+    const string HoldLayoutData = "Assets/_Project/Levels/the_hold_spiral.json";
 
-    [System.Serializable] sealed class LevelGround { public string kind; public float e0, e1, n0, n1; }
-    [System.Serializable] sealed class LevelMarker { public string code, label; public float e, n; }
-    [System.Serializable] sealed class LevelNote { public string text; public float e0, e1, n0, n1; }
-    [System.Serializable] sealed class LevelData { public float width, height, scale = 1f, originE, originN; public LevelGround[] ground; public LevelMarker[] markers; public LevelNote[] notes; }
-    // Where hold_drawn.py put the markers' pieces in its cave (its metres: the scene's).
+    // The level (format "level/2", metres: e east, n north; its floors are the cave builder's, not read here).
+    [System.Serializable] sealed class LevelMarker { public string code, label, note; public float e, n; }
+    [System.Serializable] sealed class LevelData { public string format, name; public float scale = 1f; public LevelMarker[] markers; }
+    // Where hold_drawn.py put the set pieces in its cave (its metres: the scene's; e, n, u).
     [System.Serializable] sealed class LevelSpot { public string what; public float[] at, normal; }
     [System.Serializable] sealed class LevelKept { public float[] spot, foot, @out; }
-    [System.Serializable] sealed class LevelSpots { public LevelSpot[] eyes, presences; public LevelKept[] kept; }
-
-    // The tutorial's messages: the genre's own templates, in the game's dry voice (docs/brief.md, Tone and voice).
-    static readonly (string match, string message, string line)[] HoldMessages =
+    [System.Serializable] sealed class LevelDoor { public float[] foot, @out; }
+    [System.Serializable] sealed class LevelGate { public string code; public float[] spot, a, b; }
+    [System.Serializable] sealed class LevelBoss { public float[] wall, chamber, way_out; }
+    [System.Serializable] sealed class LevelSpots
     {
-        ("dodge", "Try dodging", "{dodge} to dodge, {light} to strike. You'll be doing a great deal of both. Mostly the first."),
-        ("heal", "Be wary of dying", "{heal} to heal. You won't have many. You'll want more. Everyone does."),
-        ("lantern", "Praise the lantern", "Rest at a Mooring post ({interact}) to light its lantern. Everything you scattered gets back up. That's the deal."),
-    };
+        public LevelSpot[] eyes, presences; public LevelKept[] kept; public LevelDoor[] doors; public LevelGate[] gates;
+        public LevelBoss boss; public float[] gleams, extent;
+    }
 
-    [MenuItem("Assets/MyGame/Build Lab (The Hold, as drawn)")]
+    // The door of eyes: its eyes' places on its leaves (x across from the middle, u up) and their scale over the Hold's
+    // eye parts (hold_pieces.py's EYE_DOOR_EYES).
+    static readonly (float x, float u, float scale)[] EyeDoorEyes =
+        { (0f, 2.6f, 3.0f), (-1.2f, 4.25f, 1.8f), (1.25f, 4.3f, 1.7f), (-1.35f, 1.0f, 1.6f), (1.4f, 0.95f, 1.75f) };
+
+    [MenuItem("Assets/MyGame/Build Lab (The Hold, the level)")]
     static void BuildHoldLayoutLabFromMenu()
     {
         if (!UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
@@ -46,15 +51,17 @@ public static partial class MainSceneBuilder
     static void BuildHoldLayoutLab()
     {
         var data = JsonUtility.FromJson<LevelData>(File.ReadAllText(HoldLayoutData));
+        var spots = JsonUtility.FromJson<LevelSpots>(File.ReadAllText(HoldLayoutData.Replace(".json", ".spots.json")));
         var scene = BeginScene(new Vector3(0f, -60f, 0f), HoldNight); // (no water to be seen: the dark outside the walls)
-        var root = new GameObject("The Hold (as drawn)").transform;
-
-        // Where things are: the drawing's metres at its scale (it's a sketch), its origin where "We begin here" is.
-        Vector2 origin = new Vector2(data.originE, data.originN);
+        var root = new GameObject("The Hold").transform;
         float scale = data.scale > 0f ? data.scale : 1f;
-        Vector3 W(Vector2 p, float u) => new Vector3((p.x - origin.x) * scale, u, (p.y - origin.y) * scale);
+        const float Floor = 0.5f;
+        Vector3 At(LevelMarker m) => new Vector3(m.e * scale, Floor, m.n * scale);
+        Vector3 V(float[] a) => new Vector3(a[0], a[2], a[1]);          // (e, n, u: the scene's x, z, y)
+        Vector3 Flat(float[] a) => new Vector3(a[0], Floor, a[1]);     // (e, n on the floor)
+        IEnumerable<LevelMarker> Markers(string code) => data.markers.Where(m => m.code == code);
 
-        // The cave, grown round the drawing's floors (hold_drawn.py): its living walls breathe.
+        // The cave, grown round the level's floors (hold_drawn.py): its living walls breathe.
         var cave = Place("Environment/hold_drawn", Vector3.zero, 0f);
         cave.transform.SetParent(root, true);
         var living = new GameObject("The Living Walls").AddComponent<LivingWalls>();
@@ -62,40 +69,117 @@ public static partial class MainSceneBuilder
         living.inSound = Clips("hold_breath_in");
         living.outSound = Clips("hold_breath_out");
 
-        // Its markers' pieces, where the cave put them: eyes in their sockets' holes, faces and hands pressing out.
-        var spots = JsonUtility.FromJson<LevelSpots>(File.ReadAllText(HoldLayoutData.Replace(".json", ".spots.json")));
-        Vector3 V(float[] a) => new Vector3(a[0], a[2], a[1]); // (its e, n, u: the scene's x, z, y)
+        // Eyes in their sockets' holes, faces and hands pressing out, where the cave put them.
         foreach (var eye in spots.eyes)
             WallEyeAt(root, V(eye.at), V(eye.normal));
         int kind = 0;
         foreach (var p in spots.presences)
             PresenceAt(root, V(p.at), V(p.normal), p.what == "face" ? new[] { "face_1", "face_2", "face_3" }[kind++ % 3] : new[] { "hand_1", "hand_2" }[kind++ % 2]);
-        // The Kept: each torn out of the wall nearest its spot as you pass the spot; the first met on its own.
-        int kept = 0;
-        foreach (var k in spots.kept.OrderBy(k => k.spot[1]))
+
+        // The Kept: each torn out of the wall nearest its marker as you pass it; those close together come out together.
+        var group = new int[spots.kept.Length];
+        int groups = 0;
+        for (int i = 0; i < spots.kept.Length; i++)
         {
+            if (group[i] != 0)
+                continue;
+            group[i] = ++groups;
+            for (int j = i + 1; j < spots.kept.Length; j++)
+                if (group[j] == 0 && new Vector2(spots.kept[i].spot[0] - spots.kept[j].spot[0], spots.kept[i].spot[1] - spots.kept[j].spot[1]).magnitude < 7f)
+                    group[j] = group[i];
+        }
+        for (int i = 0; i < spots.kept.Length; i++)
+        {
+            var k = spots.kept[i];
             var foot = new Vector3(k.foot[0], k.foot[2], k.foot[1]);
-            var o3 = new Vector3(k.@out[0], 0f, k.@out[1]).normalized;
-            var one = Kept("The Kept", foot + o3 * 1.1f, foot + o3 * 0.2f, kept == 0 ? 1 : 2);
+            var outward = new Vector3(k.@out[0], 0f, k.@out[1]).normalized;
+            var one = Kept("The Kept", foot + outward * 1.1f, foot + outward * 0.2f, group[i]);
             one.transform.SetParent(root, true);
             one.wakeWithin = Mathf.Max(one.wakeWithin, new Vector2(k.foot[0] - k.spot[0], k.foot[1] - k.spot[1]).magnitude + 3f);
-            kept++;
         }
-        // The lantern: a Mooring post (Rest, and its lantern is lit).
-        foreach (var m in data.markers.Where(m => m.code == "LT"))
-            MooringPostAt(W(Into(data, new Vector2(m.e, m.n), 2f), 0.5f), 270f);
 
-        // Drips all through it (the markers say so: all around), the rock settling far off, ash in the dark.
-        float minE = data.ground.Min(g => g.e0), maxE = data.ground.Max(g => g.e1), minN = data.ground.Min(g => g.n0), maxN = data.ground.Max(g => g.n1);
-        Vector3 middle = W(new Vector2((minE + maxE) / 2f, (minN + maxN) / 2f), 0.5f);
+        // Mooring posts (Rest, and its lantern is lit); the finds.
+        foreach (var m in Markers("MP"))
+            MooringPostAt(At(m), 180f).transform.SetParent(root, true);
+        foreach (var m in Markers("WS"))
+            UpgradePieceAt(UpgradePiece.Kind.WarmStone, At(m), 0f).transform.SetParent(root, true);
+        foreach (var m in Markers("OB"))
+        {
+            var cache = Place("Environment/obol_cache", At(m), 30f);
+            cache.name = "Obol Cache";
+            cache.transform.SetParent(root, true);
+            cache.AddComponent<ObolCache>();
+            var glow = cache.AddComponent<PickupGlow>();
+            glow.tier = PickupGlow.Tier.Item;
+            glow.colour = LanternLight;
+            glow.height = 0.7f;
+        }
+
+        // The tutorial's messages on the floor: the genre's template, then the dry line ("Try dodging / {dodge} to...").
+        foreach (var m in Markers("MSG"))
+        {
+            string label = m.label ?? "";
+            int cut = label.IndexOf(" / ", System.StringComparison.Ordinal);
+            FloorMessageAt(root, At(m), cut < 0 ? label : label.Substring(0, cut), cut < 0 ? "" : label.Substring(cut + 3));
+        }
+
+        // The Boss in its chamber's north wall; the arena sealed behind you while it fights; the way out behind its face.
+        TheHoldWall boss = null;
+        if (spots.boss != null && spots.boss.wall != null && spots.boss.wall.Length == 3)
+        {
+            Vector3 wall = new Vector3(spots.boss.wall[0], Floor, spots.boss.wall[1]);
+            boss = TheHoldBoss(root, wall);
+            boss.armsHiddenBeyond = spots.boss.chamber[2] + 3f;
+            Vector3 arena = boss.arenaCentre;
+            PointLight(root, arena + new Vector3(0f, 4f, 0f), 16f, 5f, Hex("#66708a")).shadows = LightShadows.None;
+            PointLight(root, wall + new Vector3(0f, 2.5f, -5f), 14f, 6f, Hex("#7d88a3")).shadows = LightShadows.None;
+            // The way out: through its mouth once it's let go, up the tunnel to the cleft, the grey day falling into it.
+            Vector3 opening = V(spots.boss.way_out);
+            var day = PointLight(root, opening + new Vector3(0f, 3f, 0f), 9f, 4f, HoldDaylight);
+            day.shadows = LightShadows.Soft;
+            LightShaft(root, opening, 4f, 1.0f, brightness: 3f);
+            var wind = new GameObject("The Day Outside (the way out)", typeof(AudioSource)).GetComponent<AudioSource>();
+            wind.transform.SetParent(root, true);
+            wind.transform.position = opening + Vector3.up * 1.5f;
+            wind.clip = Clips("hold_hatch") is var hatch && hatch.Length > 0 ? hatch[0] : null;
+            wind.loop = true;
+            wind.playOnAwake = true;
+            wind.spatialBlend = 1f;
+            wind.rolloffMode = AudioRolloffMode.Linear;
+            wind.minDistance = 3f;
+            wind.maxDistance = 18f;
+            wind.volume = 0.4f;
+            wind.dopplerLevel = 0f;
+        }
+        foreach (var g in spots.gates)
+        {
+            Vector3 a = Flat(g.a), b = Flat(g.b), mid = (a + b) / 2f, across = b - a;
+            float width = across.magnitude;
+            Vector3 dir = across / width, through = Vector3.Cross(dir, Vector3.up); // (along the way)
+            Vector3 towardsBoss = boss != null ? boss.arenaCentre - mid : Vector3.forward;
+            if (Vector3.Dot(through, towardsBoss) < 0f)
+                through = -through;
+            if (g.code == "AG" && boss != null)
+                HoldSealAt(root, cave.transform, mid, through, width, boss);
+            else if (g.code == "SG")
+                HoldShortcutAt(root, mid, dir, through, width);
+        }
+
+        // The door of eyes, in its built wall.
+        foreach (var d in spots.doors)
+            EyeDoorAt(root, V(d.foot), new Vector3(d.@out[0], 0f, d.@out[1]).normalized);
+
+        // Drips all through it, the rock settling far off, ash in the dark.
+        float minE = spots.extent[0], maxE = spots.extent[1], minN = spots.extent[2], maxN = spots.extent[3];
+        Vector3 middle = new Vector3((minE + maxE) / 2f, Floor, (minN + maxN) / 2f);
         var drips = new GameObject("Drips").AddComponent<Drips>();
         drips.transform.SetParent(root, true);
         drips.transform.position = middle;
-        drips.size = new Vector3(maxE - minE, 0f, maxN - minN) * scale;
-        drips.everySecond = 0.4f;
+        drips.size = new Vector3(maxE - minE, 0f, maxN - minN);
+        drips.everySecond = 0.5f;
         drips.from = 6f;
         drips.dripSound = Clips("hold_drip");
-        HoldAsh(root, middle + Vector3.up * 8.5f, new Vector3((maxE - minE) * scale, 1f, (maxN - minN) * scale));
+        HoldAsh(root, middle + Vector3.up * 8.5f, new Vector3(maxE - minE, 1f, maxN - minN));
         var groans = new GameObject("The Rock Settling").AddComponent<AmbientOneShots>();
         groans.transform.SetParent(root, true);
         groans.transform.position = middle + Vector3.up * 6f;
@@ -104,35 +188,18 @@ public static partial class MainSceneBuilder
         groans.spread = 30f;
         groans.volume = 0.5f;
 
-        // A cold gleam here and there along it (the walls' shapes, no more): every 14 m or so over the floor.
-        foreach (var g in data.ground.Where(g => LevelTop(g.kind) < 3f))
-            for (float n = g.n0 + 5f / scale; n < g.n1; n += 10f / scale)
-                PointLight(root, W(new Vector2((g.e0 + g.e1) / 2f, n), 3.6f), 11f, 14f, Hex("#7d879e")).shadows = LightShadows.None;
-
-        // Where the drawing ends (its far end, open): the way on, grey daylight beyond, and nothing to fall off into.
-        var end = data.ground.Where(g => LevelTop(g.kind) < 3f).OrderByDescending(g => g.n1).First();
-        Vector3 wayOn = W(new Vector2((end.e0 + end.e1) / 2f, end.n1 - 2.5f), 0.5f); // (where the drawing ends: the cave closes there, for now)
-        PointLight(root, wayOn + new Vector3(0f, 3f, 1.5f), 12f, 3f, HoldDaylight).shadows = LightShadows.None;
-        LightShaft(root, wayOn + Vector3.back * 1.5f, 4f, 1.1f, brightness: 2.5f);
-
-        // The tutorial's messages on the floor, where its notes are.
-        foreach (var note in data.notes)
-        {
-            string lower = note.text.ToLowerInvariant();
-            var text = HoldMessages.FirstOrDefault(t => lower.Contains(t.match));
-            if (text.message == null)
-                continue;
-            var spot = Into(data, new Vector2(note.e0 + 1.5f, note.n1 - 1.5f), 0.8f);
-            FloorMessageAt(root, W(spot, 0.5f), text.message, text.line);
-        }
+        // A cold gleam here and there along the way (the walls' shapes, no more): every 12 m or so.
+        for (int i = 0; i + 1 < spots.gleams.Length; i += 2)
+            PointLight(root, new Vector3(spots.gleams[i], 3.6f, spots.gleams[i + 1]), 11f, 14f, Hex("#7d879e")).shadows = LightShadows.None;
 
         // Where you begin; the lab's post beside it.
+        var startMarker = Markers("START").FirstOrDefault() ?? new LevelMarker();
         var start = new GameObject("Start Point").transform;
-        start.position = W(origin, 0.5f);
+        start.position = At(startMarker);
         var entrance = new GameObject("Area Entrance").AddComponent<AreaEntrance>();
         entrance.transform.position = start.position + Vector3.up;
         entrance.areaName = "The Hold";
-        var tester = TesterPostAt(start.position + new Vector3(-3.2f, 0f, 1f), 120f);
+        var tester = TesterPostAt(start.position + new Vector3(1.8f, 0f, 0.8f), 200f);
         tester.spawner = LabTemplates();
         var apprentice = Apprentice(start.position);
         var bow = apprentice.GetComponent<BowLantern>();
@@ -142,36 +209,80 @@ public static partial class MainSceneBuilder
         var readout = new GameObject("Lab Readout").AddComponent<LabReadout>();
         readout.font = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
         tester.readout = readout;
-        Debug.Log($"[MainSceneBuilder] The Hold as drawn: {data.ground.Length} ground pieces, {data.markers.Length} markers ({kept} Kept), {data.notes.Length} notes");
+        Debug.Log($"[MainSceneBuilder] The Hold, the level ({data.name}): {data.markers.Length} markers, {spots.kept.Length} Kept in {groups} groups, " +
+                  $"{spots.eyes.Length} eyes, {spots.presences.Length} presences, {spots.gates.Length} gates, {spots.doors.Length} doors");
 
         FinishScene(scene, HoldLayoutLabPath, start, apprentice, "music_hold");
     }
 
-    // The height a ground piece's top stands at, from its name ("Ground +2.4 ...": 2.4).
-    static float LevelTop(string kind)
+    // The arena's seal: the cave's own ridge of the living stone across the way in (hold_drawn.py's HoldSeal), sunk in the
+    // floor till the Hold wakes with you inside.
+    static void HoldSealAt(Transform parent, Transform cave, Vector3 mid, Vector3 into, float width, TheHoldWall boss)
     {
-        var m = System.Text.RegularExpressions.Regex.Match(kind ?? "", @"\+(\d+(\.\d+)?)");
-        return m.Success ? float.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : 0.5f;
+        var seal = new GameObject("The Seal (the arena's)").AddComponent<HoldSeal>();
+        seal.transform.SetParent(parent, true);
+        seal.transform.SetPositionAndRotation(mid, Quaternion.LookRotation(into, Vector3.up));
+        seal.hold = boss;
+        seal.wallSize = new Vector3(width + 1.2f, 3f, 1.6f);
+        var ridge = new GameObject("Ridge").transform;
+        ridge.SetParent(seal.transform, false);
+        var stone = cave.Find("HoldSeal");
+        if (stone != null)
+        {
+            stone.SetParent(ridge, true);
+            foreach (var c in stone.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c); // (its unseen wall is what holds the way)
+            stone.gameObject.AddComponent<NavMeshIgnore>();
+        }
+        seal.ridge = ridge;
+        seal.riseSound = Clips("hold_stone_press");
+        seal.sinkSound = Clips("hold_creak");
     }
 
-    static IEnumerable<LevelGround> Floors(LevelData d) => d.ground.Where(g => LevelTop(g.kind) < 3f);
-
-    static bool OnFloor(LevelData d, Vector2 p) => Floors(d).Any(g => p.x > g.e0 && p.x < g.e1 && p.y > g.n0 && p.y < g.n1);
-
-    // The point on the floor nearest p, `inset` in from its edge.
-    static Vector2 Into(LevelData d, Vector2 p, float inset)
+    // A shortcut: a barred gate across the way, opened only from the side nearer the Boss (the way you fought through),
+    // the rock either side closed to it (the way is wider than the gate).
+    static void HoldShortcutAt(Transform parent, Vector3 mid, Vector3 across, Vector3 through, float width)
     {
-        if (OnFloor(d, p))
-            return p;
-        Vector2 best = p;
-        float bestD = float.MaxValue;
-        foreach (var g in Floors(d))
+        float yaw = Mathf.Atan2(across.x, across.z) * Mathf.Rad2Deg - 90f;
+        var go = Place("Environment/shortcut_gate", mid, yaw);
+        go.name = "Shortcut Gate";
+        go.transform.SetParent(parent, true);
+        go.AddComponent<ShortcutGate>().openFrom = through;
+        const float GateHalf = 1.08f;
+        foreach (float side in new[] { -1f, 1f })
         {
-            var c = new Vector2(Mathf.Clamp(p.x, g.e0 + inset, g.e1 - inset), Mathf.Clamp(p.y, g.n0 + inset, g.n1 - inset));
-            float dist = (c - p).sqrMagnitude;
-            if (dist < bestD) { bestD = dist; best = c; }
+            float reach = width / 2f + 0.8f - GateHalf;
+            var block = new GameObject("Shortcut Gate (the rock beside it)").AddComponent<BoxCollider>();
+            block.transform.SetParent(go.transform, true);
+            block.transform.SetPositionAndRotation(mid + across * side * (GateHalf + reach / 2f) + Vector3.up * 1.5f, Quaternion.LookRotation(through, Vector3.up));
+            block.size = new Vector3(reach, 3f, 0.6f);
         }
-        return best;
+    }
+
+    // The door of eyes (hold_pieces' eye_door) at its wall's foot, out of the wall along `outward`: its great eyes set in
+    // its leaves (the Hold's eye parts, many times over), shut till you come near.
+    static EyeDoor EyeDoorAt(Transform parent, Vector3 foot, Vector3 outward)
+    {
+        foot += outward * 0.5f; // (its built wall, 0.45 m thick, stood out in front of the living one: not sunk in it)
+        var door = new GameObject("The Door of Eyes").AddComponent<EyeDoor>();
+        door.transform.SetParent(parent, true);
+        door.transform.SetPositionAndRotation(foot, Quaternion.LookRotation(outward, Vector3.up));
+        var model = Place("Environment/hold_pieces_eye_door", foot, 0f);
+        model.transform.rotation = Quaternion.LookRotation(outward, Vector3.up); // (its face, game north as built, turned out of the wall)
+        model.transform.SetParent(door.transform, true);
+        Vector3 side = Vector3.Cross(Vector3.up, outward);
+        var eyes = new List<WallEye>();
+        foreach (var (x, u, s) in EyeDoorEyes)
+        {
+            var eye = WallEyeAt(door.transform, foot + side * x + Vector3.up * u - outward * 0.04f, outward, s, 14f);
+            eye.openWithin = 9f;
+            eye.shutBeyond = 13f;
+            eyes.Add(eye);
+        }
+        door.eyes = eyes.ToArray();
+        door.triedSound = Clips("hold_eye_open");
+        PointLight(door.transform, foot + outward * 2.4f + Vector3.up * 2.6f, 8f, 10f, Hex("#8590a8")).shadows = LightShadows.None;
+        return door;
     }
 
     // A message on the floor: a faint warm scrawl you stand on and read (FloorMessage).

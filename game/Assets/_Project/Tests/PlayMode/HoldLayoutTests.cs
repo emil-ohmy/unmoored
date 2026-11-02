@@ -1,7 +1,10 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -9,13 +12,41 @@ using UnityEngine.TestTools;
 
 namespace MyGame.Tests
 {
-    // The Hold as the user drew it (Lab_HoldLayout, from Levels/the_hold.json): you begin in the south passage, go up
-    // the long hall (the Kept tear out of its walls) and the corridor north of it to the lantern (a Mooring post); the
-    // tutorial's messages on the floor along the way.
+    // The Hold, the level (Lab_HoldLayout, from Levels/the_hold_spiral.json, as laid out in the level editor): one way
+    // winding in to the Boss's chamber (the Kept tear out of its walls as you pass, the tutorial's messages on its
+    // floor), a side way to a grotto (a Warm Stone; the door of eyes, which won't open), a shortcut back to the Mooring
+    // post opened only from the antechamber, the arena sealed behind you while the Hold fights. Read from the level's
+    // own file, so they follow it as it's changed.
     public class HoldLayoutTests
     {
         Apprentice apprentice;
         ScriptedInput input;
+
+        [Serializable] sealed class Marker { public string code, label; public float e, n; }
+        [Serializable] sealed class Level { public float scale = 1f; public Marker[] markers; }
+        [Serializable] sealed class Spot { public float[] at; }
+        [Serializable] sealed class Spots { public Spot[] eyes, presences; }
+
+        static string LevelFile => Path.Combine(Application.dataPath, "_Project/Levels/the_hold_spiral.json");
+        static Level TheLevel => JsonUtility.FromJson<Level>(File.ReadAllText(LevelFile));
+        static Spots TheSpots => JsonUtility.FromJson<Spots>(File.ReadAllText(LevelFile.Replace(".json", ".spots.json")));
+        static Marker[] Markers(string code) => TheLevel.markers.Where(m => m.code == code).ToArray();
+        static Vector2 At(Marker m) => new Vector2(m.e, m.n) * TheLevel.scale;
+
+        // Its paths' points (e, n), straight out of the file (Unity's JSON can't read nested lists).
+        static List<List<Vector2>> Paths()
+        {
+            var text = File.ReadAllText(LevelFile);
+            float scale = TheLevel.scale;
+            float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
+            return Regex.Matches(text, @"""points""\s*:\s*\[((?:\s*\[[^\]]*\]\s*,?)*)\s*\]").Cast<Match>()
+                .Select(m => Regex.Matches(m.Groups[1].Value, @"\[\s*([-\d.eE+]+)\s*,\s*([-\d.eE+]+)\s*\]").Cast<Match>()
+                    .Select(p => new Vector2(F(p.Groups[1].Value), F(p.Groups[2].Value)) * scale).ToList())
+                .ToList();
+        }
+
+        // The way: the longest of them, start to Boss.
+        static List<Vector2> TheWay() => Paths().OrderByDescending(p => p.Count).First();
 
         [UnitySetUp]
         public IEnumerator LoadIt()
@@ -26,30 +57,21 @@ namespace MyGame.Tests
             yield return null;
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
-            apprentice.postHitInvulnerability = 1000f; // (struck once, then left alone: the walk is what's tested)
+            apprentice.postHitInvulnerability = 1000f; // (struck once, then left alone: the way is what's tested)
             yield return new WaitForSeconds(0.3f);
         }
 
         [TearDown]
         public void ResetTime() => Time.captureDeltaTime = 0f;
 
-        // The route, in the scene's metres (the drawing's, from where you begin).
-        static readonly Vector2[] Route =
-        {
-            new Vector2(-0.7f, 5.3f),    // (up the south passage)
-            new Vector2(-0.7f, 23.3f),   // (into the long hall)
-            new Vector2(2.7f, 44.3f),    // (into the corridor at its north-east)
-            new Vector2(2.7f, 70f),      // (up it, to the lantern)
-        };
-
-        IEnumerator Walk(Vector2 to, Action each = null)
+        IEnumerator Walk(Vector2 to, Action each = null, float within = 0.5f)
         {
             Vector3 last = apprentice.transform.position;
             float stuck = 0f;
             for (float t = 0f; t < 40f; t += Time.deltaTime)
             {
                 Vector3 d = new Vector3(to.x, 0f, to.y) - new Vector3(apprentice.transform.position.x, 0f, apprentice.transform.position.z);
-                if (d.magnitude < 0.5f)
+                if (d.magnitude < within)
                     break;
                 input.Move = new Vector2(d.x, d.z).normalized;
                 if (apprentice.CurrentState == Apprentice.State.Staggered || apprentice.CurrentState == Apprentice.State.Attacking)
@@ -65,57 +87,212 @@ namespace MyGame.Tests
             input.Move = Vector2.zero;
         }
 
-        [UnityTest]
-        public IEnumerator ItsPieces_AreAllThere()
+        IEnumerator Interact()
         {
-            Assert.AreEqual(6, UnityEngine.Object.FindObjectsByType<WallEye>(FindObjectsSortMode.None).Length, "six eyes");
-            Assert.AreEqual(9, UnityEngine.Object.FindObjectsByType<WallPresence>(FindObjectsSortMode.None).Length, "four faces, five hands");
-            Assert.AreEqual(3, UnityEngine.Object.FindObjectsByType<Kept>(FindObjectsSortMode.None).Length, "three of the Kept");
-            Assert.AreEqual(3, UnityEngine.Object.FindObjectsByType<FloorMessage>(FindObjectsSortMode.None).Length, "three messages");
-            Assert.AreEqual(1, UnityEngine.Object.FindObjectsByType<MooringPost>(FindObjectsSortMode.None).Length, "the lantern's post");
+            yield return null;
+            input.PressInteract();
+            yield return null;
+            yield return null;
+        }
+
+        static int Count<T>() where T : UnityEngine.Object => UnityEngine.Object.FindObjectsByType<T>(FindObjectsSortMode.None).Length;
+
+        [UnityTest]
+        public IEnumerator ItsPieces_AreAllThere_AsTheLevelHasThem()
+        {
+            int doors = Markers("EYED").Length;
+            Assert.AreEqual(Markers("MSG").Length, Count<FloorMessage>(), "a message on the floor for each");
+            Assert.AreEqual(Markers("KP").Length, Count<Kept>(), "the Kept");
+            Assert.AreEqual(Markers("MP").Length, Count<MooringPost>(), "the Mooring post");
+            Assert.AreEqual(Markers("WS").Length, UnityEngine.Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Count(p => p.kind == UpgradePiece.Kind.WarmStone), "the Warm Stone");
+            Assert.AreEqual(Markers("OB").Length, Count<ObolCache>(), "the Obols");
+            Assert.AreEqual(Markers("SG").Length, Count<ShortcutGate>(), "the shortcut");
+            Assert.AreEqual(Markers("HOLD").Length, Count<TheHoldWall>(), "the Boss");
+            Assert.AreEqual(Markers("AG").Length, Count<HoldSeal>(), "its arena's seal");
+            Assert.AreEqual(doors, Count<EyeDoor>(), "the door of eyes");
+            Assert.AreEqual(TheSpots.eyes.Length + 5 * doors, Count<WallEye>(), "the eyes in the walls, and the door's");
+            Assert.GreaterOrEqual(TheSpots.eyes.Length, Markers("EYE").Length - 1, "every eye drawn found its wall (or all but one)");
+            Assert.AreEqual(TheSpots.presences.Length, Count<WallPresence>(), "the faces and hands");
             Assert.IsNotNull(UnityEngine.Object.FindAnyObjectByType<Drips>(), "drips all through it");
             yield return null;
         }
 
-        // You walk it, start to lantern; the Kept come out of the walls as you pass; each message read says its piece.
+        // You walk the way in, reading each message as you come to it; the Kept come out of the walls as you pass; the
+        // Hold keeps its arms out of sight while you go round behind its wall; you come into its chamber, it wakes, and
+        // the way in heaves shut behind you.
         [UnityTest]
-        public IEnumerator YouWalkIt_ReadingTheMessages_AndTheKeptComeOut()
+        public IEnumerator YouWalkTheWayIn_ReadingTheMessages_AndTheHoldWakes_AndSealsYouIn()
         {
             var hud = UnityEngine.Object.FindAnyObjectByType<Hud>();
-            var messages = UnityEngine.Object.FindObjectsByType<FloorMessage>(FindObjectsSortMode.None).OrderBy(m => m.transform.position.z).ToList();
-            // (the route, with a step aside onto each message as you come to it)
-            var stops = Route.Select(p => (p, (FloorMessage)null)).ToList();
-            foreach (var m in messages)
+            var hold = UnityEngine.Object.FindAnyObjectByType<TheHoldWall>();
+            var seal = UnityEngine.Object.FindAnyObjectByType<HoldSeal>();
+            var way = TheWay();
+            var messages = UnityEngine.Object.FindObjectsByType<FloorMessage>(FindObjectsSortMode.None).ToList();
+            // (the way, with a step aside onto each message along it, at the point it's nearest)
+            var stops = way.Select(p => (p, (FloorMessage)null)).ToList();
+            var along = messages.Where(m => way.Min(p => Vector2.Distance(p, Flat(m.transform.position))) < 6f).ToList();
+            foreach (var m in along.OrderByDescending(m => Nearest(way, Flat(m.transform.position))))
+                stops.Insert(Nearest(way, Flat(m.transform.position)) + 1, (Flat(m.transform.position), m));
+            bool hiddenBehind = false;
+            void Watch()
             {
-                var at = new Vector2(m.transform.position.x, m.transform.position.z);
-                int i = stops.FindIndex(s => s.Item1.y > at.y);
-                stops.Insert(i < 0 ? stops.Count : i, (at, m));
+                float d = Vector3.Distance(new Vector3(apprentice.transform.position.x, 0f, apprentice.transform.position.z),
+                                           new Vector3(hold.arenaCentre.x, 0f, hold.arenaCentre.z));
+                if (d > hold.armsHiddenBeyond + 2f && hold.ArmsHidden)
+                    hiddenBehind = true;
             }
             foreach (var (p, m) in stops)
             {
-                yield return Walk(p);
+                yield return Walk(p, Watch, m != null ? 0.5f : 1.2f);
                 if (m != null)
                 {
                     yield return null;
                     Assert.AreEqual(m, apprentice.Nearby, $"{m.message}: in reach to read");
-                    input.PressInteract();
-                    yield return null;
-                    yield return null;
+                    yield return Interact();
                     Assert.AreEqual(m.message, hud.FoundBanner.Text.text, "its message up");
                 }
             }
-            Assert.AreEqual(messages.Count, messages.Count(m => m.Read > 0), "every message read on the way");
-            Assert.IsTrue(UnityEngine.Object.FindObjectsByType<Kept>(FindObjectsSortMode.None).All(k => k.Emerged || !k.IsAlive), "the Kept torn out of the walls as you passed");
-            var post = UnityEngine.Object.FindAnyObjectByType<MooringPost>();
-            Assert.Less(Vector3.Distance(post.transform.position, apprentice.transform.position), 8f, "at the lantern");
-            yield return null;
-            yield return null;
-            StringAssert.Contains("Mooring post", hud.Controls(messages.Last().line), "its line");
+            Assert.AreEqual(along.Count, along.Count(m => m.Read > 0), "every message on the way read");
+            Assert.GreaterOrEqual(along.Count, 4, "the tutorial's messages lie along the way");
+            var keptAlong = UnityEngine.Object.FindObjectsByType<Kept>(FindObjectsSortMode.None)
+                .Where(k => way.Min(p => Vector2.Distance(p, Flat(k.transform.position))) < 8f).ToList();
+            Assert.GreaterOrEqual(keptAlong.Count, 4, "the Kept wait along the way");
+            Assert.IsTrue(keptAlong.All(k => k.Emerged || !k.IsAlive), "the Kept torn out of the walls as you passed");
+            Assert.IsTrue(hiddenBehind, "its arms folded away while you went round behind its wall");
+            Assert.AreEqual(TheHoldWall.Mood.Dormant, hold.State, "asleep till you come in");
+            // Into its chamber: it wakes, and the way in heaves shut behind you.
+            yield return Walk(Flat(hold.arenaCentre) + Vector2.down * 4f);
+            Assert.AreNotEqual(TheHoldWall.Mood.Dormant, hold.State, "it wakes");
+            Assert.IsFalse(hold.ArmsHidden, "its arms there to see");
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(seal.Shut, "the way in sealed");
+            Assert.Greater(seal.Raised, 0.99f, "heaved up");
+            Vector2 behind = Flat(seal.transform.position) - Flat(seal.transform.forward) * 4f;
+            for (float t = 0f; t < 3f; t += Time.deltaTime)
+            {
+                var d = behind - Flat(apprentice.transform.position);
+                input.Move = d.normalized;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Greater(Vector3.Dot(apprentice.transform.position - seal.transform.position, seal.transform.forward), 0f, "held in: no way back out over it");
         }
 
-        // (SHOTS=dir) The way through, from the game camera.
+        // Beaten (struck wherever it's open: the fight itself is the Hold lab's), it lets go: the seal sinks back into the
+        // floor, and its mouth is open on the way out: through it, up the tunnel behind, into the cleft where the day falls.
         [UnityTest]
-        public IEnumerator Capture_TheWayThrough()
+        public IEnumerator TheHold_Beaten_TheSealSinks_AndYouWalkOutThroughItsMouth()
+        {
+            var hold = UnityEngine.Object.FindAnyObjectByType<TheHoldWall>();
+            var seal = UnityEngine.Object.FindAnyObjectByType<HoldSeal>();
+            Vector3 stand = hold.arenaCentre + Vector3.back * 3f + Vector3.up * 0.05f;
+            apprentice.Teleport(stand);
+            for (float t = 0f; t < 60f && hold.IsAlive; t += Time.deltaTime)
+            {
+                foreach (var part in new[] { hold.handL, hold.handR, hold.face })
+                    if (part.Open)
+                        part.TakeHit(new Hit { Damage = 200f, Stagger = 0f, From = apprentice.transform.position, Knockback = Vector3.zero });
+                if (Vector3.Distance(apprentice.transform.position, stand) > 2f)
+                    apprentice.Teleport(stand); // (stood still: the test only strikes)
+                yield return null;
+            }
+            Assert.IsFalse(hold.IsAlive, "beaten");
+            for (float t = 0f; t < 8f && hold.State != TheHoldWall.Mood.Gone; t += Time.deltaTime)
+                yield return null;
+            yield return new WaitForSeconds(3f);
+            Assert.IsFalse(seal.Shut, "the way in open again");
+            Assert.Less(seal.Raised, 0.01f, "the seal sunk back into the floor");
+            float mouthE = hold.transform.position.x, outAt = hold.transform.position.z + 4f;
+            Vector3 last = apprentice.transform.position;
+            float stuck = 0f;
+            for (float t = 0f; t < 20f && apprentice.transform.position.z < outAt; t += Time.deltaTime)
+            {
+                Vector3 p = apprentice.transform.position;
+                input.Move = new Vector2(Mathf.Clamp((mouthE - p.x) * 0.8f, -0.7f, 0.7f), 1f).normalized; // (up the middle)
+                stuck = (p - last).magnitude < 0.002f ? stuck + Time.deltaTime : 0f;
+                last = p;
+                if (stuck > 1f)
+                {
+                    string what = Physics.SphereCast(p + Vector3.up, 0.3f, Vector3.forward, out var hit, 2f) ? $"{hit.collider.name} at {hit.point}" : "nothing ahead";
+                    Assert.Fail($"stuck at {p}: {what}");
+                }
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.GreaterOrEqual(apprentice.transform.position.z, outAt - 0.1f, $"out through its mouth, up into the cleft (got to {apprentice.transform.position})");
+        }
+
+        // The side way to the grotto: the Warm Stone (more health, for good), and the door of eyes: it won't open; every
+        // eye in it looks at you; it says its piece.
+        [UnityTest]
+        public IEnumerator TheSideWay_TheWarmStone_AndTheDoorOfEyes_WhichWontOpen()
+        {
+            var hud = UnityEngine.Object.FindAnyObjectByType<Hud>();
+            var stone = UnityEngine.Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).First(p => p.kind == UpgradePiece.Kind.WarmStone);
+            var door = UnityEngine.Object.FindAnyObjectByType<EyeDoor>();
+            var way = TheWay();
+            var side = Paths().Where(p => p != way).OrderBy(p => Vector2.Distance(p.Last(), Flat(stone.transform.position))).First();
+            // (from the way, where the side way leaves it)
+            apprentice.Teleport(new Vector3(side[0].x, 0.6f, side[0].y));
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsFalse(door.eyes.Any(e => e.Open), "its eyes shut till you come");
+            foreach (var p in side.Skip(1))
+                yield return Walk(p, null, 1.0f);
+            float health = apprentice.maxHealth;
+            yield return Walk(Flat(stone.transform.position) + Vector2.down * 0.6f);
+            Assert.AreEqual(stone, apprentice.Nearby, "the Warm Stone in reach");
+            yield return Interact();
+            yield return new WaitForSeconds(2f);
+            Assert.IsTrue(stone.Taken, "taken");
+            Assert.Greater(apprentice.maxHealth, health, "more health, for good");
+            // The door.
+            yield return Walk(Flat(door.InteractPosition));
+            yield return new WaitForSeconds(1.5f);
+            Assert.GreaterOrEqual(door.eyes.Count(e => e.Open), 4, "its eyes open as you come near");
+            Assert.AreEqual(door, apprentice.Nearby, "the door in reach");
+            yield return Interact();
+            Assert.AreEqual(1, door.Tried, "tried");
+            Assert.AreEqual("...", hud.FoundBanner.Text.text, "it says its piece");
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(door.eyes.All(e => e.Open), "every eye on you");
+            Assert.Greater(Vector3.Dot(apprentice.transform.position - door.transform.position, door.transform.forward), 0.5f, "still this side of it: it won't open");
+        }
+
+        // The shortcut back to the Mooring post: barred from the post's side; opened from the antechamber's, for good.
+        [UnityTest]
+        public IEnumerator TheShortcut_IsBarred_FromThePost_AndOpens_FromTheAntechamber()
+        {
+            var gate = UnityEngine.Object.FindAnyObjectByType<ShortcutGate>();
+            Vector3 from = gate.openFrom.normalized;
+            apprentice.Teleport(gate.transform.position - from * 1.3f + Vector3.up * 0.1f);
+            yield return new WaitForSeconds(0.4f);
+            Assert.AreEqual(gate, apprentice.Nearby, "the gate in reach (the post's side)");
+            Assert.AreEqual("Barred", gate.PromptLabel);
+            yield return Interact();
+            yield return new WaitForSeconds(1f);
+            Assert.IsFalse(gate.IsOpen, "barred from here");
+            // (and no way round it)
+            Vector3 was = apprentice.transform.position;
+            for (float t = 0f; t < 2.5f; t += Time.deltaTime)
+            {
+                input.Move = new Vector2(from.x, from.z);
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            Assert.Less(Vector3.Dot(apprentice.transform.position - gate.transform.position, from), 0.2f, "it holds the way");
+            apprentice.Teleport(gate.transform.position + from * 1.3f + Vector3.up * 0.1f);
+            yield return new WaitForSeconds(0.4f);
+            Assert.AreEqual("Open", gate.PromptLabel);
+            yield return Interact();
+            yield return new WaitForSeconds(1.5f);
+            Assert.IsTrue(gate.IsOpen, "opened from the antechamber");
+            yield return Walk(Flat(gate.transform.position - from * 3f));
+        }
+
+        // (SHOTS=dir) The way, from the game camera: the start, the first message, the post, the far side, behind the
+        // Boss's wall, the grotto and its door, the chamber.
+        [UnityTest]
+        public IEnumerator Capture_TheWay()
         {
             string outDir = Environment.GetEnvironmentVariable("SHOTS");
             if (string.IsNullOrEmpty(outDir))
@@ -130,31 +307,43 @@ namespace MyGame.Tests
                 RenderTexture.active = rt;
                 var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0);
-                File.WriteAllBytes(Path.Combine(outDir, $"layout-{name}.png"), tex.EncodeToPNG());
+                File.WriteAllBytes(Path.Combine(outDir, $"level-{name}.png"), tex.EncodeToPNG());
                 cam.targetTexture = null;
                 RenderTexture.active = null;
                 UnityEngine.Object.Destroy(tex);
                 rt.Release();
             }
+            IEnumerator At(Vector2 p, string name, float settle = 1.2f)
+            {
+                apprentice.Teleport(new Vector3(p.x, 0.6f, p.y));
+                yield return new WaitForSeconds(settle);
+                Shot(name);
+            }
+            var way = TheWay();
             yield return new WaitForSeconds(1.5f);
-            Shot("1-we-begin-here");
-            var first = UnityEngine.Object.FindObjectsByType<FloorMessage>(FindObjectsSortMode.None).OrderBy(m => m.transform.position.z).First();
-            yield return Walk(new Vector2(first.transform.position.x, first.transform.position.z));
-            input.PressInteract();
-            yield return new WaitForSeconds(0.6f);
-            Shot("2-the-first-message");
-            yield return Walk(new Vector2(-0.7f, 15.6f));
-            yield return new WaitForSeconds(1.5f);
-            Shot("3-the-hall-the-kept");
-            yield return Walk(new Vector2(-0.7f, 30f));
-            yield return new WaitForSeconds(1f);
-            Shot("4-the-hall-north");
-            yield return Walk(new Vector2(2.7f, 48f));
-            yield return new WaitForSeconds(0.6f);
-            Shot("5-the-corridor");
-            yield return Walk(new Vector2(2.7f, 70f));
-            yield return new WaitForSeconds(0.6f);
-            Shot("6-the-lantern");
+            Shot("01-start");
+            for (int i = 4; i < way.Count - 3; i += 5)
+                yield return At(way[i], $"{i + 2:00}-way-{i}");
+            var door = UnityEngine.Object.FindAnyObjectByType<EyeDoor>();
+            yield return At(Flat(door.transform.position + door.transform.forward * 6f), "60-the-grotto");
+            yield return At(Flat(door.InteractPosition), "61-the-door-of-eyes", 2.5f);
+            var hold = UnityEngine.Object.FindAnyObjectByType<TheHoldWall>();
+            yield return At(Flat(hold.arenaCentre) + Vector2.down * 11f, "70-the-antechamber");
+            yield return At(Flat(hold.arenaCentre) + Vector2.down * 3f, "71-the-hold-wakes", 3f);
+            var seal = UnityEngine.Object.FindAnyObjectByType<HoldSeal>();
+            yield return At(Flat(seal.transform.position + seal.transform.forward * 1.8f), "72-sealed-in", 0.6f);
+            yield return At(Flat(hold.arenaCentre) + Vector2.down * 3f, "73-the-fight", 3f);
+        }
+
+        static Vector2 Flat(Vector3 v) => new Vector2(v.x, v.z);
+
+        static int Nearest(List<Vector2> way, Vector2 p)
+        {
+            int best = 0;
+            for (int i = 1; i < way.Count; i++)
+                if (Vector2.Distance(way[i], p) < Vector2.Distance(way[best], p))
+                    best = i;
+            return best;
         }
     }
 }

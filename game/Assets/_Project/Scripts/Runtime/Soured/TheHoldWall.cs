@@ -32,6 +32,10 @@ namespace MyGame
         public Vector3 arenaCentre;
         public float arenaRadius = 8.5f;
         public Collider wayOut;               // the tunnel behind its face, blocked till it's beaten
+        // While it sleeps (or once it's gone), its arms lie withdrawn 8 m and more back in the rock: where a level's way
+        // runs close behind its wall they'd show through the rock's top. Beyond this (from its chamber's middle) they're
+        // folded away to nothing; 0: never.
+        public float armsHiddenBeyond;
         public SwingTrail[] trails;           // its hands' swipes, each for its own blows (SlamL, SweepR...)
 
         [Header("Its numbers (first Boss: forgiving)")]
@@ -199,7 +203,19 @@ namespace MyGame
             if (handL != null && boneHandL != null) handL.Follow(OnFloor(boneHandL.position));
             if (handR != null && boneHandR != null) handR.Follow(OnFloor(boneHandR.position));
             if (face != null && boneFace != null) face.Follow(OnFloor(boneFace.position));
+            if (armsHiddenBeyond > 0f && shoulderL != null && shoulderR != null)
+            {
+                if (shoulderScale == Vector3.zero)
+                    shoulderScale = shoulderL.localScale;
+                bool hide = (State == Mood.Dormant || State == Mood.Gone)
+                            && (target == null || Flat(target.transform.position - arenaCentre).magnitude > armsHiddenBeyond);
+                ArmsHidden = hide;
+                shoulderL.localScale = shoulderR.localScale = hide ? Vector3.zero : shoulderScale;
+            }
         }
+
+        Vector3 shoulderScale;
+        public bool ArmsHidden { get; private set; } // (tests)
 
         // A part's place: on the floor under its bone, but never back in the wall (where lock-on and the camera would lose it).
         Vector3 OnFloor(Vector3 bone)
