@@ -109,6 +109,8 @@ namespace MyGame.Tests
             Assert.AreEqual(Markers("SG").Length, Count<ShortcutGate>(), "the shortcut");
             Assert.AreEqual(Markers("HOLD").Length, Count<TheHoldWall>(), "the Boss");
             Assert.AreEqual(Markers("AG").Length, Count<HoldSeal>(), "its arena's seal");
+            foreach (var seal in UnityEngine.Object.FindObjectsByType<HoldSeal>(FindObjectsSortMode.None))
+                Assert.IsNotNull(seal.ridge.GetComponentInChildren<Renderer>(true), "its stone in it (to sink and raise)");
             Assert.AreEqual(doors, Count<EyeDoor>(), "the door of eyes");
             Assert.AreEqual(TheSpots.eyes.Length + 5 * doors, Count<WallEye>(), "the eyes in the walls, and the door's");
             Assert.GreaterOrEqual(TheSpots.eyes.Length, Markers("EYE").Length - 1, "every eye drawn found its wall (or all but one)");
@@ -160,13 +162,34 @@ namespace MyGame.Tests
             Assert.IsTrue(keptAlong.All(k => k.Emerged || !k.IsAlive), "the Kept torn out of the walls as you passed");
             Assert.IsTrue(hiddenBehind, "its arms folded away while you went round behind its wall");
             Assert.AreEqual(TheHoldWall.Mood.Dormant, hold.State, "asleep till you come in");
-            // Into its chamber: it wakes, and the way in heaves shut behind you.
-            yield return Walk(Flat(hold.arenaCentre) + Vector2.down * 4f);
-            Assert.AreNotEqual(TheHoldWall.Mood.Dormant, hold.State, "it wakes");
+            var stone = seal.ridge.GetComponentInChildren<Renderer>(true);
+            Assert.IsTrue(!stone.gameObject.activeInHierarchy || stone.bounds.max.y < 0.45f, $"the seal sunk in the floor (its top at {stone.bounds.max.y})");
+            Assert.Less(hold.transform.position.z - seal.transform.position.z, 13f, "a short walk from the way in to its wall");
+            // Into its chamber: it wakes, and the way in heaves shut behind you; its name only once its face has formed.
+            float wokeAt = -1f, namedAt = -1f;
+            void Waking()
+            {
+                if (wokeAt < 0f && hold.State != TheHoldWall.Mood.Dormant)
+                    wokeAt = Time.time;
+                if (namedAt < 0f && BossFight.Current == (IBoss)hold)
+                {
+                    namedAt = Time.time;
+                    Assert.IsTrue(hold.Framed, "the camera turned to it before its name comes up");
+                }
+            }
+            yield return Walk(Flat(seal.transform.position + seal.transform.forward * 3f), Waking);
+            for (float t = 0f; t < 2.5f; t += Time.deltaTime)
+            {
+                Waking();
+                yield return null;
+            }
+            Assert.Greater(wokeAt, 0f, "it wakes as you come in");
+            Assert.Greater(namedAt, 0f, "its name up");
+            Assert.GreaterOrEqual(namedAt - wokeAt, hold.namedAfter - 0.05f, "its name not up before its face has formed");
             Assert.IsFalse(hold.ArmsHidden, "its arms there to see");
-            yield return new WaitForSeconds(1f);
             Assert.IsTrue(seal.Shut, "the way in sealed");
             Assert.Greater(seal.Raised, 0.99f, "heaved up");
+            Assert.Greater(stone.bounds.max.y, 1.4f, "its stone up across the way");
             Vector2 behind = Flat(seal.transform.position) - Flat(seal.transform.forward) * 4f;
             for (float t = 0f; t < 3f; t += Time.deltaTime)
             {
@@ -187,7 +210,9 @@ namespace MyGame.Tests
             var seal = UnityEngine.Object.FindAnyObjectByType<HoldSeal>();
             Vector3 stand = hold.arenaCentre + Vector3.back * 3f + Vector3.up * 0.05f;
             apprentice.Teleport(stand);
-            for (float t = 0f; t < 60f && hold.IsAlive; t += Time.deltaTime)
+            apprentice.maxHealth = 100000f; // (whatever it lands on you: the fight itself is the Hold lab's)
+            apprentice.RestoreFully();
+            for (float t = 0f; t < 90f && hold.IsAlive; t += Time.deltaTime)
             {
                 foreach (var part in new[] { hold.handL, hold.handR, hold.face })
                     if (part.Open)
@@ -196,7 +221,8 @@ namespace MyGame.Tests
                     apprentice.Teleport(stand); // (stood still: the test only strikes)
                 yield return null;
             }
-            Assert.IsFalse(hold.IsAlive, "beaten");
+            Assert.IsFalse(hold.IsAlive, $"beaten (it {hold.State}, you {(apprentice.IsAlive ? "alive" : "dead")})");
+            Assert.IsTrue(BossFall.Framing, "its fall made a moment of (time slowed, the camera on it)");
             for (float t = 0f; t < 8f && hold.State != TheHoldWall.Mood.Gone; t += Time.deltaTime)
                 yield return null;
             yield return new WaitForSeconds(3f);
@@ -329,7 +355,7 @@ namespace MyGame.Tests
             yield return At(Flat(door.InteractPosition), "61-the-door-of-eyes", 2.5f);
             var hold = UnityEngine.Object.FindAnyObjectByType<TheHoldWall>();
             yield return At(Flat(hold.arenaCentre) + Vector2.down * 11f, "70-the-antechamber");
-            yield return At(Flat(hold.arenaCentre) + Vector2.down * 3f, "71-the-hold-wakes", 3f);
+            yield return At(Flat(hold.arenaCentre) + Vector2.down * 3f, "71-the-hold-wakes", hold.namedAfter + 0.3f);
             var seal = UnityEngine.Object.FindAnyObjectByType<HoldSeal>();
             yield return At(Flat(seal.transform.position + seal.transform.forward * 1.8f), "72-sealed-in", 0.6f);
             yield return At(Flat(hold.arenaCentre) + Vector2.down * 3f, "73-the-fight", 3f);

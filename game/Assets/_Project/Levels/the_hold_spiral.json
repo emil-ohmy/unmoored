@@ -283,7 +283,7 @@
   },
   {
    "code": "KP",
-   "label": "Kept ×2, together",
+   "label": "Kept \u00d72, together",
    "e": 18.6,
    "n": -16.8
   },
@@ -325,7 +325,7 @@
   },
   {
    "code": "KP",
-   "label": "Kept ×2, the last of them",
+   "label": "Kept \u00d72, the last of them",
    "e": -16.8,
    "n": 6.1
   },
@@ -357,7 +357,8 @@
    "code": "HOLD",
    "label": "The Hold, That Would Not Let Go",
    "e": 0,
-   "n": 5.5
+   "n": 1.0,
+   "note": "Its face here (its wall just behind): a short walk from the way in, its hands soon in reach"
   },
   {
    "code": "EYE",

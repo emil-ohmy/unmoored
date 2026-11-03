@@ -114,7 +114,9 @@ game/Assets/_Project/
 - A new creature or Boss is done only when: every blow swipes (above); it has its Ledger page (`LedgerEntry`: the
   entry, `All`, `For`; `EveryKindOfSoured_AndEveryBoss_HasItsPage`) and a test that scatters or beats it as it's
   played and finds it written in; whatever you strike on it can be locked on to (a Boss's parts too, not only while
-  they're in reach: `Lockable`, `LockReachExtra`); and its numbers suit where it stands (the first Boss is quick).
+  they're in reach: `Lockable`, `LockReachExtra`); its fall is made a moment of (`BossFall`: the blow held, time
+  slowed, the camera closing in; a Soured Boss gets it by falling, any other calls `BossFall.Moment` as it dies); its
+  name comes up only once it's there to see; and its numbers suit where it stands (the first Boss is quick).
 - Sounds are code too: `art/audio/<name>.py` defines render(variant, rng) (+ VARIANTS, LOOP). The list of every
   sound and its source (synth / AI / library) is `art/audio/sounds.md`. Claude can't listen: check shape with a
   spectrogram (`ffmpeg ... showspectrumpic`) and look for clicks (layers cut before they decay), then the user

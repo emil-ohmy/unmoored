@@ -192,7 +192,7 @@ function render() {
   const nameEl = document.getElementById("levelName");
   nameEl.textContent = (level.name || "untitled") + (server ? (fileName ? `  —  Levels/${fileName}.json` : "  (not saved yet)") : fileHandle ? "" : "  (not saved to a file yet)");
   if (dirty()) { const u = document.createElement("span"); u.className = "unsaved"; u.textContent = "  •  unsaved changes (⌘S)"; nameEl.appendChild(u); }
-  try { localStorage.setItem("levelEditor.autosave", JSON.stringify({ fileName, level })); } catch (_) {}
+  try { localStorage.setItem("levelEditor.autosave", JSON.stringify({ fileName, level, savedText })); } catch (_) {}
 }
 
 function isSel(kind, i) { return selection && selection.kind === kind && selection.index === i; }
@@ -720,8 +720,10 @@ buildPalette();
   if (want && server) {
     await openNamed(want);
     // Unsaved work on this level from before (the browser keeps it as you go): offer it back.
+    // (only real edits: not the file changed on disk since, e.g. by Claude, when nothing was changed here)
     const same = left && left.level && (left.fileName === want || (!left.fileName && left.level.name === level.name));
-    if (same && JSON.stringify(left.level) !== savedText &&
+    const edited = left && left.level && (left.savedText == null || JSON.stringify(left.level) !== left.savedText);
+    if (same && edited && JSON.stringify(left.level) !== savedText &&
         confirm("You have changes to " + want + " that were never saved (from your last session). Bring them back?")) {
       snapshot(); level = left.level; fit(); toast("Brought back your unsaved changes: ⌘S saves them");
     }

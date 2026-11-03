@@ -6,7 +6,8 @@ pale veins run through them, the kept press out of them in relief, the rock mass
 It borrows hold.py's machinery (its fields' maths, its living walls, its reliefs, its materials, the camera's ceiling:
 walls are low only where they'd hide a floor north of them, its Boss's chamber and the tunnel out behind the Boss's
 face), with this level's plan instead of hold.py's own:
-- the round floor the Hold (HOLD) stands in is its chamber: squared off on the north into the Boss's broad smooth wall,
+- the round floor the Hold (HOLD) stands in is its chamber, cut off on the north by the Boss's broad smooth wall (a metre
+  behind its marker: where its face is),
   the tunnel's mouth in it behind the face, the tunnel short (the level's way runs north of it), then a cleft open to
   the sky (the way out: the grey day);
 - where a door of eyes (EYED) stands, the wall is flat and upright (a built wall: the door's model stands against it);
@@ -469,7 +470,8 @@ def build():
         rounds = [f for f in floors if f["type"] == "circle"]
         chamber = min(rounds, key=lambda f: math.hypot(f["e"] - hold["e"], f["n"] - hold["n"]) - f["r"])
         NS["CHAMBER_C"], NS["CHAMBER_R"] = (chamber["e"], chamber["n"]), chamber["r"]
-        NS["BOSS_E"], NS["BOSS_N"] = hold["e"], chamber["n"] + chamber["r"]
+        # (its wall a metre behind its marker, where its face is; never beyond the round's own north edge)
+        NS["BOSS_E"], NS["BOSS_N"] = hold["e"], min(hold["n"] + 1.0, chamber["n"] + chamber["r"])
         NS["BOSS_HALF"] = min(7.5, 0.8 * chamber["r"])
     else:
         NS["BOSS_E"], NS["BOSS_N"], NS["BOSS_HALF"] = 1e5, 1e5, 1.0

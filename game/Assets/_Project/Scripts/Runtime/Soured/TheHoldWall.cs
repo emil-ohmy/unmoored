@@ -36,6 +36,8 @@ namespace MyGame
         // runs close behind its wall they'd show through the rock's top. Beyond this (from its chamber's middle) they're
         // folded away to nothing; 0: never.
         public float armsHiddenBeyond;
+        public float namedAfter = 1.6f; // (its name comes up this long into its waking: once its face has formed)
+        public float wakeInset;          // (it wakes this far inside its arena's edge: a step past the way in)
         public SwingTrail[] trails;           // its hands' swipes, each for its own blows (SlamL, SweepR...)
 
         [Header("Its numbers (first Boss: forgiving)")]
@@ -153,17 +155,19 @@ namespace MyGame
                 return;
             if (State == Mood.Dormant)
             {
-                if (target.IsAlive && In(target.transform.position))
+                if (target.IsAlive && In(target.transform.position, -wakeInset))
                     StartCoroutine(Wake());
                 return;
             }
-            bool on = State == Mood.Fighting && target.IsAlive && In(target.transform.position, 4f);
+            bool there = target.IsAlive && In(target.transform.position, 4f);
+            bool on = State == Mood.Fighting && there;
             if (on)
                 BossFight.Begin(this);
             else if (State == Mood.Fighting)
                 BossFight.End(this);
-            if (on != framed && State != Mood.Dying)
-                Frame(on);
+            bool frame = (State == Mood.Fighting || State == Mood.Waking) && there; // (the camera on it as it wakes, too)
+            if (frame != framed && State != Mood.Dying)
+                Frame(frame);
             if (State != Mood.Fighting)
                 return;
 
@@ -216,6 +220,7 @@ namespace MyGame
 
         Vector3 shoulderScale;
         public bool ArmsHidden { get; private set; } // (tests)
+        public bool Framed => framed;                // (tests: the camera turned to it)
 
         // A part's place: on the floor under its bone, but never back in the wall (where lock-on and the camera would lose it).
         Vector3 OnFloor(Vector3 bone)
@@ -262,12 +267,16 @@ namespace MyGame
         System.Collections.IEnumerator Wake()
         {
             State = Mood.Waking;
-            BossFight.Begin(this);
             Frame(true);
             Sfx.Instance?.Attack(wakeSound, transform.position + Vector3.up * 4f, 1f, "the_hold_wake");
             CameraRig.Instance?.Shake(0.25f);
             Layer("Wake", 0, duration: 4f, fade: 0.1f);
-            yield return new WaitForSeconds(4f);
+            // Its name (and its bar, its music) once there's something to see: the camera turned to the wall, the face
+            // swelled out of the stone.
+            yield return new WaitForSeconds(namedAfter);
+            if (State == Mood.Waking)
+                BossFight.Begin(this);
+            yield return new WaitForSeconds(4f - namedAfter);
             Layer("Idle", 0, loop: true, fade: 0.3f);
             State = Mood.Fighting;
             nextAttack = Time.time + 1f;
@@ -496,6 +505,8 @@ namespace MyGame
             {
                 defeated = true;
                 BossFight.Defeat(this);
+                Frame(true);
+                BossFall.Moment(focus, 2.6f); // (the killing blow held, time slowed, the camera closing in on its face)
             }
             yield return new WaitForSeconds(5f);
             if (wayOut != null)

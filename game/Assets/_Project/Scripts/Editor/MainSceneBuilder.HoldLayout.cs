@@ -63,6 +63,7 @@ public static partial class MainSceneBuilder
 
         // The cave, grown round the level's floors (hold_drawn.py): its living walls breathe.
         var cave = Place("Environment/hold_drawn", Vector3.zero, 0f);
+        PrefabUtility.UnpackPrefabInstance(cave, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction); // (its seal is taken out of it)
         cave.transform.SetParent(root, true);
         var living = new GameObject("The Living Walls").AddComponent<LivingWalls>();
         living.transform.SetParent(root, true);
@@ -129,7 +130,13 @@ public static partial class MainSceneBuilder
         {
             Vector3 wall = new Vector3(spots.boss.wall[0], Floor, spots.boss.wall[1]);
             boss = TheHoldBoss(root, wall);
-            boss.armsHiddenBeyond = spots.boss.chamber[2] + 3f;
+            // Its arena: the chamber from the way in to its wall (not the Hold lab's: a deep round chamber), so it wakes as
+            // you come in and its hands are soon in reach.
+            float south = spots.boss.chamber[1] - spots.boss.chamber[2], depth = wall.z - south;
+            boss.arenaCentre = new Vector3(wall.x, Floor, south + depth / 2f);
+            boss.arenaRadius = depth / 2f + 1.25f; // (out to the chamber's sides: the fight's on anywhere in it)
+            boss.wakeInset = 2.25f;               // (it wakes a step past the seal)
+            boss.armsHiddenBeyond = boss.arenaRadius + 6f;
             Vector3 arena = boss.arenaCentre;
             PointLight(root, arena + new Vector3(0f, 4f, 0f), 16f, 5f, Hex("#66708a")).shadows = LightShadows.None;
             PointLight(root, wall + new Vector3(0f, 2.5f, -5f), 14f, 6f, Hex("#7d88a3")).shadows = LightShadows.None;
