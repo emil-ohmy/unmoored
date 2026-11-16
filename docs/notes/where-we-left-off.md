@@ -27,8 +27,9 @@ they made in the editor since (`git diff` on the json; their notes on floors and
 
 ## On the PC
 
-- Unity 6000.6.8f1, Blender 5.2, Git LFS (`git lfs install` before cloning).
-- The `tools/*.sh` scripts were written on macOS: Blender and Unity are looked up under `/Applications/` (overridable
-  with `BLENDER=` and `UNITY=`, except Blender's Python in `build-audio.sh` and `record-demo.sh`). On Windows they need
-  Git Bash or WSL and those paths. Making them work on both machines is likely the first job there.
+- Set up 2026-11-16: Unity 6000.6.8f1 (Unity CLI, `C:\Program Files\Unity\Hub\Editor\`), Blender 5.2.4, Git for
+  Windows with LFS, ffmpeg 9.0, clone at `C:\Users\emile\Projects\unmoored`, on this branch.
+- The `tools/*.sh` scripts now run on both machines (Git Bash on Windows): `tools/env.sh` finds Blender, its Python
+  and Unity per OS. Checked on the PC: build-models, build-audio (byte-identical output), preview-poses, unity.sh
+  open. Not yet re-checked on the Mac.
 - On the Mac, port 8765 is the user's own watcher.py; the level editor uses 8777.

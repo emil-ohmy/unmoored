@@ -3,17 +3,18 @@
 #   tools/unity.sh open          # open the project in the editor
 #   tools/unity.sh import        # headless: import/refresh assets, compile scripts
 #   tools/unity.sh build-mac     # headless: build builds/mac/MyGame.app
+#   tools/unity.sh build-windows # headless: build builds/windows/MyGame.exe
 #   tools/unity.sh build-webgl   # headless: build builds/webgl/
 #   tools/unity.sh test          # headless: run EditMode + PlayMode tests, skipping [Category("Slow")] ones
 #   tools/unity.sh test-all      # headless: every test, the slow measurements too (before a merge)
 # Headless commands fail if the editor already has the project open; close it first.
+# Runs on macOS and on Windows (Git Bash); the Editor's path comes from tools/env.sh.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "$0")/env.sh"
 PROJECT="$ROOT/game"
-VERSION="$(sed -n 's/^m_EditorVersion: //p' "$PROJECT/ProjectSettings/ProjectVersion.txt")"
-UNITY="${UNITY:-/Applications/Unity/Hub/Editor/$VERSION/Unity.app/Contents/MacOS/Unity}"
 LOG="$ROOT/builds/unity-${1:-help}.log"
+[[ -z "${1:-}" ]] || need unity
 mkdir -p "$ROOT/builds"
 
 batch() {
@@ -25,9 +26,12 @@ batch() {
 }
 
 case "${1:-}" in
-  open)        open -a "$(dirname "$UNITY")/../.." --args -projectPath "$PROJECT" ;;
+  open)
+    if [[ $OS == mac ]]; then open -a "$(dirname "$UNITY")/../.." --args -projectPath "$PROJECT"
+    else "$UNITY" -projectPath "$PROJECT" >/dev/null 2>&1 & disown; fi ;;
   import)      batch ;;
   build-mac)   batch -executeMethod BuildScript.BuildMac ;;
+  build-windows) batch -executeMethod BuildScript.BuildWindows ;;
   build-webgl) batch -executeMethod BuildScript.BuildWebGL ;;
   test|test-all)
     categories=(); [[ "$1" == test ]] && categories=(-testCategory "!Slow")
@@ -41,5 +45,5 @@ case "${1:-}" in
       echo "$platform: $summary"
       grep -q 'result="Passed"' <(grep -o '<test-run[^>]*' "$results") || { echo "  failures in $results"; exit 1; }
     done ;;
-  *)           sed -n '2,9p' "$0"; exit 1 ;;
+  *)           sed -n '2,11p' "$0"; exit 1 ;;
 esac

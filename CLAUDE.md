@@ -6,6 +6,10 @@ Repo: github.com/emil-ohmy/unmoored ("unmoored" is the codename). Worked on from
 
 3D game: Unity 6.6 (6000.6.8f1, URP) + Blender 5.2 for models. Driven mostly from the CLI.
 
+Worked on from macOS and Windows. The `tools/*.sh` scripts run in bash on both (Git Bash on Windows); they
+take tool paths from `tools/env.sh` (override with `BLENDER=`, `BLENDER_PY=`, `UNITY=`), never hardcode them.
+`.sh` files are LF via `.gitattributes`. The film/preview/demo tools also need `ffmpeg` on PATH.
+
 ## Notes (read these first)
 
 What we've learned working together, and where the last session stopped, live in `docs/notes/` so every machine
@@ -38,7 +42,8 @@ tools/
                                   rects and rounds, every set piece as a sticker); its little server saves straight into
                                   game/Assets/_Project/Levels/<level>.json (format "level/2"). Floors and set pieces carry
                                   a `note` (the user's intent: "a flat wall here"): read every note before building
-  unity.sh                        open | import | build-mac | build-webgl | test
+  unity.sh                        open | import | build-mac | build-windows | build-webgl | test
+  env.sh                          sourced by every tool: finds Blender, its Python and Unity on macOS or Windows
 game/Assets/_Project/
   Art/Models/                     generated FBX (never edit; rebuild from art/models)
   Art/Shaders/                    Toon (outline, stepped light, lantern light), Water (waves, foam)

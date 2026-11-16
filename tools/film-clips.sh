@@ -6,12 +6,12 @@
 # Each clip's film plays it at 30 fps, both views side by side, looped three times with a beat's pause between;
 # all.mp4 strings every clip together. The sheet: every SHEET_EVERY-th frame, numbered, in rows.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BLENDER="${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}"
+source "$(dirname "$0")/env.sh"
+need blender ffmpeg
 name="$1"
 blend="$(ls "$ROOT"/art/models/*/"$name".blend)"
 out="$ROOT/builds/film-$name"
-tmp="$(mktemp -d)"
+tmp="$(make_tmp)"
 "$BLENDER" -b "$blend" --python "$ROOT/tools/blender/film_clips.py" -- "$tmp" "${CLIPS:-}" "${SIZE:-420}" | grep "^\[film\]"
 mkdir -p "$out"
 list="$tmp/all.txt"

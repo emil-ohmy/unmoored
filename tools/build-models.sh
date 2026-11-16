@@ -5,8 +5,8 @@
 # art/models/<category>/<name>.py builds from code; a <name>.blend without a .py is exported as-is.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BLENDER="${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}"
+source "$(dirname "$0")/env.sh"
+need blender
 
 shopt -s nullglob
 wanted=("$@")
