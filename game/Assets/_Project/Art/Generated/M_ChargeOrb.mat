@@ -29,6 +29,7 @@ Material:
     - _Cutaway: 0
     - _Dissolve: 0
     - _DissolveScale: 7
+    - _InTime: 0
     - _OutlineWidth: 0
     - _RimStrength: 0.12
     - _ShadeSoftness: 0.03

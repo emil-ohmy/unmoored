@@ -26,5 +26,20 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/Lab_LastHour.unity
     guid: 02e4abfb0bd504f3d81ceb99ad08029f
+  - enabled: 1
+    path: Assets/_Project/Scenes/Lab_OneWhoWaits.unity
+    guid: 5a3567a239e124fdfa6355a97feb455e
+  - enabled: 1
+    path: Assets/_Project/Scenes/Lab_Gallery.unity
+    guid: 024b5762231dd4f8a91b7bd41e75858f
+  - enabled: 1
+    path: Assets/_Project/Scenes/Lab_Hold.unity
+    guid: 5955ee18b91ce42c780aa6b2bf45bd0d
+  - enabled: 1
+    path: Assets/_Project/Scenes/Lab_Hub.unity
+    guid: 9593d3e28d4824ec88fddd3d1b31e77d
+  - enabled: 1
+    path: Assets/_Project/Scenes/Lab_HoldLayout.unity
+    guid: 7bc94efd8d68b4ee8b7cc51dec8f6e90
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

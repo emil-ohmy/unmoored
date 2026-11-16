@@ -26,9 +26,11 @@ Material:
     m_Ints: []
     m_Floats:
     - _AmbientStrength: 0.5
+    - _Breathe: 0
     - _Cutaway: 0
     - _Dissolve: 0
     - _DissolveScale: 7
+    - _InTime: 0
     - _OutlineWidth: 0
     - _RimStrength: 0.12
     - _ShadeSoftness: 0.03
