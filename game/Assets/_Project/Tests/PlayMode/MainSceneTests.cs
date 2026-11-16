@@ -1003,7 +1003,7 @@ namespace MyGame.Tests
         {
             var glow = apprentice.GetComponent<HealGlow>();
             Assert.IsNotNull(glow);
-            apprentice.TakeHit(50f, Vector3.zero);
+            apprentice.TakeHit(apprentice.maxHealth * 0.5f, Vector3.zero); // (hurt, not dead: whatever the health's tuned to)
             yield return new WaitForSeconds(1f);
             float hurt = apprentice.Health;
             input.PressHeal();

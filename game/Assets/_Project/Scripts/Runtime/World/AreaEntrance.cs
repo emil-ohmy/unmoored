@@ -18,8 +18,8 @@ namespace MyGame
 
         void Update()
         {
-            if (Announced || apprentice == null || !apprentice.IsAlive)
-                return;
+            if (Announced || apprentice == null || !apprentice.IsAlive || apprentice.CurrentState == Apprentice.State.Waking)
+                return; // (the opening: named once you've risen, not over the dark)
             Vector3 local = transform.InverseTransformPoint(apprentice.transform.position);
             if (Mathf.Abs(local.x) <= size.x * 0.5f && Mathf.Abs(local.y) <= size.y * 0.5f && Mathf.Abs(local.z) <= size.z * 0.5f)
             {

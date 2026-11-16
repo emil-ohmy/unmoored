@@ -1,6 +1,6 @@
 # Where we left off
 
-_Updated 2026-11-16, on the Mac, before the user moved to working on their PC._
+_Updated 2026-11-16, on the PC (the first session there)._
 
 ## The work in progress: the Hold, the tutorial level
 
@@ -21,9 +21,20 @@ post; the arena's seal; the Hold, That Would Not Let Go; the way out behind its 
 Done last (2026-11-03, commit 4ca1afd), after the user's play-testing: the seal truly sinks; the Boss's name comes up
 only once its face is on screen; the walk from the seal to it is 11.6 m (was 19 m); its fall gets BossFall.Moment.
 
-**The user's view (2026-11-16): "not really finished, but it's getting there."** Nothing specific was open when we
-stopped. Next session: ask the user what they found in their last play-through, and check the level file for edits
-they made in the editor since (`git diff` on the json; their notes on floors and markers say what they want).
+**The user's view (2026-11-16): "not really finished, but it's getting there."**
+
+Done 2026-11-16 on the PC, from the user's notes after play-testing:
+- **The opening** (their idea): you lie still in complete darkness; a lantern on the floor before you kindles; the words
+  "Apprentice. Take light."; a prompt; you take it and rise (TheOpening; the Lie and Wake clips). The cave's lights
+  come back nearest first; the Hold is named once you stand. Not yet seen by the user in play.
+- **Harder**: the Apprentice starts with 50 health and 60 stamina (was 100 each); a heal mends 22.5. Game-wide.
+- **The shortcut gate** no longer floats between the walls: jambs of the living stone run from them to its posts.
+- **The floor** isn't bare black: lichen, moss and fungus (a few glowing faint green) along the walls' feet, black
+  puddles, and a few things the kept dropped (a shoe, a comb, coins...). The user chose these over roots/tendrils.
+
+Next session: ask how the opening and the harder numbers feel in play, and whether the floor wants more or less (the
+densities are GROWTH / DROPPED_PER_M2 in hold_drawn.py). Also check the level file for edits they made in the editor
+(`git diff` on the json; their notes on floors and markers say what they want).
 
 ## On the PC
 

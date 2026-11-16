@@ -82,7 +82,12 @@ game/Assets/_Project/
                                   MainSceneBuilder.HoldLayout places the set pieces (the Kept, eyes, faces, hands, the
                                   messages: FloorMessage, the Mooring post, the Warm Stone, the shortcut, the Hold, its seal:
                                   HoldSeal, the door of eyes: EyeDoor, hold_pieces.py). HoldLayoutTests read the level's own
-                                  file, so they follow it as it changes
+                                  file, so they follow it as it changes. It opens with the game's opening (TheOpening: lying
+                                  in the dark, a lantern on the floor kindles, "Apprentice. Take light.", you take it and rise:
+                                  the Lie and Wake clips, Apprentice.State.Waking); tests that don't play it call Skip().
+                                  The shortcut gate stands in a wall of the living stone (hold_drawn.py's GateWall); the
+                                  floor's small things (lichen, moss, fungus, puddles, what the kept dropped: hold_floor.py)
+                                  lie where hold_drawn.py's scatter put them (spots.json's details), walked through
   Levels/<area>.json              level layouts from the level editor (tools/level-editor.sh; format "level/2": floors as
                                   paths, rounds, rectangles; set pieces as markers; notes): read every note before building
   Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in

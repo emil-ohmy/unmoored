@@ -27,10 +27,12 @@ public static partial class MainSceneBuilder
     [System.Serializable] sealed class LevelDoor { public float[] foot, @out; }
     [System.Serializable] sealed class LevelGate { public string code; public float[] spot, a, b; }
     [System.Serializable] sealed class LevelBoss { public float[] wall, chamber, way_out; }
+    // The floor's small things (hold_floor.py's pieces): lichen, moss, fungus, puddles, what the kept dropped.
+    [System.Serializable] sealed class LevelDetail { public string what; public float[] at; public float yaw, scale; }
     [System.Serializable] sealed class LevelSpots
     {
         public LevelSpot[] eyes, presences; public LevelKept[] kept; public LevelDoor[] doors; public LevelGate[] gates;
-        public LevelBoss boss; public float[] gleams, extent;
+        public LevelBoss boss; public float[] gleams, extent; public LevelDetail[] details;
     }
 
     // The door of eyes: its eyes' places on its leaves (x across from the middle, u up) and their scale over the Hold's
@@ -176,6 +178,9 @@ public static partial class MainSceneBuilder
         foreach (var d in spots.doors)
             EyeDoorAt(root, V(d.foot), new Vector3(d.@out[0], 0f, d.@out[1]).normalized);
 
+        // The floor's small things, where the cave put them: walked through (no colliders), not in the Soured's ways.
+        HoldFloorDetails(root, spots.details);
+
         // Drips all through it, the rock settling far off, ash in the dark.
         float minE = spots.extent[0], maxE = spots.extent[1], minN = spots.extent[2], maxN = spots.extent[3];
         Vector3 middle = new Vector3((minE + maxE) / 2f, Floor, (minN + maxN) / 2f);
@@ -213,6 +218,7 @@ public static partial class MainSceneBuilder
         bow.minRange = 7.5f;
         bow.minIntensity = 3f;
         apprentice.GetComponent<Equipment>().startingCharms = new[] { Charm.TestersKnot.Id };
+        TheOpeningAt(root, apprentice);
         var readout = new GameObject("Lab Readout").AddComponent<LabReadout>();
         readout.font = AssetDatabase.LoadAssetAtPath<Font>(Fonts + "IMFellEnglish-Regular.ttf");
         tester.readout = readout;
@@ -220,6 +226,58 @@ public static partial class MainSceneBuilder
                   $"{spots.eyes.Length} eyes, {spots.presences.Length} presences, {spots.gates.Length} gates, {spots.doors.Length} doors");
 
         FinishScene(scene, HoldLayoutLabPath, start, apprentice, "music_hold");
+    }
+
+    // The game's opening (TheOpening): you lie at the start in the dark, the lantern lying on the floor before you on the
+    // side you reach with (apprentice.py's WAKE_LANTERN: 0.85 m ahead, 0.45 m to the left, where the hip lantern hangs),
+    // its light kindling out of nothing; a whisper with the words.
+    static void TheOpeningAt(Transform parent, Apprentice apprentice)
+    {
+        var t = apprentice.transform;
+        var hip = t.GetComponentsInChildren<Transform>(true).FirstOrDefault(b => b.name == "Lantern");
+        float side = hip != null && Vector3.Dot(hip.position - t.position, t.right) > 0f ? 1f : -1f; // (the hip lantern's side, whichever way the axes went)
+        Vector3 at = t.position + t.forward * 0.85f + t.right * side * 0.45f;
+        // (bow_lantern hangs from its origin: stood on the floor, its base 0.44 m below that)
+        var lantern = Place("Environment/bow_lantern", at + Vector3.up * 0.44f, 25f);
+        lantern.name = "The Lantern (on the floor)";
+        lantern.transform.SetParent(parent, true);
+        foreach (var c in lantern.GetComponentsInChildren<Collider>())
+            Object.DestroyImmediate(c);
+        lantern.AddComponent<NavMeshIgnore>();
+        var light = PointLight(lantern.transform, at + Vector3.up * 0.35f, 4.5f, 0f, Hex("#cfe6ff"));
+        light.name = "Its Light";
+        light.shadows = LightShadows.Soft; // (the Apprentice's shadow thrown long across the floor)
+        var opening = new GameObject("The Opening").AddComponent<TheOpening>();
+        opening.transform.SetParent(parent, true);
+        opening.apprentice = apprentice;
+        opening.floorLantern = lantern;
+        opening.floorLight = light;
+        var whisper = Clips("hold_whisper");
+        opening.voice = whisper.Length > 0 ? whisper[0] : null;
+    }
+
+    // Lichen, moss and fungus along the walls' feet, black puddles, what the kept dropped (hold_floor.py): flat things
+    // underfoot, so no colliders and no shadows; the glowing fungus each a faint cold light to read the floor by.
+    static void HoldFloorDetails(Transform parent, LevelDetail[] details)
+    {
+        if (details == null || details.Length == 0)
+            return;
+        var group = new GameObject("The Floor's Small Things").transform;
+        group.SetParent(parent, true);
+        foreach (var d in details)
+        {
+            var at = new Vector3(d.at[0], d.at[2], d.at[1]);
+            var go = Place("Environment/hold_floor_" + d.what, at, d.yaw);
+            go.transform.SetParent(group, true);
+            go.transform.localScale *= d.scale > 0f ? d.scale : 1f;
+            foreach (var c in go.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c);
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            go.AddComponent<NavMeshIgnore>();
+            if (d.what == "fungus_glow")
+                PointLight(go.transform, at + Vector3.up * 0.25f, 2.4f, 0.45f, Hex("#7fc9a2")).shadows = LightShadows.None;
+        }
     }
 
     // The arena's seal: the cave's own ridge of the living stone across the way in (hold_drawn.py's HoldSeal), sunk in the

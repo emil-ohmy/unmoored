@@ -1263,7 +1263,7 @@ namespace MyGame.Tests
         [UnityTest]
         public IEnumerator WarmBroth_MendsSlowly()
         {
-            apprentice.TakeTickDamage(60f);
+            apprentice.TakeTickDamage(apprentice.maxHealth * 0.6f); // (hurt, not dead: whatever the health's tuned to)
             float hurt = apprentice.Health;
             yield return UseFromTheBelt(Provision.WarmBroth);
             yield return new WaitForSeconds(apprentice.drinkTime + 1f);

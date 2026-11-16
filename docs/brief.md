@@ -148,7 +148,9 @@ business and pay their fare to row them across.
   - **Warm Stones:** more health (+10 each).
   - **Held Breaths:** more stamina (+10 each).
   - **Embers:** one more Healing charge each.
-  The starting health and stamina (100) and the bonus each piece gives are placeholders, to be balanced together.
+  The Apprentice starts with 50 health and 60 stamina (lowered from 100 each after play-testing, 2026-11-16: the
+  game should be harder); a Healing charge mends 22.5. The bonus each piece gives is still a placeholder, to be
+  balanced together.
 - **Provisions:** things used up, carried in **the Satchel**, and used from **the belt**: up to four in a row at the
   HUD's bottom left. Left/right on the d-pad (the arrow keys) choose along it, and up uses the chosen one. They're tools, not a second supply of healing (bar one gentle one).
   - Bought from the merchant soul with Obols, and found in the world. Each kind has a carry cap, and Resting doesn't

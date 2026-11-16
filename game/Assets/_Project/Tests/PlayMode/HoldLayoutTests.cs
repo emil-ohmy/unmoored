@@ -58,7 +58,79 @@ namespace MyGame.Tests
             apprentice = UnityEngine.Object.FindAnyObjectByType<Apprentice>();
             apprentice.Input = input = new ScriptedInput();
             apprentice.postHitInvulnerability = 1000f; // (struck once, then left alone: the way is what's tested)
+            if (!TestContext.CurrentContext.Test.Name.StartsWith("TheOpening"))
+                UnityEngine.Object.FindAnyObjectByType<TheOpening>()?.Skip(); // (standing, the lantern at the hip: the way is what's tested)
             yield return new WaitForSeconds(0.3f);
+        }
+
+        // The game's opening: lying still in complete darkness (no light but the lantern's, and that out); it kindles, the
+        // words come, then the prompt (nothing pressed before it does anything); taken, you rise, the cave's lights come
+        // back, and only once you stand is the Hold named. Unharmed throughout; free to walk after.
+        [UnityTest]
+        public IEnumerator TheOpening_YouLieInTheDark_TakeTheLight_AndRise()
+        {
+            var opening = UnityEngine.Object.FindAnyObjectByType<TheOpening>();
+            var bow = apprentice.GetComponent<BowLantern>();
+            var hud = UnityEngine.Object.FindAnyObjectByType<Hud>();
+            var entrance = UnityEngine.Object.FindAnyObjectByType<AreaEntrance>();
+            Assert.IsTrue(opening.Playing, "it plays as the Hold loads");
+            Assert.AreEqual(Apprentice.State.Waking, apprentice.CurrentState, "lying still");
+            Assert.IsTrue(apprentice.LanternOnTheFloor, "the lantern on the floor, not at the hip");
+            // (the world's lights: not the character screen's stage lamps, 400 m under it, lighting only its portrait)
+            IEnumerable<Light> WorldLights() => UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None).Where(l => l.transform.position.y > -100f);
+            int lightsAtAll = WorldLights().Count(l => l.enabled);
+            Assert.That(WorldLights().Where(l => l.enabled),
+                Is.All.Matches<Light>(l => l == opening.floorLight || l == bow.lanternLight), "no light but the lanterns'");
+            Assert.AreEqual(0f, bow.Dimmed, "the hip's out");
+            Assert.Less(opening.floorLight.intensity, 0.01f, "and the floor's not yet lit: complete darkness");
+            Assert.IsFalse(entrance.Announced, "not named over the dark");
+
+            // Pressing before you're bidden does nothing.
+            yield return new WaitForSeconds(1f);
+            input.PressInteract();
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(Apprentice.State.Waking, apprentice.CurrentState);
+            Assert.IsTrue(apprentice.LanternOnTheFloor, "nothing taken before the word");
+
+            for (float t = 0f; opening.Current != TheOpening.Stage.Bidden; t += Time.deltaTime)
+            {
+                Assert.Less(t, 15f, "bidden in time");
+                yield return null;
+            }
+            Assert.Greater(opening.floorLight.intensity, 1f, "the lantern lit before you");
+            Assert.AreEqual("Apprentice. Take light.", hud.OpeningLine.Text.text);
+            Assert.IsTrue(hud.OpeningLine.Showing, "the words in the dark");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual("Take light", hud.PromptText);
+            Assert.Greater(hud.PromptAlpha, 0.9f, "the prompt");
+            Assert.IsTrue(apprentice.AwaitingLight);
+
+            input.PressInteract();
+            yield return new WaitForSeconds(apprentice.wakeTakeAt + 0.2f);
+            Assert.IsFalse(apprentice.LanternOnTheFloor, "taken: at the hip now");
+            Assert.IsFalse(opening.floorLantern.activeSelf, "gone from the floor");
+            Assert.AreEqual(Apprentice.State.Waking, apprentice.CurrentState, "still rising");
+            for (float t = 0f; apprentice.CurrentState != Apprentice.State.Free; t += Time.deltaTime)
+            {
+                Assert.Less(t, apprentice.wakeDuration + 1f, "up in time");
+                yield return null;
+            }
+            for (float t = 0f; opening.Playing; t += Time.deltaTime)
+            {
+                Assert.Less(t, 6f, "the lights back in time");
+                yield return null;
+            }
+            Assert.AreEqual(1f, bow.Dimmed, "the hip lantern burning");
+            Assert.Greater(WorldLights().Count(l => l.enabled), lightsAtAll + 10,
+                "the cave's lights all back");
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(entrance.Announced, "named once you've risen");
+            Assert.AreEqual(apprentice.maxHealth, apprentice.Health, "unharmed");
+            Vector3 was = apprentice.transform.position;
+            input.Move = new Vector2(0f, -1f);
+            yield return new WaitForSeconds(0.6f);
+            input.Move = Vector2.zero;
+            Assert.Greater(Vector3.Distance(was, apprentice.transform.position), 1f, "free to walk");
         }
 
         [TearDown]
@@ -315,6 +387,47 @@ namespace MyGame.Tests
             yield return Walk(Flat(gate.transform.position - from * 3f));
         }
 
+        // (SHOTS=dir) The opening, from the game camera (no UI): the dark; the lantern lit; reaching for it; kneeling; risen.
+        [UnityTest]
+        public IEnumerator TheOpening_Captured()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var opening = UnityEngine.Object.FindAnyObjectByType<TheOpening>();
+            var cam = Camera.main;
+            void Shot(string name)
+            {
+                var rt = new RenderTexture(1600, 900, 24);
+                cam.targetTexture = rt;
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0);
+                File.WriteAllBytes(Path.Combine(outDir, $"opening-{name}.png"), tex.EncodeToPNG());
+                cam.targetTexture = null;
+                RenderTexture.active = null;
+                UnityEngine.Object.Destroy(tex);
+                rt.Release();
+            }
+            yield return new WaitForSeconds(1.5f);
+            Shot("1-dark");
+            while (opening.Current != TheOpening.Stage.Bidden)
+                yield return null;
+            yield return new WaitForSeconds(0.5f);
+            Shot("2-the-lantern-lit");
+            input.PressInteract();
+            yield return new WaitForSeconds(0.75f);
+            Shot("3-reaching");
+            yield return new WaitForSeconds(1.3f);
+            Shot("4-kneeling");
+            yield return new WaitForSeconds(1.6f);
+            Shot("5-risen");
+            yield return new WaitForSeconds(3f);
+            Shot("6-the-cave-back");
+        }
+
         // (SHOTS=dir) The way, from the game camera: the start, the first message, the post, the far side, behind the
         // Boss's wall, the grotto and its door, the chamber.
         [UnityTest]
@@ -353,6 +466,9 @@ namespace MyGame.Tests
             var door = UnityEngine.Object.FindAnyObjectByType<EyeDoor>();
             yield return At(Flat(door.transform.position + door.transform.forward * 6f), "60-the-grotto");
             yield return At(Flat(door.InteractPosition), "61-the-door-of-eyes", 2.5f);
+            var gate = UnityEngine.Object.FindAnyObjectByType<ShortcutGate>();
+            yield return At(Flat(gate.transform.position - gate.openFrom.normalized * 2.5f), "65-the-shortcut-gate");
+            yield return At(Flat(gate.transform.position + gate.openFrom.normalized * 2.5f), "66-the-shortcut-gate-behind");
             var hold = UnityEngine.Object.FindAnyObjectByType<TheHoldWall>();
             yield return At(Flat(hold.arenaCentre) + Vector2.down * 11f, "70-the-antechamber");
             yield return At(Flat(hold.arenaCentre) + Vector2.down * 3f, "71-the-hold-wakes", hold.namedAfter + 0.3f);

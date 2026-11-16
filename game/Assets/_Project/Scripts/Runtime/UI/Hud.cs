@@ -65,6 +65,9 @@ namespace MyGame
         Image hookMarkerImage, hookMarkerGlow;
         Banner foundHint, warningHint;
         public Banner WarningBanner { get; private set; }
+        // The opening's words in the dark ("Apprentice. Take light."): held till dismissed (TheOpening).
+        public Banner OpeningLine { get; private set; }
+        float wakeHud = 1f;
         float obolsShown, gainAt = -100f, healedAt = -100f;
         Image hpFillImage;
         int gainAmount;
@@ -98,7 +101,7 @@ namespace MyGame
             hpFrame = (RectTransform)hpFill.parent;
             staminaFrame = (RectTransform)staminaFill.parent;
             BuildCharges(hudRoot);
-            BuildPrompt(hudRoot);
+            BuildPrompt(canvasRect); // (not in the HUD's group: it shows in the opening, with the bars still hidden)
             BuildObols(hudRoot);
             BuildBelt(hudRoot);
 
@@ -145,6 +148,12 @@ namespace MyGame
                 font = textFont, size = 30, colour = UiKit.Ash, y = -210f, fadeIn = 0.7f, hold = 2.8f, fadeOut = 1.0f,
             });
             BuildHookMarker(hudRoot);
+            OpeningLine = new Banner(canvasRect, "Opening Line", new Banner.Style
+            {
+                // (a voice in the dark: plain, pale, slow to come; it stays until the lantern's taken)
+                font = textFont, size = 46, colour = UiKit.Bone, spacing = 4f, y = 150f, glow = Color.black.WithAlpha(0.7f),
+                fadeIn = 2.2f, hold = 600f, fadeOut = 1.4f, drift = 0.015f,
+            });
             Boss = new BossBar(canvasRect, titleFont, textFont);
             Farewell = new Banner(canvasRect, "Boss Farewell", new Banner.Style
             {
@@ -367,7 +376,10 @@ namespace MyGame
             Menu.Tick(talk == null ? apprentice.OpenMenu : null, usingGamepad);
             Dialogue.Tick(talk, usingGamepad);
             Death.Tick();
-            hudGroup.alpha = Death.HudAlpha * (Pause.IsPaused ? 0.2f : 1f); // (dimmed under the pause menu)
+            // (the opening: no bars over the dark; they come up softly once you've risen)
+            wakeHud = apprentice.CurrentState == Apprentice.State.Waking ? 0f : Mathf.MoveTowards(wakeHud, 1f, UiKit.DeltaTime * 0.8f);
+            hudGroup.alpha = Death.HudAlpha * wakeHud * (Pause.IsPaused ? 0.2f : 1f); // (dimmed under the pause menu)
+            OpeningLine.Tick();
             // Paused (the pause menu, the character screen), its messages go quiet too: nothing shows through a menu.
             canvasGroup.alpha = Pause.IsPaused ? 0f : Mathf.MoveTowards(canvasGroup.alpha, 1f, UiKit.DeltaTime * 6f); // (gone at once; back softly)
             AreaTitle.Tick();
@@ -501,9 +513,11 @@ namespace MyGame
             keyCap.enabled = !usingGamepad;
             buttonRing.enabled = usingGamepad;
             glyph.text = usingGamepad ? "A" : "E";
-            if (apprentice.Nearby != null)
+            if (apprentice.AwaitingLight)
+                promptLabel.text = "Take light"; // (the opening: the lantern before you, lying in the dark)
+            else if (apprentice.Nearby != null)
                 promptLabel.text = apprentice.Nearby.PromptLabel;
-            float target = apprentice.Nearby != null && apprentice.IsAlive && apprentice.OpenMenu == null ? 1f : 0f; // (not over a menu or a talk)
+            float target = (apprentice.Nearby != null || apprentice.AwaitingLight) && apprentice.IsAlive && apprentice.OpenMenu == null ? 1f : 0f; // (not over a menu or a talk)
             promptGroup.alpha = Mathf.MoveTowards(promptGroup.alpha, target, UiKit.DeltaTime * 5f);
         }
 

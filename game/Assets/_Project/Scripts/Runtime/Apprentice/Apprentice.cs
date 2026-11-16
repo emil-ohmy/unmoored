@@ -9,7 +9,7 @@ namespace MyGame
     [RequireComponent(typeof(CharacterController))]
     public sealed class Apprentice : MonoBehaviour
     {
-        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke, Vaulting }
+        public enum State { Free, Dashing, Attacking, Healing, Blocking, Staggered, Dead, Hooking, PickingUp, Ceremony, Sinking, Rowing, Provision, Stroke, Vaulting, Waking }
         enum Act { None, Dash, Light, Heavy, Vault }
 
         [Header("Movement")]
@@ -27,7 +27,7 @@ namespace MyGame
         public float dashStaminaCost = 20f;
 
         [Header("Stamina")]
-        public float maxStamina = 100f;
+        public float maxStamina = 60f; // (play-test 2026-11-16: 100 was too forgiving; 3 dashes or 4 swings from full)
         public float staminaRegenPerSecond = 45f;
         public float staminaRegenDelay = 0.5f;
 
@@ -61,7 +61,8 @@ namespace MyGame
         public float heavyHitStop = 0.14f;
 
         [Header("Health")]
-        public float maxHealth = 100f;   // (its start; each Warm Stone found adds healthPerStone)
+        public float maxHealth = 50f;    // (its start; each Warm Stone found adds healthPerStone. Play-test 2026-11-16: 100 was
+                                         //  too forgiving; now two of the Hold's bites kill)
         public float healthPerStone = 10f;
         public float staminaPerBreath = 10f; // each Held Breath found
         public float staggerDuration = 0.35f;
@@ -84,7 +85,7 @@ namespace MyGame
 
         [Header("Healing charges")]
         public int maxHealingCharges = 3;
-        public float healAmount = 45f;
+        public float healAmount = 22.5f; // (45% of the starting health, as it was at 100)
         public float healDuration = 0.7f;
 
         [Header("Lock-on")]
@@ -208,6 +209,7 @@ namespace MyGame
             || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd)
             || (CurrentState == State.Hooking && stateTime >= hookThrowTime && hookFoe == null) // pulled clear of harm (not when it's thrown at a Soured)
             || CurrentState == State.Ceremony
+            || CurrentState == State.Waking // (the opening: lying in the dark, rising)
             || CurrentState == State.Sinking
             || CurrentState == State.Rowing; // nothing on the water can hurt you (the brief)
 
@@ -492,6 +494,10 @@ namespace MyGame
 
                 case State.Ceremony:
                     UpdateCeremony();
+                    break;
+
+                case State.Waking:
+                    UpdateWaking();
                     break;
 
                 case State.Rowing:
@@ -1450,7 +1456,7 @@ namespace MyGame
         // dash's i-frames slip it. True if it hurt.
         public bool TakeTickDamage(float damage)
         {
-            if (!IsAlive || CurrentState == State.Ceremony
+            if (!IsAlive || CurrentState == State.Ceremony || CurrentState == State.Waking
                 || (CurrentState == State.Dashing && stateTime >= iFrameStart && stateTime <= iFrameEnd))
                 return false;
             Health = Mathf.Max(0f, Health - damage);
@@ -2221,8 +2227,8 @@ namespace MyGame
         {
             if (hookBone != null)
                 hookBone.localScale = HasHook && !hookInFlight ? Vector3.one : Vector3.one * 0.0001f;
-            if (lanternBone != null) // on the boat's bow while rowing, not at the hip
-                lanternBone.localScale = LanternOnTheBow ? Vector3.one * 0.0001f : Vector3.one;
+            if (lanternBone != null) // on the boat's bow while rowing, not at the hip; on the floor in the opening, till taken
+                lanternBone.localScale = LanternOnTheBow || lanternOnTheFloor ? Vector3.one * 0.0001f : Vector3.one;
             float glow = CurrentState == State.Ceremony ? 1.6f + 0.5f * Mathf.Sin(Time.time * 6f)
                        : AimingHook && CurrentState == State.Free || CurrentState == State.Hooking ? 0.7f : 0f;
             UpdateVaultShadow();
@@ -2539,6 +2545,82 @@ namespace MyGame
                 if (!Physics.Raycast(p + offset * 0.5f, Vector3.down, 1.5f))
                     return;
             lastSafeGround = transform.position;
+        }
+
+        // ---------------------------------------------------------------- the opening (TheOpening)
+
+        [Header("The opening")]
+        public float wakeDuration = 3.33f; // the Wake clip: reaching for the lantern, taking it, rising (100 frames)
+        public float wakeTakeAt = 0.9f;    // the lantern in hand (its f28): the floor's goes, the hip's is there
+
+        // Lying in the dark, the lantern lit on the floor before you and the word given: Interact takes it.
+        public bool AwaitingLight { get; private set; }
+        public bool LanternOnTheFloor => lanternOnTheFloor;
+        public event System.Action LightTaken, Risen;
+        bool lanternOnTheFloor, wakeRising, wakeTaken;
+
+        // Lie still where you are (Death's last pose, breathing), the lantern not at the hip but on the floor.
+        public void LieStill()
+        {
+            SetLockTarget(null);
+            buffered = Act.None;
+            AimingHook = false;
+            Enter(State.Waking);
+            lanternOnTheFloor = true;
+            wakeRising = wakeTaken = AwaitingLight = false;
+            clips.Loop("Lie", 0f, true);
+        }
+
+        // "Take light": from now an Interact rises.
+        public void BidTakeLight() => AwaitingLight = CurrentState == State.Waking && !wakeRising;
+
+        // Reach for the lantern, take it, rise (Wake): free at its end.
+        public void Rise()
+        {
+            if (CurrentState != State.Waking || wakeRising)
+                return;
+            AwaitingLight = false;
+            wakeRising = true;
+            wakeTaken = false;
+            stateTime = 0f;
+            clips.PlayOnce("Wake", wakeDuration, 0.1f);
+        }
+
+        // Straight up and free, the lantern at the hip (the tests; a skipped opening).
+        public void EndWaking()
+        {
+            lanternOnTheFloor = false;
+            AwaitingLight = wakeRising = false;
+            if (CurrentState != State.Waking)
+                return;
+            buffered = Act.None;
+            Enter(State.Free);
+            clips.Loop("Idle", 0.1f, true);
+        }
+
+        void UpdateWaking()
+        {
+            if (!wakeRising)
+            {
+                bool pressed = Input.InteractPressed; // (read even unbidden: a press before the word is spent, not kept for it)
+                if (AwaitingLight && pressed)
+                    Rise();
+                return;
+            }
+            if (!wakeTaken && stateTime >= wakeTakeAt)
+            {
+                wakeTaken = true;
+                lanternOnTheFloor = false;
+                Sfx.Instance?.ItemTake(transform.position + Vector3.up * 0.4f);
+                LightTaken?.Invoke();
+            }
+            if (stateTime >= wakeDuration)
+            {
+                wakeRising = false;
+                buffered = Act.None; // (nothing pressed while rising carries over)
+                Enter(State.Free);
+                Risen?.Invoke();
+            }
         }
 
         void Enter(State state)

@@ -352,6 +352,67 @@ def chord(plan, e, n, reach=9.0):
     return best[1]
 
 
+# The floor's small things (hold_floor.py's pieces), by where they grow: (piece, chance per square metre at the floor's
+# edge, out in the way, at most this near another of its kind).
+GROWTH = [("lichen_1", 0.16, 0.035, 0.9), ("lichen_2", 0.16, 0.035, 0.9), ("moss_1", 0.14, 0.01, 0.8),
+          ("moss_2", 0.14, 0.01, 0.8), ("fungus_1", 0.05, 0.0, 1.2), ("fungus_2", 0.05, 0.0, 1.2),
+          ("fungus_glow", 0.035, 0.0, 3.0), ("puddle_1", 0.012, 0.018, 4.0), ("puddle_2", 0.012, 0.018, 4.0)]
+DROPPED = ["shoe", "boot", "rag", "bottle", "cup", "comb", "spoon", "coins"]
+DROPPED_PER_M2 = 0.012
+EDGE = 1.4          # (the band along the walls' feet where things gather, metres in from them)
+KEEP_CLEAR = {"START": 2.5, "MP": 2.2, "MSG": 1.4, "WS": 1.4, "OB": 1.4, "SG": 2.0, "AG": 3.0, "EYED": 3.5, "HOLD": 6.0}
+
+
+def scatter(plan, marks, chamber, rng):
+    """Where the floor's small things lie: lichen, moss and fungus thick along the walls' feet and thin out in the way,
+    a few black puddles, and here and there something one of the kept dropped. Clear of the set pieces, the messages
+    and the start; in the Boss's chamber only along its edge. Each: its piece, where (e, n, the floor's height), its
+    turn, its size."""
+    out, placed = [], {}
+    clear = [(m["e"], m["n"], KEEP_CLEAR[m["code"]]) for m in marks if m["code"] in KEEP_CLEAR]
+    step = 0.5
+    e0, e1, n0, n1 = plan.es[0], plan.es[-1], plan.ns[0], plan.ns[-1]
+    cell = step * step
+
+    def free(e, n, kind, near):
+        for (pe, pn) in placed.get(kind, []):
+            if (pe - e) ** 2 + (pn - n) ** 2 < near * near:
+                return False
+        return True
+
+    for n in np.arange(n0, n1, step):
+        for e in np.arange(e0, e1, step):
+            e_, n_ = e + rng.uniform(-0.2, 0.2), n + rng.uniform(-0.2, 0.2)
+            o = float(plan.sample(plan.O, e_, n_))
+            if o > -0.35:
+                continue                                 # (in the walls, or at their very feet: they lean over it)
+            if any((e_ - ce) ** 2 + (n_ - cn) ** 2 < r * r for ce, cn, r in clear):
+                continue
+            in_chamber = chamber is not None and float(plan.sample(plan.chamber_sd, e_, n_)) < 0.0
+            edge = o > -EDGE
+            if in_chamber and not edge:
+                continue                                 # (the fight's floor: clear)
+            u = float(plan.sample(plan.level, e_, n_))
+            for kind, at_edge, out_in_way, near in GROWTH:
+                if rng.random() < (at_edge if edge else out_in_way) * cell and free(e_, n_, kind, near):
+                    placed.setdefault(kind, []).append((e_, n_))
+                    big = 1.0 if kind.startswith("puddle") else rng.uniform(0.75, 1.3)
+                    out.append(dict(what=kind, at=[round(e_, 3), round(n_, 3), round(u, 3)],
+                                    yaw=round(rng.uniform(0, 360), 1), scale=round(big, 2)))
+                    break
+            else:
+                if not in_chamber and rng.random() < DROPPED_PER_M2 * cell and free(e_, n_, "dropped", 2.5):
+                    placed.setdefault("dropped", []).append((e_, n_))
+                    out.append(dict(what=rng.choice(DROPPED), at=[round(e_, 3), round(n_, 3), round(u, 3)],
+                                    yaw=round(rng.uniform(0, 360), 1), scale=1.0))
+    counts = {}
+    for d in out:
+        k = d["what"] if d["what"] not in DROPPED else "dropped"
+        counts[k] = counts.get(k, 0) + 1
+    print(f"[hold_drawn] the floor's small things: {len(out)} ({', '.join(f'{v} {k}' for k, v in sorted(counts.items()))})")
+    return out
+
+
 def spots(H, NS, cols, sites, marks, plan, chamber, a_end, floors):
     """Where each marker's piece went: the eyes' holes and presences' spots (as hold.py reports them), the wall each of
     the Kept tears out of (the wall foot nearest its spot, and the way out of it), the Boss's wall and the way out
@@ -395,6 +456,7 @@ def spots(H, NS, cols, sites, marks, plan, chamber, a_end, floors):
         else:
             gleams.append(r3((f["e"], f["n"])))
     out["gleams"] = [v for g in gleams for v in g]   # (flat: e, n, e, n... for Unity's JSON)
+    out["details"] = scatter(plan, marks, chamber, random.Random(2612))
     x = [extent(f) for f in floors]
     out["extent"] = r3((min(v[0] for v in x), max(v[1] for v in x), min(v[2] for v in x), max(v[3] for v in x)))
     if chamber is not None:
@@ -455,6 +517,72 @@ def build_seal(H, MT, a, b, rng):
     return ob
 
 
+GATE_HALF = 1.07   # (shortcut_gate.py: its posts' outer faces, either side of its middle)
+GATE_JAMB_H = 2.3  # (the jambs' crest over the floor: a little over the gate's lintel, whose ends sit in them; low, as
+                   #  the camera looks north over them)
+
+
+def build_gate_wall(H, MT, a, b, rng):
+    """A shortcut gate's wall (the scene builder stands shortcut_gate in its gap): two jambs of the living stone, each
+    from a wall of the way (from a, and from b: run on into the walls) in to the gate's post, where it ends in a flat
+    face the post stands against; lumpy and folded, the kept pressing up in them, as in the seal. Without them the gate
+    stood in the open between the walls. Its own object, GateWall (solid: the game gives it a collider)."""
+    fbm = H["fbm"]
+    a, b = np.array(a, float), np.array(b, float)
+    width = float(np.linalg.norm(b - a))
+    along = (b - a) / width
+    side = np.array([-along[1], along[0]])
+    mid = (a + b) / 2
+    top = 0.5   # (the floor)
+    mesh = H["Mesh"]()
+    made = 0
+    for sgn, seed in ((-1, 71), (1, 75)):
+        L = width / 2 + 1.2 - GATE_HALF   # (from the post out, and on 1.2 m into the wall)
+        if L < 1.4:
+            continue                       # (the way hardly wider than the gate: its posts touch the walls)
+        start = mid + along * sgn * GATE_HALF   # (the face against the post)
+        out = along * sgn
+        bodies = [(rng.uniform(0.25, 0.9) * L, rng.uniform(0.15, 0.9), rng.uniform(0.3, 0.5), rng.uniform(0.08, 0.15))
+                  for _ in range(max(1, int(L / 1.1)))]
+        ss = np.linspace(0, L, int(L / 0.12) + 1)
+        ts = np.linspace(0, 1, 31)
+        V = []
+        for s_ in ss:
+            for t in ts:
+                ang = math.pi * t
+                r = 1.0 + 0.1 * float(fbm(s_ * 0.9, t * 2.0, 1.7, 2, seed=seed)) + 0.03 * float(fbm(s_ * 4.0, t * 7.0, 2.9, 1, seed=seed + 1))
+                for bs, bt, bz, bo in bodies:
+                    d2 = ((s_ - bs) / bz) ** 2 + ((t - bt) / (bz * 0.5)) ** 2
+                    r += bo * math.exp(-d2 ** 1.3)
+                r += 0.04 * (1 - abs(math.sin(math.pi * (s_ / 0.9 + 0.6 * float(fbm(s_ * 0.3, 0.0, 3.1, 1, seed=seed + 2)))))) ** 3
+                # (squared off near the post: its face stands upright, not a rounded end)
+                x = -0.7 * math.cos(ang) * r
+                u = top - 0.45 + (GATE_JAMB_H + 0.45) * math.sin(ang) ** 0.6 * r
+                p = start + out * s_ + side * x
+                V.append((p[0], p[1], u))
+        V = np.array(V)
+        nt = len(ts)
+        T = []
+        for i in range(len(ss) - 1):
+            for j in range(nt - 1):
+                p, q = i * nt + j, (i + 1) * nt + j
+                T += [(p, p + 1, q + 1), (p, q + 1, q)]
+        axis = np.array([*(start + out * L / 2), top - 0.6])
+        mesh.patch(V, np.array(T), MT["wall"], True, V - axis)
+        # The face against the post: the first section closed (a fan from its middle, down to the floor).
+        ring = V[:nt]
+        centre = np.array([ring[:, 0].mean(), ring[:, 1].mean(), top - 0.45])
+        CV = np.vstack([ring, centre])
+        CT = [(j, j + 1, nt) for j in range(nt - 1)]
+        mesh.patch(CV, np.array(CT), MT["wall"], False, (-out[0], -out[1], 0.0))
+        made += 1
+    if made == 0:
+        return None
+    ob = mesh.build("GateWall")
+    print(f"[hold_drawn] a shortcut gate's wall: {made} jambs across a way {width:.1f} m wide, up to {GATE_JAMB_H} m")
+    return ob
+
+
 H_PLAN_SAMPLE = None
 
 
@@ -500,6 +628,11 @@ def build():
         if m["code"] == "AG" and chamber is not None:
             ea, eb = chord(plan, m["e"], m["n"])
             seals.append(build_seal(H, MT, ea, eb, random.Random(4401)))
+        elif m["code"] == "SG":
+            ea, eb = chord(plan, m["e"], m["n"])
+            wall = build_gate_wall(H, MT, ea, eb, random.Random(4402 + len(seals)))
+            if wall is not None:
+                seals.append(wall)
     return split_tiles(ob, 10.0) + seals
 
 
