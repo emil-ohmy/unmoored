@@ -4,13 +4,16 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 
-// Entry points for headless builds: tools/unity.sh build-mac | build-webgl
+// Entry points for headless builds: tools/unity.sh build-mac | build-windows | build-webgl
 public static class BuildScript
 {
     static readonly string BuildsDir = Path.GetFullPath(Path.Combine("..", "builds"));
 
     public static void BuildMac() =>
         Build(BuildTarget.StandaloneOSX, Path.Combine(BuildsDir, "mac", PlayerSettings.productName + ".app"));
+
+    public static void BuildWindows() =>
+        Build(BuildTarget.StandaloneWindows64, Path.Combine(BuildsDir, "windows", PlayerSettings.productName + ".exe"));
 
     public static void BuildWebGL() =>
         Build(BuildTarget.WebGL, Path.Combine(BuildsDir, "webgl"));

@@ -3,11 +3,11 @@
 #   tools/preview-poses.sh apprentice [out.png]
 #   ZOOM=2 ACTIONS=Windup,Strike tools/preview-poses.sh anchoress   # closer, just these clips
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BLENDER="${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}"
+source "$(dirname "$0")/env.sh"
+need blender ffmpeg
 blend="$(ls "$ROOT"/art/models/*/"$1".blend)"
 out="${2:-$ROOT/builds/poses-$1.png}"
-tmp="$(mktemp -d)"
+tmp="$(make_tmp)"
 "$BLENDER" -b "$blend" --python "$ROOT/tools/blender/preview_poses.py" -- "$tmp" 5 "${ZOOM:-1}" ${ACTIONS:+"$ACTIONS"} | grep "^\[preview\]"
 rows=()
 for action in $(ls "$tmp" | sed -E 's/_[0-9]+\.png$//' | sort -u); do

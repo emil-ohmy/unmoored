@@ -3,7 +3,11 @@
 **The Ferryman's Apprentice.** Design brief: `docs/brief.md`. Glossary (use these terms): `CONTEXT.md`.
 Decision history: `.scratch/game-brief/` (wayfinder map + tickets).
 
-3D game: Unity 6.6 (6000.6.3f1, URP) + Blender 5.2 for models. Driven mostly from the CLI.
+3D game: Unity 6.6 (6000.6.8f1, URP) + Blender 5.2 for models. Driven mostly from the CLI.
+
+Worked on from macOS and Windows. The `tools/*.sh` scripts run in bash on both (Git Bash on Windows); they
+take tool paths from `tools/env.sh` (override with `BLENDER=`, `BLENDER_PY=`, `UNITY=`), never hardcode them.
+`.sh` files are LF via `.gitattributes`. The film/preview/demo tools also need `ffmpeg` on PATH.
 
 ## Layout
 
@@ -21,7 +25,8 @@ tools/
   audio/synth.py                  sound synthesis kit (noise, sweeps, filters, envelopes, loops)
   record-demo.sh [project]        scripted demo session -> builds/recordings/demo.mp4 (frames + offline audio mix)
   audio/mix_recording.py          rebuilds a recording's audio from its sound-event log
-  unity.sh                        open | import | build-mac | build-webgl | test
+  unity.sh                        open | import | build-mac | build-windows | build-webgl | test
+  env.sh                          sourced by every tool: finds Blender, its Python and Unity on macOS or Windows
 game/Assets/_Project/
   Art/Models/                     generated FBX (never edit; rebuild from art/models)
   Art/Shaders/                    Toon (outline, stepped light, lantern light), Water (waves, foam)

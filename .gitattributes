@@ -1,3 +1,6 @@
+# Shell scripts: LF everywhere, or bash on Windows (Git Bash) fails on the \r
+*.sh      text eol=lf
+
 # Unity YAML: text, merge with UnityYAMLMerge if configured
 *.unity   text eol=lf
 *.prefab  text eol=lf
