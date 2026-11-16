@@ -50,6 +50,10 @@ Then (same day, the user's next notes):
 - **The level editor stays in sync** (level-editor.md, "Keeping the editor in sync"): the level file is the source of
   truth; the editor reloads on outside changes, the server refuses stale saves.
 
+**End of the 2026-11-16 session: the user says the tutorial (the Hold) is nearly done.** Open questions left with
+them: keep the grotto's Kept next to the Mourner?; the Mourner's own sounds; delete the stale Lab.unity (nothing
+builds or loads it).
+
 Next session: ask how the opening, the Mourner and the harder numbers feel in play, and whether the floor wants more or less (the
 densities are GROWTH / DROPPED_PER_M2 in hold_drawn.py). Also check the level file for edits they made in the editor
 (`git diff` on the json; their notes on floors and markers say what they want).
