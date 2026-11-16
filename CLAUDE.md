@@ -153,10 +153,14 @@ game/Assets/_Project/
   and step time at a fixed 1/60 s (`Time.captureDeltaTime`), so they're deterministic and run far faster than the
   game time they cover: wait in game time (`WaitForSeconds`, `Time.deltaTime`), never real time. For screenshots
   of play: `SHOTS=<dir>` + `-testFilter PlayCaptureTests`. A test that needs a long measurement gets `[Category("Slow")]`.
-- Headless Unity commands fail if the editor has the project open. Then work in a copy
-  (rsync without Library/), ALWAYS rebuild the scene there after every sync (synced .meta files can change script
-  GUIDs, leaving the copy's old scene with missing scripts), and let the user run the menu item in the real
-  project; never copy generated scenes/assets back (their GUIDs differ).
+- **Rebuild the scenes yourself; never ask the user to run a Build menu item.** With the Editor open (the project has
+  com.unity.pipeline, so the Unity CLI drives it): `unity status --project-path game` (state "ready"), then
+  `unity command script eval 'MainSceneBuilder.BuildHoldLayoutLabFromCommandLine();' --project-path game --timeout 300`
+  (any `MainSceneBuilder.*FromCommandLine`; `BuildAllFromCommandLine` for every scene); read the console for its
+  `[MainSceneBuilder] Built ...` line and errors (`unity command console get -- --since <cursor>`). The user just
+  presses Play. With the Editor closed, `tools/unity.sh` and `-executeMethod` headless, as before. Headless runs (and
+  the test runner) fail while the Editor has the project open: run tests from the open Editor too, or close it first
+  and say so. A rebuild always shows as a big diff (Unity renumbers a generated scene's objects): that's expected.
 - Saving: three slots (Save/SaveSlots, SaveSystem), written as you go (every Rest, and whenever something that lasts
   changes). Only a game begun from the title screen saves: pressing Play on Main in the editor keeps nothing. A new
   system that should last across quitting adds its piece to SaveData, SaveSystem.Capture and Apply (and a test).

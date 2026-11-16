@@ -52,4 +52,7 @@ densities are GROWTH / DROPPED_PER_M2 in hold_drawn.py). Also check the level fi
 - The `tools/*.sh` scripts now run on both machines (Git Bash on Windows): `tools/env.sh` finds Blender, its Python
   and Unity per OS. Checked on the PC: build-models, build-audio (byte-identical output), preview-poses, unity.sh
   open. Not yet re-checked on the Mac.
+- The project has com.unity.pipeline (2026-11-16): Claude rebuilds scenes in the user's open Editor through the Unity
+  CLI (CLAUDE.md, Workflow), so the user never has to run a Build menu item. On the Mac: install the Unity CLI
+  (`curl -fsSL https://unity.com/install.sh | bash`) if it isn't there, and pull; the package comes with the project.
 - On the Mac, port 8765 is the user's own watcher.py; the level editor uses 8777.
