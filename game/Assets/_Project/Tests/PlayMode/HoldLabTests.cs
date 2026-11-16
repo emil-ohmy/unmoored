@@ -107,6 +107,7 @@ namespace MyGame.Tests
             var kept = UnityEngine.Object.FindObjectsByType<WallPresence>(FindObjectsSortMode.None)
                 .OrderBy(w => Vector3.Distance(w.transform.position, At(4f, 35f))).First();
             Vector3 front = kept.transform.position + Flat(kept.transform.forward) * 3f;
+            apprentice.postHitInvulnerability = 1000f; // (struck once, then left alone: the walls are what's watched)
             apprentice.Teleport(new Vector3(front.x, 0.55f, front.z));
             float most = 0f;
             for (float t = 0f; t < 24f && most < 0.9f; t += Time.deltaTime)
@@ -114,6 +115,7 @@ namespace MyGame.Tests
                 most = Mathf.Max(most, kept.Out);
                 yield return null;
             }
+            Assert.IsTrue(apprentice.IsAlive, "(alive throughout: the Kept nearby once killed it here, at 40 health)");
             Assert.Greater(kept.Presses, 0, "pressed out");
             Assert.Greater(most, 0.9f, "all the way");
         }

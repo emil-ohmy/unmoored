@@ -41,7 +41,10 @@ tools/
   level-editor.sh [level]         the level editor in the browser (tools/level-editor/: a grid in metres, floors as paths,
                                   rects and rounds, every set piece as a sticker); its little server saves straight into
                                   game/Assets/_Project/Levels/<level>.json (format "level/2"). Floors and set pieces carry
-                                  a `note` (the user's intent: "a flat wall here"): read every note before building
+                                  a `note` (the user's intent: "a flat wall here"): read every note before building.
+                                  The level file is the source of truth: every layout change Claude makes goes into it
+                                  (never only into a builder or scene), new kinds of things get a sticker; see
+                                  docs/notes/level-editor.md, "Keeping the editor in sync"
   unity.sh                        open | import | build-mac | build-windows | build-webgl | test
   env.sh                          sourced by every tool: finds Blender, its Python and Unity on macOS or Windows
 game/Assets/_Project/
@@ -84,7 +87,9 @@ game/Assets/_Project/
                                   HoldSeal, the door of eyes: EyeDoor, hold_pieces.py). HoldLayoutTests read the level's own
                                   file, so they follow it as it changes. It opens with the game's opening (TheOpening: lying
                                   in the dark, a lantern on the floor kindles, "Apprentice. Take light.", you take it and rise:
-                                  the Lie and Wake clips, Apprentice.State.Waking); tests that don't play it call Skip().
+                                  the Lie and Wake clips, Apprentice.State.Waking; the lantern carried in the hand from
+                                  Wake's f100 to f192, then handed to the hip's: apprentice.py's WAKE_LANTERN/WAKE_STOW and
+                                  the builder's Wake* constants must agree); tests that don't play it call Skip().
                                   The shortcut gate stands in a wall of the living stone (hold_drawn.py's GateWall); the
                                   floor's small things (lichen, moss, fungus, puddles, what the kept dropped: hold_floor.py)
                                   lie where hold_drawn.py's scatter put them (spots.json's details), walked through.

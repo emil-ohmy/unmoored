@@ -27,7 +27,7 @@ namespace MyGame
         public float dashStaminaCost = 20f;
 
         [Header("Stamina")]
-        public float maxStamina = 60f; // (play-test 2026-11-16: 100 was too forgiving; 3 dashes or 4 swings from full)
+        public float maxStamina = 50f; // (play-tests 2026-11-16: 100, then 60, too forgiving; now two dashes and a swing)
         public float staminaRegenPerSecond = 25f; // (play-test 2026-11-16: 45/s after 0.5 s let you spam dodges and swings;
         public float staminaRegenDelay = 0.9f;    //  now ~2.4 s from empty to full, as in the Souls games: running dry costs you)
 
@@ -61,8 +61,8 @@ namespace MyGame
         public float heavyHitStop = 0.14f;
 
         [Header("Health")]
-        public float maxHealth = 50f;    // (its start; each Warm Stone found adds healthPerStone. Play-test 2026-11-16: 100 was
-                                         //  too forgiving; now two of the Hold's bites kill)
+        public float maxHealth = 40f;    // (its start; each Warm Stone found adds healthPerStone. Play-tests 2026-11-16: 100,
+                                         //  then 50, too forgiving; now two of the Hold's bites kill, and one Grieve unblocked)
         public float healthPerStone = 10f;
         public float staminaPerBreath = 10f; // each Held Breath found
         public float staggerDuration = 0.35f;
@@ -85,7 +85,7 @@ namespace MyGame
 
         [Header("Healing charges")]
         public int maxHealingCharges = 3;
-        public float healAmount = 22.5f; // (45% of the starting health, as it was at 100)
+        public float healAmount = 18f;   // (45% of the starting health, as it was at 100)
         public float healDuration = 0.7f;
 
         [Header("Lock-on")]
@@ -250,7 +250,11 @@ namespace MyGame
         void Awake()
         {
             controller = GetComponent<CharacterController>();
-            clips = new ClipPlayer(GetComponentInChildren<Animation>());
+            var animation = GetComponentInChildren<Animation>();
+            // (always animated, seen or not: things follow its bones, the opening's lantern in its hand; and it's always
+            //  on screen anyway. Culled "based on renderers", nothing moved where nothing is drawn: the tests)
+            animation.cullingType = AnimationCullingType.AlwaysAnimate;
+            clips = new ClipPlayer(animation);
             TakeBase();
             Health = maxHealth;
             Stamina = maxStamina;
@@ -2550,14 +2554,15 @@ namespace MyGame
         // ---------------------------------------------------------------- the opening (TheOpening)
 
         [Header("The opening")]
-        public float wakeDuration = 3.33f; // the Wake clip: reaching for the lantern, taking it, rising (100 frames)
-        public float wakeTakeAt = 0.9f;    // the lantern in hand (its f28): the floor's goes, the hip's is there
+        public float wakeDuration = 6.63f; // the Wake clip: reaching for the lantern, taking it, rising (200 frames, slow)
+        public float wakeTakeAt = 3.3f;    // the hand closes on the lantern's ring (its f100): TheOpening carries it in the hand
+        public float wakeStowAt = 6.37f;   // the hand hangs it at the hip (its f192): the hip's is there, the carried one gone
 
         // Lying in the dark, the lantern lit on the floor before you and the word given: Interact takes it.
         public bool AwaitingLight { get; private set; }
-        public bool LanternOnTheFloor => lanternOnTheFloor;
-        public event System.Action LightTaken, Risen;
-        bool lanternOnTheFloor, wakeRising, wakeTaken;
+        public bool LanternAtTheHip => !lanternOnTheFloor; // (in the opening: on the floor, then in the hand, then here)
+        public event System.Action LightTaken, LightStowed, Risen;
+        bool lanternOnTheFloor, wakeRising, wakeTaken, wakeStowed;
 
         // Lie still where you are (Death's last pose, breathing), the lantern not at the hip but on the floor.
         public void LieStill()
@@ -2567,7 +2572,7 @@ namespace MyGame
             AimingHook = false;
             Enter(State.Waking);
             lanternOnTheFloor = true;
-            wakeRising = wakeTaken = AwaitingLight = false;
+            wakeRising = wakeTaken = wakeStowed = AwaitingLight = false;
             clips.Loop("Lie", 0f, true);
         }
 
@@ -2581,9 +2586,9 @@ namespace MyGame
                 return;
             AwaitingLight = false;
             wakeRising = true;
-            wakeTaken = false;
+            wakeTaken = wakeStowed = false;
             stateTime = 0f;
-            clips.PlayOnce("Wake", wakeDuration, 0.1f);
+            clips.PlayOnce("Wake", wakeDuration, 0.25f); // (from Lie's breathing: eased into, not snapped)
         }
 
         // Straight up and free, the lantern at the hip (the tests; a skipped opening).
@@ -2609,10 +2614,15 @@ namespace MyGame
             }
             if (!wakeTaken && stateTime >= wakeTakeAt)
             {
-                wakeTaken = true;
-                lanternOnTheFloor = false;
+                wakeTaken = true; // (in the hand now: TheOpening carries the floor's lantern by its ring)
                 Sfx.Instance?.ItemTake(transform.position + Vector3.up * 0.4f);
                 LightTaken?.Invoke();
+            }
+            if (wakeTaken && !wakeStowed && stateTime >= wakeStowAt)
+            {
+                wakeStowed = true; // (hung at the hip: the hip's lantern is there, where the carried one was)
+                lanternOnTheFloor = false;
+                LightStowed?.Invoke();
             }
             if (stateTime >= wakeDuration)
             {

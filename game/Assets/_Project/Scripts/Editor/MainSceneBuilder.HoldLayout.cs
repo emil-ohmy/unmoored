@@ -252,23 +252,27 @@ public static partial class MainSceneBuilder
         FinishScene(scene, HoldLayoutLabPath, start, apprentice, "music_hold");
     }
 
-    // The game's opening (TheOpening): you lie at the start in the dark, the lantern lying on the floor before you on the
-    // side you reach with (apprentice.py's WAKE_LANTERN: 0.85 m ahead, 0.45 m to the left, where the hip lantern hangs),
-    // its light kindling out of nothing; a whisper with the words.
+    // The game's opening (TheOpening): you lie at the start in the dark, the lantern standing on the floor before you on
+    // the side you reach with, its ring where the hand closes on it (apprentice.py's WAKE_LANTERN: 0.74 m ahead, 0.37 m
+    // to the left, where the hip lantern hangs, 0.31 m up), at the hip lantern's size (it's that lantern: carried in the
+    // hand, it's hung there); its light kindling out of nothing; a whisper with the words.
+    const float WakeAhead = 0.74f, WakeAside = 0.37f, WakeRing = 0.31f, BowLanternSize = 1.4f;
     static void TheOpeningAt(Transform parent, Apprentice apprentice)
     {
         var t = apprentice.transform;
         var hip = t.GetComponentsInChildren<Transform>(true).FirstOrDefault(b => b.name == "Lantern");
         float side = hip != null && Vector3.Dot(hip.position - t.position, t.right) > 0f ? 1f : -1f; // (the hip lantern's side, whichever way the axes went)
-        Vector3 at = t.position + t.forward * 0.85f + t.right * side * 0.45f;
-        // (bow_lantern hangs from its origin: stood on the floor, its base 0.44 m below that)
-        var lantern = Place("Environment/bow_lantern", at + Vector3.up * 0.44f, 25f);
+        Vector3 at = t.position + t.forward * WakeAhead + t.right * side * WakeAside;
+        // (bow_lantern hangs from its origin, its ring; made 1.4 times the hip's, so scaled back to it: stood on the
+        //  floor, the ring is 0.31 m up)
+        var lantern = Place("Environment/bow_lantern", at + Vector3.up * WakeRing, 25f);
+        lantern.transform.localScale /= BowLanternSize;
         lantern.name = "The Lantern (on the floor)";
         lantern.transform.SetParent(parent, true);
         foreach (var c in lantern.GetComponentsInChildren<Collider>())
             Object.DestroyImmediate(c);
         lantern.AddComponent<NavMeshIgnore>();
-        var light = PointLight(lantern.transform, at + Vector3.up * 0.35f, 4.5f, 0f, Hex("#cfe6ff"));
+        var light = PointLight(lantern.transform, at + Vector3.up * (WakeRing - 0.2f), 4.5f, 0f, Hex("#cfe6ff"));
         light.name = "Its Light";
         light.shadows = LightShadows.Soft; // (the Apprentice's shadow thrown long across the floor)
         var opening = new GameObject("The Opening").AddComponent<TheOpening>();
@@ -276,6 +280,7 @@ public static partial class MainSceneBuilder
         opening.apprentice = apprentice;
         opening.floorLantern = lantern;
         opening.floorLight = light;
+        opening.foreArm = t.GetComponentsInChildren<Transform>(true).FirstOrDefault(b => b.name == "ForeL"); // (the hand that carries it)
         var whisper = Clips("hold_whisper");
         opening.voice = whisper.Length > 0 ? whisper[0] : null;
     }

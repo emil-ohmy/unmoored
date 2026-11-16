@@ -75,7 +75,7 @@ namespace MyGame.Tests
             var entrance = UnityEngine.Object.FindAnyObjectByType<AreaEntrance>();
             Assert.IsTrue(opening.Playing, "it plays as the Hold loads");
             Assert.AreEqual(Apprentice.State.Waking, apprentice.CurrentState, "lying still");
-            Assert.IsTrue(apprentice.LanternOnTheFloor, "the lantern on the floor, not at the hip");
+            Assert.IsFalse(apprentice.LanternAtTheHip, "the lantern on the floor, not at the hip");
             // (the world's lights: not the character screen's stage lamps, 400 m under it, lighting only its portrait)
             IEnumerable<Light> WorldLights() => UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None).Where(l => l.transform.position.y > -100f);
             int lightsAtAll = WorldLights().Count(l => l.enabled);
@@ -90,7 +90,7 @@ namespace MyGame.Tests
             input.PressInteract();
             yield return new WaitForSeconds(0.5f);
             Assert.AreEqual(Apprentice.State.Waking, apprentice.CurrentState);
-            Assert.IsTrue(apprentice.LanternOnTheFloor, "nothing taken before the word");
+            Assert.IsFalse(opening.Carried, "nothing taken before the word");
 
             for (float t = 0f; opening.Current != TheOpening.Stage.Bidden; t += Time.deltaTime)
             {
@@ -105,11 +105,23 @@ namespace MyGame.Tests
             Assert.Greater(hud.PromptAlpha, 0.9f, "the prompt");
             Assert.IsTrue(apprentice.AwaitingLight);
 
+            Vector3 onTheFloor = opening.floorLantern.transform.position;
             input.PressInteract();
-            yield return new WaitForSeconds(apprentice.wakeTakeAt + 0.2f);
-            Assert.IsFalse(apprentice.LanternOnTheFloor, "taken: at the hip now");
-            Assert.IsFalse(opening.floorLantern.activeSelf, "gone from the floor");
-            Assert.AreEqual(Apprentice.State.Waking, apprentice.CurrentState, "still rising");
+            yield return new WaitForSeconds(apprentice.wakeTakeAt - 0.3f);
+            Assert.IsFalse(opening.Carried, "the hand still on its way to it (slow: it breathes)");
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsTrue(opening.Carried, "taken: in the hand, by its ring");
+            Assert.Less(Vector3.Distance(onTheFloor, opening.floorLantern.transform.position), 0.05f, "taken where it stood (no jump)");
+            Assert.IsFalse(apprentice.LanternAtTheHip, "not at the hip yet");
+            yield return new WaitForSeconds(1.5f);
+            Assert.Greater(opening.floorLantern.transform.position.y - onTheFloor.y, 0.1f, "lifted with the hand");
+            Assert.Less(Vector3.Angle(opening.floorLantern.transform.up, Vector3.up), 25f, "hanging upright from the hand");
+            yield return new WaitForSeconds(apprentice.wakeStowAt - apprentice.wakeTakeAt - 1.7f + 0.05f);
+            Assert.IsTrue(apprentice.LanternAtTheHip, "hung at the hip");
+            Vector3 hip = apprentice.transform.GetComponentsInChildren<Transform>().First(b => b.name == "Lantern").position;
+            Assert.Less(Vector3.Distance(opening.floorLantern.transform.position, hip), 0.25f, "handed over where the hip's hangs (no jump)");
+            yield return new WaitForSeconds(opening.handOver + 0.1f);
+            Assert.IsFalse(opening.floorLantern.activeSelf, "the carried one gone: the hip's is it");
             for (float t = 0f; apprentice.CurrentState != Apprentice.State.Free; t += Time.deltaTime)
             {
                 Assert.Less(t, apprentice.wakeDuration + 1f, "up in time");
@@ -628,14 +640,18 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(0.5f);
             Shot("2-the-lantern-lit");
             input.PressInteract();
-            yield return new WaitForSeconds(0.75f);
-            Shot("3-reaching");
-            yield return new WaitForSeconds(1.3f);
-            Shot("4-kneeling");
-            yield return new WaitForSeconds(1.6f);
-            Shot("5-risen");
+            yield return new WaitForSeconds(2.2f);
+            Shot("3-the-hand-going-out");
+            yield return new WaitForSeconds(1.1f);
+            Shot("4-taken");
+            yield return new WaitForSeconds(1.8f);
+            Shot("5-held-up-before-its-face");
+            yield return new WaitForSeconds(1.0f);
+            Shot("6-rising");
+            yield return new WaitForSeconds(1.1f);
+            Shot("7-hung-at-the-hip");
             yield return new WaitForSeconds(3f);
-            Shot("6-the-cave-back");
+            Shot("8-the-cave-back");
         }
 
         // (SHOTS=dir) The way, from the game camera: the start, the first message, the post, the far side, behind the

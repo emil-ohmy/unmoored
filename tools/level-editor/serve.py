@@ -5,9 +5,12 @@
 
 GET  /                       the editor
 GET  /api/levels             the level files there (names)
-GET  /api/level?name=X       one of them
-POST /api/level?name=X       write it (the body: the level's JSON)
+GET  /api/level?name=X       one of them (its version, a hash of the file, in the X-Level-Version header)
+POST /api/level?name=X       write it (the body: the level's JSON). With X-Base-Version (the version the editor
+                             opened), refused (409) if the file changed on disk since (Claude edits it too: the level
+                             file is the source of truth for both), unless X-Force: 1.
 """
+import hashlib
 import http.server
 import json
 import os
@@ -29,16 +32,23 @@ def level_path(name):
     return os.path.join(LEVELS, name)
 
 
+def version_of(data):
+    """A level file's version: a hash of its bytes (line endings aside: git may turn them)."""
+    return hashlib.sha1(data.replace(b"\r\n", b"\n")).hexdigest()[:16]
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **k):
         super().__init__(*a, directory=HERE, **k)
 
-    def send(self, code, body, kind="application/json"):
+    def send(self, code, body, kind="application/json", version=None):
         data = body.encode() if isinstance(body, str) else body
         self.send_response(code)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        if version:
+            self.send_header("X-Level-Version", version)
         self.end_headers()
         self.wfile.write(data)
 
@@ -53,7 +63,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if not p or not os.path.exists(p):
                 return self.send(404, '{"error": "no such level"}')
             with open(p, "rb") as f:
-                return self.send(200, f.read())
+                data = f.read()
+            return self.send(200, data, version=version_of(data))
         return super().do_GET()
 
     def do_POST(self):
@@ -69,9 +80,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             json.loads(body)
         except ValueError:
             return self.send(400, '{"error": "not JSON"}')
+        base = self.headers.get("X-Base-Version")
+        if base and os.path.exists(p) and self.headers.get("X-Force") != "1":
+            with open(p, "rb") as f:
+                now = version_of(f.read())
+            if now != base:
+                return self.send(409, json.dumps({"error": "changed on disk since you opened it"}), version=now)
         with open(p, "wb") as f:
             f.write(body)
-        return self.send(200, json.dumps({"saved": os.path.relpath(p, os.path.join(HERE, "..", ".."))}))
+        return self.send(200, json.dumps({"saved": os.path.relpath(p, os.path.join(HERE, "..", ".."))}), version=version_of(body))
 
     def log_message(self, fmt, *args):
         if "/api/" in str(args[0] if args else ""):

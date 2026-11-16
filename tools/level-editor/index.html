@@ -192,7 +192,7 @@ function render() {
   const nameEl = document.getElementById("levelName");
   nameEl.textContent = (level.name || "untitled") + (server ? (fileName ? `  —  Levels/${fileName}.json` : "  (not saved yet)") : fileHandle ? "" : "  (not saved to a file yet)");
   if (dirty()) { const u = document.createElement("span"); u.className = "unsaved"; u.textContent = "  •  unsaved changes (⌘S)"; nameEl.appendChild(u); }
-  try { localStorage.setItem("levelEditor.autosave", JSON.stringify({ fileName, level, savedText })); } catch (_) {}
+  try { localStorage.setItem("levelEditor.autosave", JSON.stringify({ fileName, level, savedText, diskVersion })); } catch (_) {}
 }
 
 function isSel(kind, i) { return selection && selection.kind === kind && selection.index === i; }
@@ -643,8 +643,17 @@ async function save(as) {
   if (server) {
     let name = fileName;
     if (!name || as) { name = prompt("Save as (a name in game/Assets/_Project/Levels/):", fileName || slug(level.name)); if (!name) return; name = slug(name); }
-    const r = await fetch("/api/level?name=" + encodeURIComponent(name), { method: "POST", body: text });
-    if (r.ok) { fileName = name; savedText = levelText(); toast("Saved Levels/" + name + ".json"); refreshLevels(); render(); }
+    // (the version opened goes with it: the server refuses if the file changed on disk since, e.g. Claude's edit)
+    const headers = name === fileName && diskVersion ? { "X-Base-Version": diskVersion } : {};
+    let r = await fetch("/api/level?name=" + encodeURIComponent(name), { method: "POST", body: text, headers });
+    if (r.status === 409) {
+      if (!confirm("Levels/" + name + ".json changed on disk since you opened it (Claude may have changed the level).\n\n" +
+                   "OK: save yours over it (those changes are lost).\nCancel: keep yours here, unsaved; reload the page to see the other version first.")) {
+        toast("Not saved: the file on disk is newer"); return;
+      }
+      r = await fetch("/api/level?name=" + encodeURIComponent(name), { method: "POST", body: text, headers: { "X-Force": "1" } });
+    }
+    if (r.ok) { fileName = name; diskVersion = r.headers.get("X-Level-Version"); savedText = levelText(); toast("Saved Levels/" + name + ".json"); refreshLevels(); render(); }
     else toast("Couldn't save: " + (await r.text()));
     return;
   }
@@ -676,8 +685,27 @@ document.getElementById("levels").onchange = async evt => {
 async function openNamed(name) {
   const r = await fetch("/api/level?name=" + encodeURIComponent(name));
   if (!r.ok) { toast("No level " + name); return; }
-  load(await r.text(), null); fileName = name; render();
+  load(await r.text(), null); fileName = name; diskVersion = r.headers.get("X-Level-Version"); render();
 }
+// The file on disk is the source of truth (Claude edits it too). Watch it: changed on disk and nothing unsaved here,
+// it's reloaded (the view kept); with unsaved changes here, a warning (once) instead.
+var diskVersion = null, warnedOfDisk = null; // (var: render() saves it with the autosave, from before this line runs)
+setInterval(async () => {
+  if (!server || !fileName || document.hidden) return;
+  let r;
+  try { r = await fetch("/api/level?name=" + encodeURIComponent(fileName)); } catch (_) { return; }
+  const v = r.ok && r.headers.get("X-Level-Version");
+  if (!v || v === diskVersion) return;
+  if (!dirty()) {
+    const keep = view, name = fileName;
+    load(await r.text(), null); fileName = name; diskVersion = v; view = keep; render();
+    toast("Levels/" + name + ".json changed on disk: reloaded");
+  } else if (warnedOfDisk !== v) {
+    warnedOfDisk = v;
+    alert("Levels/" + fileName + ".json changed on disk (Claude may have changed the level), and you have unsaved changes here.\n\n" +
+          "Saving will ask before it overwrites the other version.");
+  }
+}, 2000);
 // What the last session left unsaved in this browser: {fileName, level} (an older autosave: the level alone).
 function autosaved() {
   try { const a = JSON.parse(localStorage.getItem("levelEditor.autosave")); return a && a.format === "level/2" ? { fileName: null, level: a } : a; } catch (_) { return null; }
@@ -724,8 +752,11 @@ buildPalette();
     // (only real edits: not the file changed on disk since, e.g. by Claude, when nothing was changed here)
     const same = left && left.level && (left.fileName === want || (!left.fileName && left.level.name === level.name));
     const edited = left && left.level && (left.savedText == null || JSON.stringify(left.level) !== left.savedText);
+    const moved = left && left.diskVersion && left.diskVersion !== diskVersion;
     if (same && edited && JSON.stringify(left.level) !== savedText &&
-        confirm("You have changes to " + want + " that were never saved (from your last session). Bring them back?")) {
+        confirm("You have changes to " + want + " that were never saved (from your last session). Bring them back?" +
+                (moved ? "\n\nCareful: the file has changed on disk since you made them (Claude may have changed the level). " +
+                         "Bringing yours back replaces those changes when you save." : ""))) {
       snapshot(); level = left.level; fit(); toast("Brought back your unsaved changes: ⌘S saves them");
     }
     return;

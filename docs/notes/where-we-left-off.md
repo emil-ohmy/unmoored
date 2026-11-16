@@ -41,6 +41,15 @@ Then (same day, the user's next notes):
 - **The tutorial is a voice** (VoiceLine, VOICE markers; subtitles low on the screen); one floor message left, "Try
   finger." The hint lines have a dark band behind them now (they read into the cave before).
 
+Then (same day, the user's next notes):
+- **The opening, slower and smooth**: the Wake clip is 6.6 s (was 3.3 s), keyed sparsely so the hands sweep; the
+  lantern is taken by its ring and carried in the hand (TheOpening hangs it, swaying), held up out to the left, and
+  hung at the hip, where it's handed over to the hip lantern (no jump). Darkness 4 s, the kindling 5 s.
+- **Harder still**: 40 health, 50 stamina (a heal 18).
+- "Try finger." moved down the way to just before the Boss.
+- **The level editor stays in sync** (level-editor.md, "Keeping the editor in sync"): the level file is the source of
+  truth; the editor reloads on outside changes, the server refuses stale saves.
+
 Next session: ask how the opening, the Mourner and the harder numbers feel in play, and whether the floor wants more or less (the
 densities are GROWTH / DROPPED_PER_M2 in hold_drawn.py). Also check the level file for edits they made in the editor
 (`git diff` on the json; their notes on floors and markers say what they want).

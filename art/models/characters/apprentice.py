@@ -21,8 +21,8 @@ Timing that the game depends on (the frame where things happen, as the clip is p
   Stroke (0.62 s): the wave leaves the blade at f5.7, the oar straight ahead, low.
   Toss (0.4 s): the pot let go at f5. Pickup (0.6 s): taken at the bottom, f7.5. RaiseItem/RaiseOar (2.4 s): the flash
   at the top, f17. Death (2.2 s): kneeling by f25 (the lantern gutters out). Vault (0.55 s): its top at f6.6.
-  Lie (2 s loop): the opening, lying as Death leaves you. Wake (3.3 s): the lantern on the floor (WAKE_LANTERN) taken
-  at f28; standing as at rest by f100.
+  Lie (2 s loop): the opening, lying as Death leaves you. Wake (6.6 s): the lantern on the floor (WAKE_LANTERN) taken
+  by its ring at f100, carried in the hand, hung at the hip at f192 (WAKE_STOW); standing as at rest by f200.
 """
 import math
 
@@ -97,9 +97,15 @@ def on_hook(w, x, y, z):
 
 
 STAND = planted(10, 50)
-# The opening's lantern, lying on the floor ahead on the left of the Apprentice as it lies (the clip's frame: -y
-# ahead, +x its right); TheOpening (the game) stands its floor lantern here: 0.45 m to the left, 0.85 m ahead.
-WAKE_LANTERN = (-0.45, -0.85, 0.06)
+# The opening's lantern (the clip's frame: -y ahead, +x its right): the floor lantern's ring (bow_lantern, at the hip
+# lantern's size, stood on the floor) 0.37 m to the left of the Apprentice as it lies, 0.74 m ahead, 0.31 m up (as far
+# as the arm reaches, lying: measured): the hand takes it there (Wake f100). TheOpening stands it there, and carries it in
+# the hand after (by the ring, hanging).
+WAKE_LANTERN = (-0.37, -0.74, 0.31)
+# Where the hand brings it to hang it at the hip (Wake f192): the ring that puts its glass on the hip lantern's glass
+# (the hip's at (-0.36, -0.06, 0.38); bow_lantern's glass 0.24 m under its ring, at that size). There TheOpening hands
+# it over to the hip's (the same lantern, the same place: no jump).
+WAKE_STOW = (-0.36, -0.06, 0.62)
 FREE_L = (-0.21, -0.1, 0.31)      # the free hand, hanging by the lantern
 FREE_R = (0.21, -0.1, 0.31)
 POLE_L, POLE_R = (-1, 0.5, -0.9), (1, 0.5, -0.9)  # elbows: out, back and down
@@ -788,34 +794,43 @@ def make_actions():
         "Head": [(4, (20, 0, 0)), (28, (19, 0, 0)), (44, (19.8, 0, 0))],
     }), periodic=True, free={"L": None})
 
-    # Wake (3.3 s; the lantern taken at f28: the game swaps the floor's for the hip's then): lying still a beat; the
-    # head lifts first, looking to the lantern ahead on its left (WAKE_LANTERN, on the floor); the left hand slides out
-    # over the stone to it and takes it (f28), drawing it in to the hip; then the hands under it, it pushes up onto its
-    # knees (the body leads, the head hanging after it), kneels a breath, head bowed; the right hand finds the oar on
-    # the floor and lifts it, planting its foot; up off one knee onto the feet, a little overshoot, and it settles to
-    # stand as at rest.
-    lantern = WAKE_LANTERN
-    A["Wake"] = clip(100, keys(held(LYING, 1), {
-        "Head": [(10, (20, 0, 0)), (18, (-8, 0, -10)), (30, (-4, 0, -12)), (42, (12, 0, 0)), (62, (28, 0, 0)),
-                 (74, (24, 0, 2)), (82, (6, 0, 0)), (92, (-6, 0, 0)), (100, REST["Head"])],
-        "HandL": [(10, LYING["HandL"]), (22, hand(0.4, 0, *lantern)), (28, hand(0.4, 0, lantern[0], lantern[1] + 0.02, lantern[2] + 0.02)),
-                  (38, hand(0.4, 0, -0.26, -0.38, 0.2)), (50, hand(0.4, 0, -0.24, -0.5, 0.03)), (62, hand(0.4, 0, -0.2, -0.18, 0.3)),
-                  (86, hand(0.4, 0, -0.22, -0.11, 0.31)), (100, hand(0.4, 0, *FREE_L))],
-        "Pivot": [(14, (82, 0, 12)), (20, (78, 0, 6)), (30, (80, 0, 4)), (44, (58, 0, 2)), (54, (32, 0, 2)), (62, (24, 0, 4)),
-                  (74, (22, 0, 2)), (84, (8, 0, 0)), (92, (-2, 0, 0)), (100, (0, 0, 0))],
-        "Root": [(30, LYING["Root"]), (44, ((0, 0, 0), (0, -0.14, -0.2))), (54, ((0, 0, 0), (0, 0.0, -0.23))),
-                 (62, ((0, 0, 0), (0, 0.05, -0.22))), (74, ((0, 0, 0), (0, 0.05, -0.22))), (80, ((0, 0, 0), (0, 0.03, -0.12))),
-                 (88, ((0, 0, 0), (0, 0, 0.02))), (94, ((0, 0, 0), (0, 0, -0.01))), (100, REST["Root"])],
-        "Body": [(30, (2, 0, 0)), (44, (10, 0, 0)), (62, (8, 0, 0)), (84, (4, 0, 0)), (100, REST["Body"])],
-        "FootL": [(30, LYING["FootL"]), (44, ((40, 0, 0), (0, 0.16, 0.02))), (74, ((40, 0, 0), (0, 0.16, 0.02))),
-                  (80, ((0, 0, 0), (-0.02, -0.08, 0.03))), (86, ((0, 0, 0), (0, -0.05, 0))), (94, ((0, 0, 0), (0, 0, 0)))],
-        "FootR": [(30, LYING["FootR"]), (44, ((40, 0, 0), (0, 0.18, 0.02))), (80, ((40, 0, 0), (0, 0.18, 0.02))),
-                  (88, ((0, 0, 0), (0, 0, 0.02))), (94, ((0, 0, 0), (0, 0, 0)))],
+    # Wake (6.6 s: the opening's own pace, slow; TheOpening times itself on its frames): the lantern lit before it, it
+    #   lies still a breath (f1-30); the fingers stir (f34-46); the head lifts and turns to the light (f44-66);
+    #   the left hand slides out over the stone (f50-92), comes over the lantern and closes on its ring (f100: taken;
+    #   from here the game hangs it from the hand); the right hand finds the floor, then the oar's foot, as the body
+    #   comes up onto its knees with the light held in front (f104-140); it holds the lantern up before its face a
+    #   moment, looking at it (f140-166); then it rises off one knee, the oar tipping up under the right hand, and
+    #   lowers the lantern to its hip, hanging it there (f192: the game hands it over to the hip's); the hand lets go
+    #   and falls to its side as it settles to stand as at rest (f200).
+    # Few keys, each where a movement turns, so the hands travel in one smooth sweep (the curve rests at every turn).
+    lantern, stow = WAKE_LANTERN, WAKE_STOW
+    over = (lantern[0] + 0.03, lantern[1] + 0.02, lantern[2] + 0.07)   # (the hand over the ring, about to close on it)
+    # (held up and out to its left, kneeling, looking at it: out past the body, as the camera's behind it)
+    held_up = (-0.34, -0.36, 0.66)
+    A["Wake"] = clip(200, keys(held(LYING, 1), {
+        "Pivot": [(1, (82, 0, 12)), (16, (80.8, 0, 12)), (30, (81.8, 0, 12)), (64, (79, 0, 8)), (100, (80, 0, 5)),
+                  (122, (56, 0, 3)), (140, (28, 0, 3)), (166, (24, 0, 2)), (184, (6, 0, 0)), (194, (-1.5, 0, 0)), (200, (0, 0, 0))],
+        "Root": [(100, LYING["Root"]), (122, ((0, 0, 0), (0, -0.12, -0.21))), (140, ((0, 0, 0), (0, 0.05, -0.22))),
+                 (168, ((0, 0, 0), (0, 0.05, -0.22))), (182, ((0, 0, 0), (0, 0.03, -0.11))), (192, ((0, 0, 0), (0, 0, 0.015))),
+                 (200, REST["Root"])],
+        "Body": [(1, (2, 0, 0)), (16, (3.2, 0, 0)), (30, (2.4, 0, 0)), (100, (2, 0, 0)), (130, (11, 0, 0)), (160, (8, 0, 0)),
+                 (186, (3, 0, 0)), (200, REST["Body"])],
+        "Head": [(44, (20, 0, 0)), (66, (-6, 0, -12)), (100, (0, 0, -9)), (124, (6, 0, -10)), (148, (8, 0, -22)), (166, (8, 0, -18)),
+                 (176, (16, 0, 0)), (188, (2, 0, 0)), (196, (-4, 0, 0)), (200, REST["Head"])],
+        "HandL": [(34, LYING["HandL"]),
+                  (40, hand(0.4, 0, LYING["HandL"][1][0] - 0.015, LYING["HandL"][1][1] - 0.03, LYING["HandL"][1][2] + 0.01)),
+                  (50, LYING["HandL"]), (92, hand(0.4, 0, *over)), (100, hand(0.4, 0, *lantern)),
+                  (140, hand(0.4, 0, -0.3, -0.46, 0.52)), (156, hand(0.4, 0, *held_up)), (168, hand(0.4, 0, -0.35, -0.34, 0.64)),
+                  (192, hand(0.4, 0, *stow)), (200, hand(0.4, 0, *FREE_L))],
+        "FootL": [(104, LYING["FootL"]), (140, ((40, 0, 0), (0, 0.16, 0.02))), (170, ((40, 0, 0), (0, 0.16, 0.02))),
+                  (178, ((0, 0, 0), (-0.02, -0.08, 0.03))), (184, ((0, 0, 0), (0, -0.05, 0))), (196, ((0, 0, 0), (0, 0, 0)))],
+        "FootR": [(104, LYING["FootR"]), (140, ((40, 0, 0), (0, 0.18, 0.02))), (182, ((40, 0, 0), (0, 0.18, 0.02))),
+                  (190, ((0, 0, 0), (0, 0, 0.02))), (196, ((0, 0, 0), (0, 0, 0)))],
         # (the right hand takes the oar by its foot while the body's still low, then slides up it as it tips upright)
-        "HandR": [(30, LYING["HandR"]), (40, hand(0.0, 0, 0.3, -0.2, 0.15)), (48, hand(0.02, 1, 0.3, -0.2, 0.15)),
-                  (62, hand(0.2, 1, *FREE_R)), (74, hand(0.4, 1, *FREE_R)), (86, hand(0.5, 1, *FREE_R)), (100, hand(0.6, 1, *FREE_R))],
-        "OAR": [(48, lying), (62, planted(55, 64, 30, butt=(0.31, -0.12, 0.03))), (74, planted(35, 60, 0, butt=(0.36, -0.1, 0.03))),
-                (86, planted(12, 56, butt=(0.36, -0.08, 0.03))), (94, STAND), (100, STAND)],
+        "HandR": [(104, LYING["HandR"]), (116, hand(0.0, 0, 0.3, -0.2, 0.15)), (126, hand(0.02, 1, 0.3, -0.2, 0.15)),
+                  (146, hand(0.2, 1, *FREE_R)), (172, hand(0.4, 1, *FREE_R)), (186, hand(0.5, 1, *FREE_R)), (200, hand(0.6, 1, *FREE_R))],
+        "OAR": [(126, lying), (146, planted(55, 64, 30, butt=(0.31, -0.12, 0.03))), (172, planted(35, 60, 0, butt=(0.36, -0.1, 0.03))),
+                (186, planted(12, 56, butt=(0.36, -0.08, 0.03))), (196, STAND), (200, STAND)],
     }), free={"L": None})
 
     # Block (loop, held): the oar across the front in both hands, the blade's face to the foe, braced low behind it,
