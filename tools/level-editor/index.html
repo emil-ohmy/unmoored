@@ -93,7 +93,7 @@
 "use strict";
 // ---------------------------------------------------------------- the vocabulary (the Figma sticker sheet's)
 const GROUPS = [
-  ["Places", "#3c8b86", [["START", "Start (you begin here)"], ["MP", "Mooring post"], ["AE", "Area entrance"], ["DK", "Dock (and its bell)"], ["SG", "Shortcut (one-way)"], ["HP", "Hook post"], ["AG", "Arena gate (seals the fight)"], ["MSG", "Message on the floor"], ["SEAL", "Sealed door (opens later in the game)"]]],
+  ["Places", "#3c8b86", [["START", "Start (you begin here)"], ["MP", "Mooring post"], ["AE", "Area entrance"], ["DK", "Dock (and its bell)"], ["SG", "Shortcut (one-way)"], ["HP", "Hook post"], ["AG", "Arena gate (seals the fight)"], ["VOICE", "The voice (a tutorial line)"], ["MSG", "Message on the floor"],["SEAL", "Sealed door (opens later in the game)"]]],
   ["Ability gates", "#7a5aa6", [["HK", "Gate: Hook"], ["ST", "Gate: Stroke"], ["VT", "Gate: Vault"]]],
   ["Bosses", "#9c2f3a", [["BOSS", "Boss arena (a new Boss)"], ["HOLD", "The Hold, That Would Not Let Go"], ["ANC", "The Antediluvian Anchoress"], ["MOTH", "Father Moth (the Gardener)"], ["HOUR", "The One Who Waits"], ["FERR", "The Ferryman"]]],
   ["Minibosses", "#b3505c", [["MB", "Miniboss (a new one)"], ["UNP", "The Unparted (Hold and Fast)"], ["WAT", "The Watchman (Abner Wick)"], ["WID", "The Widow Hale"]]],
@@ -448,7 +448,8 @@ function inspector() {
     const m = level.markers[index], s = STICKER[m.code] || {};
     h.textContent = s.name || m.code;
     const d = document.createElement("div"); d.className = "muted"; d.textContent = `${s.group || ""} · ${m.code} · at ${m.e.toFixed(1)}, ${m.n.toFixed(1)}`; box.appendChild(d);
-    const input = field(box, "Label", m.label || "", v => m.label = v, m.code === "MSG" ? "textarea" : "text");
+    const input = field(box, "Label", m.label || "", v => m.label = v, m.code === "MSG" || m.code === "VOICE" ? "textarea" : "text");
+    if (m.code === "VOICE") { const p = document.createElement("div"); p.className = "muted"; p.textContent = "What the voice says as you come near, then the dry line with the controls: \"*Dodge*, Apprentice. / {dodge} to dodge...\". *Starred* words show in pale gold (what matters)."; box.appendChild(p); }
     if (m.code === "MSG") { const p = document.createElement("div"); p.className = "muted"; p.textContent = "What it says (the genre's template, then the dry line: \"Try dodging / {dodge} to dodge...\")."; box.appendChild(p); }
     noteField(box, m);
     setTimeout(() => input.focus(), 0);

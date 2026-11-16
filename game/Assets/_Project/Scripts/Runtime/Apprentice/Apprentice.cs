@@ -28,8 +28,8 @@ namespace MyGame
 
         [Header("Stamina")]
         public float maxStamina = 60f; // (play-test 2026-11-16: 100 was too forgiving; 3 dashes or 4 swings from full)
-        public float staminaRegenPerSecond = 45f;
-        public float staminaRegenDelay = 0.5f;
+        public float staminaRegenPerSecond = 25f; // (play-test 2026-11-16: 45/s after 0.5 s let you spam dodges and swings;
+        public float staminaRegenDelay = 0.9f;    //  now ~2.4 s from empty to full, as in the Souls games: running dry costs you)
 
         [Header("Light attack")]
         public float lightWindup = 0.13f;

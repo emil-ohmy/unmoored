@@ -13,6 +13,17 @@ namespace MyGame
         public static readonly Color Ash = Hex(0xa89f8a);
         public static readonly Color Ember = Hex(0xffb866);
         public static readonly Color Blood = Hex(0x9e2f27);
+        // Information: what matters in a line (a name written in the Ledger, a key to press, a thing a tutorial
+        // points at), pale gold, as a Zelda game colours the words that matter. In text: *marked like this*.
+        public static readonly Color Info = Hex(0xe8c170);
+        const string InfoTag = "<color=#E8C170>";
+
+        // A line's *marked* words in the Info colour (rich text).
+        public static string Marked(string text) =>
+            string.IsNullOrEmpty(text) ? text : System.Text.RegularExpressions.Regex.Replace(text, @"\*([^*]+)\*", InfoTag + "$1</color>");
+
+        // The same line, its marks taken out (what it says, plainly).
+        public static string Unmarked(string text) => string.IsNullOrEmpty(text) ? text : text.Replace("*", "");
         public static readonly Color Bronze = Hex(0x5a4c3c);
 
         // The UI's clock: real time, so hit-stop doesn't freeze it, except while a recording steps the game at a fixed

@@ -125,6 +125,20 @@ public static partial class MainSceneBuilder
             int cut = label.IndexOf(" / ", System.StringComparison.Ordinal);
             FloorMessageAt(root, At(m), cut < 0 ? label : label.Substring(0, cut), cut < 0 ? "" : label.Substring(cut + 3));
         }
+        // The tutorial, in the voice in the dark (VoiceLine): its line, then the dry line with the controls ("line / hint").
+        var whispers = Clips("hold_whisper");
+        int spoken = 0;
+        foreach (var m in Markers("VOICE"))
+        {
+            string label = m.label ?? "";
+            int cut = label.IndexOf(" / ", System.StringComparison.Ordinal);
+            var voice = new GameObject("Voice: " + label.Split('/')[0].Trim()).AddComponent<VoiceLine>();
+            voice.transform.SetParent(root, true);
+            voice.transform.position = At(m);
+            voice.line = cut < 0 ? label : label.Substring(0, cut);
+            voice.hint = cut < 0 ? "" : label.Substring(cut + 3);
+            voice.voice = whispers.Length > 0 ? whispers[spoken++ % whispers.Length] : null;
+        }
 
         // The Boss in its chamber's north wall; the arena sealed behind you while it fights; the way out behind its face.
         TheHoldWall boss = null;

@@ -258,8 +258,15 @@
    "n": 15.5
   },
   {
+   "code": "VOICE",
+   "label": "*Dodge*, Apprentice. / {dodge} to dodge, {light} to strike. You'll be doing a great deal of both. Mostly the first.",
+   "e": -29.3,
+   "n": 8.4
+  },
+  {
    "code": "MSG",
-   "label": "Try dodging / {dodge} to dodge, {light} to strike. You'll be doing a great deal of both. Mostly the first.",
+   "label": "Try finger.",
+   "note": "The one message left on the floor, for old times' sake (the rest are the voice now).",
    "e": -29.3,
    "n": 8.4
   },
@@ -276,8 +283,8 @@
    "n": -24.7
   },
   {
-   "code": "MSG",
-   "label": "Praise the lantern / Rest at a Mooring post ({interact}) to light it. Everything you scattered gets back up. That's the deal.",
+   "code": "VOICE",
+   "label": "Light the *Mooring post*. / Rest at it ({interact}) to light it. Everything you scattered gets back up. That's the deal.",
    "e": -8.9,
    "n": -27.5
   },
@@ -294,14 +301,14 @@
    "n": -13.1
   },
   {
-   "code": "MSG",
-   "label": "Be wary of dying / {heal} to heal. You won't have many. You'll want more. Everyone does.",
+   "code": "VOICE",
+   "label": "Mind your *health*, Apprentice. / {heal} to heal. You won't have many. You'll want more. Everyone does.",
    "e": 23.3,
    "n": 2
   },
   {
-   "code": "MSG",
-   "label": "Hidden path ahead / It isn't very hidden.",
+   "code": "VOICE",
+   "label": "A *hidden path*. / It isn't very hidden.",
    "e": -2.6,
    "n": 21.2
   },
@@ -336,8 +343,8 @@
    "n": 2.4
   },
   {
-   "code": "MSG",
-   "label": "Boss ahead / Obviously.",
+   "code": "VOICE",
+   "label": "The *Boss* is ahead. / Obviously.",
    "e": -8,
    "n": -12.8
   },

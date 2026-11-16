@@ -174,6 +174,7 @@ namespace MyGame.Tests
         {
             int doors = Markers("EYED").Length;
             Assert.AreEqual(Markers("MSG").Length, Count<FloorMessage>(), "a message on the floor for each");
+            Assert.AreEqual(Markers("VOICE").Length, Count<VoiceLine>(), "the voice, where the level has it");
             Assert.AreEqual(Markers("KP").Length, Count<Kept>(), "the Kept");
             Assert.AreEqual(Markers("MP").Length, Count<MooringPost>(), "the Mooring post");
             Assert.AreEqual(Markers("WS").Length, UnityEngine.Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Count(p => p.kind == UpgradePiece.Kind.WarmStone), "the Warm Stone");
@@ -202,11 +203,13 @@ namespace MyGame.Tests
             var seal = UnityEngine.Object.FindAnyObjectByType<HoldSeal>();
             var way = TheWay();
             var messages = UnityEngine.Object.FindObjectsByType<FloorMessage>(FindObjectsSortMode.None).ToList();
-            // (the way, with a step aside onto each message along it, at the point it's nearest)
-            var stops = way.Select(p => (p, (FloorMessage)null)).ToList();
+            var voices = UnityEngine.Object.FindObjectsByType<VoiceLine>(FindObjectsSortMode.None).ToList();
+            // (the way, with a step aside onto each message and to each voice along it, at the point it's nearest)
+            var stops = way.Select(p => (p, (Component)null)).ToList();
             var along = messages.Where(m => way.Min(p => Vector2.Distance(p, Flat(m.transform.position))) < 6f).ToList();
-            foreach (var m in along.OrderByDescending(m => Nearest(way, Flat(m.transform.position))))
-                stops.Insert(Nearest(way, Flat(m.transform.position)) + 1, (Flat(m.transform.position), m));
+            var voicesAlong = voices.Where(v => way.Min(p => Vector2.Distance(p, Flat(v.transform.position))) < 6f).ToList();
+            foreach (var c in along.Cast<Component>().Concat(voicesAlong).OrderByDescending(c => Nearest(way, Flat(c.transform.position))))
+                stops.Insert(Nearest(way, Flat(c.transform.position)) + 1, (Flat(c.transform.position), c));
             bool hiddenBehind = false;
             void Watch()
             {
@@ -215,19 +218,30 @@ namespace MyGame.Tests
                 if (d > hold.armsHiddenBeyond + 2f && hold.ArmsHidden)
                     hiddenBehind = true;
             }
-            foreach (var (p, m) in stops)
+            foreach (var (p, c) in stops)
             {
-                yield return Walk(p, Watch, m != null ? 0.5f : 1.2f);
-                if (m != null)
+                yield return Walk(p, Watch, c is FloorMessage ? 0.5f : 1.2f);
+                if (c is FloorMessage m)
                 {
                     yield return null;
                     Assert.AreEqual(m, apprentice.Nearby, $"{m.message}: in reach to read");
                     yield return Interact();
                     Assert.AreEqual(m.message, hud.FoundBanner.Text.text, "its message up");
                 }
+                else if (c is VoiceLine v)
+                {
+                    yield return null;
+                    Assert.IsTrue(v.Spoken, $"{v.line}: spoken as you came near");
+                    Assert.AreEqual(UiKit.Unmarked(v.line), hud.LastSpoken, "its words up");
+                    Assert.IsTrue(hud.VoiceBanner.Showing, "as subtitles");
+                    StringAssert.Contains("<color=", hud.VoiceBanner.Text.text, "what matters in it in the Info colour");
+                }
             }
             Assert.AreEqual(along.Count, along.Count(m => m.Read > 0), "every message on the way read");
-            Assert.GreaterOrEqual(along.Count, 4, "the tutorial's messages lie along the way");
+            Assert.AreEqual(1, messages.Count, "one message left on the floor, for old times' sake");
+            Assert.AreEqual("Try finger.", messages[0].message);
+            Assert.AreEqual(voicesAlong.Count, voicesAlong.Count(v => v.Spoken), "the voice heard all along the way");
+            Assert.GreaterOrEqual(voicesAlong.Count, 4, "the tutorial in the voice along the way");
             var keptAlong = UnityEngine.Object.FindObjectsByType<Kept>(FindObjectsSortMode.None)
                 .Where(k => way.Min(p => Vector2.Distance(p, Flat(k.transform.position))) < 8f).ToList();
             Assert.GreaterOrEqual(keptAlong.Count, 4, "the Kept wait along the way");
@@ -385,6 +399,54 @@ namespace MyGame.Tests
             yield return new WaitForSeconds(1.5f);
             Assert.IsTrue(gate.IsOpen, "opened from the antechamber");
             yield return Walk(Flat(gate.transform.position - from * 3f));
+        }
+
+        // (SHOTS=dir) The words over the cave, with the UI (as PlayCaptureTests.Capture_Ui): the voice's first line and its
+        // controls, low; then a kind of Soured written in the Ledger (its name in the Info colour).
+        [UnityTest]
+        public IEnumerator Capture_TheVoice_AndTheLedgerLine()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var cam = Camera.main;
+            var rt = new RenderTexture(1600, 900, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+            cam.targetTexture = rt;
+            foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam;
+                canvas.planeDistance = 1f;
+            }
+            void Shot(string name)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = previous;
+                File.WriteAllBytes(Path.Combine(outDir, $"words-{name}.png"), tex.EncodeToPNG());
+                UnityEngine.Object.Destroy(tex);
+            }
+            try
+            {
+                var first = UnityEngine.Object.FindObjectsByType<VoiceLine>(FindObjectsSortMode.None)
+                    .OrderBy(v => Vector3.Distance(v.transform.position, apprentice.transform.position)).First();
+                yield return Walk(Flat(first.transform.position), null, 1.2f);
+                yield return new WaitForSeconds(1.6f);
+                Shot("1-the-voice");
+                yield return new WaitForSeconds(5f);
+                apprentice.Equipment.Record(LedgerEntry.TheKept);
+                yield return new WaitForSeconds(1.2f);
+                Shot("2-written-in-the-ledger");
+            }
+            finally
+            {
+                cam.targetTexture = null;
+                rt.Release();
+            }
         }
 
         // (SHOTS=dir) The opening, from the game camera (no UI): the dark; the lantern lit; reaching for it; kneeling; risen.

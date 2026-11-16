@@ -66,7 +66,9 @@ business and pay their fare to row them across.
 - **Lock-on:** lock onto a nearby Soured (and flick between targets): the Apprentice keeps facing it, every swing
   goes at it, and a directionless dash becomes a backstep. Only the locked target shows a health bar; the Stagger
   meter stays hidden.
-- **Stamina:** all actions cost stamina. Any stamina left lets you act. It regenerates after a short pause.
+- **Stamina:** all actions cost stamina. Any stamina left lets you act. It regenerates after a pause (0.9 s), slowly
+  (about 2.4 s from empty to full): spamming dodges or swings runs you dry with a foe still swinging (play-test,
+  2026-11-16; the Souls way).
 - **Stagger meter:** hidden. Light hits fill it a little, heavy hits a lot, and it drains if you let up. When full,
   the Soured is staggered and its attack is interrupted.
 - **Feel:** hit-stop, knockback and shake on every hit.

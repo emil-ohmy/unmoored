@@ -67,6 +67,10 @@ namespace MyGame
         public Banner WarningBanner { get; private set; }
         // The opening's words in the dark ("Apprentice. Take light."): held till dismissed (TheOpening).
         public Banner OpeningLine { get; private set; }
+        // The voice teaching the Hold (VoiceLine), low like subtitles: its line, and the dry line with the controls under it.
+        public Banner VoiceBanner { get; private set; }
+        Banner voiceHint;
+        public string LastSpoken { get; private set; } // (tests: the line, its marks taken out)
         float wakeHud = 1f;
         float obolsShown, gainAt = -100f, healedAt = -100f;
         Image hpFillImage;
@@ -145,7 +149,10 @@ namespace MyGame
             });
             foundHint = new Banner(canvasRect, "Found Hint", new Banner.Style
             {
-                font = textFont, size = 30, colour = UiKit.Ash, y = -210f, fadeIn = 0.7f, hold = 2.8f, fadeOut = 1.0f,
+                // (a dark band and glow of its own, as the farewell's line has: it read into the cave without; and a paler
+                //  bone than Ash, for the same reason)
+                font = textFont, size = 30, colour = UiKit.Bone.WithAlpha(0.92f), y = -210f, fadeIn = 0.7f, hold = 2.8f, fadeOut = 1.0f,
+                glow = Color.black.WithAlpha(0.8f), bandAlpha = 0.55f,
             });
             BuildHookMarker(hudRoot);
             OpeningLine = new Banner(canvasRect, "Opening Line", new Banner.Style
@@ -153,6 +160,16 @@ namespace MyGame
                 // (a voice in the dark: plain, pale, slow to come; it stays until the lantern's taken)
                 font = textFont, size = 46, colour = UiKit.Bone, spacing = 4f, y = 150f, glow = Color.black.WithAlpha(0.7f),
                 fadeIn = 2.2f, hold = 600f, fadeOut = 1.4f, drift = 0.015f,
+            });
+            VoiceBanner = new Banner(canvasRect, "Voice", new Banner.Style
+            {
+                font = textFont, size = 42, colour = UiKit.Bone, spacing = 3f, y = -290f, glow = Color.black.WithAlpha(0.8f),
+                bandAlpha = 0.55f, fadeIn = 0.8f, hold = 4.2f, fadeOut = 1.2f, drift = 0.01f,
+            });
+            voiceHint = new Banner(canvasRect, "Voice Hint", new Banner.Style
+            {
+                font = textFont, size = 30, colour = UiKit.Bone.WithAlpha(0.92f), y = -345f, glow = Color.black.WithAlpha(0.8f),
+                bandAlpha = 0.55f, fadeIn = 1.1f, hold = 4.4f, fadeOut = 1.2f,
             });
             Boss = new BossBar(canvasRect, titleFont, textFont);
             Farewell = new Banner(canvasRect, "Boss Farewell", new Banner.Style
@@ -213,8 +230,8 @@ namespace MyGame
             }
             if (writtenAfterFarewell != null && UiKit.Now - writtenAt >= WrittenAfterFarewell)
             {
-                LastWritten = writtenAfterFarewell;
-                foundHint.Show(LastWritten);
+                LastWritten = UiKit.Unmarked(writtenAfterFarewell);
+                foundHint.Show(UiKit.Marked(writtenAfterFarewell));
                 writtenAfterFarewell = null;
             }
             Farewell.Tick();
@@ -253,24 +270,43 @@ namespace MyGame
                 foundHint.Show(Controls(hint));
         }
 
-        // A hint's controls, for the device in use: {dodge} is B or Space, and so on (GameInput's bindings).
-        public string Controls(string hint) => hint
-            .Replace("{hook}", usingGamepad ? "RB" : "F").Replace("{heavy}", usingGamepad ? "Y" : "K")
-            .Replace("{vault}", usingGamepad ? "RT" : "Shift").Replace("{dodge}", usingGamepad ? "B" : "Space")
-            .Replace("{light}", usingGamepad ? "X" : "J").Replace("{heal}", usingGamepad ? "LB" : "Q")
-            .Replace("{interact}", usingGamepad ? "A" : "E").Replace("{block}", usingGamepad ? "LT" : "L")
-            .Replace("{lock}", usingGamepad ? "R3" : "Tab");
+        // The voice speaks (VoiceLine): its line, what matters in it in the Info colour; the controls under it.
+        public void Speak(string line, string hint)
+        {
+            LastSpoken = UiKit.Unmarked(line);
+            VoiceBanner.Show(UiKit.Marked(line));
+            if (!string.IsNullOrEmpty(hint))
+                voiceHint.Show(Controls(hint));
+            else
+                voiceHint.Dismiss();
+        }
+
+        // A hint's controls, for the device in use: {dodge} is B or Space, and so on (GameInput's bindings); the keys and
+        // any *marked* words in the Info colour (UiKit.Marked).
+        public string Controls(string hint) => UiKit.Marked(PlainControls(hint, true));
+
+        // (marked: each key as *key*, for the Info colour)
+        public string PlainControls(string hint, bool marked = false)
+        {
+            string K(string pad, string keys) => marked ? $"*{(usingGamepad ? pad : keys)}*" : usingGamepad ? pad : keys;
+            return hint
+                .Replace("{hook}", K("RB", "F")).Replace("{heavy}", K("Y", "K"))
+                .Replace("{vault}", K("RT", "Shift")).Replace("{dodge}", K("B", "Space"))
+                .Replace("{light}", K("X", "J")).Replace("{heal}", K("LB", "Q"))
+                .Replace("{interact}", K("A", "E")).Replace("{block}", K("LT", "L"))
+                .Replace("{lock}", K("R3", "Tab"));
+        }
 
         // A kind of Soured met (scattered) for the first time: a quiet line. A Boss's too, once its farewell has had
         // its moment.
         void OnWritten(LedgerEntry entry)
         {
             string name = entry.Name.StartsWith("The ") ? "the " + entry.Name.Substring(4) : entry.Name;
-            string line = $"Written in the Ledger: {name}";
+            string line = $"Written in the Ledger: *{name}*"; // (its name in the Info colour)
             if (entry.Kind == LedgerEntry.Rank.Soured)
             {
-                LastWritten = line;
-                foundHint.Show(line);
+                LastWritten = UiKit.Unmarked(line);
+                foundHint.Show(UiKit.Marked(line));
             }
             else
             {
@@ -380,6 +416,8 @@ namespace MyGame
             wakeHud = apprentice.CurrentState == Apprentice.State.Waking ? 0f : Mathf.MoveTowards(wakeHud, 1f, UiKit.DeltaTime * 0.8f);
             hudGroup.alpha = Death.HudAlpha * wakeHud * (Pause.IsPaused ? 0.2f : 1f); // (dimmed under the pause menu)
             OpeningLine.Tick();
+            VoiceBanner.Tick();
+            voiceHint.Tick();
             // Paused (the pause menu, the character screen), its messages go quiet too: nothing shows through a menu.
             canvasGroup.alpha = Pause.IsPaused ? 0f : Mathf.MoveTowards(canvasGroup.alpha, 1f, UiKit.DeltaTime * 6f); // (gone at once; back softly)
             AreaTitle.Tick();
