@@ -2,8 +2,21 @@
 
 **The Ferryman's Apprentice.** Design brief: `docs/brief.md`. Glossary (use these terms): `CONTEXT.md`.
 Decision history: `.scratch/game-brief/` (wayfinder map + tickets).
+Repo: github.com/emil-ohmy/unmoored ("unmoored" is the codename). Worked on from more than one machine (a Mac, a PC).
 
-3D game: Unity 6.6 (6000.6.3f1, URP) + Blender 5.2 for models. Driven mostly from the CLI.
+3D game: Unity 6.6 (6000.6.8f1, URP) + Blender 5.2 for models. Driven mostly from the CLI.
+
+## Notes (read these first)
+
+What we've learned working together, and where the last session stopped, live in `docs/notes/` so every machine
+has them. Save new lasting notes there (and commit them), never in Claude's per-machine memory; see its README.
+
+@docs/notes/where-we-left-off.md
+@docs/notes/set-pieces-before-progression.md
+@docs/notes/creature-done-checklist.md
+@docs/notes/level-editor.md
+@docs/notes/test-cadence.md
+@docs/notes/one-who-waits-two-endings.md
 
 ## Layout
 
