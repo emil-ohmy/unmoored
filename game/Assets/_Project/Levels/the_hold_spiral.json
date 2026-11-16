@@ -313,6 +313,13 @@
    "n": 21.2
   },
   {
+   "code": "MRN",
+   "label": "The Mourner",
+   "note": "Guards the grotto at the end of the hidden way: harder than the Kept, the Hold's lesson in the perfect block.",
+   "e": -8.6,
+   "n": 32.4
+  },
+  {
    "code": "KP",
    "label": "A Kept, guarding it",
    "e": -8.6,

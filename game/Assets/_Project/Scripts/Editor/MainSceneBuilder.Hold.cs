@@ -368,6 +368,62 @@ public static partial class MainSceneBuilder
         return s;
     }
 
+    // The Mourner (the hidden way's; Mourner, mourner.py): tall, carrying its bundle; Grieve up close (three blows: a
+    // perfect block breaks it off), the Lunge from further. Harder than the Kept: about ten blows of the first oar, a
+    // riposte twice that; its blows hurt (two Grieves' last blows and you're nearly gone).
+    static Mourner Mourner(string name, Vector3 position, float yaw)
+    {
+        var go = Place("Characters/mourner", position, yaw);
+        go.name = name;
+        var controller = go.AddComponent<CharacterController>();
+        controller.center = new Vector3(0f, 1.0f, 0f);
+        controller.height = 2.0f;
+        controller.radius = 0.35f;
+        controller.minMoveDistance = 0f;
+        var s = go.AddComponent<Mourner>();
+        s.maxHealth = 140f;
+        s.radius = 0.45f;
+        s.staggerCapacity = 80f;
+        s.staggerDuration = 0.8f;
+        s.stunDuration = 2.0f;      // (perfect-blocked: time for a riposte and a blow after)
+        s.aggroRadius = 10f;
+        s.viewHalfAngle = 100f;
+        s.noticeCloseRadius = 3f;
+        s.chaseSpeed = 1.4f;        // (its Walk is planted for it)
+        s.turnSpeed = 240f;
+        s.leashRadius = 12f;
+        s.giveUpRange = 15f;
+        s.obols = 90;
+        s.eyeHeight = 1.7f;
+        s.barHeight = 2.4f;
+        s.deathDuration = 1.5f;
+        s.dissolveDuration = 0.9f;
+        s.fareMotes = 30;
+        s.attackRange = 2.1f;
+        s.primary = new SouredAttack
+        {
+            name = "Lunge", windupClip = "Crouch", strikeClip = "Lunge", recoverClip = "LungeRecover",
+            telegraph = 0.9f, strike = 0.4f, recover = 0.8f, impactAt = 0.36f,
+            lunge = 1.0f, maxLunge = 4.5f, trackUntil = 0.85f, damage = 20f, reach = 1.6f, arc = 50f, knockback = 9f,
+            windupSound = Clips("kept_windup"), swingSound = Clips("kept_swipe"), swingPitch = 0.75f,
+        };
+        s.grieve.windupSound = Clips("kept_windup");
+        s.blowSwingSound = Clips("kept_swipe");
+        s.hurtSound = Clips("kept_hurt");
+        s.deathSound = Clips("kept_death");
+        Swoosh(go, "HandR", "MournerClaw", SouredSwoosh, 0.16f, "MournerPalm", 0f, "Grieve", "Lunge"); // (its claws' swipe)
+        // What it carries gives off a faint pale light, from in the crook of its arm: it's what you see of it in the dark
+        // (black tar in a black cave), and its tells read by it: rearing up in it, sinking low with it.
+        var bundle = Bone(go, "Bundle");
+        if (bundle != null)
+        {
+            var glow = PointLight(bundle, bundle.position + Vector3.up * 0.05f, 4.5f, 3f, Hex("#c9d4e6"));
+            glow.name = "What It Carries (its light)";
+            Flicker(glow, 0.08f, 0.6f, 0.01f);
+        }
+        return s;
+    }
+
     // An eye in the living wall at `at`, looking out along `normal`: its socket, its ball and its lids (hold.py's eye_*),
     // turned so their front faces out (a static model's front is its back: see CLAUDE.md).
     // (`scale` over the parts as made; `tilt`: how far it's turned up)

@@ -101,6 +101,16 @@ public static partial class MainSceneBuilder
             one.wakeWithin = Mathf.Max(one.wakeWithin, new Vector2(k.foot[0] - k.spot[0], k.foot[1] - k.spot[1]).magnitude + 3f);
         }
 
+        // The Mourner, where the level has it, turned toward the way you'll come (the nearest of the voice's places: the
+        // hidden way's).
+        foreach (var m in Markers("MRN"))
+        {
+            Vector3 at = At(m);
+            var toward = Markers("VOICE").OrderBy(v => Vector3.Distance(At(v), at)).FirstOrDefault();
+            Vector3 face = toward != null ? At(toward) - at : Vector3.back;
+            Mourner("The Mourner", at, Mathf.Atan2(face.x, face.z) * Mathf.Rad2Deg).transform.SetParent(root, true);
+        }
+
         // Mooring posts (Rest, and its lantern is lit); the finds.
         foreach (var m in Markers("MP"))
             MooringPostAt(At(m), 180f).transform.SetParent(root, true);

@@ -175,6 +175,7 @@ namespace MyGame.Tests
             int doors = Markers("EYED").Length;
             Assert.AreEqual(Markers("MSG").Length, Count<FloorMessage>(), "a message on the floor for each");
             Assert.AreEqual(Markers("VOICE").Length, Count<VoiceLine>(), "the voice, where the level has it");
+            Assert.AreEqual(Markers("MRN").Length, Count<Mourner>(), "the Mourner, on the hidden way");
             Assert.AreEqual(Markers("KP").Length, Count<Kept>(), "the Kept");
             Assert.AreEqual(Markers("MP").Length, Count<MooringPost>(), "the Mooring post");
             Assert.AreEqual(Markers("WS").Length, UnityEngine.Object.FindObjectsByType<UpgradePiece>(FindObjectsSortMode.None).Count(p => p.kind == UpgradePiece.Kind.WarmStone), "the Warm Stone");
@@ -370,6 +371,99 @@ namespace MyGame.Tests
             Assert.Greater(Vector3.Dot(apprentice.transform.position - door.transform.position, door.transform.forward), 0.5f, "still this side of it: it won't open");
         }
 
+        // The Mourner, at the hidden way's end: it Grieves up close, three blows a step into each; a perfect block on one
+        // breaks it off (stunned: no more blows that run), and a riposte lands double. Beaten as it's played (blocks,
+        // ripostes, blows), it's written in the Ledger; its harder blows hurt more than the Kept's.
+        [UnityTest]
+        public IEnumerator TheMourner_GrievesInThrees_APerfectBlockBreaksIt_AndItsWrittenIn()
+        {
+            var mourner = UnityEngine.Object.FindAnyObjectByType<Mourner>();
+            Assert.IsNotNull(mourner, "on the hidden way");
+            var kept = UnityEngine.Object.FindAnyObjectByType<Kept>();
+            Assert.Greater(mourner.grieve.damage + mourner.lastBlowDamage, kept.primary.damage * 2f, "harder than the Kept");
+            Assert.Greater(mourner.maxHealth, kept.maxHealth * 3f);
+            apprentice.postHitInvulnerability = 0.5f;
+            // (the Mourner alone: the Kept that waits in the grotto behind it out of the way)
+            foreach (var k in UnityEngine.Object.FindObjectsByType<Kept>(FindObjectsSortMode.None))
+                if (Vector3.Distance(k.transform.position, mourner.transform.position) < 15f)
+                    k.gameObject.SetActive(false);
+            Vector3 front = mourner.transform.position + mourner.transform.forward * 1.6f;
+            apprentice.Teleport(front + Vector3.up * 0.1f);
+            yield return null;
+            // Its Grieve: wait for the strike, raise the block just before the first blow lands (a perfect block).
+            for (float t = 0f; !(mourner.CurrentState == Soured.State.Strike && mourner.CurrentAttack == mourner.grieve); t += Time.deltaTime)
+            {
+                Assert.Less(t, 8f, "it Grieves at you up close");
+                var to = mourner.transform.position - apprentice.transform.position;
+                input.Move = to.magnitude > 1.8f ? new Vector2(to.x, to.z).normalized : Vector2.zero;
+                yield return null;
+            }
+            input.Move = Vector2.zero;
+            while (mourner.StateTime < mourner.blowAt[0] - 0.1f)
+                yield return null;
+            int blowsBefore = mourner.GrieveBlows;
+            float health = apprentice.Health;
+            input.BlockHeld = true;
+            for (float t = 0f; mourner.CurrentState != Soured.State.Stunned; t += Time.deltaTime)
+            {
+                Assert.Less(t, 0.6f, "a perfect block on its first blow stuns it");
+                yield return null;
+            }
+            input.BlockHeld = false;
+            Assert.AreEqual(health, apprentice.Health, 0.01f, "a perfect block takes nothing");
+            Assert.AreEqual(blowsBefore + 1, mourner.GrieveBlows, "its grief broken off after the one blow");
+            // The riposte: double.
+            float before = mourner.Health;
+            yield return null;
+            input.PressLight();
+            for (float t = 0f; t < 0.8f && mourner.Health >= before; t += Time.deltaTime)
+                yield return null;
+            Assert.AreEqual(apprentice.lightDamage * mourner.riposteMultiplier, before - mourner.Health, 0.5f, "a riposte, double");
+            // And on till it's down, fought as it teaches: a perfect block on the first blow of each Grieve (just before
+            // it lands: holding block through all three empties your stamina and breaks your guard), a dodge aside from
+            // its lunge (as it springs), and blows while it's open (stunned, recovering, staggered).
+            bool dodged = false;
+            var hurts = new System.Text.StringBuilder();
+            float lastHealth = apprentice.Health;
+            for (float t = 0f; mourner.IsAlive; t += Time.deltaTime)
+            {
+                if (apprentice.Health < lastHealth - 0.01f)
+                    hurts.Append($"\n  t {t:0.00}: -{lastHealth - apprentice.Health:0.0} ({mourner.CurrentAttack?.name} {mourner.CurrentState} at {mourner.StateTime:0.00}; you {apprentice.CurrentState}, stamina {apprentice.Stamina:0})");
+                lastHealth = apprentice.Health;
+                Assert.Less(t, 90f, "beaten in time" + hurts);
+                Assert.IsTrue(apprentice.IsAlive, "the Apprentice survives it, fought as it teaches" + hurts);
+                var to = mourner.transform.position - apprentice.transform.position;
+                var state = mourner.CurrentState;
+                bool grieving = mourner.CurrentAttack == mourner.grieve;
+                bool lunging = mourner.CurrentAttack == mourner.primary && (state == Soured.State.Telegraph || state == Soured.State.Strike);
+                input.BlockHeld = grieving && state == Soured.State.Strike && mourner.StateTime >= mourner.blowAt[0] - 0.12f
+                                  && mourner.StateTime < mourner.blowAt[0] + 0.1f;
+                if (!lunging)
+                    dodged = false;
+                else if (!dodged && state == Soured.State.Telegraph && mourner.StateTime >= mourner.primary.telegraph - 0.15f)
+                {
+                    dodged = true;
+                    Vector3 aside = Vector3.Cross(Vector3.up, to.normalized);
+                    input.Move = new Vector2(aside.x, aside.z);
+                    input.PressDash();
+                }
+                bool open = state == Soured.State.Stunned || state == Soured.State.Staggered
+                            || (state == Soured.State.Recover && mourner.StateTime < mourner.CurrentAttack.recover - 0.3f);
+                if (!lunging)
+                    input.Move = to.magnitude > 1.7f && (open || state == Soured.State.Chase) ? new Vector2(to.x, to.z).normalized : Vector2.zero;
+                if (open && to.magnitude <= 2.2f && apprentice.CurrentState == Apprentice.State.Free && apprentice.Stamina > 15f)
+                    input.PressLight();
+                if (apprentice.HealingCharges > 0 && apprentice.Health < apprentice.maxHealth * 0.45f && state == Soured.State.Recover)
+                    input.PressHeal();
+                yield return null;
+            }
+            input.BlockHeld = false;
+            input.Move = Vector2.zero;
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsTrue(apprentice.Equipment.Met(LedgerEntry.Mourner), "written in the Ledger");
+            Assert.AreEqual("Written in the Ledger: the Mourner", UnityEngine.Object.FindAnyObjectByType<Hud>().LastWritten);
+        }
+
         // The shortcut back to the Mooring post: barred from the post's side; opened from the antechamber's, for good.
         [UnityTest]
         public IEnumerator TheShortcut_IsBarred_FromThePost_AndOpens_FromTheAntechamber()
@@ -447,6 +541,60 @@ namespace MyGame.Tests
                 cam.targetTexture = null;
                 rt.Release();
             }
+        }
+
+        // (SHOTS=dir) The Mourner from the game camera: waiting; its Grieve raised (the tell); a blow; sunk to lunge; the lunge.
+        [UnityTest]
+        public IEnumerator TheMourner_Captured()
+        {
+            string outDir = Environment.GetEnvironmentVariable("SHOTS");
+            if (string.IsNullOrEmpty(outDir))
+                Assert.Ignore("set SHOTS to capture");
+            Directory.CreateDirectory(outDir);
+            var mourner = UnityEngine.Object.FindAnyObjectByType<Mourner>();
+            foreach (var k in UnityEngine.Object.FindObjectsByType<Kept>(FindObjectsSortMode.None))
+                if (Vector3.Distance(k.transform.position, mourner.transform.position) < 15f)
+                    k.gameObject.SetActive(false);
+            var cam = Camera.main;
+            void Shot(string name)
+            {
+                var rt = new RenderTexture(1600, 900, 24);
+                cam.targetTexture = rt;
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0);
+                File.WriteAllBytes(Path.Combine(outDir, $"mourner-{name}.png"), tex.EncodeToPNG());
+                cam.targetTexture = null;
+                RenderTexture.active = null;
+                UnityEngine.Object.Destroy(tex);
+                rt.Release();
+            }
+            IEnumerator Until(Func<bool> what, float within)
+            {
+                for (float t = 0f; !what() && t < within; t += Time.deltaTime)
+                    yield return null;
+            }
+            // Waiting, seen from down the way.
+            apprentice.Teleport(mourner.transform.position + mourner.transform.forward * 9f + Vector3.up * 0.1f);
+            yield return new WaitForSeconds(1f);
+            Shot("1-waiting");
+            // Up close: its Grieve.
+            apprentice.Teleport(mourner.transform.position + mourner.transform.forward * 1.6f + Vector3.up * 0.1f);
+            yield return Until(() => mourner.CurrentState == Soured.State.Telegraph && mourner.CurrentAttack == mourner.grieve, 8f);
+            yield return Until(() => mourner.StateTime >= mourner.grieve.telegraph - 0.05f, 2f);
+            Shot("2-grieve-raised");
+            yield return Until(() => mourner.CurrentState == Soured.State.Strike && mourner.StateTime >= mourner.blowAt[2] - 0.02f, 3f);
+            Shot("3-grieve-the-last-blow");
+            // Further off: its lunge.
+            yield return Until(() => mourner.CurrentState == Soured.State.Chase, 6f);
+            apprentice.Teleport(mourner.transform.position + mourner.transform.forward * 4.2f + Vector3.up * 0.1f);
+            yield return Until(() => mourner.CurrentAttack == mourner.primary && mourner.CurrentState == Soured.State.Telegraph
+                                     && mourner.StateTime >= mourner.primary.telegraph * 0.8f, 8f);
+            Shot("4-sunk-to-lunge");
+            yield return Until(() => mourner.CurrentState == Soured.State.Strike, 1f);
+            yield return new WaitForSeconds(mourner.primary.strike * 0.36f);
+            Shot("5-the-lunge");
         }
 
         // (SHOTS=dir) The opening, from the game camera (no UI): the dark; the lantern lit; reaching for it; kneeling; risen.

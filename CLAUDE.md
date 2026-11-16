@@ -87,7 +87,9 @@ game/Assets/_Project/
                                   the Lie and Wake clips, Apprentice.State.Waking); tests that don't play it call Skip().
                                   The shortcut gate stands in a wall of the living stone (hold_drawn.py's GateWall); the
                                   floor's small things (lichen, moss, fungus, puddles, what the kept dropped: hold_floor.py)
-                                  lie where hold_drawn.py's scatter put them (spots.json's details), walked through
+                                  lie where hold_drawn.py's scatter put them (spots.json's details), walked through.
+                                  The tutorial is the voice (VoiceLine: VOICE markers, "line / hint", *marked* words in
+                                  pale gold: UiKit.Info). The Mourner (mourner.py, Mourner) guards the hidden way (MRN)
   Levels/<area>.json              level layouts from the level editor (tools/level-editor.sh; format "level/2": floors as
                                   paths, rounds, rectangles; set pieces as markers; notes): read every note before building
   Scenes/Lab_Gallery.unity        the animation gallery (Build Lab (Animation Gallery)): every rigged model in

@@ -206,10 +206,14 @@ you return to it at the end, when the water drains. Dark, eerie, desolate, dead,
 there**, so many for so long that they became the place. The walls breathe, slowly swelling and sinking; ripples run
 along them towards you; faces and hands press out of the stone and sink back; eyes set in the walls open as you come
 and follow you, and close behind you. Black still water in pools and a lake (the water that drains at the end); the
-lantern nearly the only light; at the way out, a crack of grey daylight. Its only creatures are **the Kept** (like Dark
+lantern nearly the only light; at the way out, a crack of grey daylight. Its creatures are **the Kept** (like Dark
 Souls' Humanity; not "Shades": a Shade is the ghost you leave where you die): what the living walls let go of (see
-the Soured families table). The story around it isn't decided yet (why the
-Apprentice wakes there). Its lab: `Lab_Hold` (the feeling and the atmosphere only, for now).
+the Soured families table); and, on its hidden way (the user's choice, 2026-11-16), **the Mourner**: one of the kept
+not yet worn down, tall and thin, veiled in tar, carrying a small wrapped bundle that glows faintly and that it never
+sets down. Harder: the Hold's lesson in the perfect block (its Grieve, three blows, breaks off when one is
+perfect-blocked; its Lunge from further off is dodged aside). The Apprentice wakes there: the opening (lying in the
+dark, a lantern kindling, "Apprentice. Take light.") and a voice that teaches the Hold as you walk it. Why the voice,
+and whose, isn't decided yet. Its lab: `Lab_Hold` (the feeling and the atmosphere only, for now).
 
 **The Hold's Boss, The Hold, That Would Not Let Go** (the user's direction, 2026-11-02): an easy first Boss, a tutorial in
 what a Boss is (a name plate, a bar, big tells, windows to punish). At the way out, in a round chamber before the

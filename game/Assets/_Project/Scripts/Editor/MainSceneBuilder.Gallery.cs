@@ -48,6 +48,7 @@ public static partial class MainSceneBuilder
         ("keener", "Keener", p => Keener("Keener", p, 0f)),
         ("widow", "The Widow Hale", p => Widow("The Widow Hale", p, 0f)),
         ("kept", "The Kept", p => Kept("The Kept", p, p, 0)),
+        ("mourner", "The Mourner", p => Mourner("The Mourner", p, 0f)),
         ("the_hold", "The Hold, That Would Not Let Go", p => TheHoldBoss(new GameObject("(the Hold's)").transform, p)),
         ("the_hour", "The One Who Waits", p => TheHourBoss(p)),
     };

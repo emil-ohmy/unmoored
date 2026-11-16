@@ -32,7 +32,16 @@ Done 2026-11-16 on the PC, from the user's notes after play-testing:
 - **The floor** isn't bare black: lichen, moss and fungus (a few glowing faint green) along the walls' feet, black
   puddles, and a few things the kept dropped (a shoe, a comb, coins...). The user chose these over roots/tendrils.
 
-Next session: ask how the opening and the harder numbers feel in play, and whether the floor wants more or less (the
+Then (same day, the user's next notes):
+- **The Mourner** on the hidden way (at the grotto's mouth, the MRN marker): see the brief. Its sounds are the Kept's,
+  pitched down, for now: it wants its own (art/audio). The grotto's own Kept is still there too: both at once is hard
+  for a tutorial's side way; ask the user whether to keep it.
+- **Stamina** comes back slower (25/s after 0.9 s): spamming runs you dry.
+- **Information in pale gold** (UiKit.Info; *marked* words): Ledger names, keys in hints, the voice's key words.
+- **The tutorial is a voice** (VoiceLine, VOICE markers; subtitles low on the screen); one floor message left, "Try
+  finger." The hint lines have a dark band behind them now (they read into the cave before).
+
+Next session: ask how the opening, the Mourner and the harder numbers feel in play, and whether the floor wants more or less (the
 densities are GROWTH / DROPPED_PER_M2 in hold_drawn.py). Also check the level file for edits they made in the editor
 (`git diff` on the json; their notes on floors and markers say what they want).
 
